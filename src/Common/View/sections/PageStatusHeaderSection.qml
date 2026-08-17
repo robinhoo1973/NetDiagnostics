@@ -52,7 +52,7 @@ PageSection {
                 visible: AppState.runStatus !== 1
                 anchors.fill: parent
                 name: "badge-check"; size: 16
-                color: ThemeEngine.colors.passGreen
+                color: ThemeEngine.colors.success
             }
         }
         Label {
@@ -61,15 +61,14 @@ PageSection {
                 if (AppState.runStatus === 1)
                     return (AppState.currentDiagLabel || T.tr("running"))
                            + (_agg.total > 0 ? " · " + AppState.totalCompleted + "/" + _agg.total : "")
-                if (AppState.runStatus === 3) return T.tr("cancelled")
-                if (AppState.runStatus === 4) return T.tr("errorStatus")
+                var info = ThemeEngine.runStatusInfo(AppState.runStatus)
+                if (info) return T.tr(info.labelKey)
                 return (_agg.total > 0
                     ? AppState.totalCompleted + "/" + _agg.total
                     : AppState.totalCompleted) + " " + T.tr("completed")
             }
-            color: AppState.runStatus === 4 ? ThemeEngine.colors.failRed
-                 : AppState.runStatus === 3 ? ThemeEngine.colors.warnYellow
-                 : ThemeEngine.colors.textSecondary
+            color: ThemeEngine.runStatusColor(AppState.runStatus,
+                                              ThemeEngine.colors.onSurfaceVariant)
             font.family: ThemeEngine.fontUi
             font.pixelSize: ThemeEngine.fontSize.body
             elide: Text.ElideRight

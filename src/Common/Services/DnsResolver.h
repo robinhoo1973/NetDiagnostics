@@ -32,6 +32,15 @@ public:
     // Uses the same thread/timeout mechanism as resolve() but with AF_INET6.
     QString resolve6(const QString& host, int timeoutMs = 3000);
 
+    // Reverse lookup: IP literal → hostname (PTR via getnameinfo, NI_NAMEREQD).
+    // Returns empty string on timeout/failure.  Same bounded mechanism as
+    // resolve() (GCD on Apple, guarded std::thread + polling elsewhere) with
+    // the same positive/negative caching.
+    // 5WHY (simplify 2026-08-17): G4 traceroute previously called the
+    // synchronous unbounded QHostInfo::fromName per hop (30-120s hangs on
+    // broken reverse DNS) — the file's own H4 rule mandates this singleton.
+    QString resolvePtr(const QString& ip, int timeoutMs = 2000);
+
 private:
     DnsResolver() = default;
     ~DnsResolver() = default;

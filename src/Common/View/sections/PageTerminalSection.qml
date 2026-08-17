@@ -12,7 +12,7 @@ PageSection {
     bottomMargin: ThemeEngine.spacing.lg
     contentSpacing: 6
     // 主题自适应（7-5）：暗色=surface，亮色=input——不再硬编码深藏青
-    cardColor: ThemeEngine.isDark ? ThemeEngine.colors.surface : ThemeEngine.colors.input
+    cardColor: ThemeEngine.terminalBg()
 
     property var detailData: ({})
     readonly property string _terminalText: detailData.details || detailData.rawOutput || ""
@@ -25,7 +25,7 @@ PageSection {
             text: T.tr("detailTerminal")
             font.family: ThemeEngine.fontUi
             font.pixelSize: ThemeEngine.fontSize.caption
-            color: ThemeEngine.colors.textSecondary
+            color: ThemeEngine.colors.onSurfaceVariant
         }
         Loader {
             Layout.fillWidth: true

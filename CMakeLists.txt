@@ -22,6 +22,9 @@ set(CMAKE_AUTORCC ON)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 include(dependencies)      # Qt6 + curl discovery, iOS SDK detection
 include(netdiag-target)    # configure_netdiag_target() + platform bundles
+# 5WHY (review 2026-08-17): include() 在 1acc2d62 重构中被移除——AppColors.h↔
+# Palette.js 构建期校验从未在 CI 运行，镜像漂移类问题可静默入库。
+include(VerifyPaletteSync) # AppColors.h ↔ Palette.js configure-time sync check
 
 # ── Source files (rebuilt foundation — contract + execution core) ──────
 # UI layer (PageSection/PageDisplay/sections/pages) and per-group adapters

@@ -74,10 +74,10 @@ Item {
     Rectangle {
         anchors.fill: parent
         radius: ThemeEngine.radius.md  // 8
-        color: ThemeEngine.colors.card
+        color: ThemeEngine.colors.surfaceContainerLow
         border {
             width: 1
-            color: ThemeEngine.colors.borderCard
+            color: ThemeEngine.colors.outlineVariant
         }
 
         ColumnLayout {
@@ -100,7 +100,7 @@ Item {
                 // is cross-platform consistent; `bold: true` maps to different
                 // weights per platform font engine.
                 font.weight: Font.Medium
-                color: ThemeEngine.colors.textSecondary
+                color: ThemeEngine.colors.onSurfaceVariant
                 elide: Text.ElideRight
                 maximumLineCount: 1
             }
@@ -129,7 +129,7 @@ Item {
                     font.family: ThemeEngine.monoFont
                     font.pixelSize: 14
                     font.weight: Font.Medium
-                    color: ThemeEngine.colors.textSecondary
+                    color: ThemeEngine.colors.onSurfaceVariant
                     // 5WHY: baseline alignment — the unit label must sit on
                     // the same baseline as the value label so "23 ms" reads
                     // as one visual phrase.  Without vertical alignment the

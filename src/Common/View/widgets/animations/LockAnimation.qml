@@ -12,7 +12,7 @@ Item {
     id: root
     property bool running: false    // Unused by Lock (draws own content) — see BounceAnimation 5WHY.
     property var targetItem: null
-    property color accentColor: T.ThemeEngine ? T.ThemeEngine.colors.passGreen : "#4ADE80"
+    property color accentColor: T.ThemeEngine ? T.ThemeEngine.colors.success : "#4ADE80"
     property int dropDuration: Tokens.tokens.lockDropDuration
 
     // ── Lock indicator ──────────────────────────────────────────────────

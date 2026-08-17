@@ -8,7 +8,7 @@ import widgets
 
 Rectangle {
     id: root
-    color: ThemeEngine.colors.sidebar
+    color: ThemeEngine.colors.surfaceContainer
     property bool wide: true
     signal runRequested()
     signal cancelRequested()
@@ -35,17 +35,17 @@ Rectangle {
             // 主机输入
             Rectangle {
                 Layout.fillWidth: true; Layout.preferredHeight: 36; radius: 6
-                color: ThemeEngine.colors.input
+                color: ThemeEngine.colors.surfaceContainerHighest
                 border {
                     width: hostField.activeFocus ? 2 : 1
-                    color: AppState.targetValidationErrorText !== "" ? ThemeEngine.colors.failRed
-                           : hostField.activeFocus ? ThemeEngine.colors.borderFocused : ThemeEngine.colors.borderCard
+                    color: AppState.targetValidationErrorText !== "" ? ThemeEngine.colors.fail
+                           : hostField.activeFocus ? ThemeEngine.colors.primary : ThemeEngine.colors.outlineVariant
                 }
                 TextField {
                     id: hostField
                     anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
                     font.family: ThemeEngine.monoFont; font.pixelSize: 12
-                    color: ThemeEngine.colors.textPrimary
+                    color: ThemeEngine.colors.onSurface
                     placeholderText: "example.com"
                     placeholderTextColor: ThemeEngine.colors.textPlaceholder
                     text: { var h = AppState.targetHost; var p = AppState.targetPath; return (!h && !p) ? "" : h + p }
@@ -65,7 +65,7 @@ Rectangle {
                 contentItem: AppIcon {
                     name: "gear"; size: 18
                     color: credsBtn.enabled
-                           ? (AppState.targetHasCredentials ? ThemeEngine.colors.primary : ThemeEngine.colors.textSecondary)
+                           ? (AppState.targetHasCredentials ? ThemeEngine.colors.primary : ThemeEngine.colors.onSurfaceVariant)
                            : ThemeEngine.colors.textMuted
                 }
                 background: Rectangle {
@@ -77,7 +77,7 @@ Rectangle {
                         width: 1
                         color: AppState.targetHasCredentials && credsBtn.enabled
                                ? Qt.alpha(ThemeEngine.colors.primary, 0.6)
-                               : ThemeEngine.colors.borderCard
+                               : ThemeEngine.colors.outlineVariant
                     }
                 }
                 onClicked: credsPopup.open()
@@ -104,7 +104,7 @@ Rectangle {
                 contentItem: Text {
                     text: runBtn.text
                     font: runBtn.font
-                    color: ThemeEngine.colors.textOnAccent
+                    color: ThemeEngine.colors.onPrimary
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
                 }
@@ -120,7 +120,7 @@ Rectangle {
                 Accessible.name: T.tr("cellularCancel")   // "Cancel" 15 语言
                 background: Rectangle {
                     radius: 18
-                    color: ThemeEngine.colors.failRed
+                    color: ThemeEngine.colors.fail
                     opacity: cancelBtn.hovered ? 0.85 : 1.0
                 }
                 contentItem: Text {
@@ -137,7 +137,7 @@ Rectangle {
         Label {
             visible: AppState.targetValidationErrorText !== ""
             text: T.trMsg(AppState.targetValidationErrorText)
-            color: ThemeEngine.colors.failRed
+            color: ThemeEngine.colors.fail
             font.family: ThemeEngine.fontUi; font.pixelSize: ThemeEngine.fontSize.caption
             leftPadding: ThemeEngine.spacing.sm
         }
@@ -160,8 +160,8 @@ Rectangle {
         }
         background: Rectangle {
             radius: ThemeEngine.radius.xl
-            color: ThemeEngine.colors.card
-            border { width: 1; color: ThemeEngine.colors.borderCard }
+            color: ThemeEngine.colors.surfaceContainerLow
+            border { width: 1; color: ThemeEngine.colors.outlineVariant }
         }
         contentItem: ColumnLayout {
             spacing: ThemeEngine.spacing.md
@@ -170,14 +170,14 @@ Rectangle {
                 font.family: ThemeEngine.fontUi
                 font.pixelSize: ThemeEngine.fontSize.subhead
                 font.weight: Font.DemiBold
-                color: ThemeEngine.colors.textPrimary
+                color: ThemeEngine.colors.onSurface
             }
             Label {
                 Layout.fillWidth: true
                 text: T.tr("targetCredsHint")
                 font.family: ThemeEngine.fontUi
                 font.pixelSize: ThemeEngine.fontSize.caption
-                color: ThemeEngine.colors.textSecondary
+                color: ThemeEngine.colors.onSurfaceVariant
                 wrapMode: Text.WordWrap
             }
             RowLayout {
@@ -187,19 +187,19 @@ Rectangle {
                     text: T.tr("targetUsername")
                     font.family: ThemeEngine.fontUi
                     font.pixelSize: ThemeEngine.fontSize.body
-                    color: ThemeEngine.colors.textPrimary
+                    color: ThemeEngine.colors.onSurface
                 }
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 36
                     radius: 6
-                    color: ThemeEngine.colors.input
-                    border { width: 1; color: ThemeEngine.colors.borderCard }
+                    color: ThemeEngine.colors.surfaceContainerHighest
+                    border { width: 1; color: ThemeEngine.colors.outlineVariant }
                     TextField {
                         id: userField
                         anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
                         font.family: ThemeEngine.monoFont; font.pixelSize: 12
-                        color: ThemeEngine.colors.textPrimary
+                        color: ThemeEngine.colors.onSurface
                         placeholderText: "user"
                         placeholderTextColor: ThemeEngine.colors.textPlaceholder
                         verticalAlignment: TextInput.AlignVCenter
@@ -214,20 +214,20 @@ Rectangle {
                     text: T.tr("targetPassword")
                     font.family: ThemeEngine.fontUi
                     font.pixelSize: ThemeEngine.fontSize.body
-                    color: ThemeEngine.colors.textPrimary
+                    color: ThemeEngine.colors.onSurface
                 }
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 36
                     radius: 6
-                    color: ThemeEngine.colors.input
-                    border { width: 1; color: ThemeEngine.colors.borderCard }
+                    color: ThemeEngine.colors.surfaceContainerHighest
+                    border { width: 1; color: ThemeEngine.colors.outlineVariant }
                     TextField {
                         id: passField
                         anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
                         echoMode: TextInput.Password
                         font.family: ThemeEngine.monoFont; font.pixelSize: 12
-                        color: ThemeEngine.colors.textPrimary
+                        color: ThemeEngine.colors.onSurface
                         placeholderTextColor: ThemeEngine.colors.textPlaceholder
                         verticalAlignment: TextInput.AlignVCenter
                         background: Item {}
@@ -241,19 +241,19 @@ Rectangle {
                     text: T.tr("targetPort")
                     font.family: ThemeEngine.fontUi
                     font.pixelSize: ThemeEngine.fontSize.body
-                    color: ThemeEngine.colors.textPrimary
+                    color: ThemeEngine.colors.onSurface
                 }
                 Rectangle {
                     Layout.preferredWidth: 110
                     Layout.preferredHeight: 36
                     radius: 6
-                    color: ThemeEngine.colors.input
-                    border { width: 1; color: ThemeEngine.colors.borderCard }
+                    color: ThemeEngine.colors.surfaceContainerHighest
+                    border { width: 1; color: ThemeEngine.colors.outlineVariant }
                     TextField {
                         id: portField
                         anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
                         font.family: ThemeEngine.monoFont; font.pixelSize: 12
-                        color: ThemeEngine.colors.textPrimary
+                        color: ThemeEngine.colors.onSurface
                         placeholderText: "1-65535"
                         placeholderTextColor: ThemeEngine.colors.textPlaceholder
                         verticalAlignment: TextInput.AlignVCenter
@@ -271,13 +271,13 @@ Rectangle {
                     onClicked: credsPopup.close()
                     background: Rectangle {
                         radius: 16
-                        color: popCancelBtn.hovered ? Qt.alpha(ThemeEngine.colors.textSecondary, 0.12) : "transparent"
-                        border { width: 1; color: ThemeEngine.colors.borderCard }
+                        color: popCancelBtn.hovered ? Qt.alpha(ThemeEngine.colors.onSurfaceVariant, 0.12) : "transparent"
+                        border { width: 1; color: ThemeEngine.colors.outlineVariant }
                     }
                     contentItem: Text {
                         text: popCancelBtn.text
                         font: popCancelBtn.font
-                        color: ThemeEngine.colors.textPrimary
+                        color: ThemeEngine.colors.onSurface
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
                     }
@@ -297,7 +297,7 @@ Rectangle {
                     contentItem: Text {
                         text: popApplyBtn.text
                         font: popApplyBtn.font
-                        color: ThemeEngine.colors.textOnAccent
+                        color: ThemeEngine.colors.onPrimary
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
                     }

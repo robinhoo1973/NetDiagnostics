@@ -79,16 +79,16 @@ ComboBox {
     // ── 外观：输入底 + chevron 指示（与工具栏输入框同体系）──
     background: Rectangle {
         radius: 6
-        color: ThemeEngine.colors.input
+        color: ThemeEngine.colors.surfaceContainerHighest
         border {
             width: root.activeFocus ? 2 : 1
-            color: root.activeFocus ? ThemeEngine.colors.borderFocused : ThemeEngine.colors.borderCard
+            color: root.activeFocus ? ThemeEngine.colors.primary : ThemeEngine.colors.outlineVariant
         }
     }
     contentItem: Label {
         text: root.displayText
         font: root.font
-        color: ThemeEngine.colors.textPrimary
+        color: ThemeEngine.colors.onSurface
         verticalAlignment: Text.AlignVCenter
         leftPadding: 8
         rightPadding: 24
@@ -97,7 +97,7 @@ ComboBox {
     indicator: AppIcon {
         anchors { right: parent.right; rightMargin: 8; verticalCenter: parent.verticalCenter }
         name: "chevron-down"; size: 12
-        color: ThemeEngine.colors.textSecondary
+        color: ThemeEngine.colors.onSurfaceVariant
     }
 
     // ── 分组弹窗 ──
@@ -107,8 +107,8 @@ ComboBox {
         height: Math.min(implicitHeight, 380)
         padding: 6
         background: Rectangle {
-            color: ThemeEngine.colors.card
-            border { width: 1; color: ThemeEngine.colors.borderCard }
+            color: ThemeEngine.colors.surfaceContainerLow
+            border { width: 1; color: ThemeEngine.colors.outlineVariant }
             radius: 10
         }
         contentItem: ListView {
@@ -157,7 +157,7 @@ ComboBox {
                         Layout.preferredHeight: 14
                         name: root.groupIcon(grp)
                         size: 14
-                        color: ThemeEngine.colors.cyan
+                        color: ThemeEngine.colors.tertiary
                     }
                     Label {
                         Layout.fillWidth: true
@@ -179,7 +179,7 @@ ComboBox {
                 font.family: ThemeEngine.monoFont
                 font.pixelSize: 12
                 leftPadding: 28
-                color: highlighted ? ThemeEngine.colors.cyan : ThemeEngine.colors.textPrimary
+                color: highlighted ? ThemeEngine.colors.tertiary : ThemeEngine.colors.onSurface
             }
         }
     }

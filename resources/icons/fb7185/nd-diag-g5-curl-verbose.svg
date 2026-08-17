@@ -1,24 +1,28 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke-linecap="round" stroke-linejoin="round" fill-opacity="0">
-  <defs>
+    <!-- 背景：1:1 复刻 blankfile.png（页面 #007CC9 + 折角 #0094F5，透明边缘） -->
+  <g transform="translate(3.7606 1.0000) scale(0.084942)">
+  <path d="M15,2L124,2l0,54l3,10l5,5l5,2l57,1l0,170l-3,6l-8,6l-2,1L14,257l-9-5l-4-7l-1-4L0,17L4,8L6,8L6,6Z" fill="#007CC9" fill-opacity="1"/>
+    <g transform="translate(104 0)">
+    <path d="M43,16c-.33,.17-.33,.17-2,1c0,.66,0,1.32,0,2c2.18,.93,7.08,3.69,8,6c.14,.36,0,1.56,0,2c2.18,.93,7.08,3.69,8,6c.14,.36,0,1.56,0,2c2.18,.93,7.08,3.69,8,6c.14,.36,0,1.56,0,2c1.32,.66,2.64,1.32,4,2c0,.66,0,1.32,0,2c.99,0,1.98,0,3,0c.51,3.86,1.41,4.61,5,6c0,.66,0,1.32,0,2c.99,0,1.98,0,3,0c4,5.26,4,5.26,4,8c1.98,.66,3.96,1.32,6,2c0,2.64,0,5.28,0,8c-14.18,.37-28.37,.61-42.55,1.01c-5.03,.14-12.81,1.22-17.53-.96c-4.7-2.17-7.68-6.64-9.14-11.49c-1.96-6.51-1.31-14.24-1.39-20.99C19.26,28.05,19.1,15.52,19,3c6.75-.12,6.75-.12,9,1c0,.66,0,1.32,0,2c.66,0,1.32,0,2,0c0,.66,0,1.32,0,2c.99,.33,1.98,.66,3,1c0,.66,0,1.32,0,2c3.33,1.67,6.67,3.33,10,5ZM27,8c-2.21-1.47-3-1.2-3-4c-.99,0-1.98,0-3,0c0,1.32,0,2.64,0,4c1.98,0,3.96,0,6,0ZM21,59c.66-.33,1.32-.66,2-1c-.33-3.33-.67-6.67-1-10c-.33,0-.66,0-1,0c0,3.67,0,7.33,0,11Zm5,7c.99,0,1.98,0,3,0c0-.66,0-1.32,0-2c-.66,0-1.32,0-2,0c-.33,.66-.66,1.32-1,2Zm3,2c-.66-.33-1.32-.66-2-1c0,.66,0,1.32,0,2c.66-.33,1.32-.66,2-1Z" fill="#0094F5" fill-opacity="1"/>
+    </g>
+  </g>
+<defs>
     <linearGradient id="ngnddiagg5curlverbose" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#FB7185" />
       <stop offset="100%" stop-color="#F8072A" />
     </linearGradient>
   </defs>
 
-  <!-- 空白文件图标：上半部放缩小的请求/响应图形，下半部居中白色 HTML -->
-  <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" stroke="url(#ngnddiagg5curlverbose)" stroke-width="1.6" />
-  <path d="M14 2v4a2 2 0 0 0 2 2h4" stroke="#F8072A" stroke-width="1.2" />
-  <!-- 请求/响应图形缩小 0.55 并下移 1/4 图形高(1.57)，中心 (12,9.37)，bbox x7.27-16.73 y6.24-12.51，与文件边框/折角无重叠 -->
+  <!-- 空白文件图标：上半部放缩小的请求/响应图形，下半部居中白色 HTML --><!-- 请求/响应图形缩小 0.55 并下移 1/4 图形高(1.57)，中心 (12,9.37)，bbox x7.27-16.73 y6.24-12.51，与文件边框/折角无重叠 -->
   <g transform="translate(5.4 3.16) scale(0.55)">
   <!-- Browser requests page, server responds -->
   <rect x="3.4" y="7" width="6" height="10" rx="1.4" stroke="url(#ngnddiagg5curlverbose)" stroke-width="1.6" />
   <path d="M3.4 9.6 H9.4" stroke="#F8072A" stroke-width="1.2" />
-  <circle cx="6.4" cy="13" r="0.9" fill="#06B6D4" fill-opacity="1" />
+  <circle cx="6.4" cy="13" r="0.9" fill="Light.tertiary" fill-opacity="1" />
   <rect x="14.6" y="7" width="6" height="10" rx="1.4" stroke="url(#ngnddiagg5curlverbose)" stroke-width="1.6" />
   <circle cx="17" cy="10.4" r="0.7" fill="#64748B" fill-opacity="1" />
   <circle cx="17" cy="13.2" r="0.7" fill="#64748B" fill-opacity="1" />
-  <path d="M9.6 9.4 H14.4 M14.4 9.4 l-2.2 -1.4 M14.4 9.4 l-2.2 1.4" stroke="#06B6D4" stroke-width="1.4" />
+  <path d="M9.6 9.4 H14.4 M14.4 9.4 l-2.2 -1.4 M14.4 9.4 l-2.2 1.4" stroke="Light.tertiary" stroke-width="1.4" />
   <path d="M14.4 14.6 H9.6 M9.6 14.6 l2.2 -1.4 M9.6 14.6 l2.2 1.4" stroke="#F8072A" stroke-width="1.2" />
   </g>
   <!-- HTML（下半部居中，白色高亮，基线 19.0 距文件下边 3px） -->

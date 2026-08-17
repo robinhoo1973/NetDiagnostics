@@ -9,7 +9,7 @@
 // level" mental model with only basic primitives.)
 //
 // Usage:
-//   Gauge { value: 2.3; maxValue: 100; unit: "%"; gaugeColor: ThemeEngine.colors.passGreen }
+//   Gauge { value: 2.3; maxValue: 100; unit: "%"; gaugeColor: ThemeEngine.colors.success }
 // =============================================================================
 import QtQuick
 import QtQuick.Controls
@@ -23,7 +23,7 @@ Item {
     property real value: 0
     property real maxValue: 100
     property string unit: "%"
-    property color gaugeColor: ThemeEngine.colors.passGreen
+    property color gaugeColor: ThemeEngine.colors.success
     // 5WHY (R2): metrics that are semantically invalid at negative values
     // (e.g. daysLeft for an expired certificate) show this localized label
     // instead of a confusing negative number + 0% fill.
@@ -112,7 +112,7 @@ Item {
                 font.family: ThemeEngine.monoFont
                 font.pixelSize: 12
                 font.weight: Font.Medium
-                color: ThemeEngine.colors.textSecondary
+                color: ThemeEngine.colors.onSurfaceVariant
                 verticalAlignment: Text.AlignBottom
                 bottomPadding: 2
             }
@@ -132,7 +132,7 @@ Item {
             Layout.fillWidth: true
             Layout.preferredHeight: 8
             radius: 4
-            color: ThemeEngine.colors.input
+            color: ThemeEngine.colors.surfaceContainerHighest
 
             // ── Fill bar ──────────────────────────────────────────────────
             Rectangle {
@@ -153,7 +153,7 @@ Item {
 
                 // 5WHY: ColorAnimation on the fill bar provides a smooth
                 // transition when gaugeColor changes (e.g. packet loss moves
-                // from passGreen → warnYellow → failRed as it climbs).
+                // from success → warning → fail as it climbs).
                 // Without this, the bar snaps to the new color immediately,
                 // which is jarring for live-updating metrics.
                 Behavior on color {

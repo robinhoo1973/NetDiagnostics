@@ -12,7 +12,6 @@ PageSection {
     fixedHeight: 56   // 8-16：Material 顶栏最佳实践 56px（原 implicit 约 36 过矮）
 
     property string title: ""
-    property string iconName: "circle"
     property var detail: ({})               // DetailPage 注入（diagId → T.diagName）
     signal backRequested()
     signal copyRequested()
@@ -24,19 +23,18 @@ PageSection {
         Layout.leftMargin: ThemeEngine.spacing.sm
         Layout.rightMargin: ThemeEngine.spacing.sm
         spacing: ThemeEngine.spacing.sm
-        AppIcon {
-            name: "chevron-right"; size: 20
-            color: ThemeEngine.colors.textSecondary
-            mirror: true   // 返回箭头
-            MouseArea {
-                anchors.fill: parent
-                cursorShape: Qt.PointingHandCursor
-                onClicked: root.backRequested()
-            }
-            Accessible.role: Accessible.Button
+        // 头部操作按钮：≥44px 命中区 + 键盘可达（共享 IconActionButton；
+        // 5WHY simplify 2026-08-17：该脚手架曾在两处复制、第三处漏键盘支持）
+        IconActionButton {
+            id: backBtn
+            Layout.preferredWidth: 44
+            Layout.fillHeight: true
+            iconName: "chevron-right"
+            iconSize: 20
+            iconMirror: true   // 返回箭头
             Accessible.name: T.tr("accCloseDetails")
+            onActivated: root.backRequested()
         }
-        AppIcon { name: root.iconName; size: 18; color: ThemeEngine.colors.cyan }
         Label {
             text: root.detail.diagId !== undefined
                   ? (T.diagName(root.detail.diagId) || root.title)
@@ -44,20 +42,18 @@ PageSection {
             font.family: ThemeEngine.fontUi
             font.pixelSize: ThemeEngine.fontSize.subhead
             font.weight: Font.DemiBold
-            color: ThemeEngine.colors.textPrimary
+            color: ThemeEngine.colors.onSurface
             Layout.fillWidth: true
             elide: Text.ElideRight
         }
-        AppIcon {
-            name: "clipboard"; size: 18
-            color: ThemeEngine.colors.textSecondary
-            MouseArea {
-                anchors.fill: parent
-                cursorShape: Qt.PointingHandCursor
-                onClicked: root.copyRequested()
-            }
-            Accessible.role: Accessible.Button
+        IconActionButton {
+            id: copyBtn
+            Layout.preferredWidth: 44
+            Layout.fillHeight: true
+            iconName: "clipboard"
+            iconSize: 18
             Accessible.name: T.tr("detailCopy")
+            onActivated: root.copyRequested()
         }
     }
 }

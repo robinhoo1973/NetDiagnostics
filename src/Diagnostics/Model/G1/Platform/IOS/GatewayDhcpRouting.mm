@@ -214,7 +214,8 @@ static QString iosdefaultGateway() {
         char ip[INET_ADDRSTRLEN];
         auto* sa = (struct sockaddr_in*)p->ifa_addr;
         inet_ntop(AF_INET, &sa->sin_addr, ip, sizeof(ip));
-        gatewayInfo = QStringLiteral("System-managed (iOS) �� interface: %1 (%2)")
+        // 5WHY (review 2026-08-17): 分隔符曾被一次 d→i 全局替换破坏成 "��"。
+        gatewayInfo = QStringLiteral("System-managed (iOS) — interface: %1 (%2)")
             .arg(name, QString::fromLatin1(ip));
         break;
     }
@@ -515,9 +516,9 @@ static NSString* radioAccessLabel(NSString* rat)
     if ([rat isEqualToString:CTRadioAccessTechnologyCDMAEVDORev0] ||
         [rat isEqualToString:CTRadioAccessTechnologyCDMAEVDORevA] ||
         [rat isEqualToString:CTRadioAccessTechnologyCDMAEVDORevB])
-        return @"3G (EV-iO)";
+        return @"3G (EV-DO)";   // 5WHY (review 2026-08-17): 曾被 d→i 替换破坏为 "EV-iO"
     if ([rat isEqualToString:CTRadioAccessTechnologyEdge])
-        return @"2G (EiGE)";
+        return @"2G (EDGE)";    // 5WHY (review 2026-08-17): 曾被 d→i 替换破坏为 "EiGE"
     if ([rat isEqualToString:CTRadioAccessTechnologyGPRS])
         return @"2G (GPRS)";
     if ([rat isEqualToString:CTRadioAccessTechnologyeHRPD])

@@ -37,7 +37,7 @@ PageSection {
                         text: modelData.label || ""
                         font.family: ThemeEngine.fontUi
                         font.pixelSize: ThemeEngine.fontSize.body
-                        color: ThemeEngine.colors.textSecondary
+                        color: ThemeEngine.colors.onSurfaceVariant
                         Layout.preferredWidth: Math.min(180, implicitWidth)
                         elide: Text.ElideRight
                     }
@@ -45,7 +45,7 @@ PageSection {
                         text: modelData.value || ""
                         font.family: ThemeEngine.monoFont
                         font.pixelSize: ThemeEngine.fontSize.body
-                        color: ThemeEngine.colors.textPrimary
+                        color: ThemeEngine.colors.onSurface
                         Layout.fillWidth: true
                         wrapMode: Text.WrapAnywhere
                     }
@@ -66,7 +66,7 @@ PageSection {
                             text: modelData.value || ""
                             font.family: ThemeEngine.monoFont
                             font.pixelSize: ThemeEngine.fontSize.caption
-                            color: ThemeEngine.colors.textSecondary
+                            color: ThemeEngine.colors.onSurfaceVariant
                             Layout.fillWidth: true
                             wrapMode: Text.WrapAnywhere
                         }

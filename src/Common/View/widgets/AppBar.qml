@@ -45,14 +45,14 @@ import theme
         anchors { fill: parent; leftMargin: ThemeEngine.spacing.lg; rightMargin: ThemeEngine.spacing.lg }
         AppIcon {
             name: root.iconName; size: 20
-            color: ThemeEngine.colors.cyan
+            color: ThemeEngine.colors.tertiary
         }
         Item { width: ThemeEngine.spacing.md }
         Label {
             text: root.title
             font.family: ThemeEngine.fontUi; font.pixelSize: ThemeEngine.fontSize.title
             font.weight: Font.DemiBold
-            color: ThemeEngine.colors.textPrimary
+            color: ThemeEngine.colors.onSurface
             Layout.fillWidth: true
             elide: Text.ElideRight
         }

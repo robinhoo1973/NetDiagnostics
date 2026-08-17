@@ -136,11 +136,20 @@ GeoProbe::GeoProbe() {
 }
 
 GeoProbe::~GeoProbe() {
-    m_executor->requestStop();
+    // 5WHY (review 2026-08-17): 旧代码在 requestStop() 15s 等待超时（线程
+    // 泄漏，文档化）后仍 delete m_executor（销毁运行中的 QThread → UB）并
+    // delete m_database —— 泄漏线程的 writeResults() 还在写这张表 → 退出时
+    // UAF/SIGSEGV。线程未停时三者一并泄漏（进程退出即回收），换取无 UAF。
+    const bool stopped = m_executor->requestStop();
     delete m_feedback;
     delete m_scheduler;
-    delete m_executor;
-    delete m_database;
+    if (stopped) {
+        delete m_executor;
+        delete m_database;
+    } else {
+        qWarning("GeoProbe: executor still running at shutdown — "
+                 "leaking executor/database to avoid use-after-free");
+    }
 }
 
 void GeoProbe::probe(const ProbeConfig& config) {

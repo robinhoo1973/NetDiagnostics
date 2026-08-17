@@ -41,12 +41,12 @@ Item {
             text: root.title
             font.family: ThemeEngine.monoFont
             font.pixelSize: 12; font.weight: Font.Bold
-            color: ThemeEngine.colors.textPrimary
+            color: ThemeEngine.colors.onSurface
         }
         Item { Layout.fillWidth: true }
         Label {
             text: root.expanded ? "▲" : "▼"
-            font.pixelSize: 10; color: ThemeEngine.colors.textSecondary
+            font.pixelSize: 10; color: ThemeEngine.colors.onSurfaceVariant
         }
     }
 

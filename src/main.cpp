@@ -14,6 +14,9 @@
 #include "Common/Utils/CrashHandler.h"
 #include "Common/Utils/StartupLog.h"
 #include "Settings/Model/PremiumStore.h"
+#if defined(PLATFORM_IOS) || defined(Q_OS_MACOS)
+#include "Common/Platform/NativePdfDocument.h"
+#endif
 
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
@@ -170,11 +173,11 @@ int main(int argc, char* argv[]) {
     // ①消除竞态；②探测结果不受本机代理配置干扰。
     QNetworkProxyFactory::setUseSystemConfiguration(false);
 
-    // Windows GUI 子系统无控制台——QML 加载错误等 qWarning 默认不可见，
-    // 统一转发到 stderr（重定向可捕获；日志即诊断）。
-    qInstallMessageHandler([](QtMsgType, const QMessageLogContext&, const QString& msg) {
-        std::fprintf(stderr, "%s\n", qPrintable(msg));
-    });
+    // 5WHY (review 2026-08-17): 此处曾有 qInstallMessageHandler(stderr lambda)
+    // ——它静默替换 CrashHandler::install()（line 149）安装的 qtMessageHandler，
+    // 使 qFatal 文本（iOS QML 加载失败的根因载体）从此写不进 crash log。
+    // CrashHandler::qtMessageHandler 本身已回显 stderr（CrashHandler.h:313/326），
+    // 该块纯冗余且有害，已删除。
 
     QCommandLineParser parser;
     parser.setApplicationDescription(QStringLiteral("NetDiagnostics — network diagnostic suite"));
@@ -221,6 +224,12 @@ int main(int argc, char* argv[]) {
     // PremiumStore（Premium 后端恢复）：由 AppState 持有生命周期
     qmlRegisterSingletonInstance("NetDiagnostics.App", 1, 0, "PremiumStore",
                                  appState.premiumStore());
+#if defined(PLATFORM_IOS) || defined(Q_OS_MACOS)
+    // 5WHY (review 2026-08-17): NativePdfDocument 从未注册到 QML 引擎——
+    // NativePdfPageView.qml 的 typeof 守卫恒为 false，iOS/macOS 原生 PDF
+    // 渲染栈是不可达死代码。
+    qmlRegisterType<NativePdfDocument>("NetDiagnostics", 1, 0, "NativePdfDocument");
+#endif
 
     QQmlApplicationEngine engine;
     // qrc 目录导入在 Qt6 不可用：统一走 /qt/qml 导入路径下的 qmldir 模块

@@ -46,14 +46,14 @@ Item {
                 font.family: ThemeEngine.fontUi
                 font.pixelSize: ThemeEngine.fontSize.caption
                 font.weight: Font.DemiBold
-                color: ThemeEngine.colors.textSecondary
+                color: ThemeEngine.colors.onSurfaceVariant
                 elide: Text.ElideRight
             }
             Label {
                 text: T.tr("totalDiagsLabel") + ": " + root._s.total
                 font.family: ThemeEngine.monoFont
                 font.pixelSize: ThemeEngine.fontSize.caption
-                color: ThemeEngine.colors.textSecondary
+                color: ThemeEngine.colors.onSurfaceVariant
             }
         }
         Item { Layout.preferredHeight: 6 }
@@ -66,21 +66,35 @@ Item {
             text: T.tr("runFromDiag")
             font.family: ThemeEngine.monoFont
             font.pixelSize: ThemeEngine.fontSize.caption
-            color: Qt.alpha(ThemeEngine.colors.textSecondary, 0.5)
+            color: Qt.alpha(ThemeEngine.colors.onSurfaceVariant, 0.5)
             horizontalAlignment: Text.AlignHCenter
         }
 
-        // 6 类结果彩色行
-        SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.colors.passGreen;  iconName: "badge-check";   label: T.tr("summaryPass");    count: root._s.pass;  visible: root._count > 0 }
-        SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.colors.infoBlue;   iconName: "badge-info";    label: T.tr("summaryInfo");    count: root._s.info;  visible: root._count > 0 }
-        SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.colors.warnYellow; iconName: "badge-warning"; label: T.tr("summaryWarning"); count: root._s.warn;  visible: root._count > 0 }
-        SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.colors.failRed;    iconName: "badge-close";   label: T.tr("summaryFail");    count: root._s.fail;  visible: root._count > 0 }
-        SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.colors.skipGray;   iconName: "badge-skip";    label: T.tr("summarySkipped"); count: root._s.skip;  visible: root._count > 0 }
-        SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.colors.errorRed;   iconName: "badge-error";   label: T.tr("summaryError");   count: root._s.error; visible: root._count > 0 }
+        // 6 类结果彩色行（5WHY simplify 2026-08-17：六行仅 accent/icon/label/
+        // count 键不同，且与 ThemeEngine.statusColors/statusIconNames 1:1
+        // 对应——一张表驱动，状态映射不再双份维护）
+        Repeater {
+            model: [
+                { code: 0, labelKey: "summaryPass",    countKey: "pass" },
+                { code: 5, labelKey: "summaryInfo",    countKey: "info" },
+                { code: 1, labelKey: "summaryWarning", countKey: "warn" },
+                { code: 2, labelKey: "summaryFail",    countKey: "fail" },
+                { code: 3, labelKey: "summarySkipped", countKey: "skip" },
+                { code: 4, labelKey: "summaryError",   countKey: "error" }
+            ]
+            SummaryCard {
+                Layout.fillWidth: true
+                accent: ThemeEngine.statusColors[modelData.code] || ThemeEngine.colors.skip
+                iconName: ThemeEngine.statusIconNames[modelData.code] || "badge-info"
+                label: T.tr(modelData.labelKey)
+                count: root._s[modelData.countKey] || 0
+                visible: root._count > 0
+            }
+        }
     }
 
     component SummaryCard: Rectangle {
-        property color accent: ThemeEngine.colors.passGreen
+        property color accent: ThemeEngine.colors.success
         property string label: ""
         property string iconName: "badge-info"
         property int count: 0
@@ -103,7 +117,7 @@ Item {
                 font.family: ThemeEngine.monoFont
                 font.pixelSize: ThemeEngine.fontSize.caption
                 font.weight: Font.Medium
-                color: ThemeEngine.colors.textSecondary
+                color: ThemeEngine.colors.onSurfaceVariant
             }
             Item { width: 8 }
             Label {

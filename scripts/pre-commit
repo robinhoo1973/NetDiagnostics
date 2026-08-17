@@ -432,18 +432,21 @@ fi
 	# (scripts/generate-colored-icons.py).  If Palette.js or a master icon
 	# changes without regeneration, nearest-color matching silently snaps
 	# to stale colors.
+	# 5WHY (review 2026-08-17): the old staging-pattern heuristic only checked
+	# WHETHER some generated outputs were staged alongside the inputs — it
+	# never detected CONTENT drift (22 light-theme e0f2fe SVGs shipped with
+	# the wrong fixed-color table while every check passed).  The generator's
+	# new --check mode regenerates into a mirror tree and byte-diffs, which
+	# is exact.
 	echo ""
 	echo "── 19. Pre-generated icon staleness (icons vs Palette.js) ──"
-    GEN_INPUTS=$(echo "$STAGED" | grep -E '(theme/Palette\.js|resources/icons/(ffffff|masters-45)/[^/]+\.svg)$' || true)
-	if [ -n "$GEN_INPUTS" ]; then
-	    GEN_OUTPUTS=$(echo "$STAGED" | grep -E 'resources/(icons/[0-9a-f]{6}/|resources_icons\.qrc)' || true)
-	    if [ -z "$GEN_OUTPUTS" ]; then
-	        fail "Palette.js or master icons changed but colored icons not regenerated — run: python scripts/generate-colored-icons.py"
-	    else
-	        pass "icons regenerated alongside inputs"
-	    fi
+	# 5WHY (review 2026-08-17): 旧实现仅在 staging 命中输入模式时启用，且
+	# 输入模式漏掉了生成器脚本自身（palette_common.py 的亮度公式改动曾可
+	# 静默漂移）。--check 全量镜像重建仅 ~1.4s —— 无条件执行。
+	if python3 "$ROOT/scripts/generate-colored-icons.py" --check; then
+	    pass "icons up to date"
 	else
-	    pass "generator inputs unchanged"
+	    fail "generated icons out of date — run: python scripts/generate-colored-icons.py"
 	fi
 
 	# ── 20. Secrets & signing material (leak prevention) ────────────────────
@@ -671,6 +674,66 @@ PYEOF
 	if [ "$STALE_INCLUDE_FOUND" -eq 0 ]; then
 		pass "no stale includes of deleted headers"
 	fi
+
+	# ── 25. Theme tooling drift (audit report + AppColors.h + QML refs) ──
+	# 5WHY (2026-08-17 M3 rename): colors are kept by decision but WCAG
+	# deviations must stay visible — the audit report is generated from
+	# Palette.js; a token change without regenerating hides regressions.
+	# The report is gitignored: a fresh clone/CI checkout has none — missing
+	# report warns + skips; a present-but-stale report still fails.
+	# AppColors.h is generated from Palette.js (drift = silent C++/QML
+	# divergence).  ThemeEngine.colors is a dynamic JS object — qmllint can't
+	# validate member names, so every colors.<token> reference is checked
+	# against Palette.js keys (undefined = known crash class).
+	# (simplify 2026-08-17: former checks 25+26+27 merged — one report, one
+	#  toolchain, one verdict.)
+	echo ""
+	echo "── 25. Theme tooling drift (audit + AppColors.h + QML tokens) ──"
+	_THEME_OK=1
+	if [ ! -f "$ROOT/review/theme-contrast-audit.md" ]; then
+	    echo "  WARN: contrast audit report not generated locally — skipping drift check"
+	    echo "        (run: python scripts/audit-palette-contrast.py to enable)"
+	elif ! python3 "$ROOT/scripts/audit-palette-contrast.py" --check; then
+	    fail "theme contrast audit report out of date — run: python scripts/audit-palette-contrast.py"
+	    _THEME_OK=0
+	fi
+	if ! python3 "$ROOT/scripts/generate-appcolors.py" --check; then
+	    fail "AppColors.h out of date — run: python scripts/generate-appcolors.py"
+	    _THEME_OK=0
+	fi
+	python3 - "$ROOT" <<'PYEOF'
+import re, sys
+from pathlib import Path
+root = Path(sys.argv[1])
+sys.path.insert(0, str(root / "scripts"))   # palette_common 同目录导入契约
+from palette_common import all_keys, read_palette
+# 5WHY (simplify 2026-08-17): 键名语法只在 palette_common.all_keys 一处维护
+# （旧 heredoc 自带 4 空格缩进锚定正则，是第 4 份独立解析器）
+keys = all_keys(read_palette())
+bad = []
+for qml in sorted((root / "src").rglob("*.qml")):
+    text = qml.read_text(encoding="utf-8", errors="replace")
+    for m in re.findall(r"(?:ThemeEngine\.)?colors\.([A-Za-z0-9_]+)|Palette\.(?:Dark|Light)\.([A-Za-z0-9_]+)", text):
+        tok = m[0] or m[1]
+        if tok not in keys:
+            bad.append(f"{qml.relative_to(root)}: .{tok}")
+if bad:
+    print("QML references tokens missing from Palette.js:")
+    for b in bad:
+        print("  " + b)
+    sys.exit(1)
+print("all QML color-token references resolve")
+PYEOF
+	if [ $? -eq 0 ]; then
+	    pass "QML color tokens in sync"
+	else
+	    fail "QML references missing palette tokens — fix the token or Palette.js"
+	    _THEME_OK=0
+	fi
+	if [ "$_THEME_OK" -eq 1 ]; then
+	    pass "theme tooling consistent"
+	fi
+
 	# ── Summary ────────────────────────────────────────────────────────────────
 	echo ""
 	echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

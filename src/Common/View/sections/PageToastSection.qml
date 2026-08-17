@@ -37,15 +37,15 @@ PageSection {
         padding: 0
         background: Rectangle {
             radius: ThemeEngine.radius.full   // 胶囊 toast
-            color: ThemeEngine.colors.card
-            border { width: 1; color: ThemeEngine.colors.borderFocused }
+            color: ThemeEngine.colors.surfaceContainerLow
+            border { width: 1; color: ThemeEngine.colors.primary }
         }
         contentItem: Label {
             id: toastLabel
             text: root.toastText
             font.family: ThemeEngine.monoFont
             font.pixelSize: 12
-            color: ThemeEngine.colors.textPrimary
+            color: ThemeEngine.colors.onSurface
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
             maximumLineCount: 1

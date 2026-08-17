@@ -331,7 +331,10 @@ QByteArray httpsGet(const QString& url, int timeoutMs) {
 
     if (!reply->isFinished()) {
         reply->abort();
-        reply->deleteLater();
+        // 5WHY (review 2026-08-17): deleteLater 需要目标线程有持久事件循环——
+        // 本函数运行在无事件循环的 worker 线程，DeferredDelete 永不处理，
+        // 每次超时泄漏一个 QNetworkReply。局部循环已退出，直接 delete 安全。
+        delete reply;
         return {};
     }
 
@@ -341,7 +344,7 @@ QByteArray httpsGet(const QString& url, int timeoutMs) {
         if (status == 200)
             body = reply->readAll();
     }
-    reply->deleteLater();
+    delete reply;
     return body;
 }
 

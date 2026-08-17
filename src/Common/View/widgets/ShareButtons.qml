@@ -14,9 +14,9 @@ import "../theme"
 //   "wide"     — icon+text buttons (fillWidth, 48dp height), for Report preview
 //
 // Accent colors set by each page:
-//   - Diagnostic:  pdfAccent=ThemeEngine.colors.cyan,  htmlAccent=ThemeEngine.colors.primary
-//   - Dashboard:   pdfAccent=ThemeEngine.colors.cyan,  htmlAccent=ThemeEngine.colors.primary
-//   - Report:      pdfAccent=ThemeEngine.colors.cyan,  htmlAccent=ThemeEngine.colors.primary
+//   - Diagnostic:  pdfAccent=ThemeEngine.colors.tertiary,  htmlAccent=ThemeEngine.colors.primary
+//   - Dashboard:   pdfAccent=ThemeEngine.colors.tertiary,  htmlAccent=ThemeEngine.colors.primary
+//   - Report:      pdfAccent=ThemeEngine.colors.tertiary,  htmlAccent=ThemeEngine.colors.primary
 // ══════════════════════════════════════════════════════════════════════════════
 
 RowLayout {
@@ -30,7 +30,7 @@ RowLayout {
     // via the OS send/mail API.
     property bool   locked: AppState.isPremiumPlatform && !PremiumStore.isPremium
     signal premiumRequired()
-    property color  pdfAccent: ThemeEngine.colors.failRed
+    property color  pdfAccent: ThemeEngine.colors.fail
     property color  htmlAccent: ThemeEngine.colors.secondary
     signal shareRequested(string format)
 
@@ -195,7 +195,7 @@ RowLayout {
                 }
                 Label {
                     text: labeledRect.labelText + (labeledRect.locked ? "  " + T.tr("premiumBadge") : "")
-                    color: ThemeEngine.colors.textPrimary
+                    color: ThemeEngine.colors.onSurface
                     font.family: ThemeEngine.fontUi
                     font.pixelSize: 12
                     font.weight: Font.Medium

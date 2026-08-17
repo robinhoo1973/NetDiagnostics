@@ -54,12 +54,12 @@ static int statusIndex(DiagStatus s) {
 
 QString reportStatusColor(DiagStatus s, bool darkBackground) {
     static const QString hexColors[] = {
-        QStringLiteral(APPC_PASS_GREEN_DARK),  QStringLiteral(APPC_WARN_YELLOW_DARK),
-        QStringLiteral(APPC_FAIL_RED_DARK),    QStringLiteral(APPC_ERROR_RED_DARK),
-        QStringLiteral(APPC_SKIP_GRAY_DARK),   QStringLiteral(APPC_INFO_BLUE_DARK),
-        QStringLiteral(APPC_PASS_GREEN_LIGHT), QStringLiteral(APPC_WARN_YELLOW_LIGHT),
-        QStringLiteral(APPC_FAIL_RED_LIGHT),   QStringLiteral(APPC_ERROR_RED_LIGHT),
-        QStringLiteral(APPC_SKIP_GRAY_LIGHT),  QStringLiteral(APPC_INFO_BLUE_LIGHT),
+        QStringLiteral(APPC_SUCCESS_DARK),  QStringLiteral(APPC_WARNING_DARK),
+        QStringLiteral(APPC_FAIL_DARK),     QStringLiteral(APPC_ERROR_DARK),
+        QStringLiteral(APPC_SKIP_DARK),     QStringLiteral(APPC_INFO_DARK),
+        QStringLiteral(APPC_SUCCESS_LIGHT), QStringLiteral(APPC_WARNING_LIGHT),
+        QStringLiteral(APPC_FAIL_LIGHT),    QStringLiteral(APPC_ERROR_LIGHT),
+        QStringLiteral(APPC_SKIP_LIGHT),    QStringLiteral(APPC_INFO_LIGHT),
     };
     return hexColors[statusIndex(s) + (darkBackground ? 0 : 6)];
 }
@@ -72,12 +72,12 @@ QString reportStatusColor(DiagStatus s, bool darkBackground) {
 // in both QTextDocument (preview + PDF) and browser WebView (rich HTML).
 QImage renderStatusIcon(DiagStatus s, int size, bool darkBackground) {
     static const QRgb rgbColors[] = {
-        APPC_PASS_GREEN_RGB_DARK,  APPC_WARN_YELLOW_RGB_DARK,
-        APPC_FAIL_RED_RGB_DARK,    APPC_ERROR_RED_RGB_DARK,
-        APPC_SKIP_GRAY_RGB_DARK,   APPC_INFO_BLUE_RGB_DARK,
-        APPC_PASS_GREEN_RGB,       APPC_WARN_YELLOW_RGB,
-        APPC_FAIL_RED_RGB,         APPC_ERROR_RED_RGB,
-        APPC_SKIP_GRAY_RGB,        APPC_INFO_BLUE_RGB,
+        APPC_SUCCESS_RGB_DARK,  APPC_WARNING_RGB_DARK,
+        APPC_FAIL_RGB_DARK,     APPC_ERROR_RGB_DARK,
+        APPC_SKIP_RGB_DARK,     APPC_INFO_RGB_DARK,
+        APPC_SUCCESS_RGB,       APPC_WARNING_RGB,
+        APPC_FAIL_RGB,          APPC_ERROR_RGB,
+        APPC_SKIP_RGB,          APPC_INFO_RGB,
     };
     QImage img(size, size, QImage::Format_ARGB32_Premultiplied);
     img.fill(Qt::transparent);
@@ -183,13 +183,13 @@ QString reportStatusClass(DiagStatus s) {
 // theme changes only need one update point.
 struct ReportColors {
     // Status colors (theme-independent — use dark palette for reports)
-    QString pass    = QStringLiteral(APPC_PASS_GREEN_DARK);
-    QString warn    = QStringLiteral(APPC_WARN_YELLOW_DARK);
-    QString fail    = QStringLiteral(APPC_FAIL_RED_DARK);
-    QString error   = QStringLiteral(APPC_ERROR_RED_DARK);
-    QString skip    = QStringLiteral(APPC_SKIP_GRAY_DARK);
-    QString info    = QStringLiteral(APPC_INFO_BLUE_DARK);
-    QString cyan    = QStringLiteral(APPC_CYAN_DARK);
+    QString pass    = QStringLiteral(APPC_SUCCESS_DARK);
+    QString warn    = QStringLiteral(APPC_WARNING_DARK);
+    QString fail    = QStringLiteral(APPC_FAIL_DARK);
+    QString error   = QStringLiteral(APPC_ERROR_DARK);
+    QString skip    = QStringLiteral(APPC_SKIP_DARK);
+    QString info    = QStringLiteral(APPC_INFO_DARK);
+    QString cyan    = QStringLiteral(APPC_TERTIARY_DARK);
     // Theme-aware colors
     QString textPrimary, textSecondary, textMuted;
     QString bgHeader, bgSection, bgRowAlt, bgRow;
@@ -198,8 +198,8 @@ struct ReportColors {
 
     explicit ReportColors(bool dark) {
         if (dark) {
-            textPrimary  = QStringLiteral(APPC_TEXT_PRIMARY_DARK);
-            textSecondary= QStringLiteral(APPC_TEXT_SECONDARY_DARK);
+            textPrimary  = QStringLiteral(APPC_ON_SURFACE_DARK);
+            textSecondary= QStringLiteral(APPC_ON_SURFACE_VARIANT_DARK);
             textMuted    = QStringLiteral(APPC_TEXT_MUTED_LIGHT);  // #64748B — light muted has better contrast on dark report bg
             bgHeader     = QStringLiteral(APPC_REPORT_DARK_BG_HEADER);
             bgSection    = QStringLiteral(APPC_REPORT_DARK_BG_SECTION);
@@ -217,8 +217,8 @@ struct ReportColors {
             detailBg     = QStringLiteral(APPC_REPORT_DARK_DETAIL_BG);
             footerColor  = QStringLiteral(APPC_REPORT_DARK_FOOTER);
         } else {
-            textPrimary  = QStringLiteral(APPC_TEXT_PRIMARY_LIGHT);
-            textSecondary= QStringLiteral(APPC_TEXT_SECONDARY_LIGHT);
+            textPrimary  = QStringLiteral(APPC_ON_SURFACE_LIGHT);
+            textSecondary= QStringLiteral(APPC_ON_SURFACE_VARIANT_LIGHT);
             textMuted    = QStringLiteral(APPC_TEXT_MUTED_LIGHT);
             bgHeader     = QStringLiteral(APPC_REPORT_LIGHT_BG_HEADER);
             bgSection    = QStringLiteral(APPC_REPORT_LIGHT_BG_SECTION);
@@ -298,9 +298,9 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail, bool da
 
     // ── Pass-rate progress bar ─────────────────────────────────────────
     int passPercent = tTotal > 0 ? (tPass * 100 / tTotal) : 0;
-    const QString barColor = passPercent >= 90 ? QStringLiteral(APPC_PASS_GREEN_DARK)
-                           : passPercent >= 70 ? QStringLiteral(APPC_WARN_YELLOW_DARK)
-                           : QStringLiteral(APPC_FAIL_RED_DARK);
+    const QString barColor = passPercent >= 90 ? QStringLiteral(APPC_SUCCESS_DARK)
+                           : passPercent >= 70 ? QStringLiteral(APPC_WARNING_DARK)
+                           : QStringLiteral(APPC_FAIL_DARK);
     const QString barBg = QStringLiteral(APPC_PROGRESS_BAR_BG);
     h += QStringLiteral(
         "<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\">"
@@ -555,10 +555,10 @@ QString ReportEngine::buildRichDocument(const ReportData& data, bool darkBackgro
     const QString cssThemeBlock = darkBackground
         ? QStringLiteral(
             ":root{"
-            "--bg:" APPC_SURFACE_DARK ";--fg:" APPC_TEXT_PRIMARY_DARK ";--fg2:" APPC_TEXT_SECONDARY_DARK ";"
-            "--card-bg:" APPC_CARD_DARK ";"
-            "--header-bg1:" APPC_CARD_DARK ";--header-bg2:" APPC_PRIMARY_CONTAINER_DARK ";"
-            "--border:" APPC_BORDER_CARD_DARK ";"
+            "--bg:" APPC_SURFACE_DARK ";--fg:" APPC_ON_SURFACE_DARK ";--fg2:" APPC_ON_SURFACE_VARIANT_DARK ";"
+            "--card-bg:" APPC_SURFACE_CONTAINER_LOW_DARK ";"
+            "--header-bg1:" APPC_SURFACE_CONTAINER_LOW_DARK ";--header-bg2:" APPC_PRIMARY_CONTAINER_DARK ";"
+            "--border:" APPC_OUTLINE_VARIANT_DARK ";"
             "--footer-fg:" APPC_REPORT_DARK_FOOTER ";--footer-border:#23233a;"
             "--card-pass-bg:" APPC_REPORT_DARK_BG_CARD_PASS ";"
             "--card-info-bg:" APPC_REPORT_DARK_BG_CARD_INFO ";"
@@ -570,37 +570,37 @@ QString ReportEngine::buildRichDocument(const ReportData& data, bool darkBackgro
             "--sec-row-bg:#1a2840;--border-card-pass:#2d5a2d;--border-card-info:#24406a;"
             "--border-card-warn:#5a5020;--border-card-fail:#5a2d2d;--border-card-skip:#333;"
             "--border-card-error:#5a2020;"
-            "--h1-color:" APPC_CYAN_DARK ";--h2-color:" APPC_CYAN_DARK ";--h3-color:" APPC_INFO_BLUE_DARK ";"
+            "--h1-color:" APPC_TERTIARY_DARK ";--h2-color:" APPC_TERTIARY_DARK ";--h3-color:" APPC_INFO_DARK ";"
             "--header-p-color:" APPC_CSS_TEXT_BRIGHT ";"
-            "--card-pass-fg:" APPC_PASS_GREEN_DARK ";--card-warn-fg:" APPC_WARN_YELLOW_DARK ";"
-            "--card-fail-fg:" APPC_FAIL_RED_DARK ";--card-skip-fg:" APPC_SKIP_GRAY_DARK ";"
-            "--card-info-fg:" APPC_INFO_BLUE_DARK ";"
-            "--badge-pass-fg:" APPC_PASS_GREEN_DARK ";--badge-warn-fg:" APPC_WARN_YELLOW_DARK ";"
-            "--badge-fail-fg:" APPC_FAIL_RED_DARK ";--badge-skip-fg:" APPC_SKIP_GRAY_DARK ";"
-            "--badge-info-fg:" APPC_INFO_BLUE_DARK ";"
-            "--badge-error-fg:" APPC_ERROR_RED_DARK ";"
-            "--sec-row-fg:" APPC_INFO_BLUE_DARK ";"
-            "--body-border:" APPC_BORDER_CARD_DARK ";"
+            "--card-pass-fg:" APPC_SUCCESS_DARK ";--card-warn-fg:" APPC_WARNING_DARK ";"
+            "--card-fail-fg:" APPC_FAIL_DARK ";--card-skip-fg:" APPC_SKIP_DARK ";"
+            "--card-info-fg:" APPC_INFO_DARK ";"
+            "--badge-pass-fg:" APPC_SUCCESS_DARK ";--badge-warn-fg:" APPC_WARNING_DARK ";"
+            "--badge-fail-fg:" APPC_FAIL_DARK ";--badge-skip-fg:" APPC_SKIP_DARK ";"
+            "--badge-info-fg:" APPC_INFO_DARK ";"
+            "--badge-error-fg:" APPC_ERROR_DARK ";"
+            "--sec-row-fg:" APPC_INFO_DARK ";"
+            "--body-border:" APPC_OUTLINE_VARIANT_DARK ";"
             "--analysis-bg:" APPC_REPORT_DARK_DETAIL_BG ";--analysis-fg:" APPC_REPORT_DARK_CODE_FG ";"
             "--analysis-border:" APPC_CSS_TEAL_ACCENT ";"
             "--raw-bg:" APPC_REPORT_DARK_CODE_BG ";--raw-fg:" APPC_REPORT_DARK_CODE_FG ";"
             "--meta-fg:" APPC_CSS_TEXT_DIM ";"
-            "--detail-pass:" APPC_PASS_GREEN_DARK ";--detail-warn:" APPC_WARN_YELLOW_DARK ";"
-            "--detail-fail:" APPC_FAIL_RED_DARK ";--detail-skip:" APPC_SKIP_GRAY_DARK ";"
-            "--detail-info:" APPC_INFO_BLUE_DARK ";"
-            "--detail-error:" APPC_ERROR_RED_DARK ";"
-            "--card-error-fg:" APPC_ERROR_RED_DARK ";"
+            "--detail-pass:" APPC_SUCCESS_DARK ";--detail-warn:" APPC_WARNING_DARK ";"
+            "--detail-fail:" APPC_FAIL_DARK ";--detail-skip:" APPC_SKIP_DARK ";"
+            "--detail-info:" APPC_INFO_DARK ";"
+            "--detail-error:" APPC_ERROR_DARK ";"
+            "--card-error-fg:" APPC_ERROR_DARK ";"
             "}")
         : QStringLiteral(
             ":root{"
-            "--bg:" APPC_SURFACE_LIGHT ";--fg:" APPC_TEXT_PRIMARY_LIGHT ";--fg2:" APPC_TEXT_SECONDARY_LIGHT ";"
-            "--card-bg:" APPC_CARD_LIGHT ";"
+            "--bg:" APPC_SURFACE_LIGHT ";--fg:" APPC_ON_SURFACE_LIGHT ";--fg2:" APPC_ON_SURFACE_VARIANT_LIGHT ";"
+            "--card-bg:" APPC_SURFACE_CONTAINER_LOW_LIGHT ";"
             "--header-bg1:" APPC_REPORT_LIGHT_BG_HEADER ";--header-bg2:" APPC_PRIMARY_CONTAINER_DARK ";"
             // 5WHY: Header is always dark with light text — --header-bg2
             // must stay dark for WCAG contrast.  #0F172A→#0C4A6E
             // gradient keeps white header text legible (~13:1)."
-            "--border:" APPC_BORDER_CARD_LIGHT ";"
-            "--footer-fg:" APPC_REPORT_LIGHT_FOOTER ";--footer-border:" APPC_BORDER_CARD_LIGHT ";"
+            "--border:" APPC_OUTLINE_VARIANT_LIGHT ";"
+            "--footer-fg:" APPC_REPORT_LIGHT_FOOTER ";--footer-border:" APPC_OUTLINE_VARIANT_LIGHT ";"
             "--card-pass-bg:" APPC_REPORT_LIGHT_BG_CARD_PASS ";"
             "--card-info-bg:" APPC_REPORT_LIGHT_BG_CARD_INFO ";"
             "--card-warn-bg:" APPC_REPORT_LIGHT_BG_CARD_WARN ";"
@@ -611,26 +611,26 @@ QString ReportEngine::buildRichDocument(const ReportData& data, bool darkBackgro
             "--sec-row-bg:#E0F2FE;--border-card-pass:#BBF7D0;--border-card-info:#BFDBFE;"
             "--border-card-warn:#FDE68A;--border-card-fail:#FECACA;--border-card-skip:#CBD5E1;"
             "--border-card-error:#FECACA;"
-            "--h1-color:" APPC_CYAN_LIGHT ";--h2-color:" APPC_CYAN_LIGHT ";--h3-color:" APPC_INFO_BLUE_LIGHT ";"
+            "--h1-color:" APPC_TERTIARY_LIGHT ";--h2-color:" APPC_TERTIARY_LIGHT ";--h3-color:" APPC_INFO_LIGHT ";"
             "--header-p-color:" APPC_CSS_TEXT_BRIGHT ";"
-            "--card-pass-fg:" APPC_PASS_GREEN_LIGHT ";--card-warn-fg:" APPC_WARN_YELLOW_LIGHT ";"
-            "--card-fail-fg:" APPC_FAIL_RED_LIGHT ";--card-skip-fg:" APPC_SKIP_GRAY_LIGHT ";"
-            "--card-info-fg:" APPC_INFO_BLUE_LIGHT ";"
-            "--badge-pass-fg:" APPC_PASS_GREEN_LIGHT ";--badge-warn-fg:" APPC_WARN_YELLOW_LIGHT ";"
-            "--badge-fail-fg:" APPC_FAIL_RED_LIGHT ";--badge-skip-fg:" APPC_SKIP_GRAY_LIGHT ";"
-            "--badge-info-fg:" APPC_INFO_BLUE_LIGHT ";"
-            "--badge-error-fg:" APPC_ERROR_RED_LIGHT ";"
-            "--sec-row-fg:" APPC_INFO_BLUE_LIGHT ";"
-            "--body-border:" APPC_BORDER_CARD_LIGHT ";"
-            "--analysis-bg:" APPC_REPORT_LIGHT_DETAIL_BG ";--analysis-fg:" APPC_TEXT_SECONDARY_LIGHT ";"
+            "--card-pass-fg:" APPC_SUCCESS_LIGHT ";--card-warn-fg:" APPC_WARNING_LIGHT ";"
+            "--card-fail-fg:" APPC_FAIL_LIGHT ";--card-skip-fg:" APPC_SKIP_LIGHT ";"
+            "--card-info-fg:" APPC_INFO_LIGHT ";"
+            "--badge-pass-fg:" APPC_SUCCESS_LIGHT ";--badge-warn-fg:" APPC_WARNING_LIGHT ";"
+            "--badge-fail-fg:" APPC_FAIL_LIGHT ";--badge-skip-fg:" APPC_SKIP_LIGHT ";"
+            "--badge-info-fg:" APPC_INFO_LIGHT ";"
+            "--badge-error-fg:" APPC_ERROR_LIGHT ";"
+            "--sec-row-fg:" APPC_INFO_LIGHT ";"
+            "--body-border:" APPC_OUTLINE_VARIANT_LIGHT ";"
+            "--analysis-bg:" APPC_REPORT_LIGHT_DETAIL_BG ";--analysis-fg:" APPC_ON_SURFACE_VARIANT_LIGHT ";"
             "--analysis-border:" APPC_CSS_TEAL_ACCENT ";"
             "--raw-bg:" APPC_REPORT_LIGHT_CODE_BG ";--raw-fg:" APPC_REPORT_LIGHT_CODE_FG ";"
             "--meta-fg:" APPC_TEXT_MUTED_LIGHT ";"
-            "--detail-pass:" APPC_PASS_GREEN_LIGHT ";--detail-warn:" APPC_WARN_YELLOW_LIGHT ";"
-            "--detail-fail:" APPC_FAIL_RED_LIGHT ";--detail-skip:" APPC_SKIP_GRAY_LIGHT ";"
-            "--detail-info:" APPC_INFO_BLUE_LIGHT ";"
-            "--detail-error:" APPC_ERROR_RED_LIGHT ";"
-            "--card-error-fg:" APPC_ERROR_RED_LIGHT ";"
+            "--detail-pass:" APPC_SUCCESS_LIGHT ";--detail-warn:" APPC_WARNING_LIGHT ";"
+            "--detail-fail:" APPC_FAIL_LIGHT ";--detail-skip:" APPC_SKIP_LIGHT ";"
+            "--detail-info:" APPC_INFO_LIGHT ";"
+            "--detail-error:" APPC_ERROR_LIGHT ";"
+            "--card-error-fg:" APPC_ERROR_LIGHT ";"
             "}");
     // 5WHY: All theme-dependent colors (surface, text, status, detail borders)
     // use CSS var(--xxx) references resolved by cssThemeBlock above, which

@@ -85,8 +85,8 @@ PageDisplay {
                     }
                     font.family: ThemeEngine.fontUi
                     font.pixelSize: ThemeEngine.fontSize.body
-                    color: row.enabled ? ThemeEngine.colors.textPrimary
-                                       : ThemeEngine.colors.textSecondary
+                    color: row.enabled ? ThemeEngine.colors.onSurface
+                                       : ThemeEngine.colors.onSurfaceVariant
                     elide: Text.ElideRight
                 }
                 Label {
@@ -97,7 +97,7 @@ PageDisplay {
                     }
                     font.family: ThemeEngine.fontUi
                     font.pixelSize: ThemeEngine.fontSize.caption
-                    color: ThemeEngine.colors.textSecondary
+                    color: ThemeEngine.colors.onSurfaceVariant
                     elide: Text.ElideRight
                 }
             }
@@ -119,7 +119,7 @@ PageDisplay {
                     rightMargin: ThemeEngine.spacing.lg
                 }
                 height: 1
-                color: Qt.alpha(ThemeEngine.colors.borderCard, 0.7)
+                color: Qt.alpha(ThemeEngine.colors.outlineVariant, 0.7)
             }
         }
     }

@@ -288,9 +288,20 @@ void AppState::runNextGroup() {
     // C4：scheme 拼回 target——协议探针（ftp/ssh/mysql/redis/mqtt…）依赖 scheme
     // 判定协议并选端口，丢 scheme 会让全部 G5 协议族被判 "Not X" 跳过。
     // 目标凭据注入：user:pass@ 前綴 + 显式端口（host 已带端口时不重复追加）。
+    // 5WHY (review 2026-08-17): 显式端口对 IPv6 字面量被静默丢弃——旧守卫
+    // contains(':') 把 IPv6 冒号误判为已有端口，2001:db8::1 跳过端口注入后
+    // 所有 G4/G5 探针落在 scheme 默认端口，诊断结果误导。
     QString host = m_targetHost;
-    if (!m_targetPort.isEmpty() && !host.contains(QLatin1Char(':')))
-        host += QLatin1Char(':') + m_targetPort;
+    if (!m_targetPort.isEmpty()) {
+        // 已带端口：括号+端口（]：）或恰好单冒号（host:port）；IPv6 有 ≥2 冒号
+        const bool alreadyPort = host.contains(QLatin1String("]:"))
+            || host.count(QLatin1Char(':')) == 1;
+        if (!alreadyPort) {
+            if (host.contains(QLatin1Char(':')) && !host.startsWith(QLatin1Char('[')))
+                host = QLatin1Char('[') + host + QLatin1Char(']');
+            host += QLatin1Char(':') + m_targetPort;
+        }
+    }
     QString auth;
     if (!m_targetUser.isEmpty())
         auth = m_targetUser + QLatin1Char(':') + m_targetPassword + QLatin1Char('@');
@@ -424,8 +435,13 @@ QVariantMap AppState::groupStats(int groupInt) const {
     s[QStringLiteral("error")] = error;
     s[QStringLiteral("cancelled")] = cancelled;
     qint64 totalMs = 0;
-    for (const DiagnosticResult& r : m_results)
+    for (const DiagnosticResult& r : m_results) {
+        // 5WHY (review 2026-08-17): 计数按组过滤但时长循环遍历全部 m_results——
+        // 每个组的 durationMs 都等于整轮总时长，Layer Timings 五行显示同一数字。
+        // 与计数循环同源过滤（DiagnosticResult.group 字段直接可用）。
+        if (!aggregate && r.group != g) continue;
         totalMs += r.durationMs;
+    }
     s[QStringLiteral("durationMs")] = static_cast<qlonglong>(totalMs);
     return s;
 }
@@ -454,6 +470,10 @@ QVariantMap AppState::resultFor(int diagIdInt) const {
     QVariantMap m;
     m[QStringLiteral("diagId")] = static_cast<int>(it->id);
     m[QStringLiteral("displayName")] = it->displayName;
+    // 5WHY (review 2026-08-17): iconName 仅 itemFor() 提供，resultFor() 缺失——
+    // DetailPage/PageHeroSection/PageDetailSheet 的 45 图标全彩头部永远走到回退
+    // 分支，新头部从未激活。与 itemFor() 对齐（诊断元数据同一来源）。
+    m[QStringLiteral("iconName")] = diagnosticMeta(it->id).iconName;
     m[QStringLiteral("status")] = static_cast<int>(it->status);
     m[QStringLiteral("summary")] = it->summary;
     m[QStringLiteral("details")] = it->details;

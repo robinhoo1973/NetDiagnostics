@@ -26,7 +26,10 @@ public:
     ~ProbeExecutor();
 
     void run() override;
-    void requestStop();            // called during shutdown
+    // called during shutdown; returns false when the thread could not be
+    // stopped within the grace period (caller must NOT free resources the
+    // still-running thread may touch — see 5WHY in GeoProbe::~GeoProbe).
+    bool requestStop();
 
 private:
     ProbeDatabase* m_db;

@@ -63,6 +63,13 @@ Item {
         source: root._source
         visible: active
         onLoaded: { if (item) root._bind(item) }
+        // F.1 规则：Loader 错误必须落日志（5WHY review 2026-08-17：图表源
+        // URL 指向已不存在的 qrc:/qml/… 前缀时，Loader.Error 静默 → 空白
+        // 图表卡无人察觉）
+        onStatusChanged: {
+            if (status === Loader.Error)
+                console.warn("ResultChart: Loader error for source " + root._source)
+        }
         Accessible.name: T.tr("detailData") + " " + T.tr("accChart")
         Accessible.role: Accessible.Graphic
     }
@@ -80,8 +87,8 @@ Item {
         // 5WHY: a failed ping still carries an EMPTY individualRtts list —
         // gating on the key alone would open an empty chart.  Require samples.
         if (tt === 0 && root.data.individualRtts !== undefined
-            && root.data.individualRtts.length > 0)       return "qrc:/qml/detail/viz/BarChart.qml"
-        if (tt === 1 && root.data.hops !== undefined)     return "qrc:/qml/detail/viz/BarChart.qml"
+            && root.data.individualRtts.length > 0)       return "qrc:/qt/qml/detail/viz/BarChart.qml"
+        if (tt === 1 && root.data.hops !== undefined)     return "qrc:/qt/qml/detail/viz/BarChart.qml"
         // 5WHY: Handshake originally checked only daysLeft (TLS cert expiry).
         // DnsIntegrity emits overallScorePercent, SecurityHeaders emits score,
         // InternetConnectivity emits downloadMbpsBest — none of which write
@@ -90,10 +97,10 @@ Item {
                       || root.data.overallScorePercent !== undefined
                       || root.data.score !== undefined
                       || root.data.downloadMbpsBest !== undefined))
-                                                         return "qrc:/qml/detail/viz/Gauge.qml"
-        if (tt === 3 && root.data.dnsMs !== undefined)    return "qrc:/qml/detail/viz/BarChart.qml"
+                                                         return "qrc:/qt/qml/detail/viz/Gauge.qml"
+        if (tt === 3 && root.data.dnsMs !== undefined)    return "qrc:/qt/qml/detail/viz/BarChart.qml"
         // Query (tt=4): connect latency gauge
-        if (tt === 4 && root.data.latencyMs !== undefined) return "qrc:/qml/detail/viz/Gauge.qml"
+        if (tt === 4 && root.data.latencyMs !== undefined) return "qrc:/qt/qml/detail/viz/Gauge.qml"
         return ""
     }
 
@@ -123,16 +130,16 @@ Item {
             var phases = [
                 { label: T.tr("chartDns"),      value: dns,                   color: ThemeEngine.colors.primary },
                 { label: T.tr("chartTcp"),      value: Math.max(0, conn-dns), color: ThemeEngine.colors.secondary },
-                { label: T.tr("chartTls"),      value: Math.max(0, ssl-conn), color: ThemeEngine.colors.passGreen },
-                { label: T.tr("chartTtfb"),     value: Math.max(0, fb-ssl),   color: ThemeEngine.colors.warnYellow },
+                { label: T.tr("chartTls"),      value: Math.max(0, ssl-conn), color: ThemeEngine.colors.success },
+                { label: T.tr("chartTtfb"),     value: Math.max(0, fb-ssl),   color: ThemeEngine.colors.warning },
                 { label: T.tr("chartTransfer"), value: Math.max(0, tot-fb),   color: ThemeEngine.colors.accent }
             ]
             for (var k = 0; k < phases.length; k++)
                 if (phases[k].value !== undefined) out.push(phases[k])
         } else if (tt === 4 && root.data.latencyMs !== undefined) {
             out.push({ label: T.tr("chartConnect"), value: Number(root.data.latencyMs),
-                       color: root.data.connected ? ThemeEngine.colors.passGreen
-                                                  : ThemeEngine.colors.failRed })
+                       color: root.data.connected ? ThemeEngine.colors.success
+                                                  : ThemeEngine.colors.fail })
         }
         return out
     }
@@ -143,9 +150,9 @@ Item {
             var dl = Number(root.data.daysLeft)
             // 5WHY: color follows the same thresholds as the C++ verdict —
             // an EXPIRED cert must render red, not green.
-            var col = dl < 0 ? ThemeEngine.colors.failRed
-                    : dl < 30 ? ThemeEngine.colors.warnYellow
-                    : ThemeEngine.colors.passGreen
+            var col = dl < 0 ? ThemeEngine.colors.fail
+                    : dl < 30 ? ThemeEngine.colors.warning
+                    : ThemeEngine.colors.success
             return { value: dl, max: 365, unitKey: "unitDays", color: col,
                      emptyLabel: dl < 0 ? T.tr("gaugeExpired") : "" }
         }
@@ -154,17 +161,17 @@ Item {
         // InternetConnectivity(downloadMbpsBest).
         if (root.data.templateType === 2 && root.data.overallScorePercent !== undefined) {
             var sp = Number(root.data.overallScorePercent)
-            var sc = sp >= 80 ? ThemeEngine.colors.passGreen
-                   : sp >= 50 ? ThemeEngine.colors.warnYellow
-                   : ThemeEngine.colors.failRed
+            var sc = sp >= 80 ? ThemeEngine.colors.success
+                   : sp >= 50 ? ThemeEngine.colors.warning
+                   : ThemeEngine.colors.fail
             return { value: sp, max: 100, unitKey: "unitPercent", color: sc }
         }
         if (root.data.templateType === 2 && root.data.score !== undefined) {
             var sv = Number(root.data.score)
             var mx = Number(root.data.totalRequired) || 7
-            var sCol = sv >= Math.ceil(mx * 0.7) ? ThemeEngine.colors.passGreen
-                     : sv >= Math.ceil(mx * 0.4) ? ThemeEngine.colors.warnYellow
-                     : ThemeEngine.colors.failRed
+            var sCol = sv >= Math.ceil(mx * 0.7) ? ThemeEngine.colors.success
+                     : sv >= Math.ceil(mx * 0.4) ? ThemeEngine.colors.warning
+                     : ThemeEngine.colors.fail
             return { value: sv, max: mx, unitKey: "unitHeaders", color: sCol }
         }
         if (root.data.templateType === 2 && root.data.downloadMbpsBest !== undefined) {
@@ -173,7 +180,7 @@ Item {
             // with headroom (min 10 Mbps so even low speeds fill visibly).
             var bwMax = Math.max(10, Math.ceil(bw * 1.3 / 5) * 5)
             return { value: bw, max: bwMax, unitKey: "unitMbps",
-                     color: ThemeEngine.colors.infoBlue }
+                     color: ThemeEngine.colors.info }
         }
         if (root.data.templateType === 4 && root.data.latencyMs !== undefined) {
             var lat = Number(root.data.latencyMs)
@@ -181,8 +188,8 @@ Item {
             // as an invisible sliver.  Scale with ~20% headroom (min 100ms).
             var scale = Math.max(100, Math.ceil(lat * 1.2 / 50) * 50)
             return { value: lat, max: scale, unitKey: "unitMs",
-                     color: root.data.connected ? ThemeEngine.colors.passGreen
-                                                : ThemeEngine.colors.failRed }
+                     color: root.data.connected ? ThemeEngine.colors.success
+                                                : ThemeEngine.colors.fail }
         }
         return null
     }

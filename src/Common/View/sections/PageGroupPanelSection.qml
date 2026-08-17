@@ -39,6 +39,10 @@ PageSection {
 
     readonly property bool isRunning: AppState.runStatus === 1 && AppState.currentRunningGroup === groupIndex
     readonly property bool expanded: _userToggled ? _userExpanded : (isRunning || _completed > 0)
+    // 45 图标全彩常显：组色调（G1..G5）——组头条/图标随组着色
+    // 经 ThemeEngine.groupHue 单一映射（5WHY review 2026-08-17：消除与
+    // DashboardScreen 的守卫三元复制，回退策略只在一处维护）
+    readonly property color _groupHue: ThemeEngine.groupHue(groupIndex)
 
     function reloadModel() {
         itemsModel = root.showOnlyCompleted ? AppState.resultsForGroup(groupIndex)
@@ -93,13 +97,13 @@ PageSection {
                 Rectangle {
                     Layout.preferredWidth: 4
                     Layout.fillHeight: true
-                    color: root.isRunning ? ThemeEngine.colors.primary : ThemeEngine.colors.secondary
+                    color: root.isRunning ? ThemeEngine.colors.primary : root._groupHue
                     radius: 2
                 }
                 AppIcon {
                     name: ThemeEngine.groupIconName(groupIndex)
                     size: 24
-                    color: ThemeEngine.colors.cyan
+                    color: root._groupHue
                 }
                 Label {
                     // M8：组前缀 "G1:"（归档语义，折叠态也能定位第几组）
@@ -108,7 +112,7 @@ PageSection {
                     font.family: ThemeEngine.fontUi
                     font.pixelSize: ThemeEngine.fontSize.subhead
                     font.weight: Font.DemiBold
-                    color: ThemeEngine.colors.textPrimary
+                    color: ThemeEngine.colors.onSurface
                     elide: Text.ElideRight
                     Layout.fillWidth: true
                 }
@@ -138,7 +142,7 @@ PageSection {
                     text: root._completed + "/" + root._total
                     font.family: ThemeEngine.monoFont
                     font.pixelSize: ThemeEngine.fontSize.body
-                    color: ThemeEngine.colors.textSecondary
+                    color: ThemeEngine.colors.onSurfaceVariant
                 }
                 StatusBadge { visible: root.rowHeaderDelegate === null; statusCode: 0; count: _pass }
                 StatusBadge { visible: root.rowHeaderDelegate === null; statusCode: 1; count: _warn }

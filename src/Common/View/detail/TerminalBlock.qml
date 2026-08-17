@@ -23,10 +23,8 @@ Item {
     // ── Public API ────────────────────────────────────────────────────────
     property string text: ""
     property bool typewriter: true
-    // 主题自适应终端底色：暗色=surface，亮色=input（7-5 修复：原亮色下硬编码
-    // 深藏青导致文字几乎不可读）
-    property color terminalColor: ThemeEngine.isDark
-        ? ThemeEngine.colors.surface : ThemeEngine.colors.input
+    // 主题自适应终端底色（共用 helper，见 ThemeEngine.terminalBg 7-5 修复注释）
+    property color terminalColor: ThemeEngine.terminalBg()
 
     implicitWidth: 300
     // 5WHY: implicitHeight must track the dynamic content height so parent
@@ -35,9 +33,22 @@ Item {
     // children can collapse to zero height.
     implicitHeight: Math.max(60, contentCol.implicitHeight + 2 * padding)
 
+    // 5WHY (review 2026-08-17, RTL): 终端输出是 LTR-forever 内容（列对齐、
+    // 时间戳、IP）——阿拉伯语界面全局镜像会把命令行右对齐/从右滑入。
+    LayoutMirroring.enabled: false
+    LayoutMirroring.childrenInherit: false
+
     // ── Internal state ────────────────────────────────────────────────────
     readonly property int padding: 12
     readonly property var _lines: root.text ? root.text.split('\n') : []
+    // 5WHY (review 2026-08-17): 最长行文本——单色字体下宽度∝字符数，供
+    // TextMetrics 度量水平滚动所需的 contentWidth。
+    readonly property string _widestLine: {
+        var w = ""
+        for (var i = 0; i < _lines.length; ++i)
+            if (_lines[i].length > w.length) w = _lines[i]
+        return w
+    }
     property int _visibleCount: 0
 
     // 5WHY: onTextChanged resets _visibleCount and restarts the typing
@@ -87,18 +98,26 @@ Item {
         }
     }
 
+    // 最长行的像素宽度（JetBrains Mono 11px；advanceWidth 即 LTR 水平推进）
+    TextMetrics {
+        id: widestMetrics
+        font.family: ThemeEngine.monoFont
+        font.pixelSize: 11
+        text: root._widestLine
+    }
+
     // ── Visual ────────────────────────────────────────────────────────────
     Rectangle {
         anchors.fill: parent
         // 5WHY: Terminal output must always render on a dark background for
-        // readability of passGreen monospace text.  Use the public terminalColor
+        // readability of success monospace text.  Use the public terminalColor
         // property so embedders can override (e.g., DetailPage sets it for
         // light-theme coherence).
         color: root.terminalColor
         radius: ThemeEngine.radius.md  // 8
         border {
             width: 1
-            color: ThemeEngine.colors.borderCard
+            color: ThemeEngine.colors.outlineVariant
         }
 
         // ── Empty state ──────────────────────────────────────────────────
@@ -124,14 +143,17 @@ Item {
             contentWidth: contentCol.width
             contentHeight: contentCol.height
             clip: true
-            flickableDirection: Flickable.VerticalFlick
+            // 5WHY (review 2026-08-17): 长行（TLS 证书、curl verbose 头部）在
+            // 窄屏/手机上超出卡片宽度且无换行——必须提供水平滚动路径。
+            flickableDirection: Flickable.AutoFlickIfNeeded
             // 5WHY: interactive only when content overflows — prevents the
             // Flickable from stealing touch events when all lines fit.
-            interactive: contentHeight > height
+            interactive: contentHeight > height || contentWidth > width
 
             Column {
                 id: contentCol
-                width: flick.width
+                // 宽度=视口与最长行中的较大者（水平滚动空间由 contentWidth 提供）
+                width: Math.max(flick.width, widestMetrics.advanceWidth)
                 spacing: 2
 
                 Repeater {
@@ -192,12 +214,14 @@ Item {
                                 right: parent.right
                             }
                             text: modelData
+                            horizontalAlignment: Text.AlignLeft
                             font.family: ThemeEngine.monoFont
                             font.pixelSize: 11
-                            // 5WHY: 绿色终端美学；暗色 passGreen(#4ADE80)，
-                            // 亮色用深翡翠 #047857（在浅底上 ~4.5:1，WCAG AA）
-                            color: ThemeEngine.isDark
-                                ? ThemeEngine.colors.passGreen : "#047857"
+                            // 终端输出文本令牌：暗色 success(#4ADE80)；亮色深翡翠
+                            // #047857（浅底 ~4.5:1 WCAG AA）。5WHY review 2026-08-17：
+                            // 亮色分支曾是裸字面量，主题重调不会传播——现用
+                            // Palette.js 的 terminalText 角色统一取色。
+                            color: ThemeEngine.colors.terminalText
                             elide: Text.ElideNone
                             maximumLineCount: 1
                         }

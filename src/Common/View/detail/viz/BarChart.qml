@@ -10,7 +10,7 @@
 // Usage:
 //   BarChart {
 //       values: [
-//           { label: "DNS", value: 12, color: ThemeEngine.colors.passGreen },
+//           { label: "DNS", value: 12, color: ThemeEngine.colors.success },
 //           { label: "TCP", value: 34, color: ThemeEngine.colors.primary },
 //           { label: "TLS", value: 89, color: ThemeEngine.colors.secondary }
 //       ]
@@ -163,7 +163,7 @@ Item {
                         font.family: ThemeEngine.monoFont
                         font.pixelSize: 11
                         font.weight: Font.Medium
-                        color: ThemeEngine.colors.textSecondary
+                        color: ThemeEngine.colors.onSurfaceVariant
                         elide: Text.ElideRight
                         maximumLineCount: 1
                     }
@@ -179,7 +179,7 @@ Item {
                         }
                         height: 12
                         radius: 3
-                        color: ThemeEngine.colors.input
+                        color: ThemeEngine.colors.surfaceContainerHighest
                     }
 
                     // ── Bar fill (animated width) ──────────────────────

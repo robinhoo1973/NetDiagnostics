@@ -32,7 +32,8 @@ PageSection {
             S.PageDetailHeaderSection {
                 Layout.fillWidth: true
                 title: root._data.displayName || ""
-                iconName: ThemeEngine.statusIconNames[(root._data.status !== undefined ? root._data.status : 5)] || "circle"
+                // 5WHY (review round 2, UX+PM): 头部不展示诊断图标——hero 光晕垫
+                // 是唯一身份元素（page-detail.md §2.1/§2.2）。
                 onBackRequested: root.backRequested()
             }
             S.PageHeroSection {

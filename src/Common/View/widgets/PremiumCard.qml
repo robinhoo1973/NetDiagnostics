@@ -37,8 +37,8 @@ Rectangle {
     // static builds.  cardCol owns every child's vertical layout.
     implicitHeight: cardCol.implicitHeight
     radius: Th.ThemeEngine.radius.lg
-    color: Th.ThemeEngine.colors.card
-    border { width: 1; color: Th.ThemeEngine.colors.borderCard }
+    color: Th.ThemeEngine.colors.surfaceContainerLow
+    border { width: 1; color: Th.ThemeEngine.colors.outlineVariant }
     clip: true
 
     // Emitted by the locked "Unlock Premium" button; the page opens the full
@@ -63,46 +63,36 @@ Rectangle {
             Layout.rightMargin: Th.ThemeEngine.spacing.lg
             text: T.tr("premiumCardTitle")
             font.family: Th.ThemeEngine.fontUi; font.pixelSize: 16; font.weight: Font.Bold
-            color: Th.ThemeEngine.colors.textPrimary; wrapMode: Text.WordWrap
+            color: Th.ThemeEngine.colors.onSurface; wrapMode: Text.WordWrap
         }
 
         // ── Feature rows — flat icon+text, identical in both themes ────
-        // Locked: info (i) icon in textSecondary.  Unlocked: check (✓) in
-        // passGreen.  Text always textPrimary.
-        RowLayout {
-            Layout.fillWidth: true
-            Layout.topMargin: Th.ThemeEngine.spacing.md
-            Layout.leftMargin: Th.ThemeEngine.spacing.lg
-            Layout.rightMargin: Th.ThemeEngine.spacing.lg
-            spacing: 10
-            AppIcon {
-                name: card._prem ? "check" : "info"
-                size: 18
-                color: card._prem ? Th.ThemeEngine.colors.passGreen : Th.ThemeEngine.colors.textSecondary
-            }
-            Label {
+        // Locked: info (i) icon in onSurfaceVariant.  Unlocked: check (✓) in
+        // success.  Text always onSurface.
+        // 5WHY (simplify 2026-08-17): 两条特性行仅 tr key 与间距不同——
+        // Repeater 由两行模型驱动，新增行只加模型条目。
+        Repeater {
+            model: [
+                { key: "premiumFeaturePdf",      first: true },
+                { key: "premiumFeatureLifetime", first: false }
+            ]
+            RowLayout {
                 Layout.fillWidth: true
-                text: T.tr("premiumFeaturePdf")
-                font.family: Th.ThemeEngine.fontUi; font.pixelSize: 13
-                color: Th.ThemeEngine.colors.textPrimary; wrapMode: Text.WordWrap
-            }
-        }
-        RowLayout {
-            Layout.fillWidth: true
-            Layout.topMargin: Th.ThemeEngine.spacing.sm
-            Layout.leftMargin: Th.ThemeEngine.spacing.lg
-            Layout.rightMargin: Th.ThemeEngine.spacing.lg
-            spacing: 10
-            AppIcon {
-                name: card._prem ? "check" : "info"
-                size: 18
-                color: card._prem ? Th.ThemeEngine.colors.passGreen : Th.ThemeEngine.colors.textSecondary
-            }
-            Label {
-                Layout.fillWidth: true
-                text: T.tr("premiumFeatureLifetime")
-                font.family: Th.ThemeEngine.fontUi; font.pixelSize: 13
-                color: Th.ThemeEngine.colors.textPrimary; wrapMode: Text.WordWrap
+                Layout.topMargin: modelData.first ? Th.ThemeEngine.spacing.md : Th.ThemeEngine.spacing.sm
+                Layout.leftMargin: Th.ThemeEngine.spacing.lg
+                Layout.rightMargin: Th.ThemeEngine.spacing.lg
+                spacing: 10
+                AppIcon {
+                    name: card._prem ? "check" : "info"
+                    size: 18
+                    color: card._prem ? Th.ThemeEngine.colors.success : Th.ThemeEngine.colors.onSurfaceVariant
+                }
+                Label {
+                    Layout.fillWidth: true
+                    text: T.tr(modelData.key)
+                    font.family: Th.ThemeEngine.fontUi; font.pixelSize: Th.ThemeEngine.fontSize.body
+                    color: Th.ThemeEngine.colors.onSurface; wrapMode: Text.WordWrap
+                }
             }
         }
 
@@ -112,11 +102,11 @@ Rectangle {
             Layout.topMargin: Th.ThemeEngine.spacing.md
             Layout.bottomMargin: Th.ThemeEngine.spacing.md
             implicitHeight: 1
-            // 5WHY (dark-mode audit): Qt.alpha(borderCard, 0.6) on dark card
+            // 5WHY (dark-mode audit): Qt.alpha(outlineVariant, 0.6) on dark card
             // (#334155·0.6≈#232A37 vs #1E293B → 1.07:1) was invisible.  Full
-            // borderCard (#334155) yields 1.41:1 — low but acceptable for a
+            // outlineVariant (#334155) yields 1.41:1 — low but acceptable for a
             // decorative divider (M3 outlineVariant range is 1.2–1.5:1).
-            color: Th.ThemeEngine.colors.borderCard
+            color: Th.ThemeEngine.colors.outlineVariant
         }
 
         // ── Single action button ─────────────────────────────────────
@@ -131,10 +121,10 @@ Rectangle {
             Layout.rightMargin: Th.ThemeEngine.spacing.lg
             Layout.bottomMargin: Th.ThemeEngine.spacing.lg
             implicitHeight: 46; radius: 12
-            color: card._prem ? Qt.alpha(Th.ThemeEngine.colors.passGreen, 0.16)
+            color: card._prem ? Qt.alpha(Th.ThemeEngine.colors.success, 0.16)
                                       : Th.ThemeEngine.colors.primary
             border { width: card._prem ? 1 : 0
-                     color: card._prem ? Qt.alpha(Th.ThemeEngine.colors.passGreen, 0.5) : "transparent" }
+                     color: card._prem ? Qt.alpha(Th.ThemeEngine.colors.success, 0.5) : "transparent" }
             Rectangle { // hover overlay (locked only — no Qt.lighter, static-safe)
                 anchors.fill: parent; radius: 12
                 visible: !card._prem && btnHover.containsMouse
@@ -145,13 +135,16 @@ Rectangle {
                 AppIcon {
                     name: card._prem ? "check" : "zap"
                     size: 16
-                    color: card._prem ? Th.ThemeEngine.colors.passGreen : Th.ThemeEngine.colors.textOnAccent
+                    // 5WHY (review 2026-08-17): 解锁态 success 绿在 success@0.16
+                    // 浅底上仅 ~2.2:1（AA 失败）——terminalText 是按主题调校的
+                    // success 系绿（暗=success #4ADE80；亮=深翡翠 #047857 ≈4.7:1）。
+                    color: card._prem ? Th.ThemeEngine.colors.terminalText : Th.ThemeEngine.colors.onPrimary
                 }
                 Label {
                     text: card._prem ? T.tr("premiumUnlockedBtn") : T.tr("subscribeBtn")
                     font.family: Th.ThemeEngine.fontUi; font.pixelSize: 14; font.weight: Font.Bold
                     // 5WHY: primary fill + white failed WCAG (1.89:1 dark).
-                    color: card._prem ? Th.ThemeEngine.colors.passGreen : Th.ThemeEngine.colors.textOnAccent
+                    color: card._prem ? Th.ThemeEngine.colors.terminalText : Th.ThemeEngine.colors.onPrimary
                     elide: T.textElideStart
                 }
             }

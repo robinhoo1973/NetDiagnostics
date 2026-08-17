@@ -12,8 +12,8 @@ Rectangle {
     implicitWidth: Math.min(360, toastRow.implicitWidth + 32)
     implicitHeight: 40
     radius: ThemeEngine.radius.lg
-    color: Qt.alpha(ThemeEngine.colors.card, 0.96)
-    border { width: 1; color: ThemeEngine.colors.borderCard }
+    color: Qt.alpha(ThemeEngine.colors.surfaceContainerLow, 0.96)
+    border { width: 1; color: ThemeEngine.colors.outlineVariant }
     opacity: text !== "" ? 1.0 : 0.0
     Behavior on opacity { NumberAnimation { duration: 160 } }
 
@@ -21,12 +21,12 @@ Rectangle {
         id: toastRow
         anchors { fill: parent; leftMargin: 16; rightMargin: 16 }
         spacing: 8
-        AppIcon { name: "badge-info"; size: 16; color: ThemeEngine.colors.cyan }
+        AppIcon { name: "badge-info"; size: 16; color: ThemeEngine.colors.tertiary }
         Label {
             Layout.fillWidth: true
             text: root.text
             elide: Text.ElideRight
-            color: ThemeEngine.colors.textPrimary
+            color: ThemeEngine.colors.onSurface
             font.family: ThemeEngine.fontUi; font.pixelSize: ThemeEngine.fontSize.body
         }
     }

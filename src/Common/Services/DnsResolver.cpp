@@ -10,7 +10,11 @@
 #include <atomic>
 #include <thread>
 #include <chrono>
+#include <cstring>
 #include <QDateTime>
+#include <QDebug>
+#include <QHostAddress>
+#include <QAbstractSocket>
 
 #if defined(_WIN32)
 #include <winsock2.h>
@@ -21,6 +25,82 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #endif
+
+// ── 共用辅助（非 Apple std::thread 路径）──────────────────────────────
+// 5WHY (simplify 2026-08-17): resolve() 与 resolve6() 的轮询等待与线程收尾
+// 逻辑逐字重复（仅 AF_INET/AF_INET6 与超时变量名不同），抽出共用实现。
+namespace {
+
+bool waitResolveDone(const std::atomic<bool>& done,
+                     std::chrono::steady_clock::time_point start, int timeoutMs) {
+    while (!done.load(std::memory_order_acquire)) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        if (std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::steady_clock::now() - start).count() > timeoutMs)
+            break;
+    }
+    return done.load(std::memory_order_acquire);
+}
+
+// 5WHY: 无条件 detach 会泄漏已完成线程的内核资源；join 已完成线程是即时的。
+// 仅超时（getaddrinfo 可能仍阻塞 30-120s）时 detach，让 shared_ptr 保活。
+void finishResolveThread(std::thread& t, const std::atomic<bool>& done) {
+    if (done.load(std::memory_order_acquire))
+        t.join();   // completed within timeout -- immediate cleanup
+    else
+        t.detach(); // still blocked in getaddrinfo; state freed by shared_ptr
+}
+
+// 5WHY (simplify 2026-08-17): resolve()/resolve6() 仅地址族不同——getaddrinfo
+// 工作 lambda 与 EAGAIN 守卫重复两份。统一状态结构 + 受守卫的线程创建；
+// 失败返回非 joinable 线程，调用方按失败处理。
+struct LookupState { std::atomic<bool> done{false}; QString ip; };
+
+std::thread spawnLookupThread(const std::shared_ptr<LookupState>& st,
+                              const QByteArray& hb, int family) {
+    std::thread t;
+    try {
+        t = std::thread([st, hb, family]() {
+            struct addrinfo hints = {}, *res = nullptr;
+            hints.ai_family = family; hints.ai_socktype = SOCK_STREAM;
+            if (getaddrinfo(hb.constData(), nullptr, &hints, &res) == 0 && res) {
+                const bool v6 = (family == AF_INET6);
+                char ip[INET6_ADDRSTRLEN];
+                void* src = v6
+                    ? static_cast<void*>(&(reinterpret_cast<struct sockaddr_in6*>(res->ai_addr)->sin6_addr))
+                    : static_cast<void*>(&(reinterpret_cast<struct sockaddr_in*>(res->ai_addr)->sin_addr));
+                inet_ntop(family, src, ip, sizeof(ip));
+                st->ip = QString::fromLatin1(ip);
+                freeaddrinfo(res);
+            }
+            st->done.store(true, std::memory_order_release);
+        });
+    } catch (const std::system_error& e) {
+        qWarning("DnsResolver: thread creation failed (%s)", e.what());
+    }
+    return t;
+}
+
+// IP 字面量 → sockaddr_storage（resolvePtr 反查用；返回 salen，0=无法解析）
+int fillSockaddr(const QByteArray& ipb, struct sockaddr_storage& sa) {
+    const QHostAddress addr(QString::fromUtf8(ipb));
+    if (addr.protocol() == QAbstractSocket::IPv4Protocol) {
+        auto* s4 = reinterpret_cast<struct sockaddr_in*>(&sa);
+        s4->sin_family = AF_INET;
+        s4->sin_addr.s_addr = htonl(addr.toIPv4Address());
+        return static_cast<int>(sizeof(*s4));
+    }
+    if (addr.protocol() == QAbstractSocket::IPv6Protocol) {
+        auto* s6 = reinterpret_cast<struct sockaddr_in6*>(&sa);
+        s6->sin6_family = AF_INET6;
+        const Q_IPV6ADDR v6 = addr.toIPv6Address();
+        std::memcpy(&s6->sin6_addr, &v6, sizeof(v6));
+        return static_cast<int>(sizeof(*s6));
+    }
+    return 0;
+}
+
+} // namespace
 
 DnsResolver& DnsResolver::instance() {
     static DnsResolver inst;
@@ -138,27 +218,11 @@ QString DnsResolver::resolve(const QString& host, int timeoutMs) {
 #else
     // Non-Apple: std::thread with polling loop.
     // Heap-allocate state so the detached thread doesn't access freed stack.
-    struct ResolveState { std::atomic<bool> done{false}; QString ip; };
-    auto st = std::make_shared<ResolveState>();
-    std::thread t([st, hb]() {
-        struct addrinfo hints = {}, *res;
-        hints.ai_family = AF_INET; hints.ai_socktype = SOCK_STREAM;
-        if (getaddrinfo(hb.constData(), nullptr, &hints, &res) == 0) {
-            char ip[INET_ADDRSTRLEN];
-            auto* sa = (struct sockaddr_in*)res->ai_addr;
-            inet_ntop(AF_INET, &sa->sin_addr, ip, sizeof(ip));
-            st->ip = QString::fromLatin1(ip);
-            freeaddrinfo(res);
-        }
-        st->done.store(true, std::memory_order_release);
-    });
-    auto start = std::chrono::steady_clock::now();
-    while (!st->done.load(std::memory_order_acquire)) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(50));
-        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
-            std::chrono::steady_clock::now() - start).count();
-        if (elapsed > timeoutMs) break;
-    }
+    // 5WHY (simplify 2026-08-17): 工作 lambda + EAGAIN 守卫统一在
+    // spawnLookupThread（与 resolve6 仅地址族不同）；失败返回非 joinable 线程。
+    auto st = std::make_shared<LookupState>();
+    std::thread t = spawnLookupThread(st, hb, AF_INET);
+    if (!t.joinable()) return {};
     // 5WHY: t.detach() was unconditional -- even when the thread completed
     // within the timeout (st->done==true), we detached instead of joining.
     // A joinable thread that finishes normally consumes kernel resources
@@ -166,15 +230,8 @@ QString DnsResolver::resolve(const QString& host, int timeoutMs) {
     // thread is immediate (no blocking), so prefer join when possible.
     // Detach is only needed for the timeout case where getaddrinfo may still
     // be blocked for 30-120s -- joining would block the caller.
-    if (st->done.load(std::memory_order_acquire)) {
-        t.join();   // thread completed within timeout -- immediate cleanup
-    } else {
-        t.detach(); // timeout: thread still blocked in getaddrinfo; let it
-                     // keep shared_ptr alive until it finishes, then auto-free.
-                     // Risk: rapid repeated timeouts accumulate detached threads.
-                     // Mitigated by DNS cache -- repeated lookups hit the cache
-                     // before spawning new threads.
-    }
+    waitResolveDone(st->done, std::chrono::steady_clock::now(), timeoutMs);
+    finishResolveThread(t, st->done);
     // 5WHY: this cache write MUST happen before the timeout early-return
     // below. When getaddrinfo is still blocked (st->done==false, st->ip empty)
     // we write an empty entry = NEGATIVE cache, so a wedged DNS server doesn't
@@ -260,40 +317,113 @@ QString DnsResolver::resolve6(const QString& host, int timeoutMs) {
     }
     return ipOut;
 #else
-    // Non-Apple: std::thread with polling loop.
-    struct State { std::atomic<bool> done{false}; QString ip; };
-    auto st = std::make_shared<State>();
+    // Non-Apple: std::thread with polling loop（工作体统一在 spawnLookupThread）。
+    auto st = std::make_shared<LookupState>();
     QByteArray hb = host.toUtf8();
-    std::thread t([st, hb]() {
-        struct addrinfo hints = {}, *res;
-        hints.ai_family = AF_INET6; hints.ai_socktype = SOCK_STREAM;
-        if (getaddrinfo(hb.constData(), nullptr, &hints, &res) == 0) {
-            char ip[INET6_ADDRSTRLEN];
-            auto* sa6 = (struct sockaddr_in6*)res->ai_addr;
-            inet_ntop(AF_INET6, &sa6->sin6_addr, ip, sizeof(ip));
-            st->ip = QString::fromLatin1(ip); freeaddrinfo(res);
-        }
-        st->done.store(true, std::memory_order_release);
-    });
-    auto tm = std::chrono::steady_clock::now();
-    while (!st->done.load(std::memory_order_acquire)) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(50));
-        if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now()-tm).count() > timeoutMs) break;
-    }
+    std::thread t = spawnLookupThread(st, hb, AF_INET6);
+    if (!t.joinable()) return {};
     // 5WHY: prefer join() when thread completed within timeout for immediate
     // cleanup; detach() is only needed for timeout case where getaddrinfo may
     // still be blocked for 30-120s.
-    if (st->done.load(std::memory_order_acquire)) {
-        t.join();
-    } else {
-        t.detach();
-    }
+    waitResolveDone(st->done, std::chrono::steady_clock::now(), timeoutMs);
+    finishResolveThread(t, st->done);
     // 5WHY: same as resolve() — write the (possibly negative) cache entry
     // BEFORE the timeout early-return so a wedged DNS server hits the 30s
     // negative entry instead of re-spawning a thread per call.
     {
         QMutexLocker l(&m_mutex);
         m_cache[QStringLiteral("v6:") + host] = {st->ip, QDateTime::currentMSecsSinceEpoch()};
+    }
+    if (!st->done.load(std::memory_order_acquire)) return {};
+    return st->ip;
+#endif
+}
+
+QString DnsResolver::resolvePtr(const QString& ip, int timeoutMs) {
+    // 反查 PTR（IP → 主机名；G4 traceroute 展示用）。与 resolve() 同机制：
+    // Apple 走 GCD（内核级超时），其余走受守卫 std::thread + 轮询；
+    // 正/负缓存同一张表——wedged 反查 DNS 不会重复阻塞每跳。
+    // 5WHY (simplify 2026-08-17): 原调用方同步无界 QHostInfo::fromName（违反
+    // 本文件 H4 规则），且每跳新建局部事件循环（第 3 份有界等待机制）。
+    {
+        QMutexLocker locker(&m_mutex);
+        const QString k = QStringLiteral("ptr:") + ip;
+        auto it = m_cache.constFind(k);
+        if (it != m_cache.constEnd()) {
+            if (!it->ip.isEmpty()) return it->ip;
+            const qint64 age = QDateTime::currentMSecsSinceEpoch() - it->ts;
+            if (age < DnsResolver::kNegativeTtlMs) return {};
+        }
+    }
+
+#if defined(__APPLE__)
+    struct PtrCtx {
+        QByteArray ip;
+        char name[NI_MAXHOST];
+        std::atomic<bool> resolved;
+        dispatch_semaphore_t sem;
+        std::atomic<int> refs;
+    };
+    auto* ctx = new PtrCtx();
+    ctx->ip = ip.toUtf8();
+    ctx->name[0] = '\0';
+    ctx->resolved.store(false, std::memory_order_relaxed);
+    ctx->sem = dispatch_semaphore_create(0);
+    ctx->refs.store(2, std::memory_order_relaxed);
+
+    dispatch_async_f(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ctx,
+        [](void* p) {
+            auto* c = static_cast<PtrCtx*>(p);
+            struct sockaddr_storage sa = {};
+            const int salen = fillSockaddr(c->ip, sa);
+            if (salen && getnameinfo(reinterpret_cast<struct sockaddr*>(&sa), salen,
+                                     c->name, sizeof(c->name), nullptr, 0, NI_NAMEREQD) == 0)
+                c->resolved.store(true, std::memory_order_release);
+            dispatch_semaphore_signal(c->sem);
+            if (c->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
+                dispatch_release(c->sem);
+                delete c;
+            }
+        });
+
+    long waitResult = dispatch_semaphore_wait(ctx->sem,
+        dispatch_time(DISPATCH_TIME_NOW, (int64_t)timeoutMs * NSEC_PER_MSEC));
+
+    QString nameOut;
+    if (waitResult == 0 && ctx->resolved.load(std::memory_order_acquire))
+        nameOut = QString::fromLatin1(ctx->name);
+    {
+        QMutexLocker locker(&m_mutex);
+        m_cache[QStringLiteral("ptr:") + ip] = {nameOut, QDateTime::currentMSecsSinceEpoch()};
+    }
+    if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
+        dispatch_release(ctx->sem);
+        delete ctx;
+    }
+    return nameOut;
+#else
+    auto st = std::make_shared<LookupState>();
+    const QByteArray ipb = ip.toUtf8();
+    std::thread t;
+    try {
+        t = std::thread([st, ipb]() {
+            struct sockaddr_storage sa = {};
+            const int salen = fillSockaddr(ipb, sa);
+            char host[NI_MAXHOST] = {};
+            if (salen && getnameinfo(reinterpret_cast<struct sockaddr*>(&sa), salen,
+                                     host, sizeof(host), nullptr, 0, NI_NAMEREQD) == 0)
+                st->ip = QString::fromLatin1(host);
+            st->done.store(true, std::memory_order_release);
+        });
+    } catch (const std::system_error& e) {
+        qWarning("DnsResolver: thread creation failed (%s)", e.what());
+        return {};
+    }
+    waitResolveDone(st->done, std::chrono::steady_clock::now(), timeoutMs);
+    finishResolveThread(t, st->done);
+    {
+        QMutexLocker l(&m_mutex);
+        m_cache[QStringLiteral("ptr:") + ip] = {st->ip, QDateTime::currentMSecsSinceEpoch()};
     }
     if (!st->done.load(std::memory_order_acquire)) return {};
     return st->ip;

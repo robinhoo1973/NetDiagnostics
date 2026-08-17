@@ -27,10 +27,12 @@ Item {
     signal closeRequested()
 
     function closeCurrentOverlay() {
+        // OverlayHost 契约（5WHY simplify 2026-08-17）：浮层页面统一实现
+        // closeOverlay()——旧实现按页面私有状态鸭子类型探测，每加一个
+        // 浮层页面就多一个 else-if 分支。
         var item = stackView.currentItem
         if (!item) return
         if (typeof item.closeOverlay === "function") item.closeOverlay()
-        else if (typeof item._detailVisible !== "undefined") item._detailVisible = false
     }
 
     // 5WHY（nav 动画方向）：push/pop 固定方向导致 dashboard↔diag 反向滑动。
@@ -171,7 +173,7 @@ Item {
         Rectangle {
             Layout.fillWidth: true
             implicitHeight: compact ? 48 : 56
-            color: ThemeEngine.colors.navBar
+            color: ThemeEngine.colors.surfaceContainer
             LayoutMirroring.enabled: false
             LayoutMirroring.childrenInherit: false
 
@@ -234,7 +236,7 @@ Item {
                                     anchors.centerIn: parent
                                     name: modelData.icon; size: 24
                                     color: navBtn.active ? ThemeEngine.colors.primary
-                                                         : ThemeEngine.colors.textSecondary
+                                                         : ThemeEngine.colors.onSurfaceVariant
                                 }
                                 RowLayout {
                                     visible: !content.compact
@@ -243,7 +245,7 @@ Item {
                                     AppIcon {
                                         name: modelData.icon; size: 24
                                         color: navBtn.active ? ThemeEngine.colors.primary
-                                                             : ThemeEngine.colors.textSecondary
+                                                             : ThemeEngine.colors.onSurfaceVariant
                                     }
                                     Label {
                                         text: navBtn.labelText
@@ -251,7 +253,7 @@ Item {
                                         font.pixelSize: 12
                                         font.weight: navBtn.active ? Font.DemiBold : Font.Normal
                                         color: navBtn.active ? ThemeEngine.colors.primary
-                                                             : ThemeEngine.colors.textSecondary
+                                                             : ThemeEngine.colors.onSurfaceVariant
                                     }
                                 }
                             }

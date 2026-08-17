@@ -25,12 +25,12 @@ PageSection {
             Layout.alignment: Qt.AlignHCenter
             name: root.errorState ? "badge-error" : "compass"
             size: root.errorState ? 80 : 48
-            color: root.errorState ? ThemeEngine.colors.failRed : ThemeEngine.colors.textMuted
+            color: root.errorState ? ThemeEngine.colors.fail : ThemeEngine.colors.textMuted
         }
         Label {
             Layout.alignment: Qt.AlignHCenter
             text: root.errorState ? T.tr("errorCheck") : T.tr("noData")
-            color: root.errorState ? ThemeEngine.colors.failRed : ThemeEngine.colors.textSecondary
+            color: root.errorState ? ThemeEngine.colors.fail : ThemeEngine.colors.onSurfaceVariant
             font.family: ThemeEngine.fontUi
             font.pixelSize: ThemeEngine.fontSize.body
             font.weight: root.errorState ? Font.DemiBold : Font.Normal
@@ -43,7 +43,7 @@ PageSection {
             text: root.errorState
                 ? (AppState.errorMessage !== "" ? T.trMsg(AppState.errorMessage) : T.tr("errorRecoveryHint"))
                 : root.hintText
-            color: ThemeEngine.colors.textSecondary
+            color: ThemeEngine.colors.onSurfaceVariant
             font.family: ThemeEngine.fontUi
             font.pixelSize: ThemeEngine.fontSize.caption
             horizontalAlignment: Text.AlignHCenter

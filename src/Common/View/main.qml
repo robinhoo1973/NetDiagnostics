@@ -57,65 +57,26 @@ Window {
         anchors { top: parent.top; right: parent.right; topMargin: 5; rightMargin: 8 }
         spacing: 8
 
-        Rectangle {
-            width: 38; height: 38; radius: 6
-            color: minArea.containsMouse ? Qt.alpha(ThemeEngine.colors.borderCard, 0.6) : "transparent"
-            AppIcon {
-                anchors.centerIn: parent
-                name: "minimize"; size: 14
-                color: minArea.containsMouse ? ThemeEngine.colors.textPrimary : ThemeEngine.colors.textSecondary
-            }
-            MouseArea {
-                id: minArea
-                anchors.fill: parent
-                cursorShape: Qt.PointingHandCursor
-                hoverEnabled: true
-                onClicked: win.showMinimized()
-            }
-            Accessible.name: T.tr("accMinimizeWindow")
-            Accessible.role: Accessible.Button
+        WindowButton {
+            iconName: "minimize"
+            accName: T.tr("accMinimizeWindow")
+            onClicked: win.showMinimized()
         }
 
-        Rectangle {
-            width: 38; height: 38; radius: 6
-            color: maxArea.containsMouse ? Qt.alpha(ThemeEngine.colors.borderCard, 0.6) : "transparent"
-            AppIcon {
-                anchors.centerIn: parent
-                name: win.visibility === Window.Maximized ? "restore" : "maximize"
-                size: 14
-                color: maxArea.containsMouse ? ThemeEngine.colors.textPrimary : ThemeEngine.colors.textSecondary
+        WindowButton {
+            iconName: win.visibility === Window.Maximized ? "restore" : "maximize"
+            accName: win.visibility === Window.Maximized ? T.tr("accRestoreWindow") : T.tr("accMaximizeWindow")
+            onClicked: {
+                if (win.visibility === Window.Maximized) win.showNormal()
+                else win.showMaximized()
             }
-            MouseArea {
-                id: maxArea
-                anchors.fill: parent
-                cursorShape: Qt.PointingHandCursor
-                hoverEnabled: true
-                onClicked: {
-                    if (win.visibility === Window.Maximized) win.showNormal()
-                    else win.showMaximized()
-                }
-            }
-            Accessible.name: win.visibility === Window.Maximized ? T.tr("accRestoreWindow") : T.tr("accMaximizeWindow")
-            Accessible.role: Accessible.Button
         }
 
-        Rectangle {
-            width: 38; height: 38; radius: 6
-            color: closeArea.containsMouse ? ThemeEngine.colors.failRed : "transparent"
-            AppIcon {
-                anchors.centerIn: parent
-                name: "close"; size: 14
-                color: closeArea.containsMouse ? "#FFFFFF" : ThemeEngine.colors.textSecondary
-            }
-            MouseArea {
-                id: closeArea
-                anchors.fill: parent
-                cursorShape: Qt.PointingHandCursor
-                hoverEnabled: true
-                onClicked: win.close()
-            }
-            Accessible.name: T.tr("accCloseWindow")
-            Accessible.role: Accessible.Button
+        WindowButton {
+            iconName: "close"
+            accName: T.tr("accCloseWindow")
+            destructive: true
+            onClicked: win.close()
         }
     }
 }

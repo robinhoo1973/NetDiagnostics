@@ -34,6 +34,9 @@ PageDisplay {
     headerContent: [
         S.PageDetailHeaderSection {
             detail: page.detail
+            // 5WHY (review round 2, UX+PM): 头部不再展示诊断图标——hero 光晕垫
+            // 是唯一身份元素，头部保持 返回+标题+复制（page-detail.md §2.1）。
+            title: page.detail.displayName || ""
             onBackRequested: page.emitSectionAction("detail", "back", {})
             onCopyRequested: {
                 if (page.detail.diagId === undefined) return

@@ -159,55 +159,33 @@ Item {
                   bottomMargin: 8 }
         width: navRow.implicitWidth + 24; height: 44
         radius: 8
-        color: Qt.alpha(ThemeEngine.colors.card, 0.92)
-        border { width: 1; color: ThemeEngine.colors.borderCard }
+        color: Qt.alpha(ThemeEngine.colors.surfaceContainerLow, 0.92)
+        border { width: 1; color: ThemeEngine.colors.outlineVariant }
         visible: pdfDoc && pdfDoc.loaded && pdfDoc.pageCount > 1
 
         Row {
             id: navRow
             anchors.centerIn: parent; spacing: 8
 
-            Rectangle {
-                width: 44; height: 44; radius: 8
-                color: navPrevMa.containsMouse ? Qt.alpha(ThemeEngine.colors.cyan, 0.2)
-                                              : Qt.alpha(ThemeEngine.colors.cyan, 0.08)
-                AppIcon { anchors.centerIn: parent; name: "play"; size: 18
-                    color: ThemeEngine.colors.cyan; rotation: 180 }
-                MouseArea {
-                    id: navPrevMa
-                    anchors.fill: parent
-                    cursorShape: Qt.PointingHandCursor; hoverEnabled: true
-                    onClicked: { if (root.currentPage > 0) root.currentPage-- }
-                }
-                Accessible.name: T.tr("accPrevPage")
-                Accessible.role: Accessible.Button
+            NavArrowButton {
+                prev: true; btnSize: 44; iconSize: 18
+                onActivated: { if (root.currentPage > 0) root.currentPage-- }
             }
 
             Label {
                 anchors.verticalCenter: parent.verticalCenter
                 text: (root.currentPage + 1) + " / " + (pdfDoc ? pdfDoc.pageCount : 0)
                 font.family: ThemeEngine.monoFont; font.pixelSize: 13
-                color: ThemeEngine.colors.textPrimary; width: 70
+                color: ThemeEngine.colors.onSurface; width: 70
                 horizontalAlignment: Text.AlignHCenter
             }
 
-            Rectangle {
-                width: 44; height: 44; radius: 8
-                color: navNextMa.containsMouse ? Qt.alpha(ThemeEngine.colors.cyan, 0.2)
-                                              : Qt.alpha(ThemeEngine.colors.cyan, 0.08)
-                AppIcon { anchors.centerIn: parent; name: "play"; size: 18
-                    color: ThemeEngine.colors.cyan }
-                MouseArea {
-                    id: navNextMa
-                    anchors.fill: parent
-                    cursorShape: Qt.PointingHandCursor; hoverEnabled: true
-                    onClicked: {
-                        if (pdfDoc && root.currentPage < pdfDoc.pageCount - 1)
-                            root.currentPage++
-                    }
+            NavArrowButton {
+                prev: false; btnSize: 44; iconSize: 18
+                onActivated: {
+                    if (pdfDoc && root.currentPage < pdfDoc.pageCount - 1)
+                        root.currentPage++
                 }
-                Accessible.name: T.tr("accNextPage")
-                Accessible.role: Accessible.Button
             }
         }
     }
@@ -217,10 +195,10 @@ Item {
         anchors.centerIn: parent
         width: Math.min(320, parent.width - 20)
         height: errorCol.implicitHeight + 20; radius: 8
-        color: root._loadError ? Qt.alpha(ThemeEngine.colors.failRed, 0.12)
-                               : Qt.alpha(ThemeEngine.colors.card, 0.9)
+        color: root._loadError ? Qt.alpha(ThemeEngine.colors.fail, 0.12)
+                               : Qt.alpha(ThemeEngine.colors.surfaceContainerLow, 0.9)
         border { width: root._loadError ? 1 : 0
-                 color: root._loadError ? Qt.alpha(ThemeEngine.colors.failRed, 0.3) : "transparent" }
+                 color: root._loadError ? Qt.alpha(ThemeEngine.colors.fail, 0.3) : "transparent" }
         visible: !pdfDoc || !pdfDoc.loaded || root._loadError
 
         Column {
@@ -231,14 +209,14 @@ Item {
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: root._loadError ? T.tr("pdfLoadFailed") : T.tr("pdfLoading")
                 font.family: ThemeEngine.monoFont; font.pixelSize: 13; font.weight: Font.Bold
-                color: root._loadError ? ThemeEngine.colors.failRed : ThemeEngine.colors.textSecondary
+                color: root._loadError ? ThemeEngine.colors.fail : ThemeEngine.colors.onSurfaceVariant
             }
             Label {
                 anchors.horizontalCenter: parent.horizontalCenter
                 visible: root._loadError
                 text: root._loadError
                 font.family: ThemeEngine.monoFont; font.pixelSize: 10
-                color: ThemeEngine.colors.textSecondary
+                color: ThemeEngine.colors.onSurfaceVariant
                 wrapMode: Text.WordWrap
                 horizontalAlignment: Text.AlignHCenter
             }

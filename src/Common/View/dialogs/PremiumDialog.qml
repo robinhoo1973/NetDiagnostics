@@ -23,6 +23,11 @@ Rectangle {
     property string statusText: ""      // 瞬时提示（恢复/不可用）
     signal dismissed()
 
+    // 5WHY (review 2026-08-17): 弹窗缺 LayoutMirroring——阿拉伯语下关闭按钮
+    // 停留在错误视觉边；PremiumCard 已有镜像，弹窗补齐。
+    LayoutMirroring.enabled: T.isRtl
+    LayoutMirroring.childrenInherit: true
+
     function openDialog() {
         root.open = true
         root.statusText = ""
@@ -61,8 +66,8 @@ Rectangle {
         width: Math.min(parent.width - 48, 420)
         height: Math.min(parent.height - 48, bodyCol.implicitHeight + 2 * ThemeEngine.spacing.xl)
         radius: ThemeEngine.radius.xl
-        color: ThemeEngine.colors.card
-        border { width: 1; color: ThemeEngine.colors.borderCard }
+        color: ThemeEngine.colors.surfaceContainerLow
+        border { width: 1; color: ThemeEngine.colors.outlineVariant }
 
         ColumnLayout {
             id: bodyCol
@@ -70,19 +75,17 @@ Rectangle {
             anchors.margins: ThemeEngine.spacing.xl
             spacing: ThemeEngine.spacing.md
 
-            // 关闭
-            AppIcon {
+            // 关闭：共享 IconActionButton（5WHY simplify 2026-08-17：本处是
+            // 该脚手架的第三份复制，且曾漏掉键盘支持——现已统一）
+            IconActionButton {
                 Layout.alignment: Qt.AlignRight
-                name: "chevron-right"; size: 18
-                rotation: 90
-                color: ThemeEngine.colors.textMuted
-                MouseArea {
-                    anchors.fill: parent
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: root.closeDialog()
-                }
-                Accessible.role: Accessible.Button
+                Layout.preferredWidth: 44
+                Layout.preferredHeight: 44
+                iconName: "close"
+                iconSize: 18
+                iconColor: ThemeEngine.colors.textMuted
                 Accessible.name: T.tr("dialogCancel")
+                onActivated: root.closeDialog()
             }
 
             AppIcon {
@@ -97,7 +100,7 @@ Rectangle {
                 font.family: ThemeEngine.fontUi
                 font.pixelSize: 19
                 font.weight: Font.Bold
-                color: ThemeEngine.colors.textPrimary
+                color: ThemeEngine.colors.onSurface
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.WordWrap
             }
@@ -107,7 +110,7 @@ Rectangle {
                 text: T.tr("premiumOneTime")
                 font.family: ThemeEngine.fontUi
                 font.pixelSize: ThemeEngine.fontSize.body
-                color: ThemeEngine.colors.textSecondary
+                color: ThemeEngine.colors.onSurfaceVariant
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.WordWrap
             }
@@ -119,14 +122,14 @@ Rectangle {
                     spacing: ThemeEngine.spacing.sm
                     AppIcon {
                         name: "badge-check"; size: 18
-                        color: ThemeEngine.colors.passGreen
+                        color: ThemeEngine.colors.success
                     }
                     Label {
                         Layout.fillWidth: true
                         text: T.tr(modelData)
                         font.family: ThemeEngine.fontUi
                         font.pixelSize: ThemeEngine.fontSize.body
-                        color: ThemeEngine.colors.textPrimary
+                        color: ThemeEngine.colors.onSurface
                         wrapMode: Text.WordWrap
                     }
                 }
@@ -138,7 +141,7 @@ Rectangle {
                 text: root.statusText
                 font.family: ThemeEngine.fontUi
                 font.pixelSize: ThemeEngine.fontSize.caption
-                color: ThemeEngine.colors.warnYellow
+                color: ThemeEngine.colors.warning
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.WordWrap
             }

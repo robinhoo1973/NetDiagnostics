@@ -33,14 +33,14 @@ PageSection {
                 AppIcon {
                     visible: root.cardIcon !== ""
                     name: root.cardIcon; size: 16
-                    color: ThemeEngine.colors.cyan
+                    color: ThemeEngine.colors.tertiary
                 }
                 Label {
                     text: root.cardTitle
                     font.family: ThemeEngine.fontUi
                     font.pixelSize: ThemeEngine.fontSize.subhead
                     font.weight: Font.DemiBold
-                    color: ThemeEngine.colors.textPrimary
+                    color: ThemeEngine.colors.onSurface
                     Layout.fillWidth: true
                     elide: Text.ElideRight
                 }

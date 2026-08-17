@@ -8,7 +8,7 @@ RowLayout {
     property int statusCode: -1
     property color accent: statusCode >= 0 && statusCode < ThemeEngine.statusColors.length
         ? ThemeEngine.statusColors[statusCode]
-        : ThemeEngine.colors.skipGray
+        : ThemeEngine.colors.skip
     property string iconName: statusCode >= 0 && statusCode < ThemeEngine.statusIconNames.length
         ? ThemeEngine.statusIconNames[statusCode]
         : "badge-info"

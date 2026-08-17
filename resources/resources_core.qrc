@@ -17,6 +17,7 @@
         <file alias="widgets/qmldir">../src/Common/View/widgets/qmldir</file>
         <file alias="widgets/AppIcon.qml">../src/Common/View/widgets/AppIcon.qml</file>
         <file alias="widgets/IconColors.js">../src/Common/View/widgets/IconColors.js</file>
+        <file alias="widgets/IconTints.js">../src/Common/View/widgets/IconTints.js</file>
         <file alias="widgets/AppBar.qml">../src/Common/View/widgets/AppBar.qml</file>
         <file alias="widgets/AppLabel.qml">../src/Common/View/widgets/AppLabel.qml</file>
         <file alias="widgets/StatusBadge.qml">../src/Common/View/widgets/StatusBadge.qml</file>
@@ -31,6 +32,10 @@
         <file alias="widgets/ShareButtons.qml">../src/Common/View/widgets/ShareButtons.qml</file>
         <file alias="widgets/PremiumCard.qml">../src/Common/View/widgets/PremiumCard.qml</file>
         <file alias="widgets/ZoomBar.qml">../src/Common/View/widgets/ZoomBar.qml</file>
+        <file alias="widgets/IconPad.qml">../src/Common/View/widgets/IconPad.qml</file>
+        <file alias="widgets/IconActionButton.qml">../src/Common/View/widgets/IconActionButton.qml</file>
+        <file alias="widgets/NavArrowButton.qml">../src/Common/View/widgets/NavArrowButton.qml</file>
+        <file alias="widgets/WindowButton.qml">../src/Common/View/widgets/WindowButton.qml</file>
         <!-- animations（五动画：Pulse/Jiggle/Bounce/Type/Path/Lock） -->
         <file alias="widgets/animations/PulseAnimation.qml">../src/Common/View/widgets/animations/PulseAnimation.qml</file>
         <file alias="widgets/animations/JiggleAnimation.qml">../src/Common/View/widgets/animations/JiggleAnimation.qml</file>

@@ -82,7 +82,7 @@ PageSection {
                             anchors.centerIn: parent
                             name: ThemeEngine.groupIconName(index)
                             size: 16
-                            color: tabBtn._selMode === 2 ? ThemeEngine.colors.textOnAccent
+                            color: tabBtn._selMode === 2 ? ThemeEngine.colors.onPrimary
                                  : tabBtn._selMode === 1 ? ThemeEngine.colors.primary
                                  : ThemeEngine.colors.textMuted
                         }
@@ -114,14 +114,14 @@ PageSection {
                         font.pixelSize: ThemeEngine.fontSize.caption
                         font.weight: tabBtn.activeTab ? Font.DemiBold : Font.Normal
                         color: tabBtn._selMode === 0 ? ThemeEngine.colors.textMuted
-                             : tabBtn.activeTab ? ThemeEngine.colors.textPrimary
-                             : ThemeEngine.colors.textSecondary
+                             : tabBtn.activeTab ? ThemeEngine.colors.onSurface
+                             : ThemeEngine.colors.onSurfaceVariant
                         elide: Text.ElideRight
                     }
                 }
                 background: Rectangle {
                     color: tabBtn.activeTab ? Qt.alpha(ThemeEngine.colors.primary, 0.12)
-                                            : (tabBtn.hovered ? Qt.alpha(ThemeEngine.colors.textSecondary, 0.06)
+                                            : (tabBtn.hovered ? Qt.alpha(ThemeEngine.colors.onSurfaceVariant, 0.06)
                                                               : "transparent")
                     radius: ThemeEngine.radius.md
                     border {

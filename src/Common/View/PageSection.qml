@@ -26,8 +26,8 @@ Item {
     // ── 3. Chrome ──
     enum BackgroundStyle { Plain, Card, Bar }
     property int backgroundStyle: PageSection.Card
-    property color cardColor: ThemeEngine.colors.card
-    property color borderColor: ThemeEngine.colors.borderCard
+    property color cardColor: ThemeEngine.colors.surfaceContainerLow
+    property color borderColor: ThemeEngine.colors.outlineVariant
     property real cardRadius: ThemeEngine.radius.md
     property real paddingH: 12
     property real paddingV: 12
@@ -60,7 +60,7 @@ Item {
         active: root.backgroundStyle === PageSection.Bar
         sourceComponent: Rectangle {
             anchors.fill: parent   // R1-6
-            color: ThemeEngine.colors.navBar
+            color: ThemeEngine.colors.surfaceContainer
             border { width: 1; color: root.borderColor }
         }
     }

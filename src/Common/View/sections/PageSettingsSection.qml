@@ -24,7 +24,7 @@ PageSection {
             AppIcon {
                 anchors.centerIn: parent
                 name: root.iconName; size: 18
-                color: ThemeEngine.colors.textPrimary
+                color: ThemeEngine.colors.onSurface
             }
         }
         Item { Layout.preferredWidth: ThemeEngine.spacing.md }
@@ -33,7 +33,7 @@ PageSection {
             font.family: ThemeEngine.fontUi
             font.pixelSize: 16
             font.weight: Font.DemiBold
-            color: ThemeEngine.colors.textPrimary
+            color: ThemeEngine.colors.onSurface
             Layout.fillWidth: true
             elide: Text.ElideRight
         }

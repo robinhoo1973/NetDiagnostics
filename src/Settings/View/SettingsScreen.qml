@@ -76,21 +76,21 @@ PageDisplay {
                             width: 1
                             color: isActive ? ThemeEngine.colors.primary
                                  : themeBtnArea.containsMouse ? Qt.alpha(ThemeEngine.colors.primary, 0.3)
-                                 : ThemeEngine.colors.borderCard
+                                 : ThemeEngine.colors.outlineVariant
                         }
                         RowLayout {
                             anchors.centerIn: parent
                             spacing: ThemeEngine.spacing.sm
                             AppIcon {
                                 name: modelData.icon; size: 16
-                                color: isActive ? ThemeEngine.colors.primary : ThemeEngine.colors.textSecondary
+                                color: isActive ? ThemeEngine.colors.primary : ThemeEngine.colors.onSurfaceVariant
                             }
                             Label {
                                 text: modelData.label
                                 font.family: ThemeEngine.fontUi
-                                font.pixelSize: ThemeEngine.fontSize.body
+                                font.pixelSize: ThemeEngine.fontSize.caption
                                 font.weight: isActive ? Font.DemiBold : Font.Normal
-                                color: isActive ? ThemeEngine.colors.primary : ThemeEngine.colors.textSecondary
+                                color: isActive ? ThemeEngine.colors.primary : ThemeEngine.colors.onSurfaceVariant
                             }
                         }
                         MouseArea {
@@ -137,13 +137,13 @@ PageDisplay {
                 font.pixelSize: ThemeEngine.fontSize.body
                 background: Rectangle {
                     radius: 6
-                    color: ThemeEngine.colors.input
-                    border { width: 1; color: ThemeEngine.colors.borderCard }
+                    color: ThemeEngine.colors.surfaceContainerHighest
+                    border { width: 1; color: ThemeEngine.colors.outlineVariant }
                 }
                 contentItem: Label {
                     text: langCombo.displayText
                     font: langCombo.font
-                    color: ThemeEngine.colors.textPrimary
+                    color: ThemeEngine.colors.onSurface
                     verticalAlignment: Text.AlignVCenter
                     leftPadding: T.isRtl ? 0 : 12
                     rightPadding: T.isRtl ? 12 : 0
@@ -151,7 +151,7 @@ PageDisplay {
                 indicator: AppIcon {
                     anchors { right: parent.right; rightMargin: 10; verticalCenter: parent.verticalCenter }
                     name: "chevron-down"; size: 12
-                    color: ThemeEngine.colors.textSecondary
+                    color: ThemeEngine.colors.onSurfaceVariant
                 }
                 delegate: ItemDelegate {
                     width: langCombo.width
@@ -159,13 +159,13 @@ PageDisplay {
                         text: modelData
                         font.family: ThemeEngine.fontUi
                         font.pixelSize: ThemeEngine.fontSize.body
-                        color: highlighted ? ThemeEngine.colors.cyan : ThemeEngine.colors.textPrimary
+                        color: highlighted ? ThemeEngine.colors.tertiary : ThemeEngine.colors.onSurface
                         verticalAlignment: Text.AlignVCenter
                         leftPadding: T.isRtl ? 0 : 12
                         rightPadding: T.isRtl ? 12 : 0
                     }
                     background: Rectangle {
-                        color: highlighted ? Qt.alpha(ThemeEngine.colors.cyan, 0.1) : "transparent"
+                        color: highlighted ? Qt.alpha(ThemeEngine.colors.tertiary, 0.1) : "transparent"
                     }
                 }
                 popup: Popup {
@@ -175,8 +175,8 @@ PageDisplay {
                     padding: 4
                     background: Rectangle {
                         radius: 8
-                        color: ThemeEngine.colors.card
-                        border { width: 1; color: ThemeEngine.colors.borderCard }
+                        color: ThemeEngine.colors.surfaceContainerLow
+                        border { width: 1; color: ThemeEngine.colors.outlineVariant }
                     }
                     contentItem: ListView {
                         clip: true
@@ -223,14 +223,14 @@ PageDisplay {
                     font.family: ThemeEngine.fontUi
                     font.pixelSize: ThemeEngine.fontSize.title
                     font.weight: Font.Bold
-                    color: ThemeEngine.colors.textPrimary
+                    color: ThemeEngine.colors.onSurface
                 }
                 Label {
                     Layout.fillWidth: true
                     text: T.tr("aboutDesc")
                     font.family: ThemeEngine.fontUi
                     font.pixelSize: ThemeEngine.fontSize.body
-                    color: ThemeEngine.colors.textSecondary
+                    color: ThemeEngine.colors.onSurfaceVariant
                     wrapMode: Text.WordWrap
                     horizontalAlignment: Text.AlignHCenter
                 }
@@ -271,7 +271,7 @@ PageDisplay {
                             text: T.tr(modelData.key)
                             font.family: ThemeEngine.fontUi
                             font.pixelSize: ThemeEngine.fontSize.caption
-                            color: ThemeEngine.colors.textPrimary
+                            color: ThemeEngine.colors.onSurface
                             wrapMode: Text.WordWrap
                         }
                     }

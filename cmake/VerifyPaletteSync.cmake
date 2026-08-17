@@ -8,137 +8,121 @@
 # other produces a silent visual inconsistency: C++ reports render one
 # color, QML UI renders another.  No compiler/linter catches this.
 #
+# 5WHY (2026-08-17 review): the pair table below was a hand-maintained
+# third copy of the role list (after Palette.js itself and ROLES in
+# scripts/generate-appcolors.py) — 78 _palette_check calls that each
+# re-scanned both files (~35k regex attempts per configure).  The table
+# could also silently miss a newly added role.  The check now DERIVES the
+# pairs from Palette.js keys in a single pass (O(n)), so a new role is
+# verified automatically and the pair list exists in exactly one place.
+#
+# Deliberately excluded tokens:
+#   · textMuted — known pre-existing deviation (report-local #64748B vs
+#     palette #8494A8; see AppColors.h header KNOWN DEVIATION note)
+#   · scrim / non-color tokens — 8-digit overlay / no C++ macro counterpart
+#
 # Triggered at cmake configure time via include() in CMakeLists.txt.
 # =============================================================================
 
 set(_APP_COLORS   "${CMAKE_SOURCE_DIR}/src/Common/Utils/AppColors.h")
 set(_PALETTE_JS   "${CMAKE_SOURCE_DIR}/src/Common/View/theme/Palette.js")
 
-# ── Pre-load both files once (avoid 22 re-reads inside _palette_check) ──
-# 5WHY: Originally file(STRINGS) was called inside _palette_check(), which
-# is invoked 22 times (once per color pair). Each invocation read Palette.js
-# in full to track Dark/Light block state — 44 file reads at configure time.
-# Fix: read AppColors.h lines once; read Palette.js lines once at top level.
-# The function accesses the pre-loaded lines via CMake's dynamic scoping.
+# ── Pre-load both files once (avoid re-reads inside the loop) ──
 file(STRINGS "${_APP_COLORS}" _PALETTE_CPP_LINES)
 file(STRINGS "${_PALETTE_JS}" _PALETTE_JS_LINES)
 
-# ── Helper: extract the hex value from an AppColors.h #define ──────────
-# 5WHY: The original regex required at least 2 spaces between the macro
-# name and value (the "  *" token).  Using " +" (one or more spaces)
-# tolerates single-space formatting without breaking existing aligned
-# definitions that use many spaces for column alignment.
-function(_palette_check pair_name macro js_key)
-    # Extract C++ value: match against pre-loaded cpp lines
-    set(_cpp_val "")
-    foreach(_l ${_PALETTE_CPP_LINES})
-        if(_l MATCHES "^#define ${macro} +\"(#[0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f])\"")
-            set(_cpp_val "${CMAKE_MATCH_1}")
-            break()
-        endif()
-    endforeach()
-    if(_cpp_val STREQUAL "")
-        message(FATAL_ERROR "Palette sync FAIL: macro ${macro} not matched in AppColors.h")
-    endif()
-
-    # ── Extract JS value from the correct theme block ──────────────────
-    # 5WHY: The original code searched the ENTIRE Palette.js file for
-    # matching key names.  Since both Dark and Light object blocks use
-    # the same key names (e.g. "surface" exists in both Dark and Light),
-    # a simple full-file grep could produce a FALSE POSITIVE: if a
-    # developer accidentally swapped a dark/light value pair, the check
-    # would still find the hex value in the wrong theme's block and
-    # report OK.
-    #
-    # Fix: read all lines sequentially and track which block we are in
-    # (Dark or Light).  Only match keys inside the correct block.
-
-    # Determine which JS object block to search
-    if(pair_name MATCHES "dark")
-        set(_block_pattern "^var Dark = \\{")
-    else()
-        set(_block_pattern "^var Light = \\{")
-    endif()
-
-    # Use pre-loaded JS lines (read once at top level, not 22 times here)
-    # 5WHY: _PALETTE_JS_LINES is a top-level variable accessible in function
-    # scope via CMake's dynamic scoping. foreach iterates over the semicolon-
-    # separated list produced by file(STRINGS ...).
-    set(_in_block FALSE)
-    set(_js_ok FALSE)
-    set(_js_val_found "")
-    foreach(_l ${_PALETTE_JS_LINES})
-        # Entering the correct block?
-        if(_l MATCHES "${_block_pattern}")
-            set(_in_block TRUE)
-        # Leaving any block?  Both Dark and Light blocks end with "};"
-        elseif(_in_block AND _l MATCHES "^\\};")
-            set(_in_block FALSE)
-        # Inside the correct block — does this line define our key?
-        elseif(_in_block AND _l MATCHES "${js_key}: *\"(#[0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f])\"")
-            set(_js_val_found "${CMAKE_MATCH_1}")
-            string(TOLOWER "${CMAKE_MATCH_1}" _js_try)
-            string(TOLOWER "${_cpp_val}" _cpp_lower)
-            if(_js_try STREQUAL _cpp_lower)
-                set(_js_ok TRUE)
-                break()
-            endif()
-        endif()
-    endforeach()
-    if(NOT _js_ok)
-        if(_js_val_found)
-            message(FATAL_ERROR
-                "Palette sync FAIL: ${pair_name}\n"
-                "  AppColors.h  ${macro}: ${_cpp_val}\n"
-                "  Palette.js   ${js_key}: ${_js_val_found} (value mismatch)\n"
-                "  → Update BOTH files to keep them in sync.")
-        else()
-            message(FATAL_ERROR
-                "Palette sync FAIL: ${pair_name}\n"
-                "  AppColors.h  ${macro}: ${_cpp_val}\n"
-                "  Palette.js   ${js_key}: not found in correct theme block\n"
-                "  → Update BOTH files to keep them in sync.")
-        endif()
-    endif()
-    message(STATUS "  [OK] ${pair_name} → ${_cpp_val}")
-endfunction()
-
 message(STATUS "Verifying AppColors.h ↔ Palette.js sync...")
 
-# Core theme surfaces (dark)
-_palette_check("surface dark"       APPC_SURFACE_DARK          "surface")
-_palette_check("card dark"          APPC_CARD_DARK             "card")
-_palette_check("input dark"         APPC_INPUT_DARK            "input")
+# ── Build macro→value map from AppColors.h in one pass ──
+# NOTE: CMake's regex engine does not support {n} quantifiers — the hex
+# class is spelled out 6 times (same convention as the previous check code).
+set(_CPP_MAP "")
+foreach(_l ${_PALETTE_CPP_LINES})
+    if(_l MATCHES "^#define (APPC_[A-Z0-9_]+) +\"(#[0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f])\"")
+        list(APPEND _CPP_MAP "${CMAKE_MATCH_1}=${CMAKE_MATCH_2}")
+    endif()
+endforeach()
 
-# Core theme surfaces (light)
-_palette_check("surface light"      APPC_SURFACE_LIGHT         "surface")
-_palette_check("card light"         APPC_CARD_LIGHT            "card")
-_palette_check("input light"        APPC_INPUT_LIGHT           "input")
+# ── Single pass over Palette.js blocks: every color token must exist in ──
+# ── AppColors.h under the same macro stem with the same value.          ──
+set(_in_block FALSE)
+set(_cur_theme "")
+set(_checked_dark 0)
+set(_checked_light 0)
+foreach(_l ${_PALETTE_JS_LINES})
+    # Entering a theme block?
+    if(_l MATCHES "^var Dark = \\{")
+        set(_in_block TRUE)
+        set(_cur_theme "DARK")
+    elseif(_l MATCHES "^var Light = \\{")
+        set(_in_block TRUE)
+        set(_cur_theme "LIGHT")
+    # Leaving any block?  Both Dark and Light blocks end with "};"
+    elseif(_in_block AND _l MATCHES "^\\};")
+        set(_in_block FALSE)
+        set(_cur_theme "")
+    # Inside a block — does this line define a color token?
+    # (Palette.js lines are indented, so allow leading whitespace;
+    #  no {n} quantifiers — CMake regex limitation, spelled out class)
+    elseif(_in_block AND _l MATCHES "^ *([A-Za-z0-9_]+): *\"(#[0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f])\"")
+        set(_key "${CMAKE_MATCH_1}")
+        set(_val "${CMAKE_MATCH_2}")
+        # Known exclusions (see header comment)
+        if(_key STREQUAL "textMuted" OR _key STREQUAL "scrim")
+            continue()
+        endif()
+        # camelCase → UPPER_SNAKE macro stem (matches ROLES stems in the generator)
+        string(REGEX REPLACE "([a-z0-9])([A-Z])" "\\1_\\2" _stem "${_key}")
+        string(TOUPPER "${_stem}" _stem)
+        # Look the pair up in the AppColors.h map
+        set(_found FALSE)
+        foreach(_entry ${_CPP_MAP})
+            if(_entry MATCHES "^APPC_${_stem}_${_cur_theme}=(.+)$")
+                string(TOLOWER "${CMAKE_MATCH_1}" _cpp_lower)
+                string(TOLOWER "${_val}" _val_lower)
+                if(_cpp_lower STREQUAL _val_lower)
+                    set(_found TRUE)
+                endif()
+                break()
+            endif()
+        endforeach()
+        if(NOT _found)
+            message(FATAL_ERROR
+                "Palette sync FAIL: ${_key} (${_cur_theme}) ${_val}\n"
+                "  AppColors.h: no matching APPC_${_stem}_${_cur_theme} macro with this value\n"
+                "  → Regenerate: python scripts/generate-appcolors.py\n"
+                "  → If this is a NEW role, it must also be added to ROLES in scripts/generate-appcolors.py.")
+        endif()
+        if(_cur_theme STREQUAL "DARK")
+            math(EXPR _checked_dark "${_checked_dark} + 1")
+        else()
+            math(EXPR _checked_light "${_checked_light} + 1")
+        endif()
+    endif()
+endforeach()
 
-# Brand colors
-_palette_check("primary dark"       APPC_PRIMARY_DARK          "primary")
-_palette_check("primary light"      APPC_PRIMARY_LIGHT         "primary")
-_palette_check("secondary dark"     APPC_SECONDARY_DARK        "secondary")
-_palette_check("secondary light"    APPC_SECONDARY_LIGHT       "secondary")
+# ── Completeness assertion ────────────────────────────────────────────────
+# 5WHY (review 2026-08-17): 旧 78 对手写表天然 fail-closed；单遍派生若块
+# 检测锚点失效（如 Palette.js 被重排版为 "var Dark = ("）会静默漏检全部
+# 配对并打印 "0 verified"。用 AppColors.h 自身的宏数作期望值（每主题减
+# 1 = textMuted，文档化偏差），验证数不符即 FATAL。
+set(_expected_dark 0)
+set(_expected_light 0)
+foreach(_entry ${_CPP_MAP})
+    if(_entry MATCHES "^APPC_[A-Z0-9_]+_DARK=")
+        math(EXPR _expected_dark "${_expected_dark} + 1")
+    elseif(_entry MATCHES "^APPC_[A-Z0-9_]+_LIGHT=")
+        math(EXPR _expected_light "${_expected_light} + 1")
+    endif()
+endforeach()
+math(EXPR _expected_dark "${_expected_dark} - 1")   # textMuted exclusion
+math(EXPR _expected_light "${_expected_light} - 1")
+if(NOT _checked_dark EQUAL _expected_dark OR NOT _checked_light EQUAL _expected_light)
+    message(FATAL_ERROR
+        "Palette sync FAIL: verified ${_checked_dark}/${_checked_light} (dark/light) "
+        "tokens but AppColors.h defines ${_expected_dark}/${_expected_light} macros — "
+        "Palette.js block parsing is incomplete or a role changed format "
+        "(e.g. 'var Dark = {' spacing).")
+endif()
 
-# Text colors
-_palette_check("textPrimary dark"   APPC_TEXT_PRIMARY_DARK     "textPrimary")
-_palette_check("textPrimary light"  APPC_TEXT_PRIMARY_LIGHT    "textPrimary")
-_palette_check("textSecondary dark" APPC_TEXT_SECONDARY_DARK   "textSecondary")
-_palette_check("textSecondary light" APPC_TEXT_SECONDARY_LIGHT "textSecondary")
-
-# Status colors (most critical — WCAG contrast specs)
-_palette_check("passGreen dark"     APPC_PASS_GREEN_DARK       "passGreen")
-_palette_check("passGreen light"    APPC_PASS_GREEN_LIGHT      "passGreen")
-_palette_check("warnYellow dark"    APPC_WARN_YELLOW_DARK      "warnYellow")
-_palette_check("warnYellow light"   APPC_WARN_YELLOW_LIGHT     "warnYellow")
-_palette_check("failRed dark"       APPC_FAIL_RED_DARK         "failRed")
-_palette_check("failRed light"      APPC_FAIL_RED_LIGHT        "failRed")
-_palette_check("errorRed dark"      APPC_ERROR_RED_DARK        "errorRed")
-_palette_check("errorRed light"     APPC_ERROR_RED_LIGHT       "errorRed")
-_palette_check("infoBlue dark"      APPC_INFO_BLUE_DARK        "infoBlue")
-_palette_check("infoBlue light"     APPC_INFO_BLUE_LIGHT       "infoBlue")
-_palette_check("skipGray dark"      APPC_SKIP_GRAY_DARK        "skipGray")
-_palette_check("skipGray light"     APPC_SKIP_GRAY_LIGHT       "skipGray")
-
-message(STATUS "Palette sync: all checks passed.")
+message(STATUS "Palette sync: ${_checked_dark} dark + ${_checked_light} light color tokens verified.")

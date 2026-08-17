@@ -9,8 +9,8 @@ PageSection {
     id: root
     backgroundStyle: PageSection.Card
     bottomMargin: ThemeEngine.spacing.sm
-    cardColor: Qt.alpha(ThemeEngine.colors.failRed, 0.06)
-    borderColor: Qt.alpha(ThemeEngine.colors.failRed, 0.5)
+    cardColor: Qt.alpha(ThemeEngine.colors.fail, 0.06)
+    borderColor: Qt.alpha(ThemeEngine.colors.fail, 0.5)
 
     property var detailData: ({})
     readonly property bool _hasError: (detailData.errorOutput || "") !== ""
@@ -19,7 +19,7 @@ PageSection {
     Label {
         Layout.fillWidth: true
         text: detailData.errorOutput || ""
-        color: ThemeEngine.colors.failRed
+        color: ThemeEngine.colors.fail
         font.family: ThemeEngine.fontUi
         font.pixelSize: ThemeEngine.fontSize.body
         wrapMode: Text.WordWrap

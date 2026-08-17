@@ -14,23 +14,26 @@ ProbeExecutor::ProbeExecutor(ProbeDatabase* db, QObject* parent)
 
 ProbeExecutor::~ProbeExecutor() { requestStop(); }
 
-void ProbeExecutor::requestStop() {
+bool ProbeExecutor::requestStop() {
     // 5WHY: Do NOT call terminate() here. terminate() forcibly kills the
     // thread without unwinding the stack or releasing any locks (e.g.,
     // ProbeDatabase::m_mutex). If the worker thread is mid-write inside
     // m_db->writeResults(), the mutex stays locked forever, causing a
     // permanent deadlock on any subsequent ProbeDatabase access — including
     // the next diagnostic run or even app shutdown. Instead, we extend the
-    // graceful wait to 15 s (worst-case: 8 s network timeout × 2 rounds
-    // plus scheduling overhead) and log a warning if the thread still
-    // hasn't cooperated, accepting a one-time resource leak over a
-    // guaranteed deadlock.
+    // graceful wait to 15 s and report failure when the thread still hasn't
+    // cooperated so the OWNER (GeoProbe) can avoid freeing the database the
+    // live thread is still writing into (5WHY review 2026-08-17: the old
+    // version leaked the thread but then freed m_db anyway — use-after-free
+    // at app exit).
     m_stopRequested.store(true);
     if (isRunning()) {
         if (!wait(15000)) {
             qWarning("ProbeExecutor: thread did not stop within 15s, leaking");
+            return false;
         }
     }
+    return true;
 }
 
 void ProbeExecutor::run() {
@@ -64,7 +67,11 @@ void ProbeExecutor::run() {
 
         for (int i = 0; i < batch.size(); i++) {
             if (m_stopRequested.load()) break;
-            threads.emplace_back([this, &lookup, task = &batch[i]]() {
+            // 5WHY (review 2026-08-17): pthread_create EAGAIN（低 RLIMIT_NPROC
+            // /fd 耗尽）会以 std::system_error 逃逸 QThread::run() → 未捕获
+            // 异常 → std::terminate 整进程中止。降级：跳过本任务并记录。
+            try {
+                threads.emplace_back([this, &lookup, task = &batch[i]]() {
                 int colon = task->key.lastIndexOf(':');
                 QString host = task->key.left(colon);
                 int port = task->key.mid(colon + 1).toInt();
@@ -91,6 +98,10 @@ void ProbeExecutor::run() {
 
                 m_db->writeResults(task->key, results, country, regionTags);
             });
+            } catch (const std::system_error& e) {
+                qWarning("ProbeExecutor: thread creation failed (%s) — skipping %s",
+                         e.what(), qPrintable(batch[i].key));
+            }
         }
         for (auto& t : threads) t.join();
     }

@@ -42,6 +42,9 @@ PageDisplay {
     property bool _detailVisible: false
     // NEW-8 + H1：浮层（详情 sheet / cellular 警告）打开时阻断导航
     overlayVisible: _detailVisible || AppState.cellularWarnVisible
+    // OverlayHost 契约（5WHY simplify 2026-08-17）：浮层页面统一实现
+    // closeOverlay()，AppContent 单一入口关闭，不再探测页面私有状态
+    function closeOverlay() { page._detailVisible = false }
 
     headerContent: [
         S.PageHeaderSection { title: T.tr("appName"); iconName: "compass" },
@@ -86,6 +89,7 @@ PageDisplay {
         S.PageOverlaySection {
             visible: page._detailVisible
             onVisibleChanged: if (!visible) page._detailVisible = false
+            onCloseRequested: page._detailVisible = false   // 遮罩点击关闭（绑定不破）
             PageDetailSheet {
                 // 7-5：详情铺满整个主窗口（原居中 480px 卡片改为全窗）
                 anchors.fill: parent
@@ -101,8 +105,8 @@ PageDisplay {
                 width: Math.min(parent.width - 48, 400)
                 height: warnCol.implicitHeight + 40
                 radius: ThemeEngine.radius.xl
-                color: ThemeEngine.colors.card
-                border { width: 1; color: ThemeEngine.colors.borderCard }
+                color: ThemeEngine.colors.surfaceContainerLow
+                border { width: 1; color: ThemeEngine.colors.outlineVariant }
                 ColumnLayout {
                     id: warnCol
                     anchors { fill: parent; leftMargin: 20; rightMargin: 20; topMargin: 20; bottomMargin: 20 }
@@ -113,14 +117,14 @@ PageDisplay {
                         font.family: ThemeEngine.fontUi
                         font.pixelSize: ThemeEngine.fontSize.subhead
                         font.weight: Font.Bold
-                        color: ThemeEngine.colors.textPrimary
+                        color: ThemeEngine.colors.onSurface
                     }
                     Label {
                         Layout.fillWidth: true
                         text: T.tr("cellularWarnBody")
                         font.family: ThemeEngine.fontUi
                         font.pixelSize: ThemeEngine.fontSize.body
-                        color: ThemeEngine.colors.textSecondary
+                        color: ThemeEngine.colors.onSurfaceVariant
                         wrapMode: Text.WordWrap
                     }
                     RowLayout {

@@ -32,6 +32,7 @@ DiagnosticResult iosHttpDiagnostic(DiagId id, const QString& target);
 #include <QElapsedTimer>
 #include <QDateTime>
 #include <QHostInfo>
+#include <QSet>
 
 #include <functional>
 #include <cstring>
@@ -116,7 +117,15 @@ static ProbeOutcome tcpProbe(const QUrl& u, const QByteArray& sendData,
     ProbeOutcome p;
     const int port = portForUrl(u);
     const QString scheme = u.scheme().toLower();
-    const bool useTls = scheme.endsWith(QLatin1Char('s')) && scheme != QLatin1String("https");
+    // 5WHY (review 2026-08-17): 旧启发式 "以 s 结尾即隐式 TLS" 把 sftp（SSH
+    // 家族，端口 22）误当 FTPS——对 SSH 服务器做 TLS 握手必然超时失败，
+    // 健康的 SFTP 目标永远报 handshake 错误。改为显式白名单；sftp 走 SSH
+    // banner 路径（probeSsh）。
+    static const QSet<QString> implicitTlsSchemes = {
+        QStringLiteral("ftps"), QStringLiteral("smtps"), QStringLiteral("imaps"),
+        QStringLiteral("pop3s"), QStringLiteral("mqtts"), QStringLiteral("ldaps")
+    };
+    const bool useTls = implicitTlsSchemes.contains(scheme);
     QElapsedTimer t; t.start();
 
     if (useTls) {

@@ -88,6 +88,8 @@ PageDisplay {
     property string previewImagePath: ""
     property int _previewGen: 0
     overlayVisible: previewVisible
+    // OverlayHost 契约（5WHY simplify 2026-08-17）：见 DiagnosticScreen
+    function closeOverlay() { page.previewVisible = false }
 
     function openPreview() {
         if (!page.hasData) return
@@ -137,28 +139,26 @@ PageDisplay {
                     AppIcon {
                         visible: AppState.runStatus !== 1
                         anchors.fill: parent
-                        name: AppState.runStatus === 3 ? "badge-close"
-                            : AppState.runStatus === 4 ? "badge-error" : "check"
+                        name: ThemeEngine.runStatusIcon(AppState.runStatus, "check")
                         size: 28
-                        color: AppState.runStatus === 3 ? ThemeEngine.colors.warnYellow
-                             : AppState.runStatus === 4 ? ThemeEngine.colors.failRed
-                             : ThemeEngine.colors.passGreen
+                        color: ThemeEngine.runStatusColor(AppState.runStatus,
+                                                          ThemeEngine.colors.success)
                     }
                 }
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 4
                     Label {
-                        text: AppState.runStatus === 1 ? T.tr("runningDots")
-                            : AppState.runStatus === 2 ? T.tr("diagRunComplete")
-                            : AppState.runStatus === 3 ? T.tr("cancelled")
-                            : AppState.runStatus === 4 ? T.tr("errorStatus")
-                            : T.tr("diagRunComplete")
+                        text: {
+                            if (AppState.runStatus === 1) return T.tr("runningDots")
+                            var info = ThemeEngine.runStatusInfo(AppState.runStatus)
+                            return info ? T.tr(info.labelKey) : T.tr("diagRunComplete")
+                        }
                         font.family: ThemeEngine.fontUi
                         font.pixelSize: ThemeEngine.fontSize.title
                         font.weight: Font.DemiBold
-                        color: AppState.runStatus === 3 ? ThemeEngine.colors.textSecondary
-                             : ThemeEngine.colors.textPrimary
+                        color: AppState.runStatus === 3 ? ThemeEngine.colors.onSurfaceVariant
+                             : ThemeEngine.colors.onSurface
                         elide: Text.ElideRight
                     }
                     RowLayout {
@@ -168,7 +168,7 @@ PageDisplay {
                             text: T.tr("targetLabel") + (AppState.targetHost + AppState.targetPath || T.tr("naLabel"))
                             font.family: ThemeEngine.monoFont
                             font.pixelSize: ThemeEngine.fontSize.caption
-                            color: ThemeEngine.colors.textSecondary
+                            color: ThemeEngine.colors.onSurfaceVariant
                             elide: Text.ElideRight
                         }
                     }
@@ -181,7 +181,7 @@ PageDisplay {
                                   ? page._completedAt : T.tr("totalTimeLabel") + ": " + page._timeText
                             font.family: ThemeEngine.monoFont
                             font.pixelSize: ThemeEngine.fontSize.caption
-                            color: ThemeEngine.colors.textSecondary
+                            color: ThemeEngine.colors.onSurfaceVariant
                         }
                     }
                 }
@@ -206,7 +206,7 @@ PageDisplay {
             font.family: ThemeEngine.fontUi
             font.pixelSize: ThemeEngine.fontSize.subhead
             font.weight: Font.DemiBold
-            color: ThemeEngine.colors.textPrimary
+            color: ThemeEngine.colors.onSurface
             elide: Text.ElideRight
         },
 
@@ -233,7 +233,7 @@ PageDisplay {
                 spacing: 10
                 SummaryStat {
                     Layout.fillWidth: true
-                    statIcon: "badge-check"; clr: ThemeEngine.colors.cyan
+                    statIcon: "badge-check"; clr: ThemeEngine.colors.tertiary
                     statVal: String(page._totDiags); lbl: T.tr("totalDiagsLabel")
                 }
                 SummaryStat {
@@ -243,13 +243,13 @@ PageDisplay {
                 }
                 SummaryStat {
                     Layout.fillWidth: true
-                    statIcon: "check"; clr: ThemeEngine.colors.passGreen
+                    statIcon: "check"; clr: ThemeEngine.colors.success
                     statVal: String(page._totCompleted); lbl: T.tr("completedLabel")
                 }
                 Rectangle {
                     Layout.fillWidth: true
                     implicitHeight: 1
-                    color: ThemeEngine.colors.borderCard
+                    color: ThemeEngine.colors.outlineVariant
                     visible: page._totCompleted > 0
                 }
                 Item { Layout.preferredHeight: 4; visible: page._totCompleted > 0 }
@@ -259,7 +259,7 @@ PageDisplay {
                     font.family: ThemeEngine.fontUi
                     font.pixelSize: ThemeEngine.fontSize.caption
                     font.weight: Font.DemiBold
-                    color: ThemeEngine.colors.textSecondary
+                    color: ThemeEngine.colors.onSurfaceVariant
                 }
                 Repeater {
                     model: page._layers
@@ -270,21 +270,21 @@ PageDisplay {
                         AppIcon {
                             name: ThemeEngine.groupIconName(modelData.index)
                             size: 14
-                            color: ThemeEngine.colors.secondary
+                            color: ThemeEngine.groupHue(modelData.index)
                         }
                         Label {
                             Layout.fillWidth: true
                             text: T.groupName(modelData.index)
                             font.family: ThemeEngine.monoFont
                             font.pixelSize: ThemeEngine.fontSize.caption
-                            color: ThemeEngine.colors.textPrimary
+                            color: ThemeEngine.colors.onSurface
                             elide: Text.ElideRight
                         }
                         Label {
                             text: ThemeEngine.formatDuration(modelData.ms || 0)
                             font.family: ThemeEngine.monoFont
                             font.pixelSize: ThemeEngine.fontSize.caption
-                            color: ThemeEngine.colors.textSecondary
+                            color: ThemeEngine.colors.onSurfaceVariant
                         }
                     }
                 }
@@ -304,23 +304,23 @@ PageDisplay {
                     text: T.tr("reportExportHint")
                     font.family: ThemeEngine.fontUi
                     font.pixelSize: ThemeEngine.fontSize.body
-                    color: ThemeEngine.colors.textSecondary
+                    color: ThemeEngine.colors.onSurfaceVariant
                     wrapMode: Text.WordWrap
                 }
                 Rectangle {
                     Layout.fillWidth: true
                     implicitHeight: 48
                     radius: 10
-                    color: Qt.alpha(ThemeEngine.colors.cyan, 0.10)
-                    border { width: 1; color: Qt.alpha(ThemeEngine.colors.cyan, 0.35) }
+                    color: Qt.alpha(ThemeEngine.colors.tertiary, 0.10)
+                    border { width: 1; color: Qt.alpha(ThemeEngine.colors.tertiary, 0.35) }
                     RowLayout {
                         anchors { fill: parent; leftMargin: 16; rightMargin: 16 }
-                        AppIcon { name: "file-html"; size: 18; color: ThemeEngine.colors.cyan }
+                        AppIcon { name: "file-html"; size: 18; color: ThemeEngine.colors.tertiary }
                         Item { width: 12 }
                         Label {
                             Layout.fillWidth: true
                             text: T.tr("reportReviewBtn")
-                            color: ThemeEngine.colors.textPrimary
+                            color: ThemeEngine.colors.onSurface
                             font.family: ThemeEngine.fontUi
                             font.pixelSize: ThemeEngine.fontSize.body
                             font.weight: Font.Medium
@@ -342,12 +342,13 @@ PageDisplay {
         // 报告预览浮层（归档恢复：全窗 + 头部条 + 缩放 + 双格式分享）
         S.PageOverlaySection {
             visible: page.previewVisible
+            onCloseRequested: page.previewVisible = false   // 遮罩点击关闭（绑定不破）
             Rectangle {
                 anchors { fill: parent; margins: ThemeEngine.isMobile ? 0 : 8 }
                 radius: ThemeEngine.isMobile ? 0 : 12
-                color: ThemeEngine.colors.card
+                color: ThemeEngine.colors.surfaceContainerLow
                 clip: true
-                border { width: ThemeEngine.isMobile ? 0 : 2; color: ThemeEngine.colors.borderFocused }
+                border { width: ThemeEngine.isMobile ? 0 : 2; color: ThemeEngine.colors.primary }
                 ColumnLayout {
                     anchors { fill: parent; margins: 12 }
                     spacing: 10
@@ -356,10 +357,10 @@ PageDisplay {
                         Layout.fillWidth: true
                         implicitHeight: 48
                         radius: 8
-                        color: Qt.alpha(ThemeEngine.colors.cyan, 0.08)
+                        color: Qt.alpha(ThemeEngine.colors.tertiary, 0.08)
                         RowLayout {
                             anchors { fill: parent; margins: 8 }
-                            AppIcon { name: "file-html"; size: 20; color: ThemeEngine.colors.cyan }
+                            AppIcon { name: "file-html"; size: 20; color: ThemeEngine.colors.tertiary }
                             Item { width: 8 }
                             Label {
                                 Layout.fillWidth: true
@@ -367,16 +368,16 @@ PageDisplay {
                                 font.family: ThemeEngine.fontUi
                                 font.pixelSize: ThemeEngine.fontSize.subhead
                                 font.weight: Font.Bold
-                                color: ThemeEngine.colors.textPrimary
+                                color: ThemeEngine.colors.onSurface
                                 elide: Text.ElideRight
                             }
                             Rectangle {
                                 id: closeBtn
                                 readonly property int _sz: ThemeEngine.isMobile ? 48 : 34
                                 implicitWidth: _sz; implicitHeight: _sz; radius: _sz / 2
-                                color: closeMouse.containsMouse ? Qt.alpha(ThemeEngine.colors.failRed, 0.35)
-                                                                : Qt.alpha(ThemeEngine.colors.failRed, 0.15)
-                                AppIcon { anchors.centerIn: parent; name: "close"; size: 14; color: ThemeEngine.colors.failRed }
+                                color: closeMouse.containsMouse ? Qt.alpha(ThemeEngine.colors.fail, 0.35)
+                                                                : Qt.alpha(ThemeEngine.colors.fail, 0.15)
+                                AppIcon { anchors.centerIn: parent; name: "close"; size: 14; color: ThemeEngine.colors.fail }
                                 MouseArea {
                                     id: closeMouse
                                     anchors.fill: parent
@@ -396,7 +397,7 @@ PageDisplay {
                         radius: 8
                         clip: true
                         color: ThemeEngine.colors.surface
-                        border { width: 1; color: ThemeEngine.colors.borderCard }
+                        border { width: 1; color: ThemeEngine.colors.outlineVariant }
                         Flickable {
                             id: previewFlick
                             anchors { fill: parent; margins: 14 }
@@ -426,7 +427,7 @@ PageDisplay {
                     ShareButtons {
                         Layout.fillWidth: true
                         mode: "labeled"
-                        pdfAccent: ThemeEngine.colors.cyan
+                        pdfAccent: ThemeEngine.colors.tertiary
                         htmlAccent: ThemeEngine.colors.primary
                         onShareRequested: function(format) {
                             if (format === "locked") { page.showToast(T.tr("premiumRequiredMsg")); return }
@@ -451,7 +452,7 @@ PageDisplay {
     // ── 归档 SummaryStat（图标 + 标签 + 大数值）──
     component SummaryStat: RowLayout {
         property string statIcon: ""
-        property color clr: ThemeEngine.colors.cyan
+        property color clr: ThemeEngine.colors.tertiary
         property string statVal: ""
         property string lbl: ""
         spacing: 10
@@ -466,7 +467,7 @@ PageDisplay {
             text: lbl
             font.family: ThemeEngine.monoFont
             font.pixelSize: ThemeEngine.fontSize.caption
-            color: ThemeEngine.colors.textSecondary
+            color: ThemeEngine.colors.onSurfaceVariant
             verticalAlignment: Text.AlignVCenter
             elide: Text.ElideRight
         }

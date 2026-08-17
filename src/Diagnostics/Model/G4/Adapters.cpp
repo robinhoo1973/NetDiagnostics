@@ -786,9 +786,13 @@ static DiagnosticResult probeTraceroute(DiagId id, const QString& target, RunCon
                 || hopIp.startsWith(QLatin1String("198.18."))
                 || hopIp.startsWith(QLatin1String("100."));
             if (!privateIp && !hopIp.isEmpty()) {
-                const QHostInfo info = QHostInfo::fromName(hopIp);   // reverse DNS
-                if (info.error() == QHostInfo::NoError && !info.hostName().isEmpty())
-                    hopName = info.hostName();
+                // 5WHY (simplify 2026-08-17): 原 fromName 同步无界（30-120s/跳，
+                // 违反本文件 H4 规则）；中间版本每跳新建局部事件循环（第 3 份
+                // 有界等待机制且无负缓存）。统一走 DnsResolver 单例：
+                // 受守卫线程/轮询 + 2s 截止 + 正负缓存。
+                const QString name = DnsResolver::instance().resolvePtr(hopIp, 2000);
+                if (!name.isEmpty())
+                    hopName = name;
             }
             const QString rtt = fmtRtt(rttMs);
             lines.append(QStringLiteral(" %1  %2  %3  %4  %5 [%6]")

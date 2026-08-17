@@ -49,27 +49,46 @@ docs/*
 crashes/
 AGENTS.md
 CLAUDE.md
-scripts/
+# 5WHY: `scripts/` (dir pattern) blocks ALL file-level negations below —
+# a negated path can't re-include a file inside an excluded directory.
+# `scripts/*` ignores the contents but keeps the dir itself visible, so the
+# `!scripts/...` whitelist entries work for NEW files (not just pre-tracked).
+scripts/*
 !scripts/screenshot/
 !scripts/ios/
 !scripts/installer/
 !scripts/pre-commit
+!scripts/palette_common.py
 !scripts/ci-http-server.py
 !scripts/install-hooks
 !scripts/generate-screenshots.py
-!scripts/generate-screenshots.sh
-!scripts/generate-screenshots-sips.sh
-!scripts/generate-ipad-screenshots.py
 !scripts/generate-phone-screenshots.py
 !scripts/generate-pad-screenshots.py
 !scripts/generate-colored-icons.py
-review/
+!scripts/generate-appcolors.py
+!scripts/audit-palette-contrast.py
+# 5WHY (review 2026-08-17): review/（目录模式）使目录内文件的否定白名单对
+# 新文件失效——改为 review/* + 显式白名单（同 scripts/* 约定）；本地临时
+# 产物继续显式忽略。
+review/*
 !review/ios-startup-crash-5why-analysis.md
 !review/ios-ci-known-issues.md
 !review/app_startup_crash_analysis.md
 !review/common-bug-patterns.md
 !review/icon-audit-45-2026-08-14.md
-!review/icon-comparison-2026-08-14.html
+!review/code-review-2026-08-17.md
+review/theme-contrast-audit.md
+review/design-tools/
+review/history/
+review/icons/
+review/refactor/
+review/*.png
+review/*.log
+review/tmp-*
+review/refactor-review-findings.md
+review/living-diagnostics-plan-v3.md
+review/living-diagnostics-implementation-v4.md
+review/icon-comparison-2026-08-14.html
 
 # CodeWhale config — only constitution.json is shared
 **/.codewhale/*

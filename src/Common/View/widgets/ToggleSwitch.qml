@@ -22,8 +22,8 @@ Switch {
         implicitHeight: 20
         radius: 10
         color: control.checked ? ThemeEngine.colors.primary
-                               : (control.hovered ? Qt.alpha(ThemeEngine.colors.textSecondary, 0.25)
-                                                  : ThemeEngine.colors.borderCard)
+                               : (control.hovered ? Qt.alpha(ThemeEngine.colors.onSurfaceVariant, 0.25)
+                                                  : ThemeEngine.colors.outlineVariant)
         border {
             width: 1
             color: control.checked ? ThemeEngine.colors.primary

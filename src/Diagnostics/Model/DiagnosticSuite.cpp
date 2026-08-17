@@ -56,7 +56,11 @@ void DiagnosticSuite::run(const QString& target, const QString& schemeLower) {
         m_probes.append(probe);
     }
 
-    for (auto* p : m_probes) p->start();
+    // 5WHY (review 2026-08-17): range-for 期间 onProbeFinished() 可同步触发
+    // removeOne(p)（空闲池线程上瞬时完成的探针经 setFuture→finished 直接回调）
+    // ——遍历中改 m_probes 是 QList 迭代器失效 UB。迭代本地拷贝。
+    const auto probes = m_probes;
+    for (auto* p : probes) p->start();
     m_deadlineTimer->start(static_cast<int>(m_deadlineSec * 1000));
 
     emitProgress();

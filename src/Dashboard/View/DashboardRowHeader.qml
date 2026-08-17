@@ -30,7 +30,7 @@ RowLayout {
         text: ThemeEngine.formatDuration(root.stats && root.stats.durationMs || 0)
         font.family: ThemeEngine.monoFont
         font.pixelSize: ThemeEngine.fontSize.caption
-        color: ThemeEngine.colors.textSecondary
+        color: ThemeEngine.colors.onSurfaceVariant
     }
     // 4px 进度条（track + fill）
     Rectangle {
@@ -43,8 +43,8 @@ RowLayout {
             anchors { top: parent.top; left: parent.left; bottom: parent.bottom }
             width: parent.width * root._ratio
             radius: 2
-            color: root._ratio >= 1 ? ThemeEngine.colors.passGreen
-                 : root.stats && (root.stats.fail || 0) > 0 ? ThemeEngine.colors.failRed
+            color: root._ratio >= 1 ? ThemeEngine.colors.success
+                 : root.stats && (root.stats.fail || 0) > 0 ? ThemeEngine.colors.fail
                  : ThemeEngine.colors.primary
         }
     }
