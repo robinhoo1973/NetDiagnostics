@@ -100,6 +100,9 @@ PageDisplay {
         // H1（page-diagnostic §3）：移动数据警告——G3 起大流量探测前暂停确认
         S.PageOverlaySection {
             visible: AppState.cellularWarnVisible
+            // 5WHY (review round 3): 遮罩点击仅关闭警告（dismiss 语义）——
+            // 误触遮罩不得触发 continueAfterCellularWarn 的整轮大流量启动
+            onCloseRequested: AppState.dismissCellularWarn()
             Rectangle {
                 anchors.centerIn: parent
                 width: Math.min(parent.width - 48, 400)

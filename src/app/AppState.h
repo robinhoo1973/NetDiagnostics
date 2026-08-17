@@ -80,6 +80,9 @@ public:
     Q_INVOKABLE void runDiagnostics();
     Q_INVOKABLE void cancel();
     Q_INVOKABLE void continueAfterCellularWarn();   // 移动数据警告确认（H1）
+    // 5WHY (review round 3): 遮罩点击应仅关闭警告而不确认运行——误触遮罩即
+    // 启动整轮大流量诊断不可接受，故提供与"确认"分离的纯关闭语义。
+    Q_INVOKABLE void dismissCellularWarn();
     Q_INVOKABLE QVariantList allDiagsForGroup(int groupInt) const;
     Q_INVOKABLE QVariantList resultsForGroup(int groupInt) const;
     Q_INVOKABLE QVariantMap groupStats(int groupInt) const;   // -1 = 聚合

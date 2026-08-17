@@ -42,13 +42,18 @@ QtObject {
     ]
 
     readonly property int toastDurationMs: 3500
+    // 窄屏断点（5WHY review round 3: 组头两行/tab 前缀曾各用一套门限，
+    // 平板 700px 出现短 tab 配完整组头——统一单一断点）
+    readonly property int compactUiWidth: 600
     readonly property var radius: ({ xs: 4, sm: 6, md: 8, lg: 12, xl: 16, full: 9999 })
     readonly property var spacing: ({ xs: 4, sm: 8, md: 12, lg: 16, xl: 24 })
     // R5-4：字阶令牌（caption/body/subhead/title/headline + mono）——组件禁止魔法字号。
     readonly property var fontSize: ({ caption: 11, micro: 9, body: 13, subhead: 15, title: 17, headline: 22, mono: 12 })
     // 5WHY (review 2026-08-17, D.1): Qt.application 静态绑定违反项目自身规则
     // （Qt.styleHints 同类静态初始化顺序崩溃）——默认安全值，onCompleted 空检赋值。
-    readonly property string fontUi: "sans-serif"
+    // 注意：必须可写——QML 会静默丢弃对 readonly 属性的赋值（review round 3
+    // 曾误声明 readonly 导致全部界面回退 sans-serif）。
+    property string fontUi: "sans-serif"
     readonly property string monoFont: "JetBrains Mono"
 
     function formatDuration(ms) {
@@ -75,12 +80,20 @@ QtObject {
     function iconPadTint(name) {
         return IconTints.tintFor(name || "")
     }
+    // 导航/工具按钮悬停底色配方（NavArrowButton/ZoomBar 共用；5WHY review
+    // round 3: 该 0.2/0.08 三元曾散落 4 处，调悬停色需 4 处同步）
+    function navHoverTint(hovered) {
+        return hovered ? Qt.alpha(colors.tertiary, 0.2)
+                       : Qt.alpha(colors.tertiary, 0.08)
+    }
     // 运行状态呈现表（Dashboard 主状态区与状态头共用；5WHY simplify 2026-08-17：
     // 原先颜色已集中但图标/标签仍是两份平行三元链，新增状态值需 ≥3 处同步）。
     // 返回 null 表示常规状态（调用方回退）。
     function runStatusInfo(status) {
-        if (status === 3) return { color: colors.warning, iconName: "badge-close", labelKey: "cancelled" }
-        if (status === 4) return { color: colors.fail,    iconName: "badge-error", labelKey: "errorStatus" }
+        // dimmed：标题弱化（5WHY review round 3: 取消态标题弱化规则曾散落在
+        // 调用方三元里，与呈现表脱节）
+        if (status === 3) return { color: colors.warning, iconName: "badge-close", labelKey: "cancelled", dimmed: true }
+        if (status === 4) return { color: colors.fail,    iconName: "badge-error", labelKey: "errorStatus", dimmed: false }
         return null
     }
     function runStatusColor(status, fallback) {
@@ -93,9 +106,8 @@ QtObject {
     }
     // 终端底色（TerminalBlock/PageTerminalSection 共用）：暗=surface，
     // 亮=surfaceContainerHighest（7-5 修复：亮色下硬编码深藏青导致文字几乎
-    // 不可读）。注：曾尝试 Palette.js getter 派生令牌（前景/背景同令牌系统），
-    // 但 qmllint 不支持对象字面量 getter——退回函数式单点（simplify 2026-08-17）。
-    function terminalBg() {
-        return isDark ? colors.surface : colors.surfaceContainerHighest
-    }
+    // 不可读）。必须是属性而非函数：无参函数调用绑定没有依赖追踪，
+    // 运行时切主题后终端背景不会更新（review round 3）。
+    readonly property color terminalBg: isDark ? colors.surface
+                                               : colors.surfaceContainerHighest
 }

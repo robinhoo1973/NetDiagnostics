@@ -111,6 +111,7 @@ def build_report() -> tuple[str, dict]:
         "",
     ]
     missing: list[str] = []
+    fails = 0
     for theme in ("Dark", "Light"):
         p = palettes[theme]
         lines.append(f"## {theme} 主题")
@@ -127,9 +128,11 @@ def build_report() -> tuple[str, dict]:
             ratio = contrast(p[fg], p[bg])
             verdict = "PASS" if ratio >= thr else ("⚠️ LOW" if kind == "text" else "LOW")
             marker = "✅" if ratio >= thr else "⚠️"
+            if ratio < thr and kind in ("text", "graphic"):
+                fails += 1
             lines.append(f"| {fg} | {bg} | {ratio:.2f}:1 | {thr:g}:1 | {marker} {verdict} | {kind} |")
         lines.append("")
-    return "\n".join(lines) + "\n", palettes, missing
+    return "\n".join(lines) + "\n", palettes, missing, fails
 
 
 def main() -> int:
@@ -137,7 +140,7 @@ def main() -> int:
     ap.add_argument("--check", action="store_true", help="fail (exit 1) if the committed report is out of date")
     args = ap.parse_args()
 
-    report, palettes, missing = build_report()
+    report, palettes, missing, fails = build_report()
     if args.check:
         if missing:
             print("audit pairs reference missing palette roles:")
@@ -158,14 +161,6 @@ def main() -> int:
         print("WARNING: " + m)
     REPORT_MD.parent.mkdir(parents=True, exist_ok=True)
     REPORT_MD.write_text(report, encoding="utf-8")
-    fails = 0
-    for theme in ("Dark", "Light"):
-        p = palettes[theme]
-        for fg, bg, thr, kind, _ in PAIRS:
-            if fg not in p or bg not in p:
-                continue
-            if contrast(p[fg], p[bg]) < thr and kind in ("text", "graphic"):
-                fails += 1
     print(f"wrote {REPORT_MD.relative_to(ROOT)} — {fails} below-threshold pairings (see report)")
     return 0
 

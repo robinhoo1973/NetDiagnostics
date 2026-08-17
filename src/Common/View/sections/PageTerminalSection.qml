@@ -12,7 +12,7 @@ PageSection {
     bottomMargin: ThemeEngine.spacing.lg
     contentSpacing: 6
     // 主题自适应（7-5）：暗色=surface，亮色=input——不再硬编码深藏青
-    cardColor: ThemeEngine.terminalBg()
+    cardColor: ThemeEngine.terminalBg   // 属性（主题切换可响应）
 
     property var detailData: ({})
     readonly property string _terminalText: detailData.details || detailData.rawOutput || ""

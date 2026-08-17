@@ -365,6 +365,14 @@ void AppState::continueAfterCellularWarn() {
     else runDiagnostics();
 }
 
+void AppState::dismissCellularWarn() {
+    // 纯关闭（不确认不启动）：5WHY review round 3——遮罩点击走此路径，
+    // 误触不会触发整轮大流量诊断。
+    if (!m_cellularWarnVisible) return;
+    m_cellularWarnVisible = false;
+    emit cellularWarnVisibleChanged();
+}
+
 QVariantMap AppState::itemFor(DiagId id) const {
     QVariantMap m;
     m[QStringLiteral("diagId")] = static_cast<int>(id);

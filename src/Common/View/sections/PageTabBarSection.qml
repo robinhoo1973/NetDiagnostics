@@ -113,7 +113,8 @@ PageSection {
                     Label {
                         Layout.fillWidth: true
                         Layout.alignment: Qt.AlignVCenter
-                        text: ThemeEngine.isMobile ? T.groupPrefix(index) : tabBtn._groupName
+                        text: ThemeEngine.isMobile && root.width < ThemeEngine.compactUiWidth
+                              ? T.groupPrefix(index) : tabBtn._groupName
                         font.family: ThemeEngine.fontUi
                         font.pixelSize: ThemeEngine.fontSize.caption
                         font.weight: tabBtn.activeTab ? Font.DemiBold : Font.Normal

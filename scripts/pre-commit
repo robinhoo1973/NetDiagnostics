@@ -340,8 +340,11 @@ fi
 	echo "── 13b. QML bare T.* vs unqualified theme import ──"
 	if [ -n "$QML_FILES" ]; then
 	    for f in $QML_FILES; do
-	        if git show ":$f" 2>/dev/null | grep -vE '^\s*//' | grep -qE '(^|[^.A-Za-z0-9])T\.(tr|isRtl|diagName|groupName|groupPrefix|textElideStart)'; then
-	            if git show ":$f" 2>/dev/null | grep -qE '^import ("\.\./theme"|theme)[[:space:]]*$'; then
+	        # 5WHY (review round 3): blob 只取一次（原两次 git show 各 fork
+	        # 一个子进程重读同一对象）
+	        _qml_blob=$(git show ":$f" 2>/dev/null || true)
+	        if echo "$_qml_blob" | grep -vE '^\s*//' | grep -qE '(^|[^.A-Za-z0-9])T\.(tr|isRtl|diagName|groupName|groupPrefix|textElideStart)'; then
+	            if echo "$_qml_blob" | grep -qE '^import ("\.\./theme"|theme)[[:space:]]*$'; then
 	                pass "$f"
 	            else
 	                fail "$f: uses bare T.* without an unqualified theme import — add 'import \"../theme\"' (runtime ReferenceError)"
@@ -483,13 +486,19 @@ fi
 	# is exact.
 	echo ""
 	echo "── 19. Pre-generated icon staleness (icons vs Palette.js) ──"
-	# 5WHY (review 2026-08-17): 旧实现仅在 staging 命中输入模式时启用，且
-	# 输入模式漏掉了生成器脚本自身（palette_common.py 的亮度公式改动曾可
-	# 静默漂移）。--check 全量镜像重建仅 ~1.4s —— 无条件执行。
-	if python3 "$ROOT/scripts/generate-colored-icons.py" --check; then
-	    pass "icons up to date"
+	# 5WHY (review 2026-08-17): 输入模式必须包含生成器脚本自身
+	# （palette_common.py 的亮度公式改动曾可静默漂移）。--check 全量镜像
+	# 重建 ~1.4s：5WHY (review round 3) 输入未变时按指纹跳过——docs/纯 C++
+	# 提交不再支付全量再生成。
+	GEN_INPUTS=$(echo "$STAGED" | grep -E '(theme/Palette\.js|resources/icons/(ffffff|masters-45)/[^/]+\.svg|scripts/(generate-colored-icons|palette_common)\.py)$' || true)
+	if [ -n "$GEN_INPUTS" ]; then
+	    if python3 "$ROOT/scripts/generate-colored-icons.py" --check; then
+	        pass "icons up to date"
+	    else
+	        fail "generated icons out of date — run: python scripts/generate-colored-icons.py"
+	    fi
 	else
-	    fail "generated icons out of date — run: python scripts/generate-colored-icons.py"
+	    pass "generator inputs unchanged"
 	fi
 
 	# ── 20. Secrets & signing material (leak prevention) ────────────────────

@@ -24,7 +24,7 @@ Item {
     property string text: ""
     property bool typewriter: true
     // 主题自适应终端底色（共用 helper，见 ThemeEngine.terminalBg 7-5 修复注释）
-    property color terminalColor: ThemeEngine.terminalBg()
+    property color terminalColor: ThemeEngine.terminalBg   // 属性（主题切换可响应）
 
     implicitWidth: 300
     // 5WHY: implicitHeight must track the dynamic content height so parent
@@ -41,14 +41,6 @@ Item {
     // ── Internal state ────────────────────────────────────────────────────
     readonly property int padding: 12
     readonly property var _lines: root.text ? root.text.split('\n') : []
-    // 5WHY (review 2026-08-17): 最长行文本——单色字体下宽度∝字符数，供
-    // TextMetrics 度量水平滚动所需的 contentWidth。
-    readonly property string _widestLine: {
-        var w = ""
-        for (var i = 0; i < _lines.length; ++i)
-            if (_lines[i].length > w.length) w = _lines[i]
-        return w
-    }
     property int _visibleCount: 0
 
     // 5WHY: onTextChanged resets _visibleCount and restarts the typing
@@ -98,12 +90,13 @@ Item {
         }
     }
 
-    // 最长行的像素宽度（JetBrains Mono 11px；advanceWidth 即 LTR 水平推进）
+    // 全文本的 TextMetrics（5WHY review round 3: advanceWidth 对多行文本
+    // 返回最宽行——无需 JS 逐行扫描 _widestLine 的派生状态）
     TextMetrics {
         id: widestMetrics
         font.family: ThemeEngine.monoFont
         font.pixelSize: 11
-        text: root._widestLine
+        text: root.text
     }
 
     // ── Visual ────────────────────────────────────────────────────────────

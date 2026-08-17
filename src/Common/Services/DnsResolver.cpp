@@ -231,6 +231,7 @@ QString DnsResolver::resolve(const QString& host, int timeoutMs) {
     // Detach is only needed for the timeout case where getaddrinfo may still
     // be blocked for 30-120s -- joining would block the caller.
     waitResolveDone(st->done, std::chrono::steady_clock::now(), timeoutMs);
+    const bool done = st->done.load(std::memory_order_acquire);
     finishResolveThread(t, st->done);
     // 5WHY: this cache write MUST happen before the timeout early-return
     // below. When getaddrinfo is still blocked (st->done==false, st->ip empty)
@@ -238,11 +239,13 @@ QString DnsResolver::resolve(const QString& host, int timeoutMs) {
     // re-spawn a blocking thread for the same host within the 30s TTL. The
     // Apple/GCD path already did this; the non-Apple path skipped it because
     // the early return sat ahead of the write.
+    // 5WHY (review round 3): 超时后线程已 detach 且可能仍在写 st->ip——
+    // 负缓存必须写空串，绝不读取 st->ip（非原子 QString 并发读写是 UB）。
     {
         QMutexLocker locker(&m_mutex);
-        m_cache[host] = {st->ip, QDateTime::currentMSecsSinceEpoch()};
+        m_cache[host] = {done ? st->ip : QString(), QDateTime::currentMSecsSinceEpoch()};
     }
-    if (!st->done.load(std::memory_order_acquire))
+    if (!done)
         return {}; // timeout: thread still owns st via shared_ptr, safe
     return st->ip;
 #endif
@@ -326,15 +329,17 @@ QString DnsResolver::resolve6(const QString& host, int timeoutMs) {
     // cleanup; detach() is only needed for timeout case where getaddrinfo may
     // still be blocked for 30-120s.
     waitResolveDone(st->done, std::chrono::steady_clock::now(), timeoutMs);
+    const bool done = st->done.load(std::memory_order_acquire);
     finishResolveThread(t, st->done);
     // 5WHY: same as resolve() — write the (possibly negative) cache entry
     // BEFORE the timeout early-return so a wedged DNS server hits the 30s
     // negative entry instead of re-spawning a thread per call.
+    // 5WHY (review round 3): 超时后不读 st->ip（detach 线程可能并发写）
     {
         QMutexLocker l(&m_mutex);
-        m_cache[QStringLiteral("v6:") + host] = {st->ip, QDateTime::currentMSecsSinceEpoch()};
+        m_cache[QStringLiteral("v6:") + host] = {done ? st->ip : QString(), QDateTime::currentMSecsSinceEpoch()};
     }
-    if (!st->done.load(std::memory_order_acquire)) return {};
+    if (!done) return {};
     return st->ip;
 #endif
 }
@@ -420,12 +425,15 @@ QString DnsResolver::resolvePtr(const QString& ip, int timeoutMs) {
         return {};
     }
     waitResolveDone(st->done, std::chrono::steady_clock::now(), timeoutMs);
+    const bool done = st->done.load(std::memory_order_acquire);
     finishResolveThread(t, st->done);
     {
+        // 5WHY (review round 3): 超时后线程已 detach 且可能仍在写 st->ip——
+        // 负缓存写空串，绝不读取 st->ip（非原子 QString 并发读写是 UB）。
         QMutexLocker l(&m_mutex);
-        m_cache[QStringLiteral("ptr:") + ip] = {st->ip, QDateTime::currentMSecsSinceEpoch()};
+        m_cache[QStringLiteral("ptr:") + ip] = {done ? st->ip : QString(), QDateTime::currentMSecsSinceEpoch()};
     }
-    if (!st->done.load(std::memory_order_acquire)) return {};
+    if (!done) return {};
     return st->ip;
 #endif
 }

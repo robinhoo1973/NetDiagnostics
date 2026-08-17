@@ -79,8 +79,7 @@ Item {
             // ── Zoom out [−] ──────────────────────────────────────────
             Rectangle {
                 width: btnSize; height: btnSize; radius: 5
-                color: zoomOutMa.containsMouse ? Qt.alpha(ThemeEngine.colors.tertiary, 0.20)
-                                              : Qt.alpha(ThemeEngine.colors.tertiary, 0.08)
+                color: ThemeEngine.navHoverTint(zoomOutMa.containsMouse)
                 Label {
                     anchors.centerIn: parent
                     text: "−"  // minus sign
@@ -126,8 +125,7 @@ Item {
             // ── Zoom in [+] ───────────────────────────────────────────
             Rectangle {
                 width: btnSize; height: btnSize; radius: 5
-                color: zoomInMa.containsMouse ? Qt.alpha(ThemeEngine.colors.tertiary, 0.20)
-                                              : Qt.alpha(ThemeEngine.colors.tertiary, 0.08)
+                color: ThemeEngine.navHoverTint(zoomInMa.containsMouse)
                 Label {
                     anchors.centerIn: parent
                     text: "+"

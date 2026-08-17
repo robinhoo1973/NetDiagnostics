@@ -56,6 +56,7 @@ ROLES = [
     ("SKIP", "skip"),
     ("INFO", "info"),
     ("TERMINAL_TEXT", "terminalText"),
+    ("ON_SUCCESS_CONTAINER", "onSuccessContainer"),
 ]
 
 # Stem→key lookup built once (5WHY review 2026-08-17: dict(ROLES) was rebuilt
@@ -77,6 +78,9 @@ HEADER = """// =================================================================
 //   primary/secondary/tertiary/error with on-* text pairs, surface + three
 //   container levels, outline vs outlineVariant — plus NetDiagnostics
 //   extended tokens.  Zero-consumer roles are deliberately absent (simplify
+//   round 2026-08-17).  Exception: terminalText/onSuccessContainer are
+//   QML-side semantic tokens tracked here for Palette.js↔AppColors.h sync
+//   (a QML token leaving the sync net caused the dark textMuted divergence).
 //   round 2026-08-17).  Color VALUES are unchanged from the pre-M3 palette —
 //   5WHY: visual parity is a hard requirement of the rename; contrast
 //   deviations are tracked by scripts/audit-palette-contrast.py instead of
@@ -228,7 +232,7 @@ def build_header() -> str:
         ("EXTENDED TOKENS — brand accent / text levels / status",
          [s for s, _ in ROLES if s in
           ("ACCENT", "TEXT_PLACEHOLDER", "SUCCESS", "WARNING", "WARNING_STRONG",
-           "FAIL", "SKIP", "INFO", "TERMINAL_TEXT")]),
+           "FAIL", "SKIP", "INFO", "TERMINAL_TEXT", "ON_SUCCESS_CONTAINER")]),
     ]
     for title, stems in sections:
         out.append("// ═══════════════════════════════════════════════════════════════════════════════")

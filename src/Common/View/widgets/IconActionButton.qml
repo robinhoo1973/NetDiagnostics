@@ -16,7 +16,6 @@ Item {
     property int iconSize: 18
     property color iconColor: ThemeEngine.colors.onSurfaceVariant
     property bool iconMirror: false
-    property real iconRotation: 0
     signal activated()
 
     implicitWidth: 44
@@ -37,7 +36,6 @@ Item {
         size: root.iconSize
         color: root.iconColor
         mirror: root.iconMirror
-        rotation: root.iconRotation
     }
     MouseArea {
         anchors.fill: parent

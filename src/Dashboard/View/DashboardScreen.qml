@@ -157,7 +157,9 @@ PageDisplay {
                         font.family: ThemeEngine.fontUi
                         font.pixelSize: ThemeEngine.fontSize.title
                         font.weight: Font.DemiBold
-                        color: AppState.runStatus === 3 ? ThemeEngine.colors.onSurfaceVariant
+                        color: (ThemeEngine.runStatusInfo(AppState.runStatus)
+                                && ThemeEngine.runStatusInfo(AppState.runStatus).dimmed)
+                             ? ThemeEngine.colors.onSurfaceVariant
                              : ThemeEngine.colors.onSurface
                         elide: Text.ElideRight
                     }
@@ -375,18 +377,25 @@ PageDisplay {
                                 id: closeBtn
                                 readonly property int _sz: ThemeEngine.isMobile ? 48 : 34
                                 implicitWidth: _sz; implicitHeight: _sz; radius: _sz / 2
-                                color: closeMouse.containsMouse ? Qt.alpha(ThemeEngine.colors.fail, 0.35)
+                                color: closeHover.containsMouse ? Qt.alpha(ThemeEngine.colors.fail, 0.35)
                                                                 : Qt.alpha(ThemeEngine.colors.fail, 0.15)
-                                AppIcon { anchors.centerIn: parent; name: "close"; size: 14; color: ThemeEngine.colors.fail }
+                                // 5WHY (review round 3): 此处曾是手写按钮脚手架的第 4 份
+                                // 拷贝（无键盘支持）——命中/键盘/a11y 统一走 IconActionButton，
+                                // 圆形底色由外层 Rectangle 提供
+                                IconActionButton {
+                                    anchors.fill: parent
+                                    iconName: "close"; iconSize: 14
+                                    iconColor: ThemeEngine.colors.fail
+                                    Accessible.name: T.tr("dialogCancel")
+                                    onActivated: page.previewVisible = false
+                                }
                                 MouseArea {
-                                    id: closeMouse
+                                    id: closeHover
                                     anchors.fill: parent
                                     cursorShape: Qt.PointingHandCursor
                                     hoverEnabled: true
-                                    onClicked: page.previewVisible = false
+                                    acceptedButtons: Qt.NoButton   // 仅驱动悬停态
                                 }
-                                Accessible.role: Accessible.Button
-                                Accessible.name: T.tr("dialogCancel")
                             }
                         }
                     }

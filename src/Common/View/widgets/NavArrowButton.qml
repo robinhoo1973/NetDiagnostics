@@ -12,17 +12,18 @@ Rectangle {
     id: root
     property bool prev: false          // true = 上一页（左箭头，图标旋转 180°）
     property int btnSize: 32
-    // 5WHY (simplify 2026-08-17): 尺寸系统一半归组件（radius 派生）一半归调用方
-    // （iconSize 32→14/44→18 硬编码对）——默认按 btnSize 派生，特殊比例显式传。
-    property int iconSize: Math.round(btnSize * 7 / 16)
+    // 5WHY (review round 3): 7/16 派生默认在所有调用点都被显式覆盖且 44px 处
+    // 与实况不一致（派生 19 vs 实传 18）——双定义。回退为朴素默认。
+    property int iconSize: 14
     signal activated()
 
     width: btnSize; height: btnSize
     // 尺寸适配：32px→radius 6，44px→radius 8
     radius: Math.round(btnSize * 3 / 16)
 
-    color: ma.containsMouse ? Qt.alpha(ThemeEngine.colors.tertiary, 0.2)
-                            : Qt.alpha(ThemeEngine.colors.tertiary, 0.08)
+    // 悬停底色配方统一走 ThemeEngine.navHoverTint（review round 3：该
+    // 0.2/0.08 三元曾散落 4 处）
+    color: ThemeEngine.navHoverTint(ma.containsMouse)
 
     AppIcon {
         anchors.centerIn: parent

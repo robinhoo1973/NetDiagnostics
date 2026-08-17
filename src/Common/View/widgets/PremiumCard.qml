@@ -132,7 +132,9 @@ Rectangle {
             Rectangle { // hover overlay (locked only — no Qt.lighter, static-safe)
                 anchors.fill: parent; radius: 12
                 visible: !card._prem && btnHover.containsMouse
-                color: Qt.alpha("#FFFFFF", 0.12)
+                // 5WHY (review round 3): 裸 #FFFFFF 违反 M3 单一事实源——onSurface
+                // 状态层惯例（暗=白纱保持现状；亮=深色纱，此前白纱在亮主色上不可见）
+                color: Qt.alpha(Th.ThemeEngine.colors.onSurface, 0.12)
             }
             RowLayout {
                 anchors.centerIn: parent; spacing: 8
@@ -140,15 +142,17 @@ Rectangle {
                     name: card._prem ? "check" : "zap"
                     size: 16
                     // 5WHY (review 2026-08-17): 解锁态 success 绿在 success@0.16
-                    // 浅底上仅 ~2.2:1（AA 失败）——terminalText 是按主题调校的
-                    // success 系绿（暗=success #4ADE80；亮=深翡翠 #047857 ≈4.7:1）。
-                    color: card._prem ? Th.ThemeEngine.colors.terminalText : Th.ThemeEngine.colors.onPrimary
+                    // 浅底上仅 ~2.2:1（AA 失败）——onSuccessContainer 是 success 系绿
+                    // 在 success 淡底上的专用 AA 角色（暗=#4ADE80；亮=#047857 ≈4.7:1；
+                    // 5WHY review round 3: 原借用 terminalText 语义错位，终端样式
+                    // 重调会连带改动购买按钮）。
+                    color: card._prem ? Th.ThemeEngine.colors.onSuccessContainer : Th.ThemeEngine.colors.onPrimary
                 }
                 Label {
                     text: card._prem ? T.tr("premiumUnlockedBtn") : T.tr("subscribeBtn")
                     font.family: Th.ThemeEngine.fontUi; font.pixelSize: 14; font.weight: Font.Bold
                     // 5WHY: primary fill + white failed WCAG (1.89:1 dark).
-                    color: card._prem ? Th.ThemeEngine.colors.terminalText : Th.ThemeEngine.colors.onPrimary
+                    color: card._prem ? Th.ThemeEngine.colors.onSuccessContainer : Th.ThemeEngine.colors.onPrimary
                     elide: T.textElideStart
                 }
             }

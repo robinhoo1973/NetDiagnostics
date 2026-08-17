@@ -133,14 +133,14 @@ Item {
                     // Reactive: when the shared stagger counter reaches our
                     // index, start the bar width animation for this bar.
                     // Replaces per-bar Timer QObjects (N → 1 shared Timer).
-                    on_RevealedChanged: {
-                        if (_revealed) {
+                    onRevealedChanged: {
+                        if (revealed) {
                             barWidthAnim.from = 0
                             barWidthAnim.to = barItem._barTargetWidth
                             barWidthAnim.start()
                         }
                     }
-                    readonly property bool _revealed: index <= root._revealIndex
+                    readonly property bool revealed: index <= root._revealIndex
 
                     NumberAnimation {
                         id: barWidthAnim

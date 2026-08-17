@@ -17,6 +17,12 @@ PageDisplay {
 
     // NEW-8/M10：Premium 弹窗打开时阻断 dock 导航/滑动切页
     overlayVisible: premiumLoader.item !== null && premiumLoader.item.visible
+    // OverlayHost 契约（5WHY review round 3）：此前缺实现——弹窗打开时 dock
+    // 点击/滑动被 navBlocked 吞掉且无法经 AppContent 关闭
+    function closeOverlay() {
+        if (premiumLoader.item !== null && premiumLoader.item.visible)
+            premiumLoader.item.closeDialog()
+    }
 
     // ── PremiumStore 信号 → toast（恢复确认 / 购买失败）──
     Connections {

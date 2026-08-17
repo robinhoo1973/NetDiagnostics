@@ -51,8 +51,10 @@ PageSection {
             AppIcon {
                 visible: AppState.runStatus !== 1
                 anchors.fill: parent
-                name: "badge-check"; size: 16
-                color: ThemeEngine.colors.success
+                // 5WHY (review round 3): 取消/错误态曾硬编码绿色 check——
+                // 与同行的 runStatusInfo 标签/文字色脱节（橙字配绿勾）
+                name: ThemeEngine.runStatusIcon(AppState.runStatus, "badge-check"); size: 16
+                color: ThemeEngine.runStatusColor(AppState.runStatus, ThemeEngine.colors.success)
             }
         }
         Label {

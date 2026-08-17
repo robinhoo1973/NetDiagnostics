@@ -51,6 +51,7 @@ var Dark = {
     skip:                 "#9CA3AF",   // ← 原 skipGray
     info:                 "#A5B4FC",   // ← 原 infoBlue
     terminalText:         "#4ADE80",   // 终端输出文本（值=success，语义独立角色）
+    onSuccessContainer:   "#4ADE80",   // success 系绿在 success 淡底上的 AA 文字（复用现有 hex）
 
     // 45 图标全彩常显：瓦片光晕垫令牌 + 5 组组色（G1..G5）——主题无关，
     // 单一来源在 Dark 块（5WHY review 2026-08-17：双块逐字复制会静默漂移，
@@ -94,6 +95,7 @@ var Light = {
     skip:                 "#6B7280",   // ← 原 skipGray
     info:                 "#2563EB",   // ← 原 infoBlue
     terminalText:         "#047857",   // 终端输出文本（深翡翠，浅底 ~4.5:1 WCAG AA）
+    onSuccessContainer:   "#047857",   // 深翡翠对 success 淡底 ≈4.7:1（AA）
 
     // 45 图标全彩常显：引用 Dark 块单一来源（主题无关令牌，勿在本块改值）
     iconPadAlpha:         Dark.iconPadAlpha,

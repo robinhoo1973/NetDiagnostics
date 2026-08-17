@@ -25,8 +25,10 @@ Rectangle {
     AppIcon {
         anchors.centerIn: parent
         name: root.iconName; size: 14
+        // 5WHY (review round 3): 裸 #FFFFFF 违反 M3 单一事实源——用 onError
+        // （错误面内容色；暗 #0F172A 对 fail 红 ≈6.4:1，亮 #FFFFFF ✓）
         color: ma.containsMouse
-               ? (root.destructive ? "#FFFFFF" : ThemeEngine.colors.onSurface)
+               ? (root.destructive ? ThemeEngine.colors.onError : ThemeEngine.colors.onSurface)
                : ThemeEngine.colors.onSurfaceVariant
     }
 

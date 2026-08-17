@@ -69,17 +69,18 @@ void ProbeExecutor::run() {
             if (m_stopRequested.load()) break;
             // 5WHY (review 2026-08-17): pthread_create EAGAIN（低 RLIMIT_NPROC
             // /fd 耗尽）会以 std::system_error 逃逸 QThread::run() → 未捕获
-            // 异常 → std::terminate 整进程中止。降级：跳过本任务并记录。
+            // 异常 → std::terminate 整进程中止。降级：写空结果完成任务流转。
+            // 5WHY (review round 3): 仅"跳过并记录"会让任务卡在 Running——
+            // fetchWaiting 已将其出队，反馈将等待至 120s 上限且静默缺数据。
+            auto it = lookup.find(batch[i].key);
+            const QString country = (it != lookup.end()) ? it->country : "XX";
+            const QStringList regionTags = (it != lookup.end()) ? it->regionTags : QStringList();
             try {
-                threads.emplace_back([this, &lookup, task = &batch[i]]() {
+                threads.emplace_back([this, task = &batch[i], country, regionTags]() {
                 int colon = task->key.lastIndexOf(':');
                 QString host = task->key.left(colon);
                 int port = task->key.mid(colon + 1).toInt();
                 if (port <= 0) port = 80;
-
-                auto it = lookup.find(task->key);
-                QString country = (it != lookup.end()) ? it->country : "XX";
-                QStringList regionTags = (it != lookup.end()) ? it->regionTags : QStringList();
 
                 QVector<double> results;
                 results.reserve(task->rounds);
@@ -99,8 +100,9 @@ void ProbeExecutor::run() {
                 m_db->writeResults(task->key, results, country, regionTags);
             });
             } catch (const std::system_error& e) {
-                qWarning("ProbeExecutor: thread creation failed (%s) — skipping %s",
+                qWarning("ProbeExecutor: thread creation failed (%s) — writing empty result for %s",
                          e.what(), qPrintable(batch[i].key));
+                m_db->writeResults(batch[i].key, {}, country, regionTags);
             }
         }
         for (auto& t : threads) t.join();

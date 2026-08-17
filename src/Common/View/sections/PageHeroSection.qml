@@ -16,12 +16,11 @@ PageSection {
 
     property var detailData: ({})   // NEW-14：data 遮蔽内建属性，统一 detailData
 
-    // 图标名/tint 各求值一次（5WHY review 2026-08-17：原代码在填充与边框
-    // 两处各调一次 iconPadTint——每次 detailData 刷新双份查找+转换）
     // 5WHY (review round 2, UX): 垫只承载真实诊断图标——iconName 缺失时
     // 回退状态徽标会与旁边状态圆盘同图形异色冲突（蓝 check 对绿 check）。
+    // 5WHY (review round 3): _iconName 的 "circle" 回退分支是死代码——垫的
+    // 可见性已由 _hasDiagIcon 门控，直接绑定原始值即可。
     readonly property bool _hasDiagIcon: detailData.iconName !== undefined && detailData.iconName !== ""
-    readonly property string _iconName: _hasDiagIcon ? detailData.iconName : "circle"
 
     RowLayout {
         Layout.fillWidth: true
@@ -33,7 +32,7 @@ PageSection {
             visible: root._hasDiagIcon
             Layout.preferredWidth: 56
             Layout.preferredHeight: 56
-            iconName: root._iconName
+            iconName: detailData.iconName || ""
             iconSize: 40
             iconColor: ThemeEngine.colors.primary
         }

@@ -16,11 +16,11 @@ Item {
 
     readonly property bool _isPending: itemData.isPending === true
     readonly property bool _isDisabled: itemData.isDisabled === true
-    readonly property bool _isDone: itemData.isDone === true
+    readonly property bool isDone: itemData.isDone === true
     readonly property int _status: itemData.status !== undefined ? itemData.status : -1
-    readonly property string _statusIcon: _isDone ? (ThemeEngine.statusIconNames[_status] || "badge-skip") : ""
-    readonly property color _statusColor: _isDone ? (ThemeEngine.statusColors[_status] || ThemeEngine.colors.skip) : "transparent"
-    readonly property bool _isRunning: root.testRunning && !root._isDisabled && !root._isDone
+    readonly property string _statusIcon: isDone ? (ThemeEngine.statusIconNames[_status] || "badge-skip") : ""
+    readonly property color _statusColor: isDone ? (ThemeEngine.statusColors[_status] || ThemeEngine.colors.skip) : "transparent"
+    readonly property bool _isRunning: root.testRunning && !root._isDisabled && !root.isDone
     // C2：瓦片标签必须经 T.diagName（15 语言响应式）——直读 C++ 英文 label 会让
     // 语言切换对 45 个瓦片失效；label 作回退。
     readonly property string _label: (itemData.diagId !== undefined
@@ -91,8 +91,8 @@ Item {
 
     // settle：完成瞬间弹性缩放（归档完成态弹跳）
     property real _settleScale: 1.0
-    on_IsDoneChanged: {
-        if (_isDone) { _settleScale = 0.94; settleAnim.restart() }
+    onIsDoneChanged: {
+        if (isDone) { _settleScale = 0.94; settleAnim.restart() }
     }
     SequentialAnimation {
         id: settleAnim
@@ -109,7 +109,7 @@ Item {
         gradient: Gradient {
             GradientStop {
                 position: 0.0
-                color: _isDone ? Qt.alpha(_statusColor, 0.08)
+                color: isDone ? Qt.alpha(_statusColor, 0.08)
                        : _isRunning ? Qt.alpha(ThemeEngine.colors.primary, 0.06)
                        : ThemeEngine.colors.surfaceContainerLow
             }
@@ -185,13 +185,13 @@ Item {
             anchors { left: card.left; right: card.right; bottom: card.bottom; leftMargin: 3; rightMargin: 3; bottomMargin: 3 }
             height: 3
             radius: 1.5
-            visible: root._isDone || root._isRunning
-            color: root._isDone ? root._statusColor : ThemeEngine.colors.primary
+            visible: root.isDone || root._isRunning
+            color: root.isDone ? root._statusColor : ThemeEngine.colors.primary
         }
 
         // 完成状态角标（右上）
         AppIcon {
-            visible: _isDone
+            visible: isDone
             anchors { top: parent.top; right: parent.right; margins: 7 }
             name: _statusIcon
             size: 14

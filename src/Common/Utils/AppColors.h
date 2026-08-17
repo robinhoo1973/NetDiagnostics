@@ -11,6 +11,9 @@
 //   primary/secondary/tertiary/error with on-* text pairs, surface + three
 //   container levels, outline vs outlineVariant — plus NetDiagnostics
 //   extended tokens.  Zero-consumer roles are deliberately absent (simplify
+//   round 2026-08-17).  Exception: terminalText/onSuccessContainer are
+//   QML-side semantic tokens tracked here for Palette.js↔AppColors.h sync
+//   (a QML token leaving the sync net caused the dark textMuted divergence).
 //   round 2026-08-17).  Color VALUES are unchanged from the pre-M3 palette —
 //   5WHY: visual parity is a hard requirement of the rename; contrast
 //   deviations are tracked by scripts/audit-palette-contrast.py instead of
@@ -87,6 +90,7 @@
 #define APPC_SKIP_DARK                           "#9CA3AF"
 #define APPC_INFO_DARK                           "#A5B4FC"
 #define APPC_TERMINAL_TEXT_DARK                           "#4ADE80"
+#define APPC_ON_SUCCESS_CONTAINER_DARK                           "#4ADE80"
 
 // ── Light palette ─────────────────────────────────────────────────────────────
 #define APPC_ACCENT_LIGHT                          "#F43F5E"
@@ -98,6 +102,7 @@
 #define APPC_SKIP_LIGHT                          "#6B7280"
 #define APPC_INFO_LIGHT                          "#2563EB"
 #define APPC_TERMINAL_TEXT_LIGHT                          "#047857"
+#define APPC_ON_SUCCESS_CONTAINER_LIGHT                          "#047857"
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // REPORT-SPECIFIC COLORS (HTML/PDF report generation — report-local, static)
