@@ -7,6 +7,6 @@
   <circle cx="8.7" cy="3.3" r="0.85" fill="#4ADE80" fill-opacity="1"/>
   <path d="M3.0 8.3 L5.6 10.2 L3.0 12.1" stroke="#06B6D4" stroke-width="1.6" fill="none"/>
   <path d="M6.4 12.1 H9.8" stroke="#06B6D4" stroke-width="1.2" fill="none"/>
-  <rect x="1" y="1" width="22" height="22" rx="2.9" stroke="#64748B" stroke-width="0.45" fill="none"/>
+  <rect x="1" y="1" width="22" height="22" rx="2.9" stroke="#475569" stroke-width="0.45" fill="none"/>
   <path d="M 2.17 16.10 L 2.17 19.00 M 2.17 16.10 L 3.97 16.10 M 2.17 17.48 L 3.28 17.48 M 5.99 16.10 L 5.99 19.00 M 5.03 16.10 L 6.96 16.10 M 8.16 16.10 L 8.16 19.00 M 8.16 16.10 L 9.40 16.10 L 9.82 16.24 L 9.95 16.38 L 10.09 16.65 L 10.09 17.07 L 9.95 17.34 L 9.82 17.48 L 9.40 17.62 L 8.16 17.62" stroke="#06B6D4" stroke-width="0.85" fill="none"/>
 </svg>

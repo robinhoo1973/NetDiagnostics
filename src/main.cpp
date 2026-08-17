@@ -159,7 +159,11 @@ int main(int argc, char* argv[]) {
     QCoreApplication::setApplicationName(QStringLiteral("NetDiagnostic"));
     // QSettings 持久化需 organizationName；缺省时 Windows 写入未知组织键
     QCoreApplication::setOrganizationName(QStringLiteral("NetDiagnostics"));
-    QCoreApplication::setApplicationVersion(QStringLiteral("0.0.1"));
+    // 5WHY (review 2026-08-17): 版本字面量 "0.0.1" 是 Qt6 移植时的占位符，
+    // 从未接上 PROJECT_VERSION 编译定义——Settings About、--version 均显示
+    // 0.0.1，且覆盖了 macOS/iOS bundle 的正确版本（netdiag-target.cmake 注入）。
+    // 单一事实源：CMake 的 PROJECT_VERSION（CI 从 v* tag 派生）。
+    QCoreApplication::setApplicationVersion(QStringLiteral(PROJECT_VERSION));
     // 预热 QCollator（Qt 惰性初始化与线程池并发首次使用存在竞态，
     // 在主线程先触发一次初始化可消除窗口）——selftest 与 QML 路径共用。
     {

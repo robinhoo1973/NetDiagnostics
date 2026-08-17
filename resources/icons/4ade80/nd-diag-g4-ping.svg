@@ -7,7 +7,7 @@
   </defs>
 
   <!-- Sonar source dot + two echo arcs -->
-  <circle cx="5.6" cy="12" r="2" fill="Light.success" fill-opacity="1" />
+  <circle cx="5.6" cy="12" r="2" fill="#10B981" fill-opacity="1" />
   <path d="M10.28 9.3 A5.4 5.4 0 0 1 10.28 14.7" stroke="#4ADE80" stroke-width="1.2" />
   <path d="M13.05 7.7 A8.6 8.6 0 0 1 13.05 16.3" stroke="#20AF54" stroke-width="1.2" />
 </svg>

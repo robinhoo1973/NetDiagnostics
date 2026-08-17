@@ -8,12 +8,12 @@
   </g>
 <defs>
     <linearGradient id="ngnddiagg5httptiming" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="Light.secondary" />
+      <stop offset="0%" stop-color="#6366F1" />
       <stop offset="100%" stop-color="#0D0D0D" />
     </linearGradient>
   </defs>
 
-  <!-- 基于 file-html：HTML 文件内，秒表在 HTML 字样正上方，文字下移避免重叠 --><g stroke="Light.secondary" stroke-width="0.8">
+  <!-- 基于 file-html：HTML 文件内，秒表在 HTML 字样正上方，文字下移避免重叠 --><g stroke="#6366F1" stroke-width="0.8">
     <path d="M 7.95 15.80 L 7.95 19.00 M 9.23 15.80 L 9.23 19.00 M 7.95 17.32 L 9.23 17.32 M 10.84 15.80 L 10.84 19.00 M 10.20 15.80 L 11.48 15.80 M 12.34 15.80 L 12.34 19.00 M 12.34 15.80 L 13.08 19.00 M 13.81 15.80 L 13.08 19.00 M 13.81 15.80 L 13.81 19.00 M 14.95 15.80 L 14.95 19.00 M 14.95 19.00 L 16.05 19.00"/>
   </g>
   <circle cx="11.7" cy="10.9" r="3.5" stroke="#FBBF24" stroke-width="1.4"/>

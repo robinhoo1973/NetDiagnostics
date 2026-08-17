@@ -105,11 +105,15 @@ PageSection {
                                : tabBtn._selMode === 1 ? T.tr("partialSelected")
                                : T.tr("deselectAll"))
                     }
-                    // 组名文本（全不选时灰色弱化，选中选项卡加粗）
+                    // 组名文本（全不选时灰色弱化，选中选项卡加粗）。
+                    // 5WHY (review 2026-08-17): 等宽五等分在手机竖屏下每 tab
+                    // 仅 ~59px，完整组名 elide 成 "…" 或越界覆盖相邻 tab——
+                    // 移动端只显示短前缀 "G1".."G5"（与 0.0.3/1acc2d62 重构前
+                    // 一致），完整名称仍由 Accessible.name 供读屏。
                     Label {
                         Layout.fillWidth: true
                         Layout.alignment: Qt.AlignVCenter
-                        text: tabBtn._groupName
+                        text: ThemeEngine.isMobile ? T.groupPrefix(index) : tabBtn._groupName
                         font.family: ThemeEngine.fontUi
                         font.pixelSize: ThemeEngine.fontSize.caption
                         font.weight: tabBtn.activeTab ? Font.DemiBold : Font.Normal

@@ -8,7 +8,7 @@
 
   <!-- Pole + two-segment pennant flag -->
   <path d="M5.6 4.2 V19.8" stroke="url(#ngnddiagg5servicebanner)" stroke-width="1.6" />
-  <circle cx="5.6" cy="3.4" r="1" fill="#64748B" fill-opacity="1" />
+  <circle cx="5.6" cy="3.4" r="1" fill="#475569" fill-opacity="1" />
   <path d="M6.8 5.6 H15.2 L12.8 8.8 H6.8 M6.8 8.8 H14.2 L11.8 12 H6.8"
         stroke="url(#ngnddiagg5servicebanner)" stroke-width="1.6" />
 </svg>

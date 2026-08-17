@@ -240,7 +240,7 @@ PageDisplay {
                     spacing: 2
                     Label {
                         Layout.alignment: Qt.AlignHCenter
-                        text: T.tr("versionLabel") + " " + Qt.application.version
+                        text: T.tr("versionLabel") + " " + AppState.appVersion()
                               + " · " + AppState.appEdition()
                         font.family: ThemeEngine.monoFont
                         font.pixelSize: ThemeEngine.fontSize.caption

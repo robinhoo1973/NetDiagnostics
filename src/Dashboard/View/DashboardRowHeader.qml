@@ -14,6 +14,8 @@ RowLayout {
     spacing: ThemeEngine.spacing.xs
 
     property var stats: ({})
+    // 窄屏两行头注入：进度条占满第二行剩余宽度（宽屏内联保持 48px）
+    property bool fillProgress: false
     // H2：行时长 + 4px 彩色进度条（page-dashboard §2.2）
     readonly property bool _hasData: root.stats && (root.stats.total || 0) > 0
     readonly property real _ratio: _hasData ? Math.min(1, (root.stats.completed || 0) / root.stats.total) : 0
@@ -32,9 +34,10 @@ RowLayout {
         font.pixelSize: ThemeEngine.fontSize.caption
         color: ThemeEngine.colors.onSurfaceVariant
     }
-    // 4px 进度条（track + fill）
+    // 4px 进度条（track + fill）；窄屏两行头由 fillProgress 注入撑满第二行
     Rectangle {
         Layout.preferredWidth: 48
+        Layout.fillWidth: root.fillProgress
         Layout.preferredHeight: 4
         radius: 2
         visible: root._hasData

@@ -106,11 +106,31 @@ else
     pass "no staged C/C++ files"
 fi
 
+# ── 4b. Application version: no hardcoded literal ─────────────────────────
+# 5WHY (review 2026-08-17): 版本曾是 Qt6 移植占位符 "0.0.1" 且从未接上
+# PROJECT_VERSION——Settings About / --version 显示错误版本并覆盖 macOS/iOS
+# bundle 正确值。唯一事实源是 CMake 的 PROJECT_VERSION 编译定义。
+echo ""
+echo "── 4b. Application version literal check ──"
+if [ -n "$CPP_FILES" ]; then
+    for f in $CPP_FILES; do
+        if git show ":$f" | grep -nE 'setApplicationVersion\(QStringLiteral\("[0-9]' > /tmp/precommit-version.log 2>/dev/null; then
+            fail "$f: hardcoded version literal in setApplicationVersion — use QStringLiteral(PROJECT_VERSION)"
+            cat /tmp/precommit-version.log | while read line; do
+                echo "       $line"
+            done
+        else
+            pass "$f"
+        fi
+    done
+else
+    pass "no staged C/C++ files"
+fi
+
 # ── 5. No UTF-8 BOM ────────────────────────────────────────────────────────
 echo ""
 echo "── 5. UTF-8 BOM check ──"
-for f in $STAGED; do
-    if [ -f "$ROOT/$f" ]; then
+for f in $STAGED; do    if [ -f "$ROOT/$f" ]; then
         if hexdump -n 3 -C "$ROOT/$f" | grep -q 'ef bb bf'; then
             fail "$f: UTF-8 BOM detected — remove it"
         fi
@@ -303,6 +323,29 @@ fi
 	            cat /tmp/precommit-qml-ro.log | while read line; do
 	                echo "       $line"
 	            done
+	        else
+	            pass "$f"
+	        fi
+	    done
+	else
+	    pass "no staged QML files"
+	fi
+
+	# ── 13b. QML: bare T.* usage requires an unqualified theme import ─────
+	# 5WHY (review 2026-08-17): PremiumCard.qml 只限定导入（as Th）却裸用
+	# T.* —— ReferenceError 使卡片全部文本为空（仅 premium 平台可见，
+	# desktop 隐藏从未暴露），qmllint 仅警告。凡裸用 T.* 的文件必须有
+	# 非限定 theme 导入（`import theme` 或 `import "../theme"`）。
+	echo ""
+	echo "── 13b. QML bare T.* vs unqualified theme import ──"
+	if [ -n "$QML_FILES" ]; then
+	    for f in $QML_FILES; do
+	        if git show ":$f" 2>/dev/null | grep -vE '^\s*//' | grep -qE '(^|[^.A-Za-z0-9])T\.(tr|isRtl|diagName|groupName|groupPrefix|textElideStart)'; then
+	            if git show ":$f" 2>/dev/null | grep -qE '^import ("\.\./theme"|theme)[[:space:]]*$'; then
+	                pass "$f"
+	            else
+	                fail "$f: uses bare T.* without an unqualified theme import — add 'import \"../theme\"' (runtime ReferenceError)"
+	            fi
 	        else
 	            pass "$f"
 	        fi

@@ -13,7 +13,7 @@
     </linearGradient>
   </defs>
 
-  <!-- Blank text file with hub-and-spoke network inside --><circle cx="12" cy="13.6" r="1.1" fill="Light.primary" fill-opacity="1" />
+  <!-- Blank text file with hub-and-spoke network inside --><circle cx="12" cy="13.6" r="1.1" fill="#0EA5E9" fill-opacity="1" />
   <circle cx="7.6" cy="15.9" r="0.9" stroke="#0A101D" stroke-width="1.2" />
   <circle cx="16.4" cy="15.9" r="0.9" stroke="#0A101D" stroke-width="1.2" />
   <circle cx="12" cy="9.4" r="0.9" stroke="#0A101D" stroke-width="1.2" />

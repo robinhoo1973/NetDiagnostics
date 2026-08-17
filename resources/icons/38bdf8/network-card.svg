@@ -6,7 +6,7 @@
     </linearGradient>
   </defs>
   <!-- Card body — gradient stroke + soft fill -->
-  <rect x="2" y="6" width="20" height="12" rx="2" fill="#64748B" fill-opacity="1" stroke="url(#nicGrad)" stroke-width="2.5" />
+  <rect x="2" y="6" width="20" height="12" rx="2" fill="#94A3B8" fill-opacity="1" stroke="url(#nicGrad)" stroke-width="2.5" />
   <!-- Connector edge — primary -->
   <path d="M2 10h20" stroke="#38BDF8" stroke-width="2.5" />
   <!-- LED indicators — accent -->

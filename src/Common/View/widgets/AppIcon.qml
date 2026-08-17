@@ -45,6 +45,10 @@ Item {
     Image {
         anchors.fill: parent
         source: root.name !== "" ? ("qrc:/icons/" + _hex.substr(1).toLowerCase() + "/" + root.name + ".svg") : ""
+        // 5WHY (review 2026-08-17): 缺 sourceSize 时 QtSvg 按 SVG 固有 24×24
+        // 栅格化再双线性放大到 32-44px——新母版 0.45-0.9 单位的发丝描边在
+        // 1.83× 放大后糊成灰带。按显示分辨率栅格化，各尺寸都清晰。
+        sourceSize: Qt.size(root.size, root.size)
         fillMode: Image.PreserveAspectFit
         opacity: root.color.a
         cache: true

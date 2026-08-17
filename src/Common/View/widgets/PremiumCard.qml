@@ -24,6 +24,10 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import "../theme" as Th
+// 5WHY (review 2026-08-17): 文件裸用 T.* 但此前只有限定导入（as Th）——
+// ReferenceError 使卡片全部文本为空（仅 premium 平台可见；RTL 镜像与
+// Accessible.name 同样静默失效）。非限定导入让 qmldir 单例 T 进入作用域。
+import "../theme"
 import "../widgets"
 
 Rectangle {

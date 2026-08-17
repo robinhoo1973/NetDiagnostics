@@ -448,6 +448,11 @@ def generate(out_base: Path | None = None) -> None:
                 # #000000 → semantic accent (fixed per icon)
                 accent = ACCENT.get(svg.stem, "")
                 if accent:
+                    # 5WHY (review 2026-08-17): DIAG_ACCENT 表改角色引用后，
+                    # 此路径漏了解析——"Light.info" 等非法 SVG 颜色直接烘进
+                    # 672 个文件（#000000 哨兵替换是唯一未解析点，18/45 瓦片
+                    # 图标强调色失效）。
+                    accent = _resolve_role_ref(accent, palettes)
                     colored = colored.replace("#000000", accent)
                 # #101010 → second semantic accent (fixed per icon)
                 accent2 = SECOND_ACCENT.get(svg.stem, "")
@@ -471,8 +476,16 @@ def generate(out_base: Path | None = None) -> None:
                 if re.search(r"#B0000[1-9]", colored, re.IGNORECASE):
                     print(f"WARNING: {svg.name} in {sub.name}: unreplaced "
                           f"#B0000n sentinel remains (fixed-color table too short)")
-                # #777777 → soft fill (fixed, theme-independent)
-                colored = colored.replace("#777777", "#64748B")
+                # #777777 → soft fill（主题感知：随变体主题取 onSurfaceVariant；
+                # 5WHY review 2026-08-17: 原硬编码 #64748B 双主题同灰——暗卡上
+                # 泥泞、白卡上灰暗）
+                soft_fill = (palettes["Light"]["onSurfaceVariant"]
+                             if (hx in light_hexes and hx not in dark_hexes)
+                             else palettes["Dark"]["onSurfaceVariant"])
+                colored = colored.replace("#777777", soft_fill)
+                if re.search(r"(Light|Dark)\.[A-Za-z0-9_]+", colored):
+                    raise SystemExit(f"{svg.name} in {sub.name}: unresolved role "
+                                     f"reference leaked into output — fix the accent table")
                 out_file = sub / svg.name
                 out_file.write_text(colored, encoding="utf-8", newline="\n")
         for svg in icons:
