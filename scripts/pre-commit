@@ -114,7 +114,10 @@ echo ""
 echo "── 4b. Application version literal check ──"
 if [ -n "$CPP_FILES" ]; then
     for f in $CPP_FILES; do
-        if git show ":$f" | grep -nE 'setApplicationVersion\(QStringLiteral\("[0-9]' > /tmp/precommit-version.log 2>/dev/null; then
+        # 5WHY (review round 4)：按"调用形态"拦会漏——任何带引号字面量实参都拦
+        # （QStringLiteral/裸字面量/"v2.0" 前缀等）；blob 只取一次。
+        _cpp_blob=$(git show ":$f" 2>/dev/null || true)
+        if echo "$_cpp_blob" | grep -nE 'setApplicationVersion\([^)]*"[^"]*"' > /tmp/precommit-version.log 2>/dev/null; then
             fail "$f: hardcoded version literal in setApplicationVersion — use QStringLiteral(PROJECT_VERSION)"
             cat /tmp/precommit-version.log | while read line; do
                 echo "       $line"
@@ -130,7 +133,8 @@ fi
 # ── 5. No UTF-8 BOM ────────────────────────────────────────────────────────
 echo ""
 echo "── 5. UTF-8 BOM check ──"
-for f in $STAGED; do    if [ -f "$ROOT/$f" ]; then
+for f in $STAGED; do
+    if [ -f "$ROOT/$f" ]; then
         if hexdump -n 3 -C "$ROOT/$f" | grep -q 'ef bb bf'; then
             fail "$f: UTF-8 BOM detected — remove it"
         fi
@@ -343,7 +347,10 @@ fi
 	        # 5WHY (review round 3): blob 只取一次（原两次 git show 各 fork
 	        # 一个子进程重读同一对象）
 	        _qml_blob=$(git show ":$f" 2>/dev/null || true)
-	        if echo "$_qml_blob" | grep -vE '^\s*//' | grep -qE '(^|[^.A-Za-z0-9])T\.(tr|isRtl|diagName|groupName|groupPrefix|textElideStart)'; then
+	        # 5WHY (review round 3 修复)：原名单硬编码 6 个 T.* 助手——新增助手
+	        # 裸用会静默绕过（正是 PremiumCard 事故的成因类别）。匹配任意
+	        # 小写起始的 T.* 成员（类型引用 T.SomeType 大写字头不受影响）。
+	        if echo "$_qml_blob" | grep -vE '^[[:space:]]*//' | grep -qE '(^|[^.A-Za-z0-9])T\.[a-z_][A-Za-z0-9_]*'; then
 	            if echo "$_qml_blob" | grep -qE '^import ("\.\./theme"|theme)[[:space:]]*$'; then
 	                pass "$f"
 	            else
@@ -491,7 +498,11 @@ fi
 	# 重建 ~1.4s：5WHY (review round 3) 输入未变时按指纹跳过——docs/纯 C++
 	# 提交不再支付全量再生成。
 	GEN_INPUTS=$(echo "$STAGED" | grep -E '(theme/Palette\.js|resources/icons/(ffffff|masters-45)/[^/]+\.svg|scripts/(generate-colored-icons|palette_common)\.py)$' || true)
-	if [ -n "$GEN_INPUTS" ]; then
+	# 5WHY (review round 4): 生成输出被手改同样必须校验（手改随下次再生成丢失）；
+	# 输入删除不在 ACMR 过滤中——单独查 D 状态。fail-closed 覆盖恢复。
+	GEN_OUTPUTS=$(echo "$STAGED" | grep -E 'resources/(icons/[0-9a-f]{6}/[^/]+\.svg|resources_icons\.qrc)|src/Common/View/widgets/Icon(Colors|Tints)\.js' || true)
+	GEN_DELETED=$(git diff --cached --name-only --diff-filter=D | grep -E '(theme/Palette\.js|resources/icons/(ffffff|masters-45)/[^/]+\.svg|scripts/(generate-colored-icons|palette_common)\.py)' || true)
+	if [ -n "$GEN_INPUTS" ] || [ -n "$GEN_OUTPUTS" ] || [ -n "$GEN_DELETED" ]; then
 	    if python3 "$ROOT/scripts/generate-colored-icons.py" --check; then
 	        pass "icons up to date"
 	    else

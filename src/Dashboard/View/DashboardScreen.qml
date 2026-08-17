@@ -91,6 +91,13 @@ PageDisplay {
     // OverlayHost 契约（5WHY simplify 2026-08-17）：见 DiagnosticScreen
     function closeOverlay() { page.previewVisible = false }
 
+    // 运行状态呈现单次求值（5WHY review round 3 修复：标题色绑定曾一行内
+    // 两次调用 runStatusInfo——同一表达式重复构造状态对象）
+    readonly property var _runInfo: ThemeEngine.runStatusInfo(AppState.runStatus)
+    // 预览关闭钮尺寸（5WHY review round 4: 曾声明在浮层内嵌对象里——
+    // readonly 属性嵌套声明违反 B.2 根级规则）
+    readonly property int _closeBtnSz: ThemeEngine.isMobile ? 48 : 34
+
     function openPreview() {
         if (!page.hasData) return
         previewVisible = true
@@ -157,8 +164,7 @@ PageDisplay {
                         font.family: ThemeEngine.fontUi
                         font.pixelSize: ThemeEngine.fontSize.title
                         font.weight: Font.DemiBold
-                        color: (ThemeEngine.runStatusInfo(AppState.runStatus)
-                                && ThemeEngine.runStatusInfo(AppState.runStatus).dimmed)
+                        color: (page._runInfo && page._runInfo.dimmed)
                              ? ThemeEngine.colors.onSurfaceVariant
                              : ThemeEngine.colors.onSurface
                         elide: Text.ElideRight
@@ -375,8 +381,7 @@ PageDisplay {
                             }
                             Rectangle {
                                 id: closeBtn
-                                readonly property int _sz: ThemeEngine.isMobile ? 48 : 34
-                                implicitWidth: _sz; implicitHeight: _sz; radius: _sz / 2
+                                implicitWidth: page._closeBtnSz; implicitHeight: page._closeBtnSz; radius: page._closeBtnSz / 2
                                 color: closeHover.containsMouse ? Qt.alpha(ThemeEngine.colors.fail, 0.35)
                                                                 : Qt.alpha(ThemeEngine.colors.fail, 0.15)
                                 // 5WHY (review round 3): 此处曾是手写按钮脚手架的第 4 份

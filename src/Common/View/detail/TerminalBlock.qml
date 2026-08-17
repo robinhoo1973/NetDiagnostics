@@ -41,6 +41,16 @@ Item {
     // ── Internal state ────────────────────────────────────────────────────
     readonly property int padding: 12
     readonly property var _lines: root.text ? root.text.split('\n') : []
+    // 最长行文本（单色字体下宽度∝字符数——长度比较即像素比较；
+    // 5WHY review round 4: Qt 6 的 TextMetrics.advanceWidth 对多行文本返回
+    // 各行宽度之和（QStackTextEngine::width 单 run 累加），而非最宽行——
+    // 必须只量度最长单行，否则 contentWidth 膨胀为总和、横向滚动失控）
+    readonly property string _widestLine: {
+        var w = ""
+        for (var i = 0; i < _lines.length; ++i)
+            if (_lines[i].length > w.length) w = _lines[i]
+        return w
+    }
     property int _visibleCount: 0
 
     // 5WHY: onTextChanged resets _visibleCount and restarts the typing
@@ -90,13 +100,12 @@ Item {
         }
     }
 
-    // 全文本的 TextMetrics（5WHY review round 3: advanceWidth 对多行文本
-    // 返回最宽行——无需 JS 逐行扫描 _widestLine 的派生状态）
+    // 最长单行的 TextMetrics（review round 4：见 _widestLine 的 5WHY）
     TextMetrics {
         id: widestMetrics
         font.family: ThemeEngine.monoFont
         font.pixelSize: 11
-        text: root.text
+        text: root._widestLine
     }
 
     // ── Visual ────────────────────────────────────────────────────────────

@@ -15,7 +15,10 @@ QtObject {
     readonly property int drkMode: 2
     property int mode: drkMode
     readonly property bool isDark: mode !== litMode
-    readonly property bool isMobile: Qt.platform.os === "ios" || Qt.platform.os === "android"   // R4-1: 从平台推导，不硬编码
+    // 5WHY (review round 4, D.1): Qt.platform 静态绑定与 Qt.application 同类的
+    // C++ 后端初始化顺序风险——可写属性 + onCompleted 空检赋值（readonly 会
+    // 静默丢弃赋值，round 3 教训）。
+    property bool isMobile: false
 
     property var colors: Palette.Dark
 
@@ -30,6 +33,7 @@ QtObject {
         // 5WHY (review 2026-08-17, D.1): Qt.application 静态绑定违反项目规则
         // ——onCompleted 空检赋值（并入既有初始化点，避免第二个 handler）
         if (Qt.application) fontUi = Qt.application.font.family
+        if (Qt.platform) isMobile = (Qt.platform.os === "ios" || Qt.platform.os === "android")
     }
 
     readonly property var statusColors: [
@@ -45,6 +49,15 @@ QtObject {
     // 窄屏断点（5WHY review round 3: 组头两行/tab 前缀曾各用一套门限，
     // 平板 700px 出现短 tab 配完整组头——统一单一断点）
     readonly property int compactUiWidth: 600
+    // 瓦片图标度量令牌（5WHY review round 4: 图标曾硬编码 32/44、垫 48/60
+    // 且与瓦片尺寸无关——"瓦片内小框"的根源；M3 keyline 比随 blockSize 派生）
+    readonly property real tileIconRatio: 0.55
+    readonly property real tilePadRatio: 1.36
+    // 窄屏判定（5WHY review round 3 修复：isMobile && width < compactUiWidth
+    // 三元曾两处复制——组头条与 tab 前缀漂移风险；单一断点配套单一判定）
+    function isCompactUi(width) {
+        return isMobile && width < compactUiWidth
+    }
     readonly property var radius: ({ xs: 4, sm: 6, md: 8, lg: 12, xl: 16, full: 9999 })
     readonly property var spacing: ({ xs: 4, sm: 8, md: 12, lg: 16, xl: 24 })
     // R5-4：字阶令牌（caption/body/subhead/title/headline + mono）——组件禁止魔法字号。

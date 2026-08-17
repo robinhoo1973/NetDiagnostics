@@ -14,6 +14,9 @@ PageSection {
 
     // 页面注入的额外头部组件（Dashboard：摘要统计层）—— UI-5：依赖方向页面→Common
     property Component headerExtra: null
+    // 状态呈现单次求值（5WHY review round 4: icon/color/label 各自调用
+    // runStatusInfo——同一次变化最多 4 次对象构造；单一属性共享）
+    readonly property var _statusInfo: ThemeEngine.runStatusInfo(AppState.runStatus)
 
     // UI-2：聚合统计命令式刷新（progressChanged/runStatusChanged 处理器赋值），
     // 绑定中不调用 groupStats(-1)。
@@ -53,8 +56,8 @@ PageSection {
                 anchors.fill: parent
                 // 5WHY (review round 3): 取消/错误态曾硬编码绿色 check——
                 // 与同行的 runStatusInfo 标签/文字色脱节（橙字配绿勾）
-                name: ThemeEngine.runStatusIcon(AppState.runStatus, "badge-check"); size: 16
-                color: ThemeEngine.runStatusColor(AppState.runStatus, ThemeEngine.colors.success)
+                name: (page._statusInfo ? page._statusInfo.iconName : "badge-check"); size: 16
+                color: (page._statusInfo ? page._statusInfo.color : ThemeEngine.colors.success)
             }
         }
         Label {
@@ -63,8 +66,7 @@ PageSection {
                 if (AppState.runStatus === 1)
                     return (AppState.currentDiagLabel || T.tr("running"))
                            + (_agg.total > 0 ? " · " + AppState.totalCompleted + "/" + _agg.total : "")
-                var info = ThemeEngine.runStatusInfo(AppState.runStatus)
-                if (info) return T.tr(info.labelKey)
+                if (page._statusInfo) return T.tr(page._statusInfo.labelKey)
                 return (_agg.total > 0
                     ? AppState.totalCompleted + "/" + _agg.total
                     : AppState.totalCompleted) + " " + T.tr("completed")

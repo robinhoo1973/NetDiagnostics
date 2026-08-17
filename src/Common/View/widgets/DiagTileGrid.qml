@@ -25,9 +25,19 @@ Item {
     function _recomputeSize() {
         var w = width
         if (w <= 0) return
-        _columns = Math.max(1, Math.floor((w / _minTile - _k) / (1.0 + _k)))
-        var denom = _columns + (_columns + 1) * _k
-        _tileSize = Math.min(_maxTile, Math.max(_minTile, Math.floor(w / denom)))
+        // 5WHY (review round 4): 列数按 w 计算但网格两侧各留 1×gap——边界
+        // 宽度下多算一列导致末列越出网格。以可用宽（w-2×gap）迭代 2 次收敛。
+        var cols = Math.max(1, Math.floor((w / _minTile - _k) / (1.0 + _k)))
+        var tile = _minTile
+        for (var i = 0; i < 2; ++i) {
+            var gap = Math.max(4, Math.round(tile * _k))
+            var avail = w - 2 * gap
+            cols = Math.max(1, Math.floor((avail / _minTile - _k) / (1.0 + _k)))
+            var denom = cols + (cols + 1) * _k
+            tile = Math.min(_maxTile, Math.max(_minTile, Math.floor(avail / denom)))
+        }
+        _columns = cols
+        _tileSize = tile
     }
 
     readonly property int _gapWidth: Math.max(4, Math.round(_tileSize * _k))

@@ -66,8 +66,8 @@ PAIRS = [
 ]
 
 
-def build_report() -> tuple[str, dict]:
-    """Return (report_text, parsed_palettes) — a single parse per run.
+def build_report() -> tuple[str, dict, list, int]:
+    """Return (report_text, parsed_palettes, missing_pairs, below_threshold_count).
 
     5WHY (2026-08-17 review): the deviation prose hardcoded computed ratios
     (≈2.8:1 etc.) as static text — a palette retune made the documented

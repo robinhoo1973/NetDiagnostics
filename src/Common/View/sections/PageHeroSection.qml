@@ -16,10 +16,8 @@ PageSection {
 
     property var detailData: ({})   // NEW-14：data 遮蔽内建属性，统一 detailData
 
-    // 5WHY (review round 2, UX): 垫只承载真实诊断图标——iconName 缺失时
-    // 回退状态徽标会与旁边状态圆盘同图形异色冲突（蓝 check 对绿 check）。
-    // 5WHY (review round 3): _iconName 的 "circle" 回退分支是死代码——垫的
-    // 可见性已由 _hasDiagIcon 门控，直接绑定原始值即可。
+    // 5WHY (review round 2+3): 垫只承载真实诊断图标——_hasDiagIcon 门控
+    // 可见性，无需回退分支（回退状态徽标会与状态圆盘同图形异色冲突）。
     readonly property bool _hasDiagIcon: detailData.iconName !== undefined && detailData.iconName !== ""
 
     RowLayout {

@@ -47,7 +47,7 @@ PageSection {
     // PageSection 重构丢弃了 DiagGroupPanel 的 compact 两行头——竖屏下单行
     // 固定内容超宽，组名 elide 消失、徽标被裁剪。断点与 tab 前缀共用
     // ThemeEngine.compactUiWidth，同时覆盖分屏窗口）
-    readonly property bool _headerCompact: ThemeEngine.isMobile && root.width < ThemeEngine.compactUiWidth
+    readonly property bool _headerCompact: ThemeEngine.isCompactUi(root.width)
 
     function reloadModel() {
         itemsModel = root.showOnlyCompleted ? AppState.resultsForGroup(groupIndex)
@@ -91,22 +91,44 @@ PageSection {
     // 内建统计簇（宽/窄两行共用；5WHY review round 3: 计数+三徽标曾逐字复制
     // 两份，加徽标/改格式必须双处同步——现为单一内联组件）
     component BuiltinStats: RowLayout {
+        property var stats: ({})
         property bool _visible: true
-        property int _total: 0
-        property int _completed: 0
-        property int _pass: 0
-        property int _warn: 0
-        property int _fail: 0
         Label {
             visible: parent._visible
-            text: parent._completed + "/" + parent._total
+            text: (parent.stats.completed || 0) + "/" + (parent.stats.total || 0)
             font.family: ThemeEngine.monoFont
             font.pixelSize: ThemeEngine.fontSize.body
             color: ThemeEngine.colors.onSurfaceVariant
         }
-        StatusBadge { visible: parent._visible; statusCode: 0; count: parent._pass }
-        StatusBadge { visible: parent._visible; statusCode: 1; count: parent._warn }
-        StatusBadge { visible: parent._visible; statusCode: 2; count: parent._fail }
+        StatusBadge { visible: parent._visible; statusCode: 0; count: parent.stats.pass || 0 }
+        StatusBadge { visible: parent._visible; statusCode: 1; count: parent.stats.warn || 0 }
+        StatusBadge { visible: parent._visible; statusCode: 2; count: parent.stats.fail || 0 }
+    }
+
+    // 注入行头（宽/窄两行共用的 Loader+Binding 脚手架；5WHY review round 4:
+    // 曾逐字复制两份——stats Binding、fillProgress 回传、active 条件各写一次）
+    component RowHeaderInjected: Loader {
+        id: rowHeaderInjectedLoader
+        property var _stats: ({})
+        property var injectedDelegate: null
+        property bool loaderActive: false
+        property bool fillProgress: false
+        active: loaderActive && injectedDelegate !== null
+        sourceComponent: injectedDelegate
+        Binding {
+            target: rowHeaderInjectedLoader.item
+            property: "stats"
+            value: rowHeaderInjectedLoader._stats
+            when: rowHeaderInjectedLoader.item !== null && "stats" in rowHeaderInjectedLoader.item
+        }
+        Binding {
+            target: rowHeaderInjectedLoader.item
+            property: "fillProgress"
+            value: rowHeaderInjectedLoader.fillProgress
+            when: rowHeaderInjectedLoader.item !== null
+                  && rowHeaderInjectedLoader.fillProgress
+                  && "fillProgress" in rowHeaderInjectedLoader.item
+        }
     }
 
     ColumnLayout {
@@ -150,16 +172,10 @@ PageSection {
                         Layout.fillWidth: true
                     }
                     // 行头徽标注入（Dashboard：DashboardRowHeader；宽屏内联）
-                    Loader {
-                        id: rowHeaderLoaderWide
-                        active: root.rowHeaderDelegate !== null && !root._headerCompact
-                        sourceComponent: root.rowHeaderDelegate
-                    }
-                    Binding {
-                        target: rowHeaderLoaderWide.item
-                        property: "stats"
-                        value: root._statsObj
-                        when: rowHeaderLoaderWide.item !== null && "stats" in rowHeaderLoaderWide.item
+                    RowHeaderInjected {
+                        injectedDelegate: root.rowHeaderDelegate
+                        loaderActive: !root._headerCompact
+                        _stats: root._statsObj
                     }
                     Label {
                         visible: root.isRunning
@@ -171,8 +187,7 @@ PageSection {
                     }
                     BuiltinStats {
                         _visible: root.rowHeaderDelegate === null && !root._headerCompact
-                        _total: root._total; _completed: root._completed
-                        _pass: root._pass; _warn: root._warn; _fail: root._fail
+                        stats: root._statsObj
                     }
                     AppIcon {
                         name: "chevron-down"; size: 14
@@ -187,30 +202,16 @@ PageSection {
                     Layout.fillWidth: true
                     spacing: ThemeEngine.spacing.sm
                     Item { Layout.preferredWidth: 4 }   // 缩进=accent bar(4)+spacing.sm(8)=12（5WHY review round 3: 原 11 与首行几何脱节）
-                    Loader {
-                        id: rowHeaderLoaderCompact
-                        // 5WHY (review round 3): 缺 _headerCompact 门限时桌面端每个
-                        // 组面板多实例化一份隐形 DashboardRowHeader（绑定照跑）
-                        active: root.rowHeaderDelegate !== null && root._headerCompact
-                        sourceComponent: root.rowHeaderDelegate
-                    }
-                    Binding {
-                        target: rowHeaderLoaderCompact.item
-                        property: "stats"
-                        value: root._statsObj
-                        when: rowHeaderLoaderCompact.item !== null && "stats" in rowHeaderLoaderCompact.item
-                    }
-                    Binding {
-                        // 窄屏第二行：进度条占满剩余宽度（归档全宽行为）
-                        target: rowHeaderLoaderCompact.item
-                        property: "fillProgress"
-                        value: true
-                        when: rowHeaderLoaderCompact.item !== null && "fillProgress" in rowHeaderLoaderCompact.item
+                    RowHeaderInjected {
+                        Layout.fillWidth: true   // fillProgress 进度条占满剩余宽度的前提
+                        injectedDelegate: root.rowHeaderDelegate
+                        loaderActive: root._headerCompact
+                        fillProgress: true
+                        _stats: root._statsObj
                     }
                     BuiltinStats {
                         _visible: root.rowHeaderDelegate === null
-                        _total: root._total; _completed: root._completed
-                        _pass: root._pass; _warn: root._warn; _fail: root._fail
+                        stats: root._statsObj
                     }
                 }
             }

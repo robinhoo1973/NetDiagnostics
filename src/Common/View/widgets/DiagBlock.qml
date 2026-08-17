@@ -18,6 +18,9 @@ Item {
     readonly property bool _isDisabled: itemData.isDisabled === true
     readonly property bool isDone: itemData.isDone === true
     readonly property int _status: itemData.status !== undefined ? itemData.status : -1
+    // 5WHY (review round 4): 可见性经类型化 _status 判断（不再读未追踪的 var
+    // 子属性）；DiagStatus 3=Skipped、6=Cancelled 均隐藏（wasExecuted 同语义）
+    readonly property bool _isSkippedOrCancelled: _status === 3 || _status === 6
     readonly property string _statusIcon: isDone ? (ThemeEngine.statusIconNames[_status] || "badge-skip") : ""
     readonly property color _statusColor: isDone ? (ThemeEngine.statusColors[_status] || ThemeEngine.colors.skip) : "transparent"
     readonly property bool _isRunning: root.testRunning && !root._isDisabled && !root.isDone
@@ -26,34 +29,33 @@ Item {
     readonly property string _label: (itemData.diagId !== undefined
         ? (T.diagName(itemData.diagId) || itemData.label || "")
         : (itemData.label || ""))
-    // 终端协议图标（TELNET/SSH/FTP）：图标井内渲染闪烁下划线光标。
-    // SVG 无 SMIL 动画支持（QtSvg 不渲染 animate），光标由 QML 层驱动——
-    // 主形 SVG 只画 ">" 提示符，下划线由 terminalCursor 补画并闪烁。
-    // _iconName 中间属性：下游绑定只随 iconName 值变化（5WHY review
-    // 2026-08-17：itemData 是 var 持 JS 对象，子属性访问不参与依赖追踪，
-    // 直接绑定会在每次 itemData 重赋时触发多余求值）。
+    // ── 瓦片级图标缩放（5WHY review round 4 — 用户诉求"图形以瓦片尺寸显示"）──
+    // 图标/光晕垫随 blockSize 派生（M3 keyline 比经 ThemeEngine 令牌），
+    // 不再用 compact 二值（原 80-160px 瓦片恒渲染 32/44px 小框）。
+    readonly property int _iconSize: Math.max(40, Math.round(root.blockSize * ThemeEngine.tileIconRatio))
+    readonly property int _padSize: Math.round(root._iconSize * ThemeEngine.tilePadRatio)
+    // _iconName 中间属性：下游绑定只随 iconName 值变化（itemData 是 var 持
+    // JS 对象，子属性访问不参与依赖追踪）
     readonly property string _iconName: itemData.iconName || "circle"
+    // 终端协议图标（TELNET/SSH/FTP）：图标井内渲染闪烁下划线光标
     readonly property bool _isTerminalIcon: _iconName === "nd-diag-g5-telnet"
         || _iconName === "nd-diag-g5-ssh"
         || _iconName === "nd-diag-g5-ftp"
-    // 各协议下划线几何（24 空间）：宽度=提示符宽度 3.2，位于首字母正下方，中心 y=16.4
-    readonly property var _termCursorGeom: ({
-        "nd-diag-g5-telnet": { x: 7.6, w: 3.2 },
-        "nd-diag-g5-ssh":    { x: 7.6, w: 3.2 },
-        "nd-diag-g5-ftp":    { x: 7.6, w: 3.2 }
-    })
-    // 光标几何一次查表（5WHY simplify 2026-08-17：宽度/x 各自重复
-    // _termCursorGeom[itemData.iconName] 守卫+取值两次，且依赖未追踪的 var 对象）
-    readonly property var _termCursor: _termCursorGeom[_iconName]
-    // 5WHY (review 2026-08-17): Qt.rgba(colors.primary.r, ...) 取的是 JS 字符串
-    // 的 .r/.g/.b — undefined → NaN → rgba(0,0,0,0.35) 黑色半透明图标。
-    // Qt.alpha() 才在类型边界做 string→color 转换。
+    // 光标几何与 SVG 静态下划线一致（M6.4 12.1 H9.8；5WHY review round 4:
+    // 旧值 7.6/3.2 与再设计后母版脱节，形成错位双下划线）
+    readonly property var _termCursor: ({ x: 6.4, w: 3.4 })
+    // 禁用=灰色不变式（5WHY review round 4: Qt.alpha(primary,0.35) 在亮色
+    // 主题近乎不可见；旧版为不透明 textMuted）
     readonly property color _iconColor: root._isDisabled
-        ? Qt.alpha(ThemeEngine.colors.primary, 0.35)
+        ? ThemeEngine.colors.textMuted
         : ThemeEngine.colors.primary
-    readonly property int _iconSize: root.compact ? 32 : 44
+    // 完成态：光晕垫改状态色（5WHY review round 4: 状态信号曾缩为 3px 细条
+    // ——45 瓦片密集墙上失败几乎不可见；垫色随状态发光恢复醒目度）
+    readonly property color _padTint: root.isDone
+        ? root._statusColor
+        : ThemeEngine.iconPadTint(_iconName)
 
-    visible: _isPending || (itemData.status !== 3)
+    visible: _isPending || !_isSkippedOrCancelled
     implicitWidth: visible ? blockSize : 0
     implicitHeight: visible ? blockSize : 0
 
@@ -70,41 +72,44 @@ Item {
     }
 
     property int _elapsed: 0
-    property bool _showTimer: false
     Timer {
         id: elapsedTimer
         interval: 1000; repeat: true
         running: _isRunning
-        onTriggered: { root._elapsed++; if (!root._showTimer) root._showTimer = true }
-        onRunningChanged: {
-            if (running) { root._elapsed = 0; root._showTimer = false }
-            else if (root._elapsed > 0) root._showTimer = true
-        }
+        onTriggered: root._elapsed++
+        onRunningChanged: if (!running) root._elapsed = 0
     }
-    readonly property int _displayElapsed: Math.max(1, root._elapsed)
+    // 计时数据驱动（5WHY review round 4: 委托在每次进度事件被重建，本地
+    // _elapsed 被清零——完成态计时改读 itemData.durationMs，重建后依然可见；
+    // _showTimer/_displayElapsed 两个同步状态随之删除）
+    readonly property int _timerSecs: root.isDone
+        ? Math.round((itemData.durationMs || 0) / 1000)
+        : root._elapsed
+    readonly property bool _timerVisible: root.isDone
+        ? (itemData.durationMs || 0) > 0
+        : root._elapsed > 0
     readonly property string _timerColor: {
-        if (_elapsed > 20) return ThemeEngine.colors.fail
-        if (_elapsed >= 10) return ThemeEngine.colors.warningStrong
-        if (_elapsed >= 5) return ThemeEngine.colors.warning
+        if (_timerSecs > 20) return ThemeEngine.colors.fail
+        if (_timerSecs >= 10) return ThemeEngine.colors.warningStrong
+        if (_timerSecs >= 5) return ThemeEngine.colors.warning
         return ThemeEngine.colors.success
     }
 
-    // settle：完成瞬间弹性缩放（归档完成态弹跳）
-    property real _settleScale: 1.0
+    // settle：完成瞬间弹性缩放（5WHY review round 4: 直接动画 card.scale——
+    // _settleScale 中间属性只为动画存在，且占用每瓦片属性预算）
     onIsDoneChanged: {
-        if (isDone) { _settleScale = 0.94; settleAnim.restart() }
+        if (isDone) { card.scale = 0.94; settleAnim.restart() }
     }
     SequentialAnimation {
         id: settleAnim
-        NumberAnimation { target: root; property: "_settleScale"; to: 1.04; duration: 120; easing.type: Easing.OutQuad }
-        NumberAnimation { target: root; property: "_settleScale"; to: 1.0; duration: 140; easing.type: Easing.OutBack }
+        NumberAnimation { target: card; property: "scale"; to: 1.04; duration: 120; easing.type: Easing.OutQuad }
+        NumberAnimation { target: card; property: "scale"; to: 1.0; duration: 140; easing.type: Easing.OutBack }
     }
 
     Rectangle {
         id: card
         anchors.fill: parent
         anchors.margins: 3
-        scale: root._settleScale
         radius: ThemeEngine.radius.xl   // 瓦片 16px = xl 令牌
         gradient: Gradient {
             GradientStop {
@@ -117,85 +122,82 @@ Item {
         }
         border { width: 1; color: _isRunning ? ThemeEngine.colors.primary : ThemeEngine.colors.outlineVariant }
 
-        // hover 光晕（归档视觉）
-        Rectangle {
-            anchors.fill: parent
-            radius: card.radius
-            color: Qt.alpha(ThemeEngine.colors.primary, 0.04)
-            visible: hoverArea.containsMouse && !root._isDisabled && !root._isRunning
+        // ── 图标光晕垫（最先声明=底层；5WHY review round 4: 旧顺序垫盖住
+        // 计时圆点——圆点/角标/状态条在其上绘制）──
+        IconPad {
+            id: iconWell
+            anchors.centerIn: parent
+            width: root._padSize; height: root._padSize
+            iconName: root._iconName
+            iconSize: root._iconSize
+            iconColor: root._iconColor
+            tint: root._padTint
+            // 终端协议闪烁光标（仅运行中显示；几何对齐 SVG 静态下划线）
+            Rectangle {
+                id: terminalCursor
+                visible: root._isTerminalIcon && root._isRunning
+                width: root._termCursor.w * root._iconSize / 24
+                height: Math.max(1.5, root._iconSize * 1.2 / 24)
+                x: iconWell.width / 2 + (root._termCursor.x - 12) * root._iconSize / 24
+                y: iconWell.height / 2 + (12.1 - 12) * root._iconSize / 24 - height / 2
+                color: root._iconColor
+                SequentialAnimation on opacity {
+                    loops: Animation.Infinite
+                    // 5WHY (review 2026-08-17): 45 个瓦片仅 3 个终端图标显示
+                    // 光标——未门控的无限动画在不可见瓦片上持续 tick
+                    running: root._isTerminalIcon && root._isRunning && root.visible
+                    NumberAnimation { from: 1.0; to: 0.15; duration: 530; easing.type: Easing.Linear }
+                    NumberAnimation { from: 0.15; to: 1.0; duration: 530; easing.type: Easing.Linear }
+                }
+            }
+            // 运行动画（animType → 五动画，DiagAnimator 调度）
+            DiagAnimator {
+                anchors.fill: parent
+                diagId: itemData.diagId !== undefined ? itemData.diagId : -1
+                running: root._isRunning
+                targetItem: iconWell
+            }
         }
 
-        // 计时圆点（左上）
+        // ── 计时圆点（左上；光晕垫之上）──
         Rectangle {
-            visible: root._showTimer
+            visible: root._timerVisible
             anchors { top: parent.top; left: parent.left; margins: 8 }
             width: 22; height: 22; radius: 11
             color: Qt.alpha(root._timerColor, 0.16)
             Label {
                 anchors.centerIn: parent
-                text: root._displayElapsed
+                text: root._timerSecs
                 font.family: ThemeEngine.monoFont; font.pixelSize: ThemeEngine.fontSize.micro; font.weight: Font.Bold
                 color: root._timerColor
             }
         }
 
-        Column {
-            anchors.centerIn: parent
-            spacing: 6
-        // 图标光晕垫：squircle 圆角方垫（同色低透明光晕，无硬染色；
-        // 共享组件 IconPad——光晕规格只在组件内维护）
-            IconPad {
-                id: iconWell
-                anchors.horizontalCenter: parent.horizontalCenter
-                width: root.compact ? 48 : 60; height: root.compact ? 48 : 60
-                iconName: root._iconName
-                iconSize: root._iconSize
-                iconColor: root._iconColor
-                // 终端协议闪烁光标（几何随协议：SVG 内为静态光标块，此下划线常显并闪烁叠加）
-                Rectangle {
-                    id: terminalCursor
-                    visible: root._isTerminalIcon
-                    width: (root._termCursor ? root._termCursor.w : 8) * root._iconSize / 24
-                    height: Math.max(1.5, root._iconSize * 1.2 / 24)
-                    x: iconWell.width / 2 + ((root._termCursor ? root._termCursor.x : 11.4) - 12) * root._iconSize / 24
-                    y: iconWell.height / 2 + (12.1 - 12) * root._iconSize / 24 - height / 2
-                    color: root._iconColor
-                    SequentialAnimation on opacity {
-                        loops: Animation.Infinite
-                        // 5WHY (review 2026-08-17): 45 个瓦片仅 3 个终端图标显示
-                        // 光标——未门控的无限动画在不可见瓦片上持续 tick（移动端
-                        // 空耗 CPU/唤醒）。
-                        running: root._isTerminalIcon && root.visible
-                        NumberAnimation { from: 1.0; to: 0.15; duration: 530; easing.type: Easing.Linear }
-                        NumberAnimation { from: 0.15; to: 1.0; duration: 530; easing.type: Easing.Linear }
-                    }
-                }
-                // 运行动画（animType → 五动画，DiagAnimator 调度）
-                DiagAnimator {
-                    anchors.fill: parent
-                    diagId: itemData.diagId !== undefined ? itemData.diagId : -1
-                    running: root._isRunning
-                    targetItem: iconWell
-                }
-            }
-        }
-
-        // 底部状态条（完成=状态色 / 运行=主色；状态不再染图标本身）
+        // ── 底部状态条（完成=状态色 / 运行=主色；5WHY review round 4:
+        // margins 10 防 3px 条刺出 16px 圆角轮廓）──
         Rectangle {
-            anchors { left: card.left; right: card.right; bottom: card.bottom; leftMargin: 3; rightMargin: 3; bottomMargin: 3 }
+            anchors { left: card.left; right: card.right; bottom: card.bottom; leftMargin: 10; rightMargin: 10; bottomMargin: 10 }
             height: 3
             radius: 1.5
             visible: root.isDone || root._isRunning
             color: root.isDone ? root._statusColor : ThemeEngine.colors.primary
         }
 
-        // 完成状态角标（右上）
+        // ── 完成状态角标（右上）──
         AppIcon {
             visible: isDone
             anchors { top: parent.top; right: parent.right; margins: 7 }
             name: _statusIcon
             size: 14
             color: _statusColor
+        }
+
+        // hover 光晕（归档视觉）
+        Rectangle {
+            anchors.fill: parent
+            radius: card.radius
+            color: Qt.alpha(ThemeEngine.colors.primary, 0.04)
+            visible: hoverArea.containsMouse && !root._isDisabled && !root._isRunning
         }
 
         MouseArea {

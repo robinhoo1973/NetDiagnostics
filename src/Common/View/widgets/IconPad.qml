@@ -20,6 +20,12 @@ Rectangle {
     property color tint: ThemeEngine.iconPadTint(root.iconName)
     property color iconColor: ThemeEngine.colors.primary
     property int iconSize: 44
+    // 5WHY (review round 4): 缺 mirror 转发（镜像调用方只能重写光晕垫）且
+    // 空名不隐藏（空垫）。隐式尺寸兜底——调用方漏设宽高时不再塌成 0。
+    property bool iconMirror: false
+    implicitWidth: iconSize + 16
+    implicitHeight: iconSize + 16
+    visible: iconName !== ""
 
     radius: width * 0.28
     color: Qt.alpha(root.tint, ThemeEngine.colors.iconPadAlpha)
@@ -30,5 +36,6 @@ Rectangle {
         name: root.iconName
         size: root.iconSize
         color: root.iconColor
+        mirror: root.iconMirror
     }
 }

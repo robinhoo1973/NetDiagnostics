@@ -81,6 +81,19 @@ std::thread spawnLookupThread(const std::shared_ptr<LookupState>& st,
     return t;
 }
 
+// 5WHY (review round 4): 三处负缓存收尾逐字复制——TOCTOU 修复也必须三处同步。
+// 单一收尾：等待 → 收线程 → 单次 acquire 载 done。收线程后载入：
+// 若 join 已发生则 done 必真；release/acquire 保证看到 done==true 时
+// st->ip 的写入已发生，读取安全。
+bool finishLookup(const std::shared_ptr<LookupState>& st, std::thread& t,
+                  std::chrono::steady_clock::time_point start, int timeoutMs) {
+    waitResolveDone(st->done, start, timeoutMs);
+    finishResolveThread(t, st->done);
+    return st->done.load(std::memory_order_acquire);
+}
+
+} // namespace
+
 // IP 字面量 → sockaddr_storage（resolvePtr 反查用；返回 salen，0=无法解析）
 int fillSockaddr(const QByteArray& ipb, struct sockaddr_storage& sa) {
     const QHostAddress addr(QString::fromUtf8(ipb));
@@ -99,8 +112,6 @@ int fillSockaddr(const QByteArray& ipb, struct sockaddr_storage& sa) {
     }
     return 0;
 }
-
-} // namespace
 
 DnsResolver& DnsResolver::instance() {
     static DnsResolver inst;
@@ -230,24 +241,15 @@ QString DnsResolver::resolve(const QString& host, int timeoutMs) {
     // thread is immediate (no blocking), so prefer join when possible.
     // Detach is only needed for the timeout case where getaddrinfo may still
     // be blocked for 30-120s -- joining would block the caller.
-    waitResolveDone(st->done, std::chrono::steady_clock::now(), timeoutMs);
-    const bool done = st->done.load(std::memory_order_acquire);
-    finishResolveThread(t, st->done);
-    // 5WHY: this cache write MUST happen before the timeout early-return
-    // below. When getaddrinfo is still blocked (st->done==false, st->ip empty)
-    // we write an empty entry = NEGATIVE cache, so a wedged DNS server doesn't
-    // re-spawn a blocking thread for the same host within the 30s TTL. The
-    // Apple/GCD path already did this; the non-Apple path skipped it because
-    // the early return sat ahead of the write.
-    // 5WHY (review round 3): 超时后线程已 detach 且可能仍在写 st->ip——
-    // 负缓存必须写空串，绝不读取 st->ip（非原子 QString 并发读写是 UB）。
+    // 5WHY (review round 3): 负缓存必须写空串——超时后 detach 的线程可能仍在
+    // 写 st->ip（非原子 QString 并发读写 UB）。review round 4：done 在收线程
+    // 后单次载入（旧快照存在 TOCTOU——线程在快照后完成会被 join 却仍写负缓存）。
+    const bool done = finishLookup(st, t, std::chrono::steady_clock::now(), timeoutMs);
     {
         QMutexLocker locker(&m_mutex);
         m_cache[host] = {done ? st->ip : QString(), QDateTime::currentMSecsSinceEpoch()};
     }
-    if (!done)
-        return {}; // timeout: thread still owns st via shared_ptr, safe
-    return st->ip;
+    return done ? st->ip : QString();
 #endif
 }
 
@@ -328,19 +330,12 @@ QString DnsResolver::resolve6(const QString& host, int timeoutMs) {
     // 5WHY: prefer join() when thread completed within timeout for immediate
     // cleanup; detach() is only needed for timeout case where getaddrinfo may
     // still be blocked for 30-120s.
-    waitResolveDone(st->done, std::chrono::steady_clock::now(), timeoutMs);
-    const bool done = st->done.load(std::memory_order_acquire);
-    finishResolveThread(t, st->done);
-    // 5WHY: same as resolve() — write the (possibly negative) cache entry
-    // BEFORE the timeout early-return so a wedged DNS server hits the 30s
-    // negative entry instead of re-spawning a thread per call.
-    // 5WHY (review round 3): 超时后不读 st->ip（detach 线程可能并发写）
+    const bool done = finishLookup(st, t, std::chrono::steady_clock::now(), timeoutMs);
     {
         QMutexLocker l(&m_mutex);
         m_cache[QStringLiteral("v6:") + host] = {done ? st->ip : QString(), QDateTime::currentMSecsSinceEpoch()};
     }
-    if (!done) return {};
-    return st->ip;
+    return done ? st->ip : QString();
 #endif
 }
 
@@ -424,16 +419,11 @@ QString DnsResolver::resolvePtr(const QString& ip, int timeoutMs) {
         qWarning("DnsResolver: thread creation failed (%s)", e.what());
         return {};
     }
-    waitResolveDone(st->done, std::chrono::steady_clock::now(), timeoutMs);
-    const bool done = st->done.load(std::memory_order_acquire);
-    finishResolveThread(t, st->done);
+    const bool done = finishLookup(st, t, std::chrono::steady_clock::now(), timeoutMs);
     {
-        // 5WHY (review round 3): 超时后线程已 detach 且可能仍在写 st->ip——
-        // 负缓存写空串，绝不读取 st->ip（非原子 QString 并发读写是 UB）。
         QMutexLocker l(&m_mutex);
         m_cache[QStringLiteral("ptr:") + ip] = {done ? st->ip : QString(), QDateTime::currentMSecsSinceEpoch()};
     }
-    if (!done) return {};
-    return st->ip;
+    return done ? st->ip : QString();
 #endif
 }

@@ -38,5 +38,4 @@ var hexes = [
     "#F87171",
     "#F8FAFC",
     "#FB7185",
-    "#FFFFFF",
 ];

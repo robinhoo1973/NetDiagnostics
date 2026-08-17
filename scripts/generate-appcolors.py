@@ -81,7 +81,7 @@ HEADER = """// =================================================================
 //   round 2026-08-17).  Exception: terminalText/onSuccessContainer are
 //   QML-side semantic tokens tracked here for Palette.js↔AppColors.h sync
 //   (a QML token leaving the sync net caused the dark textMuted divergence).
-//   round 2026-08-17).  Color VALUES are unchanged from the pre-M3 palette —
+//   Color VALUES are unchanged from the pre-M3 palette —
 //   5WHY: visual parity is a hard requirement of the rename; contrast
 //   deviations are tracked by scripts/audit-palette-contrast.py instead of
 //   being fixed here.

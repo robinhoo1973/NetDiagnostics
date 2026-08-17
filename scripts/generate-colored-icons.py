@@ -478,10 +478,17 @@ def generate(out_base: Path | None = None) -> None:
                           f"#B0000n sentinel remains (fixed-color table too short)")
                 # #777777 → soft fill（主题感知：随变体主题取 onSurfaceVariant；
                 # 5WHY review 2026-08-17: 原硬编码 #64748B 双主题同灰——暗卡上
-                # 泥泞、白卡上灰暗）
-                soft_fill = (palettes["Light"]["onSurfaceVariant"]
-                             if (hx in light_hexes and hx not in dark_hexes)
-                             else palettes["Dark"]["onSurfaceVariant"])
+                # 泥泞、白卡上灰暗）。
+                # 5WHY (review round 3 修复)：共享 hex 目录同一文件服务双主题，
+                # 之前无差别取 Dark.onSurfaceVariant——亮色主题下这些图标被烘成
+                # #94A3B8（白底 ≈2.5:1，原 #64748B ≈4.8:1）细节发灰。共享目录
+                # 保留主题无关石板色 #64748B（原行为）。
+                if hx in light_hexes and hx not in dark_hexes:
+                    soft_fill = palettes["Light"]["onSurfaceVariant"]
+                elif hx in dark_hexes and hx not in light_hexes:
+                    soft_fill = palettes["Dark"]["onSurfaceVariant"]
+                else:
+                    soft_fill = "#64748B"
                 colored = colored.replace("#777777", soft_fill)
                 if re.search(r"(Light|Dark)\.[A-Za-z0-9_]+", colored):
                     raise SystemExit(f"{svg.name} in {sub.name}: unresolved role "
@@ -510,7 +517,10 @@ def generate(out_base: Path | None = None) -> None:
         ".pragma library",
         "var hexes = [",
     ]
-    js += [f'    "{h}",' for h in hexes]
+    # 5WHY (review round 4): #FFFFFF 是母版目录而非烘焙变体（内含未替换
+    # 哨兵）——最近匹配若选中它，白色/近白图标会渲染损坏内容。从可选
+    # 表中排除，白色回落到最近的真实烘焙色。
+    js += [f'    "{h}",' for h in hexes if h != "#FFFFFF"]
     js += ["];", ""]
     js_path.write_text("\n".join(js), encoding="utf-8", newline="\n")
 

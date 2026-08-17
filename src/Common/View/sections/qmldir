@@ -16,7 +16,6 @@ PageSettingsSection 1.0 PageSettingsSection.qml
 PageStatusHeaderSection 1.0 PageStatusHeaderSection.qml
 PageTabBarSection 1.0 PageTabBarSection.qml
 PageTerminalSection 1.0 PageTerminalSection.qml
-PageTile 1.0 PageTile.qml
 PageTileGridSection 1.0 PageTileGridSection.qml
 PageToastSection 1.0 PageToastSection.qml
 PageToolbarSection 1.0 PageToolbarSection.qml

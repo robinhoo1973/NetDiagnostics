@@ -140,7 +140,7 @@ Item {
                             barWidthAnim.start()
                         }
                     }
-                    readonly property bool revealed: index <= root._revealIndex
+                    property bool revealed: index <= root._revealIndex   // 可写（readonly 嵌套声明违反 B.2）
 
                     NumberAnimation {
                         id: barWidthAnim

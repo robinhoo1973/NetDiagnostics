@@ -43,8 +43,14 @@ PageDisplay {
     // NEW-8 + H1：浮层（详情 sheet / cellular 警告）打开时阻断导航
     overlayVisible: _detailVisible || AppState.cellularWarnVisible
     // OverlayHost 契约（5WHY simplify 2026-08-17）：浮层页面统一实现
-    // closeOverlay()，AppContent 单一入口关闭，不再探测页面私有状态
-    function closeOverlay() { page._detailVisible = false }
+    // closeOverlay()，AppContent 单一入口关闭，不再探测页面私有状态。
+    // 5WHY (review round 3 修复)：此前仅关详情 sheet——cellular 警告浮层
+    // 打开时 dock 点击被 navBlocked 吞掉且什么也不关闭（死点击）；
+    // 警告走 dismiss 语义（不确认不启动），与遮罩点击一致。
+    function closeOverlay() {
+        if (page._detailVisible) page._detailVisible = false
+        else if (AppState.cellularWarnVisible) AppState.dismissCellularWarn()
+    }
 
     headerContent: [
         S.PageHeaderSection { title: T.tr("appName"); iconName: "compass" },
