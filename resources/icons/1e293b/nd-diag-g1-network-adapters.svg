@@ -6,19 +6,21 @@
     </linearGradient>
   </defs>
 
-  <!-- 1:1 复刻 mydrivers 网卡（高度再加）+ 双层重影 + 板面 WiFi 图形 -->
-  <g transform="translate(2.6 2.6)">
-    <path d="M2.4 5.4 H4.6 V7.9 H4 V9.2 H20.8 V18.6 H19 V20.4 H12.4 V18.6 H10.5 V20.4 H6.3 V18.6 H4.9 V20.4 H4 V9.2 Z" stroke="#94A3B8" stroke-width="1.1" />
+  <!-- 网卡主体：删除左上角凸出的支架段（高出主体矩形的部分），
+       剩余图形整体放大填补空间，并以画布中心水平垂直居中（s=1.22）。 -->
+  <g transform="translate(-3.128 -6.056) scale(1.22)">
+    <g transform="translate(1.15 1.15)">
+      <path d="M4 9.2 H20.8 V18.6 H19 V20.4 H12.4 V18.6 H10.5 V20.4 H6.3 V18.6 H4.9 V20.4 H4 V9.2 Z" stroke="#94A3B8" stroke-width="1.1" />
+    </g>
+    <g transform="translate(0.57 0.57)">
+      <path d="M4 9.2 H20.8 V18.6 H19 V20.4 H12.4 V18.6 H10.5 V20.4 H6.3 V18.6 H4.9 V20.4 H4 V9.2 Z" stroke="#151D29" stroke-width="1.1" />
+    </g>
+    <path d="M4 9.2 H20.8 V18.6 H19 V20.4 H12.4 V18.6 H10.5 V20.4 H6.3 V18.6 H4.9 V20.4 H4 V9.2 Z" stroke="url(#ngnddiagg1networkadapters)" stroke-width="1.6" />
+    <!-- WiFi：Lucide wifi 等比缩小（随主体同步缩放居中） -->
+    <path d="M10.6 14.07 a4.2 4.2 0 0 1 5.6 0" stroke="#151D29" stroke-width="1.1" />
+    <path d="M11.44 14.98 a2.71 2.71 0 0 1 3.92 0" stroke="#151D29" stroke-width="1.1" />
+    <path d="M12.28 15.86 a1.4 1.4 0 0 1 2.24 0" stroke="#151D29" stroke-width="1.1" />
+    <path d="M13.4 17.2 h.01" stroke="#06B6D4" stroke-width="1" />
+    <circle cx="18.4" cy="11.4" r="0.6" fill="#06B6D4" fill-opacity="1" />
   </g>
-  <g transform="translate(1.3 1.3)">
-    <path d="M2.4 5.4 H4.6 V7.9 H4 V9.2 H20.8 V18.6 H19 V20.4 H12.4 V18.6 H10.5 V20.4 H6.3 V18.6 H4.9 V20.4 H4 V9.2 Z" stroke="#151D29" stroke-width="1.1" />
-  </g>
-  <path d="M2.4 5.4 H4.6 V7.9 H4 V9.2 H20.8 V18.6 H19 V20.4 H12.4 V18.6 H10.5 V20.4 H6.3 V18.6 H4.9 V20.4 H4 V9.2 Z" stroke="url(#ngnddiagg1networkadapters)" stroke-width="1.6" />
-  <!-- WiFi：Lucide wifi 等比缩小（垂度/弦比 0.191/0.214/0.25 与参考一致），
-       按用户要求再右移 1 单位，完整置于 PCB 内 -->
-  <path d="M10.6 14.07 a4.2 4.2 0 0 1 5.6 0" stroke="#151D29" stroke-width="1.1" />
-  <path d="M11.44 14.98 a2.71 2.71 0 0 1 3.92 0" stroke="#151D29" stroke-width="1.1" />
-  <path d="M12.28 15.86 a1.4 1.4 0 0 1 2.24 0" stroke="#151D29" stroke-width="1.1" />
-  <path d="M13.4 17.2 h.01" stroke="#06B6D4" stroke-width="1" />
-  <circle cx="18.4" cy="11.4" r="0.6" fill="#06B6D4" fill-opacity="1" />
 </svg>
