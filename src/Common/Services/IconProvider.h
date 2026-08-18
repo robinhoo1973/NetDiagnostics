@@ -1,11 +1,15 @@
 // =============================================================================
 // IconProvider.h — 单母版运行时精确着色（图标管线 v4，方案 B）
 //
-// URL 协议: image://icon/<colorHex>/<iconName>?theme=dark|light&dpr=<n>
+// URL 协议: image://icon/<colorHex>/<iconName>?theme=dark|light
 //   colorHex  = 请求色（无 #，6 位十六进制）
 //   iconName  = ffffff 母版文件名（可带 .svg）
 //   theme     = dark|light（决定 accent/soft/fixed 按主题取值）
-//   dpr       = 设备像素比（渲染分辨率 = 请求尺寸 × dpr）
+//
+// 尺寸契约（Qt 官方文档 QQuickImageProvider::requestImage）：
+//   requestedSize 对应 Image::sourceSize 且已按窗口 devicePixelRatio 放大，
+//   返回图像必须严格为该尺寸，不得再乘 dpr、不得设置 devicePixelRatio；
+//   *size 设为图像原始尺寸。
 //
 // 哨兵色槽替换（与 generate-colored-icons.py 同源逻辑）后 QSvgRenderer 渲染：
 //   #FFFFFF → 请求色（主色/渐变起点）

@@ -10,6 +10,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QPainter>
+#include <QRectF>
 #include <QSvgRenderer>
 #include <QtGlobal>
 
@@ -22,6 +23,15 @@ QString stripHash(QString hex)
     hex = hex.trimmed();
     if (hex.startsWith(QLatin1Char('#')))
         hex.remove(0, 1);
+    return hex.toUpper();
+}
+
+// 归一化 JSON 颜色值：保证 #RRGGBB 大写（SVG 颜色必须带 # 才合法）
+QString normalizeColor(QString hex)
+{
+    hex = hex.trimmed();
+    if (!hex.startsWith(QLatin1Char('#')))
+        hex.prepend(QLatin1Char('#'));
     return hex.toUpper();
 }
 
@@ -68,14 +78,14 @@ void IconProvider::loadMeta()
     if (!doc.isObject())
         return;
     const QJsonObject root = doc.object();
-    const QJsonArray icons = root.value(QLatin1String("icons")).toArray();
-    for (const QJsonValue& v : icons) {
-        if (!v.isObject())
-            continue;
-        const QJsonObject o = v.toObject();
-        const QString name = o.value(QLatin1String("name")).toString();
-        if (name.isEmpty())
-            continue;
+    // 5WHY (2026-08-18, 用户反馈"图标颜色大面积错误"): icons 是"按名称键控的
+    // 对象"（生成器 write_icon_runtime 输出 {"icons": {name: {...}}}），
+    // 此前用 toArray() 解析对象恒为空 → 全部 accent/second/soft/fixed 回退
+    // 字面哨兵（#000000 黑、#B0000n 暗红）→ 所有多色图标配色全错。
+    const QJsonObject icons = root.value(QLatin1String("icons")).toObject();
+    for (auto it = icons.constBegin(); it != icons.constEnd(); ++it) {
+        const QJsonObject o = it.value().toObject();
+        const QString name = it.key();
         Meta m;
         m.accent = o.value(QLatin1String("accent")).toString();
         m.second = o.value(QLatin1String("second")).toString();
@@ -144,21 +154,23 @@ QByteArray IconProvider::tintedXml(const QString& name, const Meta& meta,
     xml.replace("#AAAAAA", darkHex);
 
     // 3) 语义强调 #000000（json accent 非空才替换；缺元数据时保持字面黑=确定回退）
+    // 5WHY (2026-08-18, loadMeta 修复后暴露): stripHash 去掉 # 前缀会生成
+    // 非法 SVG 颜色（fill="38BDF8"）→ 该部分整体不渲染。替换值必须保留 #。
     if (!meta.accent.isEmpty()) {
-        const QByteArray accentHex = stripHash(meta.accent).toLatin1();
+        const QByteArray accentHex = normalizeColor(meta.accent).toLatin1();
         xml.replace("#000000", accentHex);
     }
 
     // 4) 第二强调 #101010
     if (!meta.second.isEmpty()) {
-        const QByteArray secondHex = stripHash(meta.second).toLatin1();
+        const QByteArray secondHex = normalizeColor(meta.second).toLatin1();
         xml.replace("#101010", secondHex);
     }
 
     // 5) 柔填充 #777777（按主题）
     const QString soft = dark ? meta.softDark : meta.softLight;
     if (!soft.isEmpty()) {
-        const QByteArray softHex = stripHash(soft).toLatin1();
+        const QByteArray softHex = normalizeColor(soft).toLatin1();
         xml.replace("#777777", softHex);
     }
 
@@ -166,7 +178,7 @@ QByteArray IconProvider::tintedXml(const QString& name, const Meta& meta,
     const QStringList fixed = dark ? meta.fixedDark : meta.fixedLight;
     for (int i = 0; i < fixed.size(); ++i) {
         const QString slot = QStringLiteral("#B0000%1").arg(i + 1);
-        const QByteArray slotHex = stripHash(fixed.at(i)).toLatin1();
+        const QByteArray slotHex = normalizeColor(fixed.at(i)).toLatin1();
         xml.replace(slot.toLatin1(), slotHex);
     }
 
@@ -200,16 +212,23 @@ QImage IconProvider::requestImage(const QString& id, QSize* size,
     const QHash<QString, QString> kv = parseQuery(query);
     const bool dark = kv.value(QLatin1String("theme"), QLatin1String("dark"))
                           != QLatin1String("light");
-    const qreal dpr = qMax<qreal>(1.0, kv.value(QLatin1String("dpr")).toDouble());
 
+    // Qt 官方契约（QQuickImageProvider::requestImage, doc.qt.io/qt-6）：
+    // "The requestedSize corresponds to the Image::sourceSize... If
+    //  requestedSize is a valid size, the image returned should be of that
+    //  size." —— Qt 传入的 requestedSize 已按窗口 devicePixelRatio 放大
+    // （实测 14 逻辑 px @1.875 → req=26）。再乘 dpr 会 2 倍超采样，且
+    // 返回图像设置 devicePixelRatio 会干扰 Qt 对尺寸的归一化。
+    // 正确实现：严格按 requestedSize 渲染，不设置 devicePixelRatio。
     int w = requestedSize.width() > 0 ? requestedSize.width() : kDefaultSize;
     int h = requestedSize.height() > 0 ? requestedSize.height() : kDefaultSize;
     w = qBound(1, w, kMaxRenderSide);
     h = qBound(1, h, kMaxRenderSide);
-    const int rw = qBound(1, qRound(w * dpr), kMaxRenderSide);
-    const int rh = qBound(1, qRound(h * dpr), kMaxRenderSide);
+    const int rw = w;
+    const int rh = h;
 
-    // 全键渲染缓存：URL（color/theme/size）即失效键 → 跨主题不串图
+    // 全键渲染缓存：URL（color/theme）即失效键 + 尺寸 → 跨主题/跨尺寸不串图
+    // （Qt 引擎自身按 URL+size 缓存，本 LRU 是对重复渲染的二次防护）
     const QString key = QStringLiteral("%1|%2|%3|%4x%5")
                             .arg(name, colorHex, dark ? QStringLiteral("d")
                                                       : QStringLiteral("l"))
@@ -219,9 +238,7 @@ QImage IconProvider::requestImage(const QString& id, QSize* size,
         QMutexLocker locker(&m_mutex);
         const auto hit = m_renderCache.constFind(key);
         if (hit != m_renderCache.constEnd()) {
-            // 命中的图是物理尺寸，保持 dpr 一致
-            QImage img = hit.value();
-            img.setDevicePixelRatio(dpr);
+            const QImage img = hit.value();
             if (size)
                 *size = img.size();
             return img;
@@ -233,13 +250,13 @@ QImage IconProvider::requestImage(const QString& id, QSize* size,
     const QByteArray xml = tintedXml(name, meta ? *meta : fallback, primary, dark);
 
     QImage img(rw, rh, QImage::Format_ARGB32_Premultiplied);
-    img.setDevicePixelRatio(dpr);
     img.fill(Qt::transparent);
     if (!xml.isEmpty()) {
         QSvgRenderer renderer(xml);
         QPainter p(&img);
         if (renderer.isValid())
-            renderer.render(&p);
+            // 显式目标矩形：确保 viewBox 缩放填充整个请求尺寸
+            renderer.render(&p, QRectF(0, 0, rw, rh));
         p.end();
     }
     if (size)
