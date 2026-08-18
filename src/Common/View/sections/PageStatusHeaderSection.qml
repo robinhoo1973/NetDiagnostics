@@ -34,20 +34,19 @@ PageSection {
     // 对不上。统一为同一数据源：completed 字段补入 _agg，X=Y=_agg。
     // 5WHY (复核 2026-08-18 Reuse C3): 键集合归一化上移到 StatsUtil.js——
     // 新统计键只改一处。
-    property var _agg: W.StatsUtil.normalize(null)
+    property var _agg: W.normalize(null)
     function _refreshAgg() {
-        _agg = W.StatsUtil.normalize(AppState.groupStats(-1))
+        _agg = W.normalize(AppState.groupStats(-1))
     }
     Connections {
         target: AppState
         function onProgressChanged() { root._refreshAgg() }
         function onRunStatusChanged() { root._refreshAgg() }
-        // 5WHY (复核 2026-08-18 刷新触发缺口): 换 target scheme 不重跑只发
-        // targetChanged/stateVersionChanged——此前 _agg 停留旧 scheme 计数，
-        // 而瓦片墙（allDiagsForGroup 实时重算）已显示新过滤集——头部与网格
-        // 可见分叉。补上这两个触发源。
-        function onTargetChanged() { root._refreshAgg() }
-        function onStateVersionChanged() { root._refreshAgg() }
+        // 5WHY (复核 2026-08-18 语义信号): 换 scheme 不重跑只发 filteredDataChanged
+        // （旧实现接 targetChanged+stateVersionChanged——两者同轮双发导致双刷，
+        // host 逐键编辑与凭据/语言变更也误触发）。_agg 按 runnableFor(scheme)
+        // 过滤，语义信号单次驱动刷新。
+        function onFilteredDataChanged() { root._refreshAgg() }
     }
     Component.onCompleted: _refreshAgg()
 

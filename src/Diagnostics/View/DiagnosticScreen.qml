@@ -19,7 +19,10 @@ PageDisplay {
     function _refreshGroups() { _groups = AppState.visibleGroups() }
     Connections {
         target: AppState
-        function onStateVersionChanged() { page._refreshGroups() }
+        // 5WHY (复核 2026-08-18 语义信号): visibleGroups 按激活组过滤——
+        // 激活组变更经 filteredDataChanged 刷新（旧接 stateVersionChanged：
+        // 语言/凭据等无关 bump 也误触发）。
+        function onFilteredDataChanged() { page._refreshGroups() }
         function onRunStatusChanged() { page._refreshGroups() }
         function onCurrentRunningGroupChanged() { page._refreshGroups() }   // 8-15：渐进呈现
     }

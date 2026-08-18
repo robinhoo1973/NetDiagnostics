@@ -159,12 +159,18 @@ void AppState::setTarget(const QString& host, const QString& scheme) {
     const int slash = h.indexOf(QLatin1Char('/'));
     if (slash > 0) { path = h.mid(slash); h = h.left(slash); }
     if (m_targetHost != h || m_targetPath != path || m_targetScheme != effScheme) {
+        const QString finalScheme = effScheme.isEmpty() ? QStringLiteral("https") : effScheme;
+        // 5WHY (复核 2026-08-18): 过滤视图只随 scheme 变——host/path 逐键编辑
+        // （DiagnosticToolbar.onTextChanged 每键一次）不再驱动 5 面板全量重载；
+        // 语义信号只在过滤集实际变化时单次发射。
+        const bool schemeChanged = (m_targetScheme != finalScheme);
         m_targetHost = h;
         m_targetPath = path;
-        m_targetScheme = effScheme.isEmpty() ? QStringLiteral("https") : effScheme;
+        m_targetScheme = finalScheme;
         m_targetError = QString();   // 8-4：无目标不再报错（空目标仅跑 G1-G3）
         bumpState();   // 列表/统计按 scheme 过滤，目标变更驱动 UI 重估
         emit targetChanged();
+        if (schemeChanged) emit filteredDataChanged();
     }
 }
 
@@ -609,6 +615,11 @@ QVariantList AppState::resultsForGroup(int groupInt) const {
     const DiagGroup g = groupForIndex(groupInt);
     for (DiagId id : allDiagIds()) {
         if (diagGroup(id) != g || !isSchedulable(id)) continue;
+        // 5WHY (复核 2026-08-18 瓦片墙/统计同源): 换 scheme 不重跑时统计已按
+        // runnableFor 过滤成新集（0/0），Dashboard 完成态瓦片墙却仍显示旧
+        // scheme 结果——头部/组头与瓦片可见分叉。补齐与 groupStats/
+        // allDiagsForGroup 相同的 scheme 过滤。
+        if (!runnableFor(id, m_targetScheme.toLower())) continue;
         const auto it = m_results.constFind(id);
         if (it != m_results.constEnd())
             out.append(itemFor(id));
@@ -639,6 +650,8 @@ void AppState::setGroupActive(int groupInt, bool active) {
     else m_activeGroups.remove(groupInt);
     savePreferences();
     bumpState();
+    // visibleGroups() 按激活组过滤——组面板列表消费方需语义信号刷新
+    emit filteredDataChanged();
 }
 
 bool AppState::isGroupActive(int groupInt) const {

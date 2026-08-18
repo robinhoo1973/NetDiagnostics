@@ -47,7 +47,12 @@ PageDisplay {
     }
     Connections {
         target: AppState
-        function onStateVersionChanged() { page._refreshGroups() }
+        // 5WHY (复核 2026-08-18 漏接的第四消费方): 语义信号轮次给三个
+        // 区块补了刷新触发，却漏了同屏的 Run Info 卡——_refreshTime() 读
+        // groupStats(-1)/groupStats(i)（按 scheme 过滤），换 scheme 后
+        // 总诊断数/已完成/分层时长停留旧计数，与相邻摘要卡数字矛盾。
+        // filteredDataChanged 一次驱动组列表 + 时间卡。
+        function onFilteredDataChanged() { page._refreshTime(); page._refreshGroups() }
         function onProgressChanged() { page._refreshTime(); page._refreshGroups() }
         function onRunElapsedChanged() { page._refreshTime() }
         function onCurrentRunningGroupChanged() { page._refreshGroups() }
@@ -424,7 +429,7 @@ PageDisplay {
                                 width: sourceSize.width * previewFlick.previewScale
                                 height: sourceSize.height * previewFlick.previewScale
                                 source: page.previewImagePath !== "" ? "file://" + page.previewImagePath : ""
-                                fillMode: Image.PreserveFit
+                                fillMode: Image.PreserveAspectFit
                                 cache: false
                                 smooth: true
                             }

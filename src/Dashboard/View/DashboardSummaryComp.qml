@@ -20,16 +20,23 @@ Item {
     implicitHeight: sumCol.implicitHeight
 
     // 5WHY (复核 2026-08-18 Reuse C3): 键集合归一化上移到 StatsUtil.js。
-    property var _s: W.StatsUtil.normalize(null)
-    readonly property int _count: _s.pass + _s.warn + _s.fail + _s.skip + _s.info + _s.error + _s.cancelled
+    property var _s: W.normalize(null)
+    // 5WHY (复核 2026-08-18 单一推导点): _count 曾手算 7 状态求和——C++
+    // completed ≡ Σ7 状态（groupStats 单一推导点）；此处复推会在新增第 8
+    // 状态桶时与头部/徽标分叉。直接读 _s.completed。
+    readonly property int _count: _s.completed
 
     function _refresh() {
-        _s = W.StatsUtil.normalize(AppState.groupStats(-1))
+        _s = W.normalize(AppState.groupStats(-1))
     }
     Connections {
         target: AppState
         function onProgressChanged() { root._refresh() }
         function onRunStatusChanged() { root._refresh() }
+        // 5WHY (复核 2026-08-18 语义信号): 换 target scheme 不重跑只发
+        // filteredDataChanged——摘要卡（groupStats(-1) 按 scheme 过滤）经
+        // 语义信号单次刷新（旧接 targetChanged+stateVersionChanged 双发双刷）。
+        function onFilteredDataChanged() { root._refresh() }
     }
     Component.onCompleted: _refresh()
 

@@ -5,6 +5,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import theme
 import widgets
+import "../widgets/StatsUtil.js" as W   // 直接 JS 导入（qmldir 模块目录不可相对导入）
 import core
 
 PageSection {
@@ -20,12 +21,18 @@ PageSection {
     // （m_results.size()，含换 scheme/停用后保留的旧结果）——与状态头/徽标的
     // 过滤后统计分叉：旧结果残留时空态与头部互相矛盾。统一读 groupStats 的
     // completed（UI-2：命令式刷新，绑定不调 Q_INVOKABLE）。
+    // 5WHY (复核 2026-08-18 单一守卫): 经 W.normalize 归一化——与其余三个
+    // 消费方同源；内联 `|| 0` 只防 undefined，不防键重命名/零填充保证移除。
     property int _completed: 0
-    function _refresh() { root._completed = (AppState.groupStats(-1).completed || 0) }
+    function _refresh() { root._completed = W.normalize(AppState.groupStats(-1)).completed }
     Connections {
         target: AppState
         function onProgressChanged() { root._refresh() }
         function onRunStatusChanged() { root._refresh() }
+        // 5WHY (复核 2026-08-18 语义信号): 与状态头/摘要卡同源——换 scheme
+        // 不重跑时 completed 按新过滤集重算，空态门控经 filteredDataChanged
+        // 单次刷新（旧接 targetChanged+stateVersionChanged 双发双刷）。
+        function onFilteredDataChanged() { root._refresh() }
     }
     Component.onCompleted: _refresh()
 

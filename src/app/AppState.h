@@ -140,6 +140,12 @@ signals:
     void runElapsedChanged();
     void targetChanged();
     void stateVersionChanged();
+    // 5WHY (复核 2026-08-18 语义信号): 过滤派生数据（groupStats/allDiagsForGroup/
+    // resultsForGroup/visibleGroups）曾靠消费方自行拼凑 superset 信号组合
+    // （targetChanged + stateVersionChanged 双发双刷、setLanguage/setCredentials
+    // 误触发、DashboardScreen 漏接）。语义信号只在过滤集实际变化处发射
+    // （scheme 变更 / 激活组变更），消费方单信号单次刷新。
+    void filteredDataChanged();
     void languageChanged();
     void themeModeChanged();
     void cellularWarnVisibleChanged();

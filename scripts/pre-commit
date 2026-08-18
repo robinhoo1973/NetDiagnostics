@@ -484,6 +484,25 @@ fi
 	    pass "no staged master SVGs"
 	fi
 
+	# ── 18b. Animation QML ↔ resources_core.qrc registration ───────────────
+	# 5WHY (复核 2026-08-18): a7e9d9c6 的三个检测动画被 AppState::diagAnimationUrl
+	# 引用却只登记在旧 resources.qrc（未进 QML_RESOURCES、从不编译）——运行时
+	# Loader "No such file or directory"、动画在发布版静默缺失；rcc 只校验反向
+	# （qrc 引用了已删文件）。比对 C++ URL 字面量与 qrc 条目，fail-closed。
+	echo ""
+	echo "── 18b. Animation QML ↔ qrc registration ──"
+	ANIM_MISSING=$(grep -oE 'qrc:/qt/qml/widgets/animations/[A-Za-z0-9]+\.qml' "$ROOT/src/app/AppState.cpp" \
+	    | sed -E 's|qrc:/qt/qml/||' | sort -u \
+	    | while read -r a; do \
+	        grep -q "alias=\"$a\"" "$ROOT/resources/resources_core.qrc" || echo "$a"; \
+	    done || true)
+	if [ -n "$ANIM_MISSING" ]; then
+	    fail "animation QML referenced in code but not registered in resources_core.qrc:"
+	    echo "$ANIM_MISSING" | while read -r line; do echo "       $line"; done
+	else
+	    pass "animation QML registered"
+	fi
+
 	# ── 19. Icon pipeline outputs: staleness check ──────────────────────────
 	# v4 (方案 B): AppIcon requests image://icon/<hex>/<name>?theme=..&dpr=..
 	# — the C++ IconProvider tints the single master at runtime.  Master

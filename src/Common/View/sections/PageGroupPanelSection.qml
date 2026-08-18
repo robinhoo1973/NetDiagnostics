@@ -79,7 +79,7 @@ PageSection {
     function _refreshStats() {   // UI-2：命令式赋值，绑定不调 Q_INVOKABLE
         // 5WHY (复核 2026-08-18 Reuse C3): 键归一化经 StatsUtil.js 单一来源；
         // 本组件保留 typed int 属性（绑定追踪需要）。
-        var s = W.StatsUtil.normalize(AppState.groupStats(groupIndex))
+        var s = W.normalize(AppState.groupStats(groupIndex))
         _total = s.total
         _completed = s.completed
         _pass = s.pass
@@ -91,6 +91,10 @@ PageSection {
         _cancelled = s.cancelled
         _durationMs = s.durationMs   // H2：行时长注入 DashboardRowHeader
     }
+    // 5WHY (复核 2026-08-18 单一入口): reloadModel()+_refreshStats() 对曾以
+    // 5 处逐字复制出现（runStatus/currentRunningGroup/target/stateVersion/
+    // onCompleted）——刷新序列收敛为 _reload()，新触发源只改一处。
+    function _reload() { reloadModel(); _refreshStats() }
     Connections {
         target: AppState
         function onProgressChanged() {
@@ -105,13 +109,23 @@ PageSection {
                 _userToggled = false
                 _userExpanded = true
             }
-            reloadModel(); _refreshStats()   // B1：运行边界全量刷新
+            _reload()   // B1：运行边界全量刷新
         }
         // 8-16：组开始（currentRunningGroup 切换）即加载瓦片墙——
         // 瓦片与组标题同步出现，而非等首条结果/组结束。
-        function onCurrentRunningGroupChanged() { reloadModel(); _refreshStats() }
+        function onCurrentRunningGroupChanged() { _reload() }
+        // 5WHY (复核 2026-08-18 语义信号): 换 target scheme 不重跑只发
+        // filteredDataChanged——groupStats 按 runnableFor(scheme) 过滤，瓦片墙
+        // （allDiagsForGroup/resultsForGroup 同源过滤）也会变。旧实现接
+        // targetChanged+stateVersionChanged：同轮双发双刷（5 面板 × 2），
+        // host 逐键编辑与凭据/语言变更也误触发。语义信号单次驱动。
+        function onFilteredDataChanged() { _reload() }
     }
-    Component.onCompleted: reloadModel()
+    // 5WHY (复核 2026-08-18 创建期零统计): 归档 DiagGroupPanel 的 _gstat 是
+    // 绑定（创建即求值）；重构改为命令式 _refreshStats 后 Component.onCompleted
+    // 只调 reloadModel——仪表盘页在运行结束后才创建的组面板（Dashboard 切页、
+    // 应用重启后无新 progress 事件）统计永久停留 0/0。补创建期刷新。
+    Component.onCompleted: _reload()
 
     // 内建统计簇（宽/窄两行共用；5WHY review round 3: 计数+三徽标曾逐字复制
     // 两份，加徽标/改格式必须双处同步——现为单一内联组件）

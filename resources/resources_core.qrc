@@ -37,13 +37,23 @@
         <file alias="widgets/IconActionButton.qml">../src/Common/View/widgets/IconActionButton.qml</file>
         <file alias="widgets/NavArrowButton.qml">../src/Common/View/widgets/NavArrowButton.qml</file>
         <file alias="widgets/WindowButton.qml">../src/Common/View/widgets/WindowButton.qml</file>
-        <!-- animations（五动画：Pulse/Jiggle/Bounce/Type/Path/Lock） -->
+        <!-- animations（九动画：六基础 Pulse/Jiggle/Bounce/Type/Path/Lock +
+             三检测专属 Check/Meter/Converge；清单与 AppState::diagAnimationUrl
+             一一对应，pre-commit 18b fail-closed 校验） -->
         <file alias="widgets/animations/PulseAnimation.qml">../src/Common/View/widgets/animations/PulseAnimation.qml</file>
         <file alias="widgets/animations/JiggleAnimation.qml">../src/Common/View/widgets/animations/JiggleAnimation.qml</file>
         <file alias="widgets/animations/BounceAnimation.qml">../src/Common/View/widgets/animations/BounceAnimation.qml</file>
         <file alias="widgets/animations/TypeAnimation.qml">../src/Common/View/widgets/animations/TypeAnimation.qml</file>
         <file alias="widgets/animations/PathAnimation.qml">../src/Common/View/widgets/animations/PathAnimation.qml</file>
         <file alias="widgets/animations/LockAnimation.qml">../src/Common/View/widgets/animations/LockAnimation.qml</file>
+        <!-- 5WHY (复核 2026-08-18 缺资源): a7e9d9c6 新增的三检测项专属动画
+             （盾牌打勾/表针摆动/四箭头聚拢）此前只登记在 resources.qrc——该
+             qrc 未进 QML_RESOURCES（不参与编译），运行时 DiagAnimator 按
+             qrc:/qt/qml 路径加载即 "No such file or directory"，动画特性在
+             构建产物中静默缺失。已删除死 qrc，与六动画同列登记。 -->
+        <file alias="widgets/animations/CheckAnimation.qml">../src/Common/View/widgets/animations/CheckAnimation.qml</file>
+        <file alias="widgets/animations/MeterAnimation.qml">../src/Common/View/widgets/animations/MeterAnimation.qml</file>
+        <file alias="widgets/animations/ConvergeAnimation.qml">../src/Common/View/widgets/animations/ConvergeAnimation.qml</file>
         <file alias="theme/AnimationTokens.js">../src/Common/View/theme/AnimationTokens.js</file>
         <!-- detail 组件（page-detail.md 复用件） -->
         <file alias="detail/qmldir">../src/Common/View/detail/qmldir</file>
