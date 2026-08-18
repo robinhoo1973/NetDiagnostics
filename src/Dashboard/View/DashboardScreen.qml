@@ -144,7 +144,11 @@ PageDisplay {
                         running: AppState.runStatus === 1
                     }
                     AppIcon {
-                        visible: AppState.runStatus !== 1
+                        // 5WHY (复核 2026-08-18 用户诉求 "孤立成功图标" 平行站点):
+                        // 状态头修复后此处仍 `runStatus !== 1`——Idle 或 Completed
+                        // 态走回退 "check"+成功绿，与状态头同款孤立绿勾。统一为
+                        // 终态(2/3/4)才显示状态图标（runStatusInfo 全 5 态表）。
+                        visible: ThemeEngine.isTerminalRunStatus(AppState.runStatus)
                         anchors.fill: parent
                         name: (page._runInfo ? page._runInfo.iconName : "check")
                         size: 28
@@ -157,7 +161,10 @@ PageDisplay {
                     Label {
                         text: {
                             if (AppState.runStatus === 1) return T.tr("runningDots")
-                            return page._runInfo ? T.tr(page._runInfo.labelKey) : T.tr("diagRunComplete")
+                            // 5WHY (复核 2026-08-18): runStatusInfo 的 Completed(2)
+                            // 表项 labelKey 为空——保持 diagRunComplete 文案。
+                            return (page._runInfo && page._runInfo.labelKey)
+                                ? T.tr(page._runInfo.labelKey) : T.tr("diagRunComplete")
                         }
                         font.family: ThemeEngine.fontUi
                         font.pixelSize: ThemeEngine.fontSize.title

@@ -85,6 +85,9 @@ void DiagnosticSuite::onProbeFinished(const DiagnosticResult& r) {
         case DiagStatus::Error:     ++m_stats.error; break;
         case DiagStatus::Info:      ++m_stats.info; break;
         case DiagStatus::Cancelled: ++m_stats.cancelled; break;
+        // 5WHY (复核 2026-08-18 一致性): 与 groupStats 同一不变式——越界状态
+        // 计入 error 而非静默消失，套件统计与 UI 聚合永不分叉。
+        default: ++m_stats.error; break;
     }
     emit resultReady(r);
     emit statsChanged();

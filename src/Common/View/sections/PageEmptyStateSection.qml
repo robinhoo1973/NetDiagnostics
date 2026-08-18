@@ -16,7 +16,23 @@ PageSection {
     property bool errorState: false
     property string hintText: ""
 
-    active: AppState.totalCompleted === 0 && AppState.runStatus !== 1
+    // 5WHY (复核 2026-08-18 X/Y 同源): 空态门控曾读 AppState.totalCompleted
+    // （m_results.size()，含换 scheme/停用后保留的旧结果）——与状态头/徽标的
+    // 过滤后统计分叉：旧结果残留时空态与头部互相矛盾。统一读 groupStats 的
+    // completed（UI-2：命令式刷新，绑定不调 Q_INVOKABLE）。
+    property int _completed: 0
+    function _refresh() { root._completed = (AppState.groupStats(-1).completed || 0) }
+    Connections {
+        target: AppState
+        function onProgressChanged() { root._refresh() }
+        function onRunStatusChanged() { root._refresh() }
+    }
+    Component.onCompleted: _refresh()
+
+    // 5WHY (复核 2026-08-18 与状态头互斥分区): 头部已覆盖全部终态（2/3/4）——
+    // 空态仅在 Idle(0) 或 Error(4)（零结果运行失败，errorState 由调用方置位）
+    // 显示，Running/Cancelled/Completed 由头部/运行信息卡呈现。
+    active: root._completed === 0 && (AppState.runStatus === 0 || AppState.runStatus === 4)
 
     ColumnLayout {
         Layout.alignment: Qt.AlignHCenter

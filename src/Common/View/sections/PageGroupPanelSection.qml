@@ -229,7 +229,11 @@ PageSection {
                     visible: root._headerCompact
                     Layout.fillWidth: true
                     spacing: ThemeEngine.spacing.sm
-                    Item { Layout.preferredWidth: 4 }   // 缩进=accent bar(4)+spacing.sm(8)=12（5WHY review round 3: 原 11 与首行几何脱节）
+                    // 5WHY (复核 2026-08-18 对位目标): 徽标左对齐的对位目标是
+                    // 首行【内容列】（accent bar 4 + spacing.sm 8 = 12px 处的
+                    // 组图标），不是装饰条左缘——归档 11px 与重构 12px 均对齐
+                    // 图标列。保留 4px Item（行 spacing 8 补齐 12px）。
+                    Item { Layout.preferredWidth: 4 }
                     Loader {
                         active: root.rowHeaderDelegate === null
                         sourceComponent: builtinStatsComp

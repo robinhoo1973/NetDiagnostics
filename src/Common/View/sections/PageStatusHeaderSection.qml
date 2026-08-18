@@ -18,6 +18,11 @@ PageSection {
     // 状态呈现单次求值（5WHY review round 4: icon/color/label 各自调用
     // runStatusInfo——同一次变化最多 4 次对象构造；单一属性共享）
     readonly property var _statusInfo: ThemeEngine.runStatusInfo(AppState.runStatus)
+    // 5WHY (复核 2026-08-18 终态判定 + 去重): runStatus === 1 曾散落 5 处、
+    // `>= 2` 数值范围与枚举布局耦合——派生属性单点求值，终态经
+    // ThemeEngine.isTerminalRunStatus 白名单（枚举重排免疫）。
+    readonly property bool _isRunning: AppState.runStatus === 1
+    readonly property bool _showStatusIcon: ThemeEngine.isTerminalRunStatus(AppState.runStatus)
 
     // UI-2：聚合统计命令式刷新（progressChanged/runStatusChanged 处理器赋值），
     // 绑定中不调用 groupStats(-1)。
@@ -37,13 +42,23 @@ PageSection {
         target: AppState
         function onProgressChanged() { root._refreshAgg() }
         function onRunStatusChanged() { root._refreshAgg() }
+        // 5WHY (复核 2026-08-18 刷新触发缺口): 换 target scheme 不重跑只发
+        // targetChanged/stateVersionChanged——此前 _agg 停留旧 scheme 计数，
+        // 而瓦片墙（allDiagsForGroup 实时重算）已显示新过滤集——头部与网格
+        // 可见分叉。补上这两个触发源。
+        function onTargetChanged() { root._refreshAgg() }
+        function onStateVersionChanged() { root._refreshAgg() }
     }
     Component.onCompleted: _refreshAgg()
 
     // 5WHY (复核 2026-08-18 一致性): active 门控曾读 AppState.totalCompleted
     // （m_results.size()，含换 scheme/停用后保留的旧结果）而内容读 _agg——
     // 换 scheme 不重跑时头仍显示但计数塌缩为 0/N。统一同源。
-    active: root._agg.completed > 0 || AppState.runStatus === 1
+    // 5WHY (复核 2026-08-18 终态门控): 此前 Cancelled(3) 且零结果（首个测试
+    // 前取消）时 completed=0 且 runStatus≠1 → 头部隐藏——唯一能呈现"已取消"
+    // 字样的位置恰在最需要的状态不可达。终态（2/3/4）一律可见；与空态节
+    // （completed===0 && runStatus∈{0,4}）互斥分区。
+    active: root._agg.completed > 0 || AppState.runStatus !== 0
     signal shareRequested(string fmt)
 
     // 5WHY (复核 2026-08-18, 用户诉求): 归档是两行头——第一行运行指示+状态
@@ -65,12 +80,17 @@ PageSection {
             Item {
                 Layout.preferredWidth: 16; Layout.preferredHeight: 16
                 BusyIndicator {
-                    visible: AppState.runStatus === 1
+                    visible: root._isRunning
                     anchors.fill: parent
-                    running: AppState.runStatus === 1
+                    running: root._isRunning
                 }
                 AppIcon {
-                    visible: AppState.runStatus !== 1
+                    // 5WHY (复核 2026-08-18 用户诉求 "初始状态孤立成功图标"):
+                    // 状态呈现显式建模：Running→spinner、终态(2/3/4)→状态图标
+                    // （ThemeEngine.runStatusInfo 全 5 态表，Completed=中性勾）、
+                    // Idle→无图标（16px 占位保持行对齐）。任何非运行态都不得
+                    // 再经回退渲染成功色绿勾。
+                    visible: root._showStatusIcon
                     anchors.fill: parent
                     // 5WHY (review round 3): 取消/错误态曾硬编码绿色 check——
                     // 与同行的 runStatusInfo 标签/文字色脱节（橙字配绿勾）
@@ -86,10 +106,13 @@ PageSection {
                 // 5WHY (复核 2026-08-18 X/Y 失配): X 统一改用 _agg.completed
                 //（与徽标求和同源），消除换 scheme 后 X/Y 对不上的旧路径。
                 text: {
-                    if (AppState.runStatus === 1)
+                    if (root._isRunning)
                         return (AppState.currentDiagLabel || T.tr("running"))
                                + (_agg.total > 0 ? " · " + ThemeEngine.xyLabel(_agg.completed, _agg.total) : "")
-                    if (root._statusInfo) return T.tr(root._statusInfo.labelKey)
+                    // 5WHY (复核 2026-08-18): runStatusInfo 补全 Completed(2) 后
+                    // 该表项 labelKey 为空——保留本行的 X/Y completed 标签语义
+                    // （labelKey 非空才切换为状态词）。
+                    if (root._statusInfo && root._statusInfo.labelKey) return T.tr(root._statusInfo.labelKey)
                     return ThemeEngine.xyLabel(_agg.completed, _agg.total) + " " + T.tr("completed")
                 }
                 color: (root._statusInfo ? root._statusInfo.color
@@ -107,11 +130,12 @@ PageSection {
         RowLayout {
             Layout.fillWidth: true
             spacing: 4
-            // 5WHY (复核 2026-08-18 缩进失配): 11px 是裸归档魔数——首行没有
-            // accent bar，只有 16px 状态图标在 x=0；徽标行真正的对位目标是
-            // 首行 Label 文本起点 = 图标 16px + spacing.sm 8px = 24px。
-            // 行内 spacing 4px，故 Item 宽 = 24 - 4 = 20px。
-            Item { Layout.preferredWidth: 20 }
+            // 5WHY (复核 2026-08-18 用户诉求): 徽标行曾以 20px Item 缩进到
+            // 首行文本起点——第二行是独立统计信息行，按 F 型视觉扫描应贴
+            // 内容左缘（与首行状态图标 x 起点一致）；删除缩进即左对齐。
+            // 5WHY (复核 2026-08-18 徽标行门控): 归档在首条结果落地前隐藏
+            // 徽标行（totalCompleted>0）——run 启动初期 7 零值徽标不占行。
+            visible: root._agg.completed > 0
             // 5WHY (复核 2026-08-18 三处复制收敛): 7 徽标行改用共享簇组件
             StatusBadgeCluster { stats: root._agg; compact: ThemeEngine.isMobile }
         }

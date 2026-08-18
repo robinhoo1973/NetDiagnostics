@@ -14,7 +14,9 @@ struct DiagnosticResult {
     DiagId      id;
     QString     displayName;
     DiagGroup   group;
-    DiagStatus  status;
+    // 5WHY (复核 2026-08-18): 无默认值——漏赋值的生产者留下未定义值，
+    // completed 计数了而徽标无处落账。默认 Error：遗漏 = 可见且可计数。
+    DiagStatus  status = DiagStatus::Error;
     QString     summary;
     QString     details;
     qint64      durationMs = 0;

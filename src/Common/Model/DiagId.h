@@ -29,6 +29,14 @@ inline QString diagGroupLabel(DiagGroup g) {
 // ── Test Status ─────────────────────────────────────────────────────────────
 enum class DiagStatus { Pass, Warning, Fail, Skipped, Error, Info, Cancelled };
 
+// 5WHY (复核 2026-08-18 用户诉求 "5/5 但徽标仅 4"): 结果状态以 int 持久化，
+// 重启读回直接 static_cast——旧版本枚举重排会产出越界值：completed 照计、
+// 7 状态 switch 无处落账，X/Y 与徽标求和分叉。单一摄入边界校验助手。
+inline bool isValidDiagStatus(int v) {
+    return v >= static_cast<int>(DiagStatus::Pass)
+        && v <= static_cast<int>(DiagStatus::Cancelled);
+}
+
 // 5WHY (复核 2026-08-18 Reuse C5): 状态→{图标,报告文本,CSS类,调色板下标,字形}
 // 此前是 4 个平行 switch（diagStatusIcon + ReportEngine 的 statusIndex/
 // reportStatusText/reportStatusClass）——加 Cancelled 四处同步、漏一处静默

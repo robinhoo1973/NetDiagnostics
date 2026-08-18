@@ -147,9 +147,22 @@ QtObject {
     function runStatusInfo(status) {
         // dimmed：标题弱化（5WHY review round 3: 取消态标题弱化规则曾散落在
         // 调用方三元里，与呈现表脱节）
+        // 5WHY (复核 2026-08-18 用户诉求 "孤立成功图标" 根因): Completed(2) 曾
+        // 无表项——两个消费方走 `|| fallback` 回退到成功绿勾，导致"未覆盖状态
+        // 一律渲染成功图标"：运行完成后（含大量失败项）标题栏仍显示孤立绿勾，
+        // 与中性 "X/Y completed" 标签/红绿徽标脱节。补齐全 5 态呈现表：2→中性
+        // 勾（颜色与标签同为 onSurfaceVariant）；labelKey 留空 = 消费方各自保
+        // 持 X/Y 标签（状态头）与 diagRunComplete（Dashboard）。Idle→null。
+        if (status === 2) return { color: colors.onSurfaceVariant, iconName: "badge-check", labelKey: "", dimmed: false }
         if (status === 3) return { color: colors.warning, iconName: "badge-close", labelKey: "cancelled", dimmed: true }
         if (status === 4) return { color: colors.fail,    iconName: "badge-error", labelKey: "errorStatus", dimmed: false }
         return null
+    }
+    // 5WHY (复核 2026-08-18 终态判定单一来源): 消费方曾各自手写 `>= 2`/`!== 1`
+    // 数值范围判定——RunStatus 枚举重排时静默翻转图标可见性。白名单终态集
+    // （2/3/4 显式枚举）由两处消费方共用，加状态值只需改此一处。
+    function isTerminalRunStatus(s) {
+        return s === 2 || s === 3 || s === 4
     }
     // （runStatusColor/runStatusIcon 包装已删除——review round 4：纯字段
     // 间接层，调用方直接读缓存的 runStatusInfo 对象 + || fallback）

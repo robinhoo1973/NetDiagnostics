@@ -115,7 +115,15 @@ void AppState::loadCachedResults() {
         r.id = static_cast<DiagId>(o.value(QStringLiteral("id")).toInt());
         r.displayName = diagDisplayName(r.id);
         r.group = diagGroup(r.id);
-        r.status = static_cast<DiagStatus>(o.value(QStringLiteral("status")).toInt());
+        // 5WHY (复核 2026-08-18): 盘上 int 无范围校验——旧版本枚举重排产出
+        // 越界值时 completed 计数了、7 状态 switch 不落账，X/Y 与徽标分叉。
+        // 摄入边界钳制：未知状态按 Error 呈现（可见且可计数）。
+        // 5WHY (复核 2026-08-18 缺失键洞): toInt() 对缺失/非数值键返回 0=Pass
+        // ——残缺缓存条目会以最误导的"全通过"形态摄入。显式判键存在+数值型。
+        const QJsonValue statusVal = o.value(QStringLiteral("status"));
+        const int rawStatus = statusVal.isDouble() ? statusVal.toInt() : -1;
+        r.status = isValidDiagStatus(rawStatus)
+            ? static_cast<DiagStatus>(rawStatus) : DiagStatus::Error;
         r.summary = o.value(QStringLiteral("summary")).toString();
         r.details = o.value(QStringLiteral("details")).toString();
         r.rawOutput = o.value(QStringLiteral("rawOutput")).toString();
@@ -432,7 +440,6 @@ QVariantMap AppState::groupStats(int groupInt) const {
         ++total;
         const auto it = m_results.constFind(id);
         if (it == m_results.constEnd()) continue;
-        ++completed;
         switch (it->status) {
             case DiagStatus::Pass:      ++pass; break;
             case DiagStatus::Warning:   ++warn; break;
@@ -441,8 +448,15 @@ QVariantMap AppState::groupStats(int groupInt) const {
             case DiagStatus::Info:      ++info; break;
             case DiagStatus::Error:     ++error; break;
             case DiagStatus::Cancelled: ++cancelled; break;
+            // 5WHY (复核 2026-08-18 不变式兜底): 越界状态落 Error 账，
+            // 杜绝"completed 有数、徽标无处落账"的分叉。
+            default:                    ++error; break;
         }
     }
+    // 5WHY (复核 2026-08-18 用户诉求 "5/5 但徽标仅 4"): completed 曾独立于
+    // 状态计数逐条累加——任一结果状态越界即与 Σ徽标分叉。改为单一推导点：
+    // completed ≡ Σ7 状态，X/Y 与徽标求和结构上恒等。
+    completed = pass + warn + fail + skip + info + error + cancelled;
     s[QStringLiteral("total")] = total;
     s[QStringLiteral("completed")] = completed;
     // 5WHY (复核 2026-08-18 completed 双语义): completed 含 Cancelled/Skipped
@@ -463,6 +477,11 @@ QVariantMap AppState::groupStats(int groupInt) const {
         // 每个组的 durationMs 都等于整轮总时长，Layer Timings 五行显示同一数字。
         // 与计数循环同源过滤（DiagnosticResult.group 字段直接可用）。
         if (!aggregate && r.group != g) continue;
+        // 5WHY (复核 2026-08-18 时长与计数同源): 计数循环按 isSchedulable +
+        // runnableFor 过滤，时长循环此前只按组——换 scheme 不重跑时旧结果时长
+        // 混入新过滤集（"3/20 徽标配 20 项时长"）。补齐同一过滤。
+        if (!isSchedulable(r.id)) continue;
+        if (!runnableFor(r.id, m_targetScheme.toLower())) continue;
         totalMs += r.durationMs;
     }
     s[QStringLiteral("durationMs")] = static_cast<qlonglong>(totalMs);
@@ -854,6 +873,9 @@ QString AppState::previewReportHtml() const {
                 case DiagStatus::Info: ++info; break;
                 case DiagStatus::Error: ++error; break;
                 case DiagStatus::Cancelled: ++cancelled; break;
+                // 5WHY (复核 2026-08-18 一致性): 与 groupStats 的 default→error
+                // 同一不变式——越界状态在报告表面也可见且可计数，不再静默消失。
+                default: ++error; break;
             }
         }
         st[QStringLiteral("pass")] = pass; st[QStringLiteral("warn")] = warn;
