@@ -386,6 +386,15 @@ QVariantMap AppState::itemFor(DiagId id) const {
         m[QStringLiteral("isDone")] = false;
         m[QStringLiteral("isDisabled")] = false;
         m[QStringLiteral("durationMs")] = 0;
+        // 5WHY (复核 2026-08-18 计时连续性): 运行中探针注入墙钟起点——并行
+        // Suite 下兄弟结果落地触发网格重建，委托本地计时归零；UI 以
+        // startedAtMs 反推真实已运行时长，重建不再重置显示。
+        m[QStringLiteral("startedAtMs")] = 0;
+        if (m_suite && m_suite->isRunning()) {
+            const auto starts = m_suite->runningStartTimes();
+            if (const auto sit = starts.constFind(id); sit != starts.constEnd())
+                m[QStringLiteral("startedAtMs")] = sit.value();
+        }
         m[QStringLiteral("summary")] = QString();
     } else {
         m[QStringLiteral("status")] = static_cast<int>(it->status);
@@ -393,6 +402,7 @@ QVariantMap AppState::itemFor(DiagId id) const {
         m[QStringLiteral("isDone")] = true;
         m[QStringLiteral("isDisabled")] = false;
         m[QStringLiteral("durationMs")] = it->durationMs;
+        m[QStringLiteral("startedAtMs")] = 0;   // 已完成项无运行计时
         m[QStringLiteral("summary")] = it->summary;
     }
     return m;
@@ -435,6 +445,11 @@ QVariantMap AppState::groupStats(int groupInt) const {
     }
     s[QStringLiteral("total")] = total;
     s[QStringLiteral("completed")] = completed;
+    // 5WHY (复核 2026-08-18 completed 双语义): completed 含 Cancelled/Skipped
+    // （"有结果"的进度语义）；UI 的"成功完成"叙事需排除取消——单一推导点
+    // 暴露派生字段，取代 DashboardRowHeader 的手工减法（此前仅在进度条一处
+    // 排除，头部 X/Y 与簇标签仍算入，同屏数字互相矛盾）。
+    s[QStringLiteral("completedExclCancelled")] = completed - cancelled;
     s[QStringLiteral("pass")] = pass;
     s[QStringLiteral("warn")] = warn;
     s[QStringLiteral("fail")] = fail;

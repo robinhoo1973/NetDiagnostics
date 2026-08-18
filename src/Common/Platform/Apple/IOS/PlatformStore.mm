@@ -298,8 +298,15 @@ restoreCompletedTransactionsFailedWithError:(NSError *)error
 // C++ bridge — called from AppState on the Qt (main) thread
 // =========================================================================
 
+// 5WHY (复核 2026-08-18 Reuse C7): dispatch_async/sync 包装此前在 4 个入口
+// 函数中逐字复制——提取文件内 helper。sync 版带 isMainThread 守卫（对已持有
+// 的主队列 dispatch_sync 是 libdispatch 致命误用）。
+static void runOnMainAsync(dispatch_block_t block) {
+    dispatch_async(dispatch_get_main_queue(), block);
+}
+
 void platformInitStore(GrantCallback unattendedGrant) {
-    dispatch_async(dispatch_get_main_queue(), ^{
+    runOnMainAsync(^{
         NetDiagStoreObserver* obs = [NetDiagStoreObserver shared];
         [obs ensureObserving];
 
@@ -316,7 +323,7 @@ void platformInitStore(GrantCallback unattendedGrant) {
 }
 
 void platformStartPurchase(StoreCallback callback, DeferredCallback deferred) {
-    dispatch_async(dispatch_get_main_queue(), ^{
+    runOnMainAsync(^{
         NetDiagStoreObserver* obs = [NetDiagStoreObserver shared];
 
         // Prevent overlapping operations
@@ -349,7 +356,7 @@ void platformStartPurchase(StoreCallback callback, DeferredCallback deferred) {
 }
 
 void platformRestorePurchases(RestoreCallback callback) {
-    dispatch_async(dispatch_get_main_queue(), ^{
+    runOnMainAsync(^{
         NetDiagStoreObserver* obs = [NetDiagStoreObserver shared];
 
         // 5WHY (iOS b21294): a restore already in flight (auto-probe from
@@ -379,6 +386,26 @@ void platformRestorePurchases(RestoreCallback callback) {
 
         [obs startRestore];
     });
+}
+
+bool platformCanMakePayments() {
+    // 5WHY (复核 2026-08-18): 自动恢复在每次启动无条件执行，受限设备
+    // （Screen Time/MDM）上 restore 无意义。暴露 canMakePayments 让调用方
+    // 跳过自动恢复。注意：Apple 未文档化"未登录"为 false 条件，签名用户的
+    // 登录 sheet 行为不受此守卫约束（见 PlatformStore.h）。
+    // 5WHY (复核 2026-08-18 CRITICAL): 初版用 dispatch_sync(main_queue) 同步
+    // 等待——调用方（PremiumStore 的 QTimer 槽）本身就运行在主线程，
+    // dispatch_sync 对已持有的队列自等待是 libdispatch 致命误用（trap/
+    // 死锁），每个未购用户启动 ~1.5s 即崩。改为 isMainThread 分支。
+    // 5WHY (复核 2026-08-18 缓存): canMakePayments 每次会话恒定（仅 Screen
+    // Time/MDM 变化，运行期不更新）——dispatch_once 缓存消除所有线程调度
+    // 开销与主队列自等待风险（dispatch_once 自身线程安全）。
+    static bool result = true;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        result = [SKPaymentQueue canMakePayments];
+    });
+    return result;
 }
 
 #endif // PLATFORM_IOS

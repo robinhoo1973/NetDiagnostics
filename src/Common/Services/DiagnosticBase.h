@@ -13,6 +13,7 @@
 #include <QTimer>
 #include <QThreadPool>
 #include <QElapsedTimer>
+#include <QDateTime>
 #include <atomic>
 #include <functional>
 #include <memory>
@@ -51,6 +52,9 @@ public:
     void cancel();         // set cancellation flag, stop watchdog
     bool isCancelled() const { return m_state->cancelled.load(std::memory_order_acquire); }
     void setTimeoutMs(int ms) { m_timeoutMs = ms > 0 ? ms : 60000; }
+    // 5WHY (复核 2026-08-18 计时连续性): 墙钟起点（ms 时间戳）——QML 委托被
+    // 重建时本地计时归零，UI 需从模型恢复真实起点而非委托诞生时刻。
+    qint64 startedAtMs() const { return m_startedAtMs; }
 
 signals:
     void finished(const DiagnosticResult& result);
@@ -78,6 +82,7 @@ private:
     QThreadPool* m_pool;
     int        m_timeoutMs;
     bool       m_started = false;
+    qint64     m_startedAtMs = 0;
     // 8-16：探针级墙钟——集中补 durationMs（诊断函数大多不自填时长，
     // 导致 Dashboard 分层计时全 0 与详情页时长缺失）
     QElapsedTimer m_elapsed;

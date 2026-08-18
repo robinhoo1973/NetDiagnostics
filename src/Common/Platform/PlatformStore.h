@@ -46,3 +46,11 @@ void platformStartPurchase(StoreCallback callback, DeferredCallback deferred);
 // Restore previously purchased entitlements.
 // Safe to call from any thread; callback always invoked on the main thread.
 void platformRestorePurchases(RestoreCallback callback);
+
+// Whether the store accepts payments on this device (StoreKit canMakePayments).
+// Documented false for Screen Time / Content & Privacy restrictions and MDM
+// profiles only — Apple does NOT document sign-in state as a condition, so
+// a signed-out user may still return true and the automatic-restore skip
+// cannot rely on this alone.  Callers should skip automatic restores when
+// false and let the user-initiated flow surface the system sign-in sheet.
+bool platformCanMakePayments();

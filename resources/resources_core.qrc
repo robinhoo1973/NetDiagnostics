@@ -18,6 +18,8 @@
         <file alias="widgets/AppIcon.qml">../src/Common/View/widgets/AppIcon.qml</file>
         <file alias="widgets/IconColors.js">../src/Common/View/widgets/IconColors.js</file>
         <file alias="widgets/IconTints.js">../src/Common/View/widgets/IconTints.js</file>
+        <file alias="widgets/StatsUtil.js">../src/Common/View/widgets/StatsUtil.js</file>
+        <file alias="widgets/StatusBadgeCluster.qml">../src/Common/View/widgets/StatusBadgeCluster.qml</file>
         <file alias="widgets/AppBar.qml">../src/Common/View/widgets/AppBar.qml</file>
         <file alias="widgets/AppLabel.qml">../src/Common/View/widgets/AppLabel.qml</file>
         <file alias="widgets/StatusBadge.qml">../src/Common/View/widgets/StatusBadge.qml</file>

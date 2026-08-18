@@ -301,8 +301,15 @@ restoreCompletedTransactionsFailedWithError:(NSError *)error
 // C++ bridge — called from AppState on the Qt (main) thread
 // =========================================================================
 
+// 5WHY (复核 2026-08-18 Reuse C7): dispatch_async/sync 包装此前在 4 个入口
+// 函数中逐字复制——提取文件内 helper。sync 版带 isMainThread 守卫（对已持有
+// 的主队列 dispatch_sync 是 libdispatch 致命误用）。
+static void runOnMainAsync(dispatch_block_t block) {
+    dispatch_async(dispatch_get_main_queue(), block);
+}
+
 void platformInitStore(GrantCallback unattendedGrant) {
-    dispatch_async(dispatch_get_main_queue(), ^{
+    runOnMainAsync(^{
         NetDiagStoreObserver* obs = [NetDiagStoreObserver shared];
         [obs ensureObserving];
 
@@ -319,7 +326,7 @@ void platformInitStore(GrantCallback unattendedGrant) {
 }
 
 void platformStartPurchase(StoreCallback callback, DeferredCallback deferred) {
-    dispatch_async(dispatch_get_main_queue(), ^{
+    runOnMainAsync(^{
         NetDiagStoreObserver* obs = [NetDiagStoreObserver shared];
 
         // Prevent overlapping operations
@@ -352,7 +359,7 @@ void platformStartPurchase(StoreCallback callback, DeferredCallback deferred) {
 }
 
 void platformRestorePurchases(RestoreCallback callback) {
-    dispatch_async(dispatch_get_main_queue(), ^{
+    runOnMainAsync(^{
         NetDiagStoreObserver* obs = [NetDiagStoreObserver shared];
 
         // 5WHY (iOS/macOS b21294): a restore already in flight (auto-probe
@@ -382,6 +389,24 @@ void platformRestorePurchases(RestoreCallback callback) {
 
         [obs startRestore];
     });
+}
+
+
+bool platformCanMakePayments() {
+    // 5WHY (复核 2026-08-18): 同 iOS——自动恢复在每次启动无条件执行，受限
+    // 设备（Screen Time/MDM）上 restore 无意义，暴露守卫供调用方跳过。
+    // （Apple 未文档化"未登录"为 false 条件，见 PlatformStore.h。）
+    // 5WHY (复核 2026-08-18 CRITICAL): 初版 dispatch_sync(main_queue) 自等待
+    // 是 libdispatch 致命误用——调用方在主线程，改为 isMainThread 分支。
+    // 5WHY (复核 2026-08-18 缓存): canMakePayments 每次会话恒定（仅 Screen
+    // Time/MDM 变化，运行期不更新）——dispatch_once 缓存消除所有线程调度
+    // 开销与主队列自等待风险（dispatch_once 自身线程安全）。
+    static bool result = true;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        result = [SKPaymentQueue canMakePayments];
+    });
+    return result;
 }
 
 #endif // __APPLE__ && !PLATFORM_IOS

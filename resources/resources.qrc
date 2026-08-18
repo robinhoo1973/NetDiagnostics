@@ -51,6 +51,7 @@
         <file alias="qml/widgets/IconColors.js">../src/Common/View/widgets/IconColors.js</file>
         <file alias="qml/widgets/ShareButtons.qml">../src/Common/View/widgets/ShareButtons.qml</file>
         <file alias="qml/widgets/StatusBadge.qml">../src/Common/View/widgets/StatusBadge.qml</file>
+        <file alias="qml/widgets/StatusBadgeCluster.qml">../src/Common/View/widgets/StatusBadgeCluster.qml</file>
         <file alias="qml/widgets/SummaryCards.qml">../src/Common/View/widgets/SummaryCards.qml</file>
         <file alias="qml/widgets/DiagnosticToolbar.qml">../src/Common/View/widgets/DiagnosticToolbar.qml</file>
         <file alias="qml/widgets/ToggleSwitch.qml">../src/Common/View/widgets/ToggleSwitch.qml</file>

@@ -52,6 +52,14 @@ Rectangle {
             if (restoredAny) root.statusText = T.tr("purchasesRestored")
             else if (isError) root.statusText = T.tr("purchaseFailed")
         }
+        // 5WHY (2026-08-18): Android release 端 "Buy" 曾是无处理的静默死胡同——
+        // PremiumStore.requestSubscription() 在发布构建 emit premiumRequired()
+        // 但全仓无任何 onPremiumRequired 处理器，弹窗停留、无 toast、无文案。
+        // 补上处理器：状态文案提示"Premium 订阅即将开放"，Buy 按钮同时被
+        // supportsIap 门控隐藏，双保险杜绝死胡同。
+        function onPremiumRequired() {
+            root.statusText = T.tr("premiumRequiredMsg")
+        }
     }
 
     // 背景点击关闭
@@ -146,10 +154,16 @@ Rectangle {
                 wrapMode: Text.WordWrap
             }
 
+            // 5WHY (2026-08-18): Buy/Restore 此前无条件显示——Android 发布端
+            // supportsIap()=false 时 Buy 点击是死胡同（premiumRequired 无处理器），
+            // Restore 直接 no-op。PremiumStore.h 契约声明"UI 按 supportsIap
+            // 门控购买按钮"，实现却未遵守。现在补齐门控：不支持的平台隐藏购买
+            // 按钮，仅显示功能列表——App Store 审核姿态也更正确。
             Button {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 48
                 text: T.tr("subscribeBtn")
+                visible: PremiumStore.supportsIap
                 onClicked: PremiumStore.requestSubscription()
             }
             Button {
@@ -157,6 +171,7 @@ Rectangle {
                 Layout.preferredHeight: 40
                 text: T.tr("restoreBtn")
                 flat: true
+                visible: PremiumStore.supportsIap
                 onClicked: PremiumStore.restorePurchases()
             }
         }

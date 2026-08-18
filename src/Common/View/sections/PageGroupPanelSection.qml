@@ -6,6 +6,7 @@ import QtQuick.Layouts
 import QtQml
 import theme
 import widgets
+import "../widgets/StatsUtil.js" as W   // 直接 JS 导入（qmldir 模块目录不可相对导入）
 import core
 
 PageSection {
@@ -22,7 +23,8 @@ PageSection {
     property bool compactTiles: ThemeEngine.isMobile
 
     property var itemsModel: []
-    property int _modelVersion: 0
+    // 5WHY (复核 2026-08-18): _modelVersion 只写不读（Repeater 绑定 itemsModel
+    // 身份而非版本 key）——_activeKey 签名门控已完全取代它，删除。
     property int _total: 0
     property int _completed: 0
     property int _pass: 0
@@ -31,10 +33,13 @@ PageSection {
     property int _skip: 0
     property int _info: 0
     property int _error: 0
+    property int _cancelled: 0
     property int _durationMs: 0
     property bool _userToggled: false
     property bool _userExpanded: true
-    readonly property var _statsObj: ({ pass: _pass, warn: _warn, fail: _fail, skip: _skip, info: _info, error: _error,
+    // 5WHY (复核 2026-08-18): cancelled 缺 key——groupStats 把取消项计入
+    // completed，出现 "X/X 完成但徽标数字对不上"；补全 7 状态。
+    readonly property var _statsObj: ({ pass: _pass, warn: _warn, fail: _fail, skip: _skip, info: _info, error: _error, cancelled: _cancelled,
                                          total: _total, completed: _completed, durationMs: _durationMs })
 
     readonly property bool isRunning: AppState.runStatus === 1 && AppState.currentRunningGroup === groupIndex
@@ -50,21 +55,41 @@ PageSection {
     readonly property bool _headerCompact: ThemeEngine.isCompactUi(root.width)
 
     function reloadModel() {
-        itemsModel = root.showOnlyCompleted ? AppState.resultsForGroup(groupIndex)
-                                            : AppState.allDiagsForGroup(groupIndex)
-        _modelVersion++
+        var newModel = root.showOnlyCompleted ? AppState.resultsForGroup(groupIndex)
+                                              : AppState.allDiagsForGroup(groupIndex)
+        // 5WHY (复核 2026-08-18): progress tick 无条件替换数组身份 → Repeater
+        // 销毁重建全部瓦片 → 运行中瓦片的本地计时清零（圆点闪烁显示 0/1）。
+        // 签名门控：仅当瓦片集合 (id:status) 实际变化时替换模型；无变化发射
+        // （run 启动边界、suiteFinished 收尾）不再重建委托。
+        // 5WHY (复核 2026-08-18 效率): 字符串拼接签名是 O(n²) 拷贝——改用
+        // 无分配滚动哈希（31 进制）+ 长度预检（长度变则签名必变）。
+        if (newModel.length !== _activeLen) {
+            _activeLen = newModel.length
+            _activeHash = -1
+        }
+        var h = 0
+        for (var i = 0; i < newModel.length; ++i)
+            h = (h * 31 + newModel[i].diagId + (newModel[i].status !== undefined ? newModel[i].status : -1)) | 0
+        if (h === _activeHash && _activeLen === newModel.length) return
+        _activeHash = h
+        itemsModel = newModel
     }
+    property int _activeHash: -1
+    property int _activeLen: -1
     function _refreshStats() {   // UI-2：命令式赋值，绑定不调 Q_INVOKABLE
-        var s = AppState.groupStats(groupIndex)
-        _total = s.total || 0
-        _completed = s.completed || 0
-        _pass = s.pass || 0
-        _warn = s.warn || 0
-        _fail = s.fail || 0
-        _skip = s.skip || 0
-        _info = s.info || 0
-        _error = s.error || 0
-        _durationMs = s.durationMs || 0   // H2：行时长注入 DashboardRowHeader
+        // 5WHY (复核 2026-08-18 Reuse C3): 键归一化经 StatsUtil.js 单一来源；
+        // 本组件保留 typed int 属性（绑定追踪需要）。
+        var s = W.StatsUtil.normalize(AppState.groupStats(groupIndex))
+        _total = s.total
+        _completed = s.completed
+        _pass = s.pass
+        _warn = s.warn
+        _fail = s.fail
+        _skip = s.skip
+        _info = s.info
+        _error = s.error
+        _cancelled = s.cancelled
+        _durationMs = s.durationMs   // H2：行时长注入 DashboardRowHeader
     }
     Connections {
         target: AppState
@@ -90,17 +115,17 @@ PageSection {
 
     // 内建统计簇（宽/窄两行共用；5WHY review round 3: 计数+三徽标曾逐字复制
     // 两份，加徽标/改格式必须双处同步——现为单一内联组件）
-    component BuiltinStats: RowLayout {
-        property var stats: ({})
-        Label {
-            text: (parent.stats.completed || 0) + "/" + (parent.stats.total || 0)
-            font.family: ThemeEngine.monoFont
-            font.pixelSize: ThemeEngine.fontSize.body
-            color: ThemeEngine.colors.onSurfaceVariant
-        }
-        StatusBadge { statusCode: 0; count: parent.stats.pass || 0 }
-        StatusBadge { statusCode: 1; count: parent.stats.warn || 0 }
-        StatusBadge { statusCode: 2; count: parent.stats.fail || 0 }
+    // 5WHY (复核 2026-08-18, 用户诉求): 仅 pass/warn/fail 三徽标是回归——归档
+    // DiagGroupPanel 是 6 徽标（0/5/1/2/3/4）；补全 7 状态（含 cancelled=6）。
+    // 5WHY (复核 2026-08-18 三处复制收敛 + Loader 门控): 单一 Component 供两行
+    // Loader 复用，stats 在构造时绑定注入。
+    component BuiltinStats: StatusBadgeCluster {
+        showLabel: true
+        compact: ThemeEngine.isMobile
+    }
+    Component {
+        id: builtinStatsComp
+        BuiltinStats { stats: root._statsObj }
     }
 
     // 注入行头（宽/窄两行共用的 Loader+Binding 脚手架；5WHY review round 4:
@@ -182,9 +207,12 @@ PageSection {
                         font.pixelSize: ThemeEngine.fontSize.caption
                         elide: Text.ElideRight
                     }
-                    BuiltinStats {
-                        visible: root.rowHeaderDelegate === null && !root._headerCompact
-                        stats: root._statsObj
+                    // 5WHY (复核 2026-08-18 效率): 宽/窄两行的簇各实例化一份
+                    // （7 徽标 × 5 面板 ≈ 70 对象常驻），visible 切换不卸载。
+                    // Loader 门控：非活动行的簇完全不构造。
+                    Loader {
+                        active: root.rowHeaderDelegate === null && !root._headerCompact
+                        sourceComponent: builtinStatsComp
                     }
                     AppIcon {
                         name: "chevron-down"; size: 14
@@ -194,21 +222,24 @@ PageSection {
                     }
                 }
                 // ── 第二行（窄屏）：统计徽标/时长/进度条 ──
+                // 5WHY (复核 2026-08-18, 用户诉求): 徽标曾在行尾（被 fillWidth
+                // 行头推到最右）；归档 compact 第二行徽标左对齐——调序为先
+                // 徽标簇、后行头（进度条仍占满剩余宽度）。
                 RowLayout {
                     visible: root._headerCompact
                     Layout.fillWidth: true
                     spacing: ThemeEngine.spacing.sm
                     Item { Layout.preferredWidth: 4 }   // 缩进=accent bar(4)+spacing.sm(8)=12（5WHY review round 3: 原 11 与首行几何脱节）
+                    Loader {
+                        active: root.rowHeaderDelegate === null
+                        sourceComponent: builtinStatsComp
+                    }
                     RowHeaderInjected {
                         Layout.fillWidth: true   // fillProgress 进度条占满剩余宽度的前提
                         injectedDelegate: root.rowHeaderDelegate
                         loaderActive: root._headerCompact
                         fillProgress: true
                         _stats: root._statsObj
-                    }
-                    BuiltinStats {
-                        visible: root.rowHeaderDelegate === null
-                        stats: root._statsObj
                     }
                 }
             }

@@ -37,9 +37,8 @@ Rectangle {
     // 乘 2/3 亮度变近黑（#931919），状态光晕退化成灰斑。调用方以
     // darkenInLight=false 关闭。
     property bool darkenInLight: true
-    readonly property color _effTint: (!ThemeEngine.isDark && root.darkenInLight)
-        ? Qt.darker(root.tint, 1.5)
-        : root.tint
+    // 5WHY (复核 2026-08-18 重复收敛): 加深规则上移到 ThemeEngine.effTint。
+    readonly property color _effTint: ThemeEngine.effTint(root.tint, root.darkenInLight)
     color: Qt.alpha(root._effTint, ThemeEngine.colors.iconPadAlpha)
     border { width: 1; color: Qt.alpha(root._effTint, ThemeEngine.colors.iconPadBorderAlpha) }
 

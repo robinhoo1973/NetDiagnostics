@@ -49,6 +49,26 @@
 #include <iphlpapi.h>   // GetAdaptersInfo / GetExtendedTcpTable
 #include <tcpmib.h>     // MIB_TCP_STATE_ESTAB / MIB_TCPTABLE_OWNER_PID
 #include <wlanapi.h>    // WlanOpenHandle/WlanQueryInterface（WiFi 深探测）
+// MinGW wlanapi.h 缺 WPA3 常量（0x8，Windows 10+ WLAN 报告 SAE）；MSVC/新版 SDK 自带。
+// 5WHY：直接裸用 DOT11_AUTH_ALGO_WPA3 使 MinGW 工具链编译失败——需 SDK 兼容回退。
+// 5WHY (复核 2026-08-18): 初版用 _MSC_VER 判工具链——plain clang 以 MSVC SDK
+// 编译时不定义 _MSC_VER 却已有枚举，回退宏遮蔽 SDK 枚举（原 bug 换工具链重现）；
+// 且外层单守卫内 #define 四个符号——只缺部分变体的工具链被整体跳过仍编译失败。
+// 改为 __MINGW32__（真正的受影响工具链）+ 逐符号独立守卫。
+#if defined(__MINGW32__)
+#ifndef DOT11_AUTH_ALGO_WPA3
+#define DOT11_AUTH_ALGO_WPA3 0x00000008
+#endif
+#ifndef DOT11_AUTH_ALGO_WPA3_ENT_192
+#define DOT11_AUTH_ALGO_WPA3_ENT_192 0x00000009
+#endif
+#ifndef DOT11_AUTH_ALGO_OWE
+#define DOT11_AUTH_ALGO_OWE          0x0000000A
+#endif
+#ifndef DOT11_AUTH_ALGO_WPA3_ENT
+#define DOT11_AUTH_ALGO_WPA3_ENT     0x0000000B
+#endif
+#endif
 #endif
 
 #if defined(__APPLE__)
@@ -308,6 +328,12 @@ static DiagnosticResult probeWifi(DiagId id, const QString&, RunContext& ctx) {
                             case DOT11_AUTH_ALGO_WPA:             auth = QStringLiteral("WPA"); break;
                             case DOT11_AUTH_ALGO_WPA_PSK:         auth = QStringLiteral("WPA-PSK"); break;
                             case DOT11_AUTH_ALGO_WPA3:            auth = QStringLiteral("WPA3"); break;
+                            // 5WHY (复核 2026-08-18): WPA3-Enterprise/OWE 网络此前
+                            // 落入 default 报 "Unknown"——本 switch 就在写 WPA3 支持，
+                            // 补齐三个变体。
+                            case DOT11_AUTH_ALGO_WPA3_ENT_192:    auth = QStringLiteral("WPA3-Enterprise 192-bit"); break;
+                            case DOT11_AUTH_ALGO_OWE:             auth = QStringLiteral("OWE"); break;
+                            case DOT11_AUTH_ALGO_WPA3_ENT:        auth = QStringLiteral("WPA3-Enterprise"); break;
                             case DOT11_AUTH_ALGO_RSNA:            auth = QStringLiteral("WPA2"); break;
                             case DOT11_AUTH_ALGO_RSNA_PSK:        auth = QStringLiteral("WPA2-PSK"); break;
                             default: break;

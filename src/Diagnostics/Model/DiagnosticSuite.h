@@ -13,6 +13,7 @@
 #include <QObject>
 #include <QVector>
 #include <QList>
+#include <QHash>
 
 class QThreadPool;
 class QTimer;
@@ -39,6 +40,10 @@ public:
 
     bool isRunning() const { return m_running; }
     const Stats& stats() const { return m_stats; }
+
+    // 5WHY (复核 2026-08-18 计时连续性): 暴露运行中探针的墙钟起点——UI 委托
+    // 重建后从模型恢复真实计时，而非委托诞生时刻重新起算。
+    QHash<DiagId, qint64> runningStartTimes() const;
 
     // Run the suite.  Non-runnable (platform/scheme/device) tests are reported
     // as Skipped so progress totals are stable.  (A4: caller = AppState.)

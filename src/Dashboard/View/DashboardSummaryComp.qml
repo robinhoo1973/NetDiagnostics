@@ -1,8 +1,10 @@
 // =============================================================================
 // DashboardSummaryComp.qml — 摘要统计层（归档 SummaryCards 迁移）
 //
-// 归档布局：Summary + Total 小标题行，6 类结果彩色行（Pass/Info/Warning/
-// Fail/Skipped/Error），空态单行提示。数据源：AppState.groupStats(-1) 聚合。
+// 归档布局：Summary + Total 小标题行，7 类结果彩色行（Pass/Info/Warning/
+// Fail/Skipped/Error/Cancelled），空态单行提示。数据源：AppState.groupStats(-1) 聚合。
+// 5WHY (复核 2026-08-18): 头部注释曾滞留"6 类"——模型已含 7 类（含 Cancelled），
+// 头部更新防维护者误判 Cancelled 仍缺失而重开已修复的 bug。
 // UI-2：命令式刷新（绑定不调 Q_INVOKABLE）。
 // =============================================================================
 import NetDiagnostics.App 1.0
@@ -11,19 +13,18 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import theme
 import widgets
+import "../../widgets/StatsUtil.js" as W   // qrc:/qt/qml/Dashboard/View/ → ../../widgets/ 直接 JS 导入
 
 Item {
     id: root
     implicitHeight: sumCol.implicitHeight
 
-    property var _s: ({ pass: 0, warn: 0, fail: 0, skip: 0, info: 0, error: 0, total: 0 })
-    readonly property int _count: _s.pass + _s.warn + _s.fail + _s.skip + _s.info + _s.error
+    // 5WHY (复核 2026-08-18 Reuse C3): 键集合归一化上移到 StatsUtil.js。
+    property var _s: W.StatsUtil.normalize(null)
+    readonly property int _count: _s.pass + _s.warn + _s.fail + _s.skip + _s.info + _s.error + _s.cancelled
 
     function _refresh() {
-        var a = AppState.groupStats(-1)
-        _s = { pass: a.pass || 0, warn: a.warn || 0, fail: a.fail || 0,
-               skip: a.skip || 0, info: a.info || 0, error: a.error || 0,
-               total: a.total || 0 }
+        _s = W.StatsUtil.normalize(AppState.groupStats(-1))
     }
     Connections {
         target: AppState
@@ -70,18 +71,13 @@ Item {
             horizontalAlignment: Text.AlignHCenter
         }
 
-        // 6 类结果彩色行（5WHY simplify 2026-08-17：六行仅 accent/icon/label/
+        // 7 类结果彩色行（5WHY simplify 2026-08-17：各行仅 accent/icon/label/
         // count 键不同，且与 ThemeEngine.statusColors/statusIconNames 1:1
         // 对应——一张表驱动，状态映射不再双份维护）
+        // 5WHY (复核 2026-08-18 五表漂移): 表上移到 ThemeEngine.statusRows
+        // 单一来源，与 StatusBadgeCluster 同源消费。
         Repeater {
-            model: [
-                { code: 0, labelKey: "summaryPass",    countKey: "pass" },
-                { code: 5, labelKey: "summaryInfo",    countKey: "info" },
-                { code: 1, labelKey: "summaryWarning", countKey: "warn" },
-                { code: 2, labelKey: "summaryFail",    countKey: "fail" },
-                { code: 3, labelKey: "summarySkipped", countKey: "skip" },
-                { code: 4, labelKey: "summaryError",   countKey: "error" }
-            ]
+            model: ThemeEngine.statusRows
             SummaryCard {
                 Layout.fillWidth: true
                 accent: ThemeEngine.statusColors[modelData.code] || ThemeEngine.colors.skip

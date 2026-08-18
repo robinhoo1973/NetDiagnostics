@@ -41,27 +41,23 @@ QString normalizeReportPath(const QString& p) {
 // consumer indexes into the correct array for its color domain (string vs RGB,
 // dark vs light). Adding a new status now requires one new case in statusIndex().
 static int statusIndex(DiagStatus s) {
-    switch (s) {
-        case DiagStatus::Pass:    return 0;
-        case DiagStatus::Warning: return 1;
-        case DiagStatus::Fail:    return 2;
-        case DiagStatus::Error:   return 3;
-        case DiagStatus::Skipped: return 4;
-        case DiagStatus::Info:
-        default:                  return 5;
-    }
+    // 5WHY (复核 2026-08-18 Reuse C5): 单一描述符表（DiagId.h statusDescriptor）
+    // 取代独立 switch——Cancelled 曾在此处缺 case 静默回退 Info（绿色 i 图标）。
+    return statusDescriptor(s).paletteIndex;
 }
 
 QString reportStatusColor(DiagStatus s, bool darkBackground) {
     static const QString hexColors[] = {
         QStringLiteral(APPC_SUCCESS_DARK),  QStringLiteral(APPC_WARNING_DARK),
         QStringLiteral(APPC_FAIL_DARK),     QStringLiteral(APPC_ERROR_DARK),
-        QStringLiteral(APPC_SKIP_DARK),     QStringLiteral(APPC_INFO_DARK),
+        QStringLiteral(APPC_SKIP_DARK),     QStringLiteral(APPC_SKIP_DARK),   // Cancelled 复用 skip 灰系
+        QStringLiteral(APPC_INFO_DARK),
         QStringLiteral(APPC_SUCCESS_LIGHT), QStringLiteral(APPC_WARNING_LIGHT),
         QStringLiteral(APPC_FAIL_LIGHT),    QStringLiteral(APPC_ERROR_LIGHT),
-        QStringLiteral(APPC_SKIP_LIGHT),    QStringLiteral(APPC_INFO_LIGHT),
+        QStringLiteral(APPC_SKIP_LIGHT),    QStringLiteral(APPC_SKIP_LIGHT),  // Cancelled 复用 skip 灰系
+        QStringLiteral(APPC_INFO_LIGHT),
     };
-    return hexColors[statusIndex(s) + (darkBackground ? 0 : 6)];
+    return hexColors[statusIndex(s) + (darkBackground ? 0 : 7)];
 }
 
 // 5WHY: Reports used colored dots or Unicode glyphs instead of proper
@@ -74,38 +70,41 @@ QImage renderStatusIcon(DiagStatus s, int size, bool darkBackground) {
     static const QRgb rgbColors[] = {
         APPC_SUCCESS_RGB_DARK,  APPC_WARNING_RGB_DARK,
         APPC_FAIL_RGB_DARK,     APPC_ERROR_RGB_DARK,
-        APPC_SKIP_RGB_DARK,     APPC_INFO_RGB_DARK,
+        APPC_SKIP_RGB_DARK,     APPC_SKIP_RGB_DARK,    // Cancelled 复用 skip 灰系
+        APPC_INFO_RGB_DARK,
         APPC_SUCCESS_RGB,       APPC_WARNING_RGB,
         APPC_FAIL_RGB,          APPC_ERROR_RGB,
-        APPC_SKIP_RGB,          APPC_INFO_RGB,
+        APPC_SKIP_RGB,          APPC_SKIP_RGB,         // Cancelled 复用 skip 灰系
+        APPC_INFO_RGB,
     };
     QImage img(size, size, QImage::Format_ARGB32_Premultiplied);
     img.fill(Qt::transparent);
     QPainter p(&img);
     p.setRenderHint(QPainter::Antialiasing);
-    QColor bg = QColor::fromRgba(rgbColors[statusIndex(s) + (darkBackground ? 0 : 6)]);
+    QColor bg = QColor::fromRgba(rgbColors[statusIndex(s) + (darkBackground ? 0 : 7)]);
     const float margin = size * 0.08f;
     p.setBrush(bg);
     p.setPen(Qt::NoPen);
     p.drawEllipse(QRectF(margin, margin, size - 2*margin, size - 2*margin));
     p.setPen(QPen(Qt::white, size * 0.10f, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
     const float cx = size * 0.5f, cy = size * 0.5f, r = size * 0.28f;
-    switch (s) {
-        case DiagStatus::Pass:
+    // 5WHY (复核 2026-08-18 Reuse C5): 字形画法经描述符表 glyph 分发——
+    // Cancelled 落入 Cross（X=中止），不再误画 Info "i"。
+    switch (statusDescriptor(s).glyph) {
+        case DiagStatusGlyph::Check:
             p.drawLine(QPointF(cx-r*0.6f, cy), QPointF(cx-r*0.1f, cy+r*0.5f));
             p.drawLine(QPointF(cx-r*0.1f, cy+r*0.5f), QPointF(cx+r*0.7f, cy-r*0.4f));
             break;
-        case DiagStatus::Warning:
+        case DiagStatusGlyph::Warning:
             p.drawLine(QPointF(cx, cy-r*0.6f), QPointF(cx, cy+r*0.15f));
             p.setPen(Qt::NoPen); p.setBrush(Qt::white);
             p.drawEllipse(QPointF(cx, cy+r*0.55f), r*0.12f, r*0.12f);
             break;
-        case DiagStatus::Fail:
-        case DiagStatus::Error:
+        case DiagStatusGlyph::Cross:
             p.drawLine(QPointF(cx-r*0.5f, cy-r*0.5f), QPointF(cx+r*0.5f, cy+r*0.5f));
             p.drawLine(QPointF(cx+r*0.5f, cy-r*0.5f), QPointF(cx-r*0.5f, cy+r*0.5f));
             break;
-        case DiagStatus::Skipped:
+        case DiagStatusGlyph::Skip:
             p.drawLine(QPointF(cx-r*0.6f, cy), QPointF(cx+r*0.6f, cy));
             break;
         default: // Info — "i"
@@ -156,25 +155,12 @@ QString reportStatusIconImg(DiagStatus s, int size, bool darkBackground) {
 }
 
 QString reportStatusText(DiagStatus s) {
-    switch (s) {
-        case DiagStatus::Pass:    return QStringLiteral("Pass");
-        case DiagStatus::Warning: return QStringLiteral("Warning");
-        case DiagStatus::Fail:    return QStringLiteral("Fail");
-        case DiagStatus::Error:   return QStringLiteral("Error");
-        case DiagStatus::Skipped: return QStringLiteral("Skipped");
-        default:                  return QStringLiteral("Info");
-    }
+    // 5WHY (复核 2026-08-18 Reuse C5): 单一描述符表取代 switch。
+    return QString::fromLatin1(statusDescriptor(s).reportText);
 }
 
 QString reportStatusClass(DiagStatus s) {
-    switch (s) {
-        case DiagStatus::Pass:    return QStringLiteral("pass");
-        case DiagStatus::Warning: return QStringLiteral("warn");
-        case DiagStatus::Fail:    return QStringLiteral("fail");
-        case DiagStatus::Error:   return QStringLiteral("error");
-        case DiagStatus::Skipped: return QStringLiteral("skip");
-        default:                  return QStringLiteral("info");
-    }
+    return QString::fromLatin1(statusDescriptor(s).reportCssClass);
 }
 
 // 5WHY: buildHtml() and buildRichDocument() each defined their own set of
@@ -243,6 +229,29 @@ struct ReportColors {
 
 // ── Public: HTML generation ─────────────────────────────────────────────
 
+// 5WHY (复核 2026-08-18 重复累积): buildHtml/buildRichDocument 各有一份 8 变量
+// groupStats 累积循环（加 cancelled 时双处同步）——提取共享 helper，卡片求和
+// = total 的不变式只在单一推导点维护。
+struct ReportTotals {
+    int pass=0, warn=0, fail=0, skip=0, info=0, error=0, cancelled=0, total=0;
+};
+static ReportTotals accumulateTotals(const ReportData& data) {
+    ReportTotals t;
+    for (int g = 0; g < 5; ++g) {
+        auto it = data.groupStats.find(g);
+        if (it == data.groupStats.end()) continue;
+        t.pass += it->value(QStringLiteral("pass")).toInt();
+        t.warn += it->value(QStringLiteral("warn")).toInt();
+        t.fail += it->value(QStringLiteral("fail")).toInt();
+        t.skip += it->value(QStringLiteral("skip")).toInt();
+        t.info += it->value(QStringLiteral("info")).toInt();
+        t.error += it->value(QStringLiteral("error")).toInt();
+        t.cancelled += it->value(QStringLiteral("cancelled")).toInt();
+        t.total += it->value(QStringLiteral("total")).toInt();
+    }
+    return t;
+}
+
 QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail, bool darkBackground) {
     const ReportColors c(darkBackground);
     // Aliases for concise reference in the large HTML string below
@@ -259,18 +268,10 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail, bool da
     const QString& codeBlockBg = c.codeBlockBg, &codeBlockFg = c.codeBlockFg;
     const QString& detailBg = c.detailBg, &footerColor = c.footerColor;
 
-    int tPass=0,tWarn=0,tFail=0,tSkip=0,tInfo=0,tError=0,tTotal=0;
-    for (int g = 0; g < 5; ++g) {
-        auto it = data.groupStats.find(g);
-        if (it == data.groupStats.end()) continue;
-        tPass += it->value(QStringLiteral("pass")).toInt();
-        tWarn += it->value(QStringLiteral("warn")).toInt();
-        tFail += it->value(QStringLiteral("fail")).toInt();
-        tSkip += it->value(QStringLiteral("skip")).toInt();
-        tInfo += it->value(QStringLiteral("info")).toInt();
-        tError += it->value(QStringLiteral("error")).toInt();
-        tTotal += it->value(QStringLiteral("total")).toInt();
-    }
+    const ReportTotals totals = accumulateTotals(data);
+    const int& tPass = totals.pass, &tWarn = totals.warn, &tFail = totals.fail;
+    const int& tSkip = totals.skip, &tInfo = totals.info, &tError = totals.error;
+    const int& tCancelled = totals.cancelled, &tTotal = totals.total;
 
     QString h;
     // 5WHY: QTextDocument (Qt Rich Text subset) does not support CSS
@@ -347,6 +348,8 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail, bool da
     // the summary cards — the card total no longer matched "N tests total"
     // when errors occurred. Added the 6th card so error is visible.
     h += card(bgCardError, colorError, tError, QStringLiteral("Error"), reportStatusIconImg(DiagStatus::Error, 24, darkBackground));
+    // 5WHY (复核 2026-08-18): 第 7 张卡片（Cancelled）补齐后卡片求和 = total。
+    h += card(bgCardSkip, colorSkip, tCancelled, QStringLiteral("Cancelled"), reportStatusIconImg(DiagStatus::Cancelled, 24, darkBackground));
     h += QStringLiteral("</tr></table>");
     h += QStringLiteral("<p align=\"center\" style=\"margin:10px 0 18px 0\"><span style=\"font-size:12px;color:%1\">%2 tests total</span></p>")
         .arg(textMuted).arg(tTotal);
@@ -534,18 +537,10 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail, bool da
 }
 
 QString ReportEngine::buildRichDocument(const ReportData& data, bool darkBackground) {
-    int tPass=0,tWarn=0,tFail=0,tSkip=0,tInfo=0,tError=0,tTotal=0;
-    for (int g = 0; g < 5; ++g) {
-        auto it = data.groupStats.find(g);
-        if (it == data.groupStats.end()) continue;
-        tPass += it->value(QStringLiteral("pass")).toInt();
-        tWarn += it->value(QStringLiteral("warn")).toInt();
-        tFail += it->value(QStringLiteral("fail")).toInt();
-        tSkip += it->value(QStringLiteral("skip")).toInt();
-        tInfo += it->value(QStringLiteral("info")).toInt();
-        tError += it->value(QStringLiteral("error")).toInt();
-        tTotal += it->value(QStringLiteral("total")).toInt();
-    }
+    const ReportTotals totals = accumulateTotals(data);
+    const int& tPass = totals.pass, &tWarn = totals.warn, &tFail = totals.fail;
+    const int& tSkip = totals.skip, &tInfo = totals.info, &tError = totals.error;
+    const int& tCancelled = totals.cancelled, &tTotal = totals.total;
 
     // 5WHY: CSS custom properties define the complete visual theme so
     // buildRichDocument() respects darkBackground.  Every color used in
@@ -671,12 +666,16 @@ QString ReportEngine::buildRichDocument(const ReportData& data, bool darkBackgro
         ".badge.fail{background:var(--badge-fail-bg);color:var(--badge-fail-fg)}.badge.skip{background:var(--badge-skip-bg);color:var(--badge-skip-fg)}"
         ".badge.info{background:var(--badge-info-bg);color:var(--badge-info-fg)}"
         ".badge.error{background:var(--badge-error-bg);color:var(--badge-error-fg)}"
+        ".badge.cancel{background:var(--badge-skip-bg);color:var(--badge-skip-fg)}"
         "details.test{background:var(--card-bg);border-radius:10px;margin-bottom:12px;overflow:hidden}"
         "details.test>summary{padding:13px 16px;cursor:pointer;font-weight:600;font-size:14px}"
         "details.test.pass>summary{border-left:4px solid var(--detail-pass)}details.test.warn>summary{border-left:4px solid var(--detail-warn)}"
         "details.test.fail>summary{border-left:4px solid var(--detail-fail)}details.test.skip>summary{border-left:4px solid var(--detail-skip)}"
         "details.test.info>summary{border-left:4px solid var(--detail-info)}"
         "details.test.error>summary{border-left:4px solid var(--detail-error)}"
+        // 5WHY (复核 2026-08-18): reportStatusClass 返回 "cancel" 但 details.test.cancel
+        // 无左缘状态条——取消行的详情块与其他状态视觉不可区分。复用 skip 变量。
+        "details.test.cancel>summary{border-left:4px solid var(--detail-skip)}"
         ".body{padding:14px 16px 18px;border-top:1px solid var(--body-border)}"
         ".analysis{background:var(--analysis-bg);color:var(--analysis-fg);border-left:3px solid var(--analysis-border);padding:11px 13px;border-radius:6px;margin-bottom:12px;font-size:13px;line-height:1.6}"
         ".raw{background:var(--raw-bg);padding:13px;border-radius:6px;font-family:'Consolas','Courier New',monospace;font-size:12px;white-space:pre-wrap;line-height:1.5;color:var(--raw-fg);max-height:420px;overflow:auto}"
@@ -720,6 +719,8 @@ QString ReportEngine::buildRichDocument(const ReportData& data, bool darkBackgro
     // 5WHY: Error status card was missing (CSS .card.error existed but no
     // card was ever emitted) — total card counts disagreed with "N tests".
     h += card(QStringLiteral("error"), reportStatusIconImg(DiagStatus::Error, 32, darkBackground), tError, QStringLiteral("Error"));
+    // 5WHY (复核 2026-08-18): 与 buildHtml 同理——Cancelled 卡补齐求和一致性。
+    h += card(QStringLiteral("skip"), reportStatusIconImg(DiagStatus::Cancelled, 32, darkBackground), tCancelled, QStringLiteral("Cancelled"));
     h += QStringLiteral("</div>\n");
 
     // Summary table

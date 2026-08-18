@@ -47,7 +47,10 @@ public:
     // Android GPB / macOS StoreKit are future).  The UI gates the Subscribe/
     // Restore buttons on this so a platform never offers a purchase that
     // cannot complete (Apple/Google review policy).
-    bool supportsIap() const;
+    // 5WHY (复核 2026-08-18): 原为普通成员函数——QML 经 qmlRegisterSingletonInstance
+    // 只能访问 Q_PROPERTY/Q_INVOKABLE，`PremiumStore.supportsIap` 绑定报
+    // TypeError 且 visible 保持默认 true（fail-open）。补 Q_INVOKABLE。
+    Q_INVOKABLE bool supportsIap() const;
 
 signals:
     void premiumChanged();

@@ -34,8 +34,14 @@ PremiumStore::PremiumStore(QObject* parent) : QObject(parent) {
     // launch re-derives the entitlement from the App Store so the purchase
     // survives; the manual Restore button remains as a fallback.  Delayed so
     // it never competes with startup UI; no toast is shown (silent).
+    // 5WHY (复核 2026-08-18): 自动恢复在每次启动无条件执行——受限设备
+    // （Screen Time/MDM）上该调用无意义。增加 canMakePayments 守卫：
+    // 不可支付的环境跳过自动恢复（用户仍可手动点 Restore）。
+    // 注：Apple 未文档化"未登录 Apple ID"为 canMakePayments=false 的条件，
+    // 签名用户的系统登录 sheet 行为不受此守卫约束。
     QTimer::singleShot(1500, this, [this]() {
         if (m_isPremium || m_purchaseInProgress) return;
+        if (!platformCanMakePayments()) return;
         platformRestorePurchases([this](bool restoredAny, bool /*isError*/) {
             if (restoredAny) setPremium(true);
             // Silent: intentionally do NOT emit restoreCompleted — that signal
@@ -116,7 +122,12 @@ void PremiumStore::requestSubscription() {
     // 5WHY: Premium was granted directly on non-iOS — any Android/desktop
     // user got Premium free. Now gated: debug grants freely, release builds
     // show a Premium-required toast instead of silently granting.
-#if defined(ND_DEBUG) || !defined(NDEBUG)
+    // 5WHY (复核 2026-08-18 fail-open 收口): !defined(ND_RELEASE) 是 fail-open
+    // ——任何未定义 ND_RELEASE 的打包路径（未来以 Debug 配置误打包、自定义
+    // 流水线遗漏 genex）都静默永久解锁。改为显式 ND_DEV（仅 Debug 配置由
+    // netdiag-target.cmake 定义）：无 ND_DEV 一律 premiumRequired，判门
+    // fail-closed，付费方向不再有静默放行面。
+#if defined(ND_DEV)
     // Debug/development: grant Premium directly so share flow is testable
     setPremium(true);
 #else

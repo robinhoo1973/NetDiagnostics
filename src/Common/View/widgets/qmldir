@@ -3,6 +3,7 @@ AppIcon 1.0 AppIcon.qml
 AppBar 1.0 AppBar.qml
 AppLabel 1.0 AppLabel.qml
 StatusBadge 1.0 StatusBadge.qml
+StatusBadgeCluster 1.0 StatusBadgeCluster.qml
 Toast 1.0 Toast.qml
 DiagBlock 1.0 DiagBlock.qml
 DiagTileGrid 1.0 DiagTileGrid.qml

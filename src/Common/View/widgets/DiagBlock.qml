@@ -11,6 +11,8 @@ Item {
     property var itemData: ({})
     property bool testRunning: false
     property real blockSize: 108
+    // 5WHY (复核 2026-08-18 动画批量抖动): 网格序号——完成动画错峰延迟用。
+    property int staggerIndex: 0
     signal clicked(var data)
 
     readonly property bool _isPending: itemData.isPending === true
@@ -31,13 +33,16 @@ Item {
         ? (T.diagName(itemData.diagId) || itemData.label || "")
         : (itemData.label || ""))
     // ── 瓦片级图标缩放（5WHY review round 4 — 用户诉求"图形以瓦片尺寸显示"）──
-    // 图标/光晕垫随 blockSize 派生（M3 keyline 比经 ThemeEngine 令牌），
-    // 不再用 compact 二值（原 80-160px 瓦片恒渲染 32/44px 小框）。
+    // 图标随 blockSize 派生（M3 keyline 比经 ThemeEngine 令牌），不再用 compact
+    // 二值（原 80-160px 瓦片恒渲染 32/44px 小框）。
+    // 5WHY (复核 2026-08-18, 用户诉求"检测项图片外不需要圆角方框按钮区"):
+    // 0.66×瓦片恢复——几何复核证明图标井圆与计时圆点圆从不重叠（最小圆心
+    // 距差 5.2px@80px 瓦片），此前 0.54 收缩基于错误的包围盒计算，详见
+    // ThemeEngine.tileIconRatio 令牌注释。
     readonly property int _iconSize: Math.max(ThemeEngine.tileIconMin,
                                               Math.round(root.blockSize * ThemeEngine.tileIconRatio))
-    // 垫尺寸夹紧到卡片内（5WHY review round 4: 极小块调用方曾可溢出圆角）
-    readonly property int _padSize: Math.min(root.blockSize - 10,
-                                             Math.round(root._iconSize * ThemeEngine.tilePadRatio))
+    // 左上角指示（计时圆点/完成结果图标）尺寸：随瓦片缩放、夹紧 16-24px
+    readonly property int _timerDotSize: Math.min(24, Math.max(16, Math.round(root.blockSize * 0.185)))
     // _iconName 中间属性：下游绑定只随 iconName 值变化（itemData 是 var 持
     // JS 对象，子属性访问不参与依赖追踪）
     readonly property string _iconName: itemData.iconName || "circle"
@@ -58,11 +63,18 @@ Item {
     readonly property color _iconColor: root._isDisabled
         ? ThemeEngine.colors.textMuted
         : ThemeEngine.colors.iconInk
-    // 完成态：光晕垫改状态色（5WHY review round 4: 状态信号曾缩为 3px 细条
-    // ——45 瓦片密集墙上失败几乎不可见；垫色随状态发光恢复醒目度）
-    readonly property color _padTint: root.isDone
-        ? root._statusColor
-        : ThemeEngine.iconPadTint(_iconName)
+    // 圆光晕合成色（复核 2026-08-18: 圆角方垫→归档圆形光晕，半径 width/2；
+    // light 加深仅用于 IconTints 烘焙值——完成态状态色本身是加深变体）
+    // 5WHY (复核 2026-08-18): _padTint 随 IconPad 移除后成死属性（零读取），
+    // 且每次求值重复一次 IconTints 字符串查找——已删除。
+    readonly property color _glowColor: {
+        if (root.isDone) return Qt.alpha(root._statusColor, 0.14)
+        if (root._isRunning) return Qt.alpha(ThemeEngine.colors.primary, 0.10)
+        // 5WHY (复核 2026-08-18 重复收敛): light 加深规则消费 ThemeEngine.effTint
+        // 单一 helper（IconPad 同源）——规则改动只落一处。
+        var t = ThemeEngine.effTint(ThemeEngine.iconPadTint(root._iconName), true)
+        return Qt.alpha(t, ThemeEngine.colors.iconPadAlpha)
+    }
 
     visible: _isPending || !_isSkipped
     implicitWidth: visible ? blockSize : 0
@@ -81,34 +93,32 @@ Item {
     }
 
     property int _elapsed: 0
-    property int _ranSeconds: 0   // 完成瞬间锁存（durationMs=0 的工厂结果也保留计时）
     Timer {
         id: elapsedTimer
         interval: 1000; repeat: true
         running: _isRunning
         onTriggered: root._elapsed++
-        // 5WHY (verify 2026-08-17, Qt 6.8.2 实测): isDone 翻转时 onIsDoneChanged
-        // 先于 runningChanged 触发（锁存成功），但当 testRunning 先于 isDone
-        // 归 false（组先结束再落结果）时 _elapsed 已清零、锁存落空——停止路径
-        // 同样锁存，两种完成时序都保留计时（委托重建路径见 _timerSecs 注释）。
+        // 5WHY (复核 2026-08-18): 运行状态翻转即清零——完成态计时圆点已让位
+        // 给结果图形（用户诉求），完成后 _elapsed 无任何消费方；停止路径
+        // （中断/异常未落结果）同样清零，冻结计数不再残留。
         onRunningChanged: {
-            if (!running) {
-                if (root._elapsed > 0) root._ranSeconds = root._elapsed
-                root._elapsed = 0
-            }
+            root._elapsed = 0
         }
     }
-    // 计时数据驱动（5WHY review round 4: 委托在每次进度事件被重建，本地
-    // _elapsed 被清零——完成态计时改读 itemData.durationMs，重建后依然可见；
-    // _showTimer/_displayElapsed 两个同步状态随之删除）
-    // 完成态：Math.max(1, …) 防亚秒结果显示 "0"（GCommon/DiagnosticBase 最小
-    // 1ms——round(150/1000)=0，圆点可见但显示 0 秒）。
-    readonly property int _timerSecs: root.isDone
-        ? Math.max(1, Math.round(((itemData.durationMs || 0) > 0 ? itemData.durationMs : root._ranSeconds * 1000) / 1000))
+    // 5WHY (复核 2026-08-18): 委托重建（reloadModel 换模型身份）会把 _elapsed
+    // 清零。真实起点经模型注入 startedAtMs（C++ DiagnosticBase 墙钟）——重建
+    // 后计时从真实起点反推，并行 Suite 兄弟结果落地不再重置显示；无起点
+    // （模型未注入时）回退本地计数。
+    Component.onCompleted: {
+        var ms = root.itemData.durationMs
+        if (ms !== undefined && ms > 0) root._elapsed = Math.round(ms / 1000)
+    }
+    readonly property real _startedAtMs: root.itemData.startedAtMs !== undefined
+        ? root.itemData.startedAtMs : 0
+    readonly property int _timerSecs: root._startedAtMs > 0
+        ? Math.max(1, Math.floor((Date.now() - root._startedAtMs) / 1000))
         : root._elapsed
-    readonly property bool _timerVisible: root.isDone
-        ? ((itemData.durationMs || 0) > 0 || root._ranSeconds > 0)
-        : root._elapsed > 0
+    readonly property bool _timerVisible: !root.isDone && (root._startedAtMs > 0 || root._elapsed > 0)
     readonly property string _timerColor: {
         if (_timerSecs > 20) return ThemeEngine.colors.fail
         if (_timerSecs >= 10) return ThemeEngine.colors.warningStrong
@@ -120,12 +130,15 @@ Item {
     // _settleScale 中间属性只为动画存在，且占用每瓦片属性预算）
     onIsDoneChanged: {
         if (isDone) {
-            if (root._elapsed > 0) root._ranSeconds = root._elapsed
             card.scale = 0.94; settleAnim.restart()
         }
     }
     SequentialAnimation {
         id: settleAnim
+        // 5WHY (复核 2026-08-18 动画批量抖动): 首段 PauseAnimation 按网格序号
+        // 错峰（30ms×序号，封顶 300ms）——并行 Suite 完成 burst 时 ~45 瓦片
+        // 的 settle+光晕动画不再同帧齐发。
+        PauseAnimation { duration: Math.min(root.staggerIndex, 10) * 30 }
         NumberAnimation { target: card; property: "scale"; to: 1.04; duration: 120; easing.type: Easing.OutQuad }
         NumberAnimation { target: card; property: "scale"; to: 1.0; duration: 140; easing.type: Easing.OutBack }
     }
@@ -146,20 +159,31 @@ Item {
         }
         border { width: 1; color: _isRunning ? ThemeEngine.colors.primary : ThemeEngine.colors.outlineVariant }
 
-        // ── 图标光晕垫（最先声明=底层；5WHY review round 4: 旧顺序垫盖住
-        // 计时圆点——圆点/角标/状态条在其上绘制）──
-        IconPad {
+        // ── 图标圆形光晕（最先声明=底层；5WHY review round 4: 旧顺序垫盖住
+        // 计时圆点——圆点/结果图标/状态条在其上绘制）
+        // 5WHY (复核 2026-08-18, 用户诉求): 圆角方框按钮区（IconPad squircle
+        // ≈0.92×瓦片）删除——回归归档视觉，检测项图形直接用圆形光晕承载
+        // （半径 width/2，无边框），不再有"小一号方框"感。
+        Rectangle {
             id: iconWell
             anchors.centerIn: parent
-            width: root._padSize; height: root._padSize
-            iconName: root._iconName
-            iconSize: root._iconSize
-            iconColor: root._iconColor
-            tint: root._padTint
-            // 5WHY (verify 2026-08-17): 完成态 tint 是状态色（light 变体本身
-            // 已加深，如 #DC2626）——再经 IconPad light 加深 1.5× 会变近黑，
-            // 状态光晕退化为灰斑。仅非完成态的 IconTints 值需要 light 加深。
-            darkenInLight: !root.isDone
+            width: root._iconSize; height: root._iconSize
+            radius: width / 2
+            color: root._glowColor
+            Behavior on color { ColorAnimation { duration: 200 } }
+
+            // 检测项图形（归档：井内死居中、最上层 z:2；瓦片级缩放）
+            AppIcon {
+                id: blockIcon
+                z: 2
+                anchors.centerIn: parent
+                name: root._iconName
+                size: root._iconSize
+                color: root._iconColor
+                // 5WHY (verify 2026-08-17): 完成态图标保持油墨色——状态信号由
+                // 光晕色 + 底部状态条 + 左上结果图标三重呈现，图标变状态色会
+                // 削弱 light 主题可读性（fail 红黑混叠）。
+            }
             // 终端协议闪烁光标（仅运行中显示；几何对齐 SVG 静态下划线）
             Rectangle {
                 id: terminalCursor
@@ -187,18 +211,31 @@ Item {
             }
         }
 
-        // ── 计时圆点（左上；光晕垫之上）──
+        // ── 左上角指示区 ──
+        // 5WHY (复核 2026-08-18, 用户诉求): 计时圆点贴死左上角（边距 8→4，
+        // 尺寸随瓦片缩放 16-24px），且仅运行中显示；检测结束该位置由结果
+        // 图形取代（右上角状态角标随之删除——同一信息不再双处呈现）。
         Rectangle {
             visible: root._timerVisible
-            anchors { top: parent.top; left: parent.left; margins: 8 }
-            width: 22; height: 22; radius: 11
+            anchors { top: parent.top; left: parent.left; margins: 4 }
+            width: root._timerDotSize; height: root._timerDotSize; radius: width / 2
             color: Qt.alpha(root._timerColor, 0.16)
             Label {
                 anchors.centerIn: parent
                 text: root._timerSecs
-                font.family: ThemeEngine.monoFont; font.pixelSize: ThemeEngine.fontSize.micro; font.weight: Font.Bold
+                font.family: ThemeEngine.monoFont
+                font.pixelSize: root._timerDotSize >= 20 ? ThemeEngine.fontSize.micro : 8
+                font.weight: Font.Bold
                 color: root._timerColor
             }
+        }
+        // ── 完成态结果图形（占用原计时圆点位置；与圆点同尺寸同锚点）──
+        AppIcon {
+            visible: root.isDone
+            anchors { top: parent.top; left: parent.left; margins: 4 }
+            name: root._statusIcon
+            size: root._timerDotSize
+            color: root._statusColor
         }
 
         // ── 底部状态条（完成=状态色 / 运行=主色；5WHY review round 4:
@@ -209,15 +246,6 @@ Item {
             radius: 1.5
             visible: root.isDone || root._isRunning
             color: root.isDone ? root._statusColor : ThemeEngine.colors.primary
-        }
-
-        // ── 完成状态角标（右上）──
-        AppIcon {
-            visible: isDone
-            anchors { top: parent.top; right: parent.right; margins: 7 }
-            name: _statusIcon
-            size: 14
-            color: _statusColor
         }
 
         // hover 光晕（归档视觉）

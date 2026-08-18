@@ -3026,6 +3026,23 @@
       "Resumo",
       "ملخص"
     ],
+    "summaryCancelled": [
+      "已取消",
+      "已取消",
+      "キャンセル",
+      "취소됨",
+      "रद्द",
+      "Đã hủy",
+      "İptal edildi",
+      "Cancelled",
+      "Annulé",
+      "Abgebrochen",
+      "Отменено",
+      "Annullato",
+      "Cancelado",
+      "Cancelado",
+      "تم الإلغاء"
+    ],
     "summaryError": [
       "错误",
       "錯誤",

@@ -29,17 +29,40 @@ inline QString diagGroupLabel(DiagGroup g) {
 // ── Test Status ─────────────────────────────────────────────────────────────
 enum class DiagStatus { Pass, Warning, Fail, Skipped, Error, Info, Cancelled };
 
+// 5WHY (复核 2026-08-18 Reuse C5): 状态→{图标,报告文本,CSS类,调色板下标,字形}
+// 此前是 4 个平行 switch（diagStatusIcon + ReportEngine 的 statusIndex/
+// reportStatusText/reportStatusClass）——加 Cancelled 四处同步、漏一处静默
+// 回退 Info。收敛为单一描述符表；QML 侧 statusColors/statusIconNames 数组
+// 与 ThemeEngine.statusRows 是其镜像（跨语言无法同源，语言内同源）。
+enum class DiagStatusGlyph { Check, Warning, Cross, Skip, Info };
+
+struct DiagStatusDescriptor {
+    DiagStatus      status;
+    const char*     iconName;      // QML AppIcon 名称（与 ThemeEngine.statusIconNames 同值）
+    const char*     reportText;    // 导出报告状态词
+    const char*     reportCssClass;// buildRichDocument 徽标 CSS 类
+    int             paletteIndex;  // ReportEngine hexColors/rgbColors 数组下标
+    DiagStatusGlyph glyph;         // renderStatusIcon 画法
+};
+
+inline const DiagStatusDescriptor& statusDescriptor(DiagStatus s) {
+    static const DiagStatusDescriptor table[] = {
+        { DiagStatus::Pass,      "badge-check",   "Pass",      "pass",   0, DiagStatusGlyph::Check },
+        { DiagStatus::Warning,   "badge-warning", "Warning",   "warn",   1, DiagStatusGlyph::Warning },
+        { DiagStatus::Fail,      "badge-close",   "Fail",      "fail",   2, DiagStatusGlyph::Cross },
+        { DiagStatus::Error,     "badge-error",   "Error",     "error",  3, DiagStatusGlyph::Cross },
+        { DiagStatus::Skipped,   "badge-skip",    "Skipped",   "skip",   4, DiagStatusGlyph::Skip },
+        // Cancelled: close 图标 = X 中止语义，与 Skipped 区分（NEW-17 复核 2026-08-18）
+        { DiagStatus::Cancelled, "close",         "Cancelled", "cancel", 5, DiagStatusGlyph::Cross },
+        { DiagStatus::Info,      "badge-info",    "Info",      "info",   6, DiagStatusGlyph::Info },
+    };
+    for (const auto& d : table)
+        if (d.status == s) return d;
+    return table[6];   // 未知状态回退 Info
+}
+
 inline QString diagStatusIcon(DiagStatus s) {
-    switch (s) {
-        case DiagStatus::Pass:     return QStringLiteral("badge-check");
-        case DiagStatus::Warning:  return QStringLiteral("badge-warning");
-        case DiagStatus::Fail:     return QStringLiteral("badge-close");
-        case DiagStatus::Skipped:  return QStringLiteral("badge-skip");
-        case DiagStatus::Error:    return QStringLiteral("badge-error");
-        case DiagStatus::Info:     return QStringLiteral("badge-info");
-        case DiagStatus::Cancelled: return QStringLiteral("badge-skip"); // NEW-17: deadline 中止项
-    }
-    return {};
+    return QString::fromLatin1(statusDescriptor(s).iconName);
 }
 
 // ── Test ID (46 values; 45 schedulable + 1 deprecated slot) ────────────────

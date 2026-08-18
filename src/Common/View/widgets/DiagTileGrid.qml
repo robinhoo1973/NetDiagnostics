@@ -71,6 +71,10 @@ Item {
             delegate: DiagBlock {
                 blockSize: root._tileSize
                 itemData: modelData
+                // 5WHY (复核 2026-08-18 动画批量抖动): 完成瞬间全部瓦片同帧
+                // 触发 settle+光晕动画——按网格序号错峰 30ms/瓦片（封顶
+                // 300ms），并行 Suite 结果burst 时动画压力摊平。
+                staggerIndex: index
                 testRunning: root.usePerItemRunning
                              ? (root.groupRunning && modelData.isPending === true && !modelData.isDisabled)
                              : false

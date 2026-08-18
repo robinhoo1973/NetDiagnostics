@@ -57,6 +57,7 @@ void DiagnosticBase::start() {
 
     // 8-16：探针墙钟起点（结果未自带时长时由 onFutureFinished 补齐）
     m_elapsed.start();
+    m_startedAtMs = QDateTime::currentMSecsSinceEpoch();
 
     // NEW-5: progress() only queues to the main thread; the worker never
     // touches QObject signal machinery directly.

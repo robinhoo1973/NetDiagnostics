@@ -38,11 +38,29 @@ QtObject {
 
     readonly property var statusColors: [
         colors.success,   colors.warning,  colors.fail,
-        colors.skip,      colors.error,    colors.info
+        colors.skip,      colors.error,    colors.info,
+        colors.outline                          // DiagStatus::Cancelled=6
+        // 5WHY (复核 2026-08-18): Cancelled 曾复用 skip 灰——Skipped/Cancelled
+        // 徽标相邻同色同图标，取消数不可区分。改用 outline 石板色（#64748B，
+        // 两主题同值，比 skip 深一档）+ close 图标（X=中止语义）。
     ]
     readonly property var statusIconNames: [
         "badge-check", "badge-warning", "badge-close",
-        "badge-skip",  "badge-error",   "badge-info"
+        "badge-skip",  "badge-error",   "badge-info",
+        "close"                                 // DiagStatus::Cancelled=6（DiagId.h 同映射）
+    ]
+    // 5WHY (复核 2026-08-18 五表漂移): 状态展示顺序/计数键/标签键曾同时维护在
+    // StatusBadgeCluster（7 行字面量）与 DashboardSummaryComp（7 行表）——
+    // 加 Cancelled 时两处都改过且顺序相同纯属巧合。此处为单一来源，两个
+    // Repeater 消费；statusColors/statusIconNames 仍按枚举序（DiagId.h）。
+    readonly property var statusRows: [
+        { code: 0, labelKey: "summaryPass",      countKey: "pass" },
+        { code: 5, labelKey: "summaryInfo",      countKey: "info" },
+        { code: 1, labelKey: "summaryWarning",   countKey: "warn" },
+        { code: 2, labelKey: "summaryFail",      countKey: "fail" },
+        { code: 3, labelKey: "summarySkipped",   countKey: "skip" },
+        { code: 4, labelKey: "summaryError",     countKey: "error" },
+        { code: 6, labelKey: "summaryCancelled", countKey: "cancelled" }
     ]
 
     readonly property int toastDurationMs: 3500
@@ -53,9 +71,13 @@ QtObject {
     // 且与瓦片尺寸无关——"瓦片内小框"的根源；M3 keyline 比随 blockSize 派生。
     // 5WHY (review 2026-08-17, 用户诉求"图形以瓦片尺寸显示"): 0.55 仍偏小且
     // 垫(0.75×瓦片)仍是"小一号方框"——图标升到 0.66×瓦片、垫≈0.92×瓦片
-    // （贴满瓦片，方框感消失；80px 紧凑瓦片上垫=卡片全幅）
+    // （贴满瓦片，方框感消失；80px 紧凑瓦片上垫=卡片全幅）。
+    // 5WHY (复核 2026-08-18 几何复核): 0.54 的收缩基于包围盒计算——图标井是
+    // 圆形（r=iconSize/2）、计时圆点也是圆形，圆心距在 0.66 比下最小 5.2px
+    // （80px 瓦片）至 15.9px（108px），圆与圆从未重叠；重叠的是方形包围盒
+    // 边角（~4.5px），而描边字形不触达方形角落。恢复 0.66 满足"图形以瓦片
+    // 尺寸显示"诉求；计时圆点保持在左上角 4px 边距（圆形无碰撞）。
     readonly property real tileIconRatio: 0.66
-    readonly property real tilePadRatio: 1.39
     // 图标最小可读尺寸（5WHY review round 4: 40px 底线曾是组件内魔法数——
     // 尺寸规则整体归令牌层）
     readonly property int tileIconMin: 40
@@ -83,6 +105,12 @@ QtObject {
         return min + "m " + sec + "s"
     }
     function pad2(n) { return (n < 10 ? " " : "") + n }
+    // 5WHY (复核 2026-08-18 Reuse C4): "X/Y" 组合 + 零守卫曾在 StatusBadgeCluster
+    // 标签与状态头两分支三处手写——格式变更（如补零、分隔符）须三处同步。
+    function xyLabel(completed, total) {
+        if (total > 0) return (completed || 0) + "/" + total
+        return (completed || 0) + ""
+    }
     // 组图标单一映射（G1-G5；UI 评审：消除各组件重复硬编码数组）
     function groupIconName(idx) {
         return ["network-card", "shield-network", "internet-globe", "remote-host", "protocol-stack"][idx] || "circle"
@@ -99,6 +127,13 @@ QtObject {
     // 45 图标常显主导色（瓦片光晕垫 tint；烘焙生成 IconTints.js —— 唯一访问点）
     function iconPadTint(name) {
         return IconTints.tintFor(name || "")
+    }
+    // 5WHY (复核 2026-08-18 重复收敛): light 加深 1.5× 规则曾同时在 IconPad 与
+    // DiagBlock._glowColor 维护——(isDark || !darken) 三元 + Qt.darker(t,1.5)
+    // 的语义只有 IconTints 烘焙值适用（完成态状态色 light 变体本身已加深）。
+    // 提取单一 helper，两处消费。
+    function effTint(tint, darkenInLight) {
+        return (!isDark && darkenInLight) ? Qt.darker(tint, 1.5) : tint
     }
     // 导航/工具按钮悬停底色配方（NavArrowButton/ZoomBar 共用；5WHY review
     // round 3: 该 0.2/0.08 三元曾散落 4 处，调悬停色需 4 处同步）
