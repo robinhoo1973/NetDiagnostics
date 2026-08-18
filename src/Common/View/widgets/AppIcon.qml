@@ -1,8 +1,16 @@
 // =============================================================================
-// AppIcon.qml — 预着色 SVG 图标选择器（归档同款方案，零着色器）
+// AppIcon.qml — 运行时精确着色图标（图标管线 v4，方案 B：单母版 + C++ 着色）
+//
+// 协议: image://icon/<colorHex>/<name>?theme=dark|light&dpr=<n>
+//   颜色在 C++ IconProvider 内精确替换（无 41 色烘焙、无最近似匹配）。
+//
+// 切主题防串图（历史 5WHY 六重防线之 URL 失效键）：
+//   source 绑定显式读取 ThemeEngine.isDark —— 主题切换时绑定重算 → URL 变化
+//   （theme=dark↔light）→ Qt 图缓存与 provider 渲染缓存同时 miss → 强制重渲染。
 // =============================================================================
 import QtQuick
-import "IconColors.js" as IconColors
+import QtQuick.Window   // Screen.devicePixelRatio（Qt 6 不在 QtQuick 命名空间）
+import theme
 
 Item {
     id: root
@@ -15,30 +23,24 @@ Item {
     implicitWidth: size; implicitHeight: size
     visible: name !== ""
 
-    property int _hexVersion: 0
-    readonly property string _hex: {
-        var _v = _hexVersion
-        // 5WHY (verify 2026-08-17): ffffff 母版目录不再打包进 QRC（0 条目）
-        // ——回退值必须指向已发布的最近似目录 f8fafc（84 图标全量烘焙），
-        // 否则 IconColors.js 缺失/为空时全部图标静默空白。
-        if (!IconColors || !IconColors.hexes || IconColors.hexes.length === 0)
-            return "#F8FAFC"
-        var best = "#F8FAFC"
-        var bd = 1e9
-        for (var i = 0; i < IconColors.hexes.length; i++) {
-            var h = IconColors.hexes[i]
-            var r = parseInt(h.substr(1, 2), 16) / 255.0
-            var g = parseInt(h.substr(3, 2), 16) / 255.0
-            var b = parseInt(h.substr(5, 2), 16) / 255.0
-            var d = (r - color.r) * (r - color.r)
-                  + (g - color.g) * (g - color.g)
-                  + (b - color.b) * (b - color.b)
-            if (d < bd) { bd = d; best = h }
+    // color → 6 位大写十六进制（颜色通道转精确请求色）
+    function _hexOf(c) {
+        function h(n) {
+            var s = Math.round(Math.max(0, Math.min(1, n)) * 255).toString(16)
+            return s.length < 2 ? "0" + s : s
         }
-        return best
+        return (h(c.r) + h(c.g) + h(c.b)).toUpperCase()
     }
 
-    Component.onCompleted: _hexVersion = 1
+    readonly property string _request: {
+        // 显式读取 ThemeEngine.isDark → 主题切换时本绑定重算 → URL 变化
+        var theme = ThemeEngine.isDark ? "dark" : "light"
+        var dpr = Screen.devicePixelRatio
+        return root.name !== ""
+            ? ("image://icon/" + _hexOf(root.color) + "/" + root.name
+               + "?theme=" + theme + "&dpr=" + dpr)
+            : ""
+    }
 
     transform: Scale {
         origin.x: width / 2
@@ -47,10 +49,8 @@ Item {
 
     Image {
         anchors.fill: parent
-        source: root.name !== "" ? ("qrc:/icons/" + _hex.substr(1).toLowerCase() + "/" + root.name + ".svg") : ""
-        // 5WHY (review 2026-08-17): 缺 sourceSize 时 QtSvg 按 SVG 固有 24×24
-        // 栅格化再双线性放大到 32-44px——新母版 0.45-0.9 单位的发丝描边在
-        // 1.83× 放大后糊成灰带。按显示分辨率栅格化，各尺寸都清晰。
+        source: root._request
+        // 按显示分辨率请求（sourceSize 即请求尺寸，dpr 由 provider 处理）
         sourceSize: Qt.size(root.size, root.size)
         fillMode: Image.PreserveAspectFit
         opacity: root.color.a

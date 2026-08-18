@@ -41,6 +41,7 @@ set(SOURCES
     src/Common/Services/AdapterRegistry.cpp
     src/Common/Services/DnsResolver.cpp
     src/Common/Services/ProbeDatabase.cpp
+    src/Common/Services/IconProvider.cpp
     src/Common/Platform/DeviceCapability.cpp
     src/Diagnostics/Model/DiagnosticSuite.cpp
     src/Diagnostics/Model/Adapters.cpp

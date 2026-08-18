@@ -1,6 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke-linecap="round" stroke-linejoin="round" fill-opacity="0">
-  <!-- Relay core + inward flow chevrons -->
-  <circle cx="12" cy="12" r="1.1" fill="#6366F1" fill-opacity="1" />
-  <path d="M8.6 12 l1.4 -1 M8.6 12 l1.4 1 M15.4 12 l-1.4 -1 M15.4 12 l-1.4 1"
-        stroke="#6366F1" stroke-width="1.2" />
-</svg>

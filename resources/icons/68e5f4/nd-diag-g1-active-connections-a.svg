@@ -1,6 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke-linecap="round" stroke-linejoin="round" fill-opacity="0">
-  <!-- Floating external node + link -->
-  <path d="M12.9 16.4 l1.3 0.6" stroke="#68E5F4" stroke-width="1.2" />
-  <circle cx="15.4" cy="17.4" r="1.5" stroke="#68E5F4" stroke-width="1.2" />
-  <circle cx="15.4" cy="17.4" r="0.7" fill="#68E5F4" fill-opacity="1" />
-</svg>

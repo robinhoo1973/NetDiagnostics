@@ -440,10 +440,10 @@ fi
 	# ── 17. SVG icons: fill="none" fill-opacity="0" format check ─────────────
 	echo ""
 	echo "── 17. SVG icon format (fill=none + fill-opacity=0) ──"
-	# Masters live in resources/icons/ffffff/ (the white variant doubles as
-	# the master set).  Generated variants (resources/icons/<hex>/) are
-	# derived from masters and inherit their format — only masters need
-	# checking.
+	# v4 (方案 B, 2026-08): masters live in resources/icons/ffffff/ (the white
+	# variant doubles as the master set).  No more <hex>/ baked variants —
+	# the C++ IconProvider tints the single master at runtime.  Only masters
+	# need checking.
 	SVG_FILES=$(echo "$STAGED" | grep -E '(icons/(ffffff|masters-45))/.*\.svg$' || true)
 	if [ -n "$SVG_FILES" ]; then
 	    for f in $SVG_FILES; do
@@ -464,27 +464,31 @@ fi
 	    pass "no staged icon SVGs"
 	fi
 
-	# ── 18. SVG icons: generated variants must be registered in QRC ────────
+	# ── 18. SVG icons: masters must be registered in QRC ────────────────────
 	echo ""
 	echo "── 18. SVG icon QRC registration (resources_icons.qrc) ──"
-	if [ -n "$SVG_FILES" ]; then
-	    for f in $SVG_FILES; do
+	# v4: the generator publishes ffffff masters to resources/icons/master/
+	# and registers them in resources_icons.qrc.  masters-45 are the 45-diag
+	# design masters (not shipped) — only the ffffff master set is shipped.
+	MASTER_SVG=$(echo "$STAGED" | grep -E 'icons/ffffff/.*\.svg$' || true)
+	if [ -n "$MASTER_SVG" ]; then
+	    for f in $MASTER_SVG; do
 	        basename=$(basename "$f")
 	        if ! grep -q "$basename" "$ROOT/resources/resources_icons.qrc"; then
-	            fail "$f: no generated variants in resources/resources_icons.qrc — run: python scripts/generate-colored-icons.py"
+	            fail "$f: master not registered in resources/resources_icons.qrc — run: python scripts/generate-colored-icons.py"
 	        else
 	            pass "$f"
 	        fi
 	    done
 	else
-	    pass "no staged icon SVGs"
+	    pass "no staged master SVGs"
 	fi
 
-	# ── 19. Pre-generated colored icons: staleness check ────────────────────
-	# 5WHY: AppIcon selects from pre-generated qrc:/icons/ variants
-	# (scripts/generate-colored-icons.py).  If Palette.js or a master icon
-	# changes without regeneration, nearest-color matching silently snaps
-	# to stale colors.
+	# ── 19. Icon pipeline outputs: staleness check ──────────────────────────
+	# v4 (方案 B): AppIcon requests image://icon/<hex>/<name>?theme=..&dpr=..
+	# — the C++ IconProvider tints the single master at runtime.  Master
+	# icons, icon-runtime.json and resources_icons.qrc are generator outputs;
+	# IconTints.js is still emitted for any remaining QML consumer.
 	# 5WHY (review 2026-08-17): the old staging-pattern heuristic only checked
 	# WHETHER some generated outputs were staged alongside the inputs — it
 	# never detected CONTENT drift (22 light-theme e0f2fe SVGs shipped with
@@ -492,7 +496,7 @@ fi
 	# new --check mode regenerates into a mirror tree and byte-diffs, which
 	# is exact.
 	echo ""
-	echo "── 19. Pre-generated icon staleness (icons vs Palette.js) ──"
+	echo "── 19. Icon pipeline staleness (masters vs Palette.js) ──"
 	# 5WHY (review 2026-08-17): 输入模式必须包含生成器脚本自身
 	# （palette_common.py 的亮度公式改动曾可静默漂移）。--check 全量镜像
 	# 重建 ~1.4s：5WHY (review round 3) 输入未变时按指纹跳过——docs/纯 C++
@@ -503,8 +507,8 @@ fi
 	# 5WHY (verify 2026-08-17): D 状态同样必须覆盖生成输出——输出删除曾不被
 	# 任何分支触发（qrc 仍引用已删 SVG → rcc 构建失败）。--check 全量镜像重建
 	# 会检测出真实目录缺失该文件，故只需让删除进入触发条件。
-	GEN_OUTPUTS=$(echo "$STAGED" | grep -E 'resources/(icons/[0-9a-f]{6}/[^/]+\.svg|resources_icons\.qrc)|src/Common/View/widgets/Icon(Colors|Tints)\.js' || true)
-	GEN_DELETED=$(git diff --cached --name-only --diff-filter=D | grep -E '(theme/Palette\.js|resources/icons/(ffffff|masters-45)/[^/]+\.svg|scripts/(generate-colored-icons|palette_common)\.py|resources/(icons/[0-9a-f]{6}/[^/]+\.svg|resources_icons\.qrc)|src/Common/View/widgets/Icon(Colors|Tints)\.js)' || true)
+	GEN_OUTPUTS=$(echo "$STAGED" | grep -E 'resources/(icons/master/[^/]+\.svg|icon-runtime\.json|resources_icons\.qrc)|src/Common/View/widgets/IconTints\.js' || true)
+	GEN_DELETED=$(git diff --cached --name-only --diff-filter=D | grep -E '(theme/Palette\.js|resources/icons/(ffffff|masters-45)/[^/]+\.svg|scripts/(generate-colored-icons|palette_common)\.py|resources/(icons/master/[^/]+\.svg|icon-runtime\.json|resources_icons\.qrc)|src/Common/View/widgets/IconTints\.js)' || true)
 	if [ -n "$GEN_INPUTS" ] || [ -n "$GEN_OUTPUTS" ] || [ -n "$GEN_DELETED" ]; then
 	    if python3 "$ROOT/scripts/generate-colored-icons.py" --check; then
 	        pass "icons up to date"

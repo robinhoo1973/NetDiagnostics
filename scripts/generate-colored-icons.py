@@ -1,38 +1,27 @@
 #!/usr/bin/env python3
 # =============================================================================
-# generate-colored-icons.py — Pre-generate statically colored icon variants
+# generate-colored-icons.py — 单母版运行时着色元数据管线（v4，方案 B）
 # =============================================================================
-# 5WHY (2026-08-01): Every runtime colorization mechanism failed on at least
-# one platform (ShaderEffect inline GLSL: no Metal support; MultiEffect:
-# QtQuick.Effects absent from iOS aqt; Image.color: property never existed;
-# Rectangle overlay: unmasked foggy square).  Decision: NO runtime coloring
-# at all.  This script bakes every palette color into a static SVG variant
-# at build/commit time.  AppIcon.qml merely SELECTS a file (nearest palette
-# color) and expresses alpha via Image.opacity — zero runtime colorization.
+# 历史：v1-v3 将所有调色板颜色烘焙为静态 SVG 变体（41 个 hex 目录 ≈3400
+# 文件），AppIcon 按最近匹配选择。v4（2026-08, 方案 B）取消烘焙：
 #
-# v2 (2026-08-10, Living Diagnostics): 4-sentinel color-slot baking.
-# Master SVGs use 4 sentinel placeholders that get replaced at generation:
-#   #FFFFFF → primary palette color (theme-adaptive, same as v1)
-#   #AAAAAA → darken(primary, 30%) (gradient dark-end, same hue)
-#   #000000 → semantic accent color (fixed per-icon, from SEMANTIC_ACCENT table)
-#   #777777 → soft fill/shadow (fixed, theme-independent)
-# This produces dual-color+gradient textured icons from a single master SVG
-# set and a single generation pipeline — no second icon directory needed.
+#   Inputs:  src/Common/View/theme/Palette.js    （颜色角色，双主题）
+#            resources/icons/ffffff/*.svg        （母版，哨兵色槽）
+#   Outputs: resources/icons/master/*.svg        （母版发布，qrc 引用）
+#            resources/icon-runtime.json         （逐图标着色元数据）
+#            resources/resources_icons.qrc
+#            src/Common/View/widgets/IconTints.js（瓦片光晕垫 tint）
+#            （IconColors.js 已删除——AppIcon 不再做最近匹配）
 #
-# Inputs:   src/Common/View/theme/Palette.js   (color roles, both themes)
-#           resources/icons/ffffff/*.svg       (master SVGs with 4 sentinel slots)
-# Outputs:  resources/icons/<rrggbb>/<name>.svg
-#           resources/resources_icons.qrc
-#           src/Common/View/widgets/IconColors.js  (list for nearest-match)
+# 哨兵色槽（母版内字面值，C++ IconProvider 运行时替换，与 C++ 同源）：
+#   #FFFFFF → 请求色（主色/渐变起点）    #AAAAAA → 请求色 HSL 加深 30%（渐变深端）
+#   #000000 → 语义强调色（accent）       #101010 → 第二强调色（second）
+#   #B0000n → 固定多色（fixed，按主题）  #777777 → 柔填充（soft，按主题）
 #
-# Run:      python scripts/generate-colored-icons.py
-#           Re-run whenever Palette.js or resources/icons/ffffff/*.svg change.
-#           (Enforced by scripts/pre-commit check.)
+# 角色引用（"Dark.primary" 等）在生成期解析为具体 hex——调色板重调自动传播。
 #
-# v3 (2026-08-13, M1 45 专属图标): nd-diag-* 主形同现有 4-sentinel 管线烘焙；
-#   DIAG_ACCENT 逐项辅色对（dark/light）将 masters-45/nd-diag-*-a.svg 的
-#   #666666 sentinel 烘焙为 2 色/图标并合并进 qrc（见 bake_diag_accents）。
-#   #101010 sentinel → SECOND_ACCENT 固定第二强调色（多色复刻图标用，如网关红色箭头）。
+# Run:  python scripts/generate-colored-icons.py
+#       python scripts/generate-colored-icons.py --check   （漂移校验，CI）
 # =============================================================================
 # 5WHY (review 2026-08-17): future-annotations 使全部注解惰性化——本文件在
 # 3.9 及更早的 Python 上原会因 PEP 604（Path | None）在 def 期求值而崩溃
@@ -40,14 +29,14 @@
 from __future__ import annotations
 
 import argparse
-import colorsys
+import json
 import re
 import shutil
 import sys
 import tempfile
 from pathlib import Path
 
-from palette_common import all_hexes, contrast, luminance, parse_palette, read_palette, theme_hexes
+from palette_common import contrast, luminance, parse_palette, read_palette
 
 ROOT = Path(__file__).resolve().parent.parent
 PALETTE = ROOT / "src/Common/View/theme/Palette.js"
@@ -56,7 +45,9 @@ OUT = ROOT / "resources/icons"
 QRC = ROOT / "resources/resources_icons.qrc"
 JS = ROOT / "src/Common/View/widgets/IconColors.js"
 TINTS_JS = ROOT / "src/Common/View/widgets/IconTints.js"
-MASTERS_ACCENT = ROOT / "resources/icons/masters-45"
+# v4：运行时着色元数据（AppIcon/IconProvider 消费，替代预烘焙 hex 目录）
+RUNTIME_JSON = ROOT / "resources/icon-runtime.json"
+MASTER_DIR = ROOT / "resources/icons/master"
 
 # ── 45 专属图标：逐项辅色对（dark, light）——值=01 §8 各节"辅"列；
 #   灰值（#2/#6/#13/#30/#42）保留（W9）。同时作为 #000000 sentinel 的语义强调色。
@@ -250,57 +241,6 @@ def _pad_border_contrasts(tint: str, palettes: dict) -> tuple[float, float]:
     return tuple(out)
 
 
-def darken_hex(hex_color: str, pct: float) -> str:
-    """Darken a hex color by reducing lightness in HSL space.
-
-    Args:
-        hex_color: '#RRGGBB' string (e.g. '#60C8F8')
-        pct: Percentage to darken (0-100, e.g. 30 = reduce L by 30%)
-
-    Returns:
-        '#RRGGBB' string of the darkened color.
-    """
-    if not hex_color or not hex_color.startswith("#") or len(hex_color) != 7:
-        return hex_color
-    r = int(hex_color[1:3], 16) / 255.0
-    g = int(hex_color[3:5], 16) / 255.0
-    b = int(hex_color[5:7], 16) / 255.0
-    h, l, s = colorsys.rgb_to_hls(r, g, b)
-    # 5WHY: very dark primaries (e.g. #0F172A L~0.11) darkened by 30% produce
-    # nearly-black output (#080E1B) — the gradient becomes invisible.  Floor
-    # the output lightness at 0.05 so the gradient dark-end is at least
-    # distinguishable from true black.
-    target_l = max(0.05, l * (1.0 - pct / 100.0))
-    r2, g2, b2 = colorsys.hls_to_rgb(h, target_l, s)
-    # 5WHY: round() not int() — IEEE 754 truncation can shift hex values.
-    return f"#{round(r2 * 255):02X}{round(g2 * 255):02X}{round(b2 * 255):02X}"
-
-
-def bake_diag_accents(qrc_entries: list[str], out: Path = OUT,
-                      palettes: dict | None = None) -> None:
-    """辅形 #666666 → 逐项辅色（dark/light 各 1 文件/图标）；条目并入 qrc。
-
-    W2（终审）：masters-45/ 不在主扫描目录内，必须在此显式烘焙并合并 qrc 条目。
-    """
-    if not MASTERS_ACCENT.is_dir():
-        return
-    for svg in sorted(MASTERS_ACCENT.glob("*-a.svg")):
-        stem = svg.stem[:-2]   # 去尾缀 "-a"
-        pair = DIAG_ACCENT.get(stem)
-        if not pair:
-            print(f"WARNING: no DIAG_ACCENT for {stem} — skipping aux bake")
-            continue
-        body = svg.read_text(encoding="utf-8")
-        for hx in pair:
-            if palettes is not None:
-                hx = _resolve_role_ref(hx, palettes)
-            sub = out / hx[1:].lower()
-            sub.mkdir(parents=True, exist_ok=True)
-            out_file = sub / svg.name
-            out_file.write_text(body.replace("#666666", hx), encoding="utf-8", newline="\n")
-            qrc_entries.append(f"icons/{sub.name}/{svg.name}")
-
-
 def write_icon_tints(palettes: dict, tints_js_path: Path = TINTS_JS) -> None:
     """逐图标常显主导色（全彩常显方案的瓦片光晕垫 tint）。
 
@@ -350,187 +290,113 @@ def write_icon_tints(palettes: dict, tints_js_path: Path = TINTS_JS) -> None:
     tints_js_path.write_text("\n".join(lines), encoding="utf-8", newline="\n")
 
 
+def write_icon_runtime(palettes: dict, json_path: Path = RUNTIME_JSON) -> None:
+    """v4：输出运行时着色元数据（单母版 + C++ IconProvider 消费）。
+
+    每图标记录 #000000→accent、#101010→second、#777777→softFill（按主题）、
+    #B0000n→fixed（按主题）。角色引用在生成期解析（与烘焙同源），
+    C++ 端不再复制任何调色板表。
+    """
+    dark_soft = palettes["Dark"].get("onSurfaceVariant", "#64748B")
+    light_soft = palettes["Light"].get("onSurfaceVariant", "#64748B")
+    data: dict = {"version": 1, "icons": {}}
+    for svg in sorted(ICONS.glob("*.svg")):
+        stem = svg.stem
+        accent = ACCENT.get(stem, "")
+        if accent:
+            accent = _resolve_role_ref(accent, palettes)
+        second = SECOND_ACCENT.get(stem, "")
+        if second:
+            second = _resolve_role_ref(second, palettes)
+        fixed_dark = [_resolve_role_ref(c, palettes) for c in FIXED_COLORS.get(stem, [])]
+        fl = FIXED_COLORS_LIGHT.get(stem)
+        if fl is None:
+            fl = FIXED_COLORS.get(stem, [])   # 浅色未列出 → 沿用 dark 表（烘焙同规则）
+        fixed_light = [_resolve_role_ref(c, palettes) for c in fl]
+        data["icons"][stem] = {
+            "accent": accent,
+            "second": second,
+            "softDark": dark_soft,
+            "softLight": light_soft,
+            "fixedDark": fixed_dark,
+            "fixedLight": fixed_light,
+        }
+    json_path.write_text(json.dumps(data, indent=1) + "\n",
+                         encoding="utf-8", newline="\n")
+
+
 def _resolve_outputs(out_base: Path | None):
     """Output paths — redirected under out_base in --check mode."""
     if out_base is None:
-        return OUT, QRC, JS, TINTS_JS, ICONS
+        return OUT, QRC, JS, TINTS_JS, RUNTIME_JSON
     return (
         out_base / "resources/icons",
         out_base / "resources/resources_icons.qrc",
         out_base / "src/Common/View/widgets/IconColors.js",
         out_base / "src/Common/View/widgets/IconTints.js",
-        out_base / "resources/icons/ffffff",
+        out_base / "resources/icon-runtime.json",
     )
 
 
 def generate(out_base: Path | None = None) -> None:
-    """Full regeneration (icons + qrc + IconColors.js + IconTints.js).
+    """Full regeneration (master publish + qrc + icon-runtime.json + tints).
 
     out_base=None writes the real outputs; a redirect (--check) writes into
     a mirror tree for drift comparison.
     """
-    out, qrc_path, js_path, tints_path, master_out = _resolve_outputs(out_base)
+    out, qrc_path, js_path, tints_path, runtime_json = _resolve_outputs(out_base)
     # Ensure output roots exist (--check mode starts from an empty mirror).
     out.mkdir(parents=True, exist_ok=True)
     qrc_path.parent.mkdir(parents=True, exist_ok=True)
     js_path.parent.mkdir(parents=True, exist_ok=True)
     tints_path.parent.mkdir(parents=True, exist_ok=True)
+    runtime_json.parent.mkdir(parents=True, exist_ok=True)
     # Single Palette.js read; every parser works on the same text
     # (5WHY review 2026-08-17: the old code re-read and re-parsed the file
     # three times per run with three divergent regex parsers).
     text = read_palette()
-    hexes = all_hexes(text)
-    themed_hexes = theme_hexes(text)
-    dark_hexes, light_hexes = themed_hexes["Dark"], themed_hexes["Light"]
     palettes = parse_palette(text)
 
-    # Master SVGs use 4 sentinel color slots.  At minimum #FFFFFF must be
-    # present (single-color fallback).  Icons with #AAAAAA / #000000 / #777777
-    # slots get dual-color+gradient baking.
+    # v4：单母版管线。fff 母版发布为 qrc:/icons/master/<name>.svg，
+    # 全部着色参数（accent/second/soft/fixed 按主题）进入 icon-runtime.json，
+    # 运行时由 C++ IconProvider 精确着色 —— 不再烘焙 41 个 hex 目录。
     icons = [p for p in sorted(ICONS.glob("*.svg"))
              if "#FFFFFF" in p.read_text(encoding="utf-8").upper()]
     if not icons:
         raise SystemExit("no master icons found in resources/icons/ffffff/")
 
-    # 5WHY (review 2026-08-17): 旧顺序先删后烘——中断（Ctrl-C/磁盘满）留下
-    # 半再生树 + 过期 qrc。改为先烘全量，最后一步才清理过期目录。
-    # keep 集合含 DIAG_ACCENT 辅形目录（非调色板 hex，由 bake_diag_accents
-    # 生成——如 mysql 的 fbbf24/d97706）。
-    accent_dirs = set()
-    for pair in DIAG_ACCENT.values():
-        for v in pair:
-            accent_dirs.add(_resolve_role_ref(v, palettes)[1:].lower())
-    keep_dirs = {hx[1:].lower() for hx in hexes} | accent_dirs | {"ffffff"}
+    # v4：keep 仅母版输入 ffffff 与母版发布目录 master —— "master" 六字符
+    # 全落在 [0-9a-f]，否则会被 hex 正则误判为过期变体目录而删除。
+    keep_dirs = {"ffffff", "master"}
     stale_dirs = [sub for sub in sorted(out.iterdir())
                   if sub.is_dir() and re.fullmatch(r"[0-9a-f]{6}", sub.name)
                   and sub.name not in keep_dirs]
 
-    # Cache master SVG bodies once to avoid O(colors) redundant disk reads
-    # (~1900 avoidable reads per 60 icons × 32 colors on slow I/O / CI).
-    cached_bodies: dict[Path, str] = {}
-    unmapped_accent: set[str] = set()
-    for svg in icons:
-        body = svg.read_text(encoding="utf-8")
-        cached_bodies[svg] = body
-        # 5WHY: if a master SVG uses #000000 but has no SEMANTIC_ACCENT entry,
-        # #000000 stays as literal black in ALL generated variants — silent.
-        if "#000000" in body.upper() and not ACCENT.get(svg.stem, ""):
-            unmapped_accent.add(svg.stem)
-    if unmapped_accent:
-        print(f"WARNING: {len(unmapped_accent)} icon(s) use #000000 sentinel "
-              f"but have no SEMANTIC_ACCENT mapping — #000000 will stay as "
-              f"literal black: {', '.join(sorted(unmapped_accent))}")
-
     qrc_entries = []
-    for hx in hexes:
-        # 双套固定色：变体仅属于 Light 块 → FIXED_COLORS_LIGHT，否则 dark 值
-        # （AppIcon 运行时按激活主题最近匹配；此判定只决定烘焙哪张固定色表）
-        fixed_table = (
-            FIXED_COLORS_LIGHT
-            if (hx in light_hexes and hx not in dark_hexes)
-            else FIXED_COLORS
-        )
-        if hx == "#FFFFFF":
-            sub = master_out
-        else:
-            sub = out / hx[1:].lower()
-            # exist_ok：过期目录清理已移到生成末尾——重复运行时目录仍在
-            sub.mkdir(parents=True, exist_ok=True)
-            dark = darken_hex(hx, 30)
-            used_fixed = False
-            for svg in icons:
-                body = cached_bodies[svg]  # cached reads (avoid per-color I/O)
-                # ── 4-sentinel color-slot baking ────────────────────────────
-                # #FFFFFF → primary palette color (theme-adaptive)
-                colored = body.replace("#FFFFFF", hx).replace("#ffffff", hx)
-                # #AAAAAA → darken(primary, 30%) (gradient dark-end)
-                colored = colored.replace("#AAAAAA", dark).replace("#aaaaaa", dark)
-                # #000000 → semantic accent (fixed per icon)
-                accent = ACCENT.get(svg.stem, "")
-                if accent:
-                    # 5WHY (review 2026-08-17): DIAG_ACCENT 表改角色引用后，
-                    # 此路径漏了解析——"Light.info" 等非法 SVG 颜色直接烘进
-                    # 672 个文件（#000000 哨兵替换是唯一未解析点，18/45 瓦片
-                    # 图标强调色失效）。
-                    accent = _resolve_role_ref(accent, palettes)
-                    colored = colored.replace("#000000", accent)
-                # #101010 → second semantic accent (fixed per icon)
-                accent2 = SECOND_ACCENT.get(svg.stem, "")
-                if accent2:
-                    colored = colored.replace("#101010", accent2)
-                # #B0000n → n-th fixed color (per icon)
-                entries = fixed_table.get(svg.stem)
-                if entries is None:
-                    # 5WHY (2026-08-17 review): FIXED_COLORS_LIGHT is a
-                    # light-theme override subset — icons absent from it must
-                    # fall back to the dark FIXED_COLORS entry.  The old
-                    # `fixed_table.get(svg.stem, [])` yielded an empty list →
-                    # no replacement → the #B0000n sentinel shipped literally
-                    # into light SVGs (verified: 4× "#B00001" in
-                    # resources/icons/10b981/nd-diag-g3-geoip.svg).
-                    entries = FIXED_COLORS.get(svg.stem, [])
-                if entries:
-                    used_fixed = True
-                for i, c in enumerate(entries, 1):
-                    colored = colored.replace(f"#B0000{i}", _resolve_role_ref(c, palettes))
-                if re.search(r"#B0000[1-9]", colored, re.IGNORECASE):
-                    print(f"WARNING: {svg.name} in {sub.name}: unreplaced "
-                          f"#B0000n sentinel remains (fixed-color table too short)")
-                # #777777 → soft fill（主题感知：随变体主题取 onSurfaceVariant；
-                # 5WHY review 2026-08-17: 原硬编码 #64748B 双主题同灰——暗卡上
-                # 泥泞、白卡上灰暗）。
-                # 5WHY (review round 3 修复)：共享 hex 目录同一文件服务双主题，
-                # 之前无差别取 Dark.onSurfaceVariant——亮色主题下这些图标被烘成
-                # #94A3B8（白底 ≈2.5:1，原 #64748B ≈4.8:1）细节发灰。共享目录
-                # 保留主题无关石板色 #64748B（原行为）。
-                if hx in light_hexes and hx not in dark_hexes:
-                    soft_fill = palettes["Light"]["onSurfaceVariant"]
-                elif hx in dark_hexes and hx not in light_hexes:
-                    soft_fill = palettes["Dark"]["onSurfaceVariant"]
-                else:
-                    soft_fill = "#64748B"
-                colored = colored.replace("#777777", soft_fill)
-                if re.search(r"(Light|Dark)\.[A-Za-z0-9_]+", colored):
-                    raise SystemExit(f"{svg.name} in {sub.name}: unresolved role "
-                                     f"reference leaked into output — fix the accent table")
-                out_file = sub / svg.name
-                out_file.write_text(colored, encoding="utf-8", newline="\n")
-        # 5WHY (review 2026-08-17): #FFFFFF 是母版目录（含未替换哨兵）——
-        # 旧代码把原始母版并入 qrc 随包发布（AppIcon 已排除该目录，纯死重
-        # 且未来重新纳入会渲染损坏图标）。母版只作生成输入，不发布。
-        if hx != "#FFFFFF":
-            for svg in icons:
-                qrc_entries.append(f"icons/{sub.name}/{svg.name}")
-        # 5WHY (review 2026-08-17): 共享 hex（两主题都用）只烘一张固定色表——
-        # 显式提醒，防止未来图标在亮色主题静默拿到 dark 固定色。
-        if used_fixed and hx in dark_hexes and hx in light_hexes:
-            print(f"NOTE: {hx[1:].lower()} is shared by both themes — variants "
-                  f"baked with the DARK fixed-color table")
-
-    # ── 辅形（masters-45/nd-diag-*-a.svg，#666666 → 逐项辅色对 dark/light）──
-    bake_diag_accents(qrc_entries, out, palettes)
+    # ── v4：发布母版目录 resources/icons/master/（qrc 引用物理路径）──
+    # 镜像模式（--check）：out 已是 <base>/resources/icons，故 master 位于
+    # out/master —— 与 _real_rel()/check_drift 的相对路径保持一致。
+    master_out_dir = MASTER_DIR if out_base is None else out / "master"
+    if master_out_dir.is_dir():
+        shutil.rmtree(master_out_dir)
+    master_out_dir.mkdir(parents=True, exist_ok=True)
+    for svg in icons:
+        shutil.copyfile(svg, master_out_dir / svg.name)
+        qrc_entries.append(f"icons/master/{svg.name}")
+    # ── v4：运行时着色元数据 ──
+    write_icon_runtime(palettes, runtime_json)
+    qrc_entries.append("icon-runtime.json")
 
     qrc = ['<?xml version="1.0" encoding="utf-8"?>', "<RCC>", '    <qresource prefix="/">']
     qrc += [f"        <file>{e}</file>" for e in qrc_entries]
     qrc += ["    </qresource>", "</RCC>", ""]
     qrc_path.write_text("\n".join(qrc), encoding="utf-8", newline="\n")
 
-    js = [
-        "// AUTO-GENERATED by scripts/generate-colored-icons.py — DO NOT EDIT.",
-        "// List of pre-generated icon colors for nearest-match selection.",
-        ".pragma library",
-        "var hexes = [",
-    ]
-    # 5WHY (review round 4): #FFFFFF 是母版目录而非烘焙变体（内含未替换
-    # 哨兵）——最近匹配若选中它，白色/近白图标会渲染损坏内容。从可选
-    # 表中排除，白色回落到最近的真实烘焙色。
-    js += [f'    "{h}",' for h in hexes if h != "#FFFFFF"]
-    js += ["];", ""]
-    js_path.write_text("\n".join(js), encoding="utf-8", newline="\n")
+    # v4：IconColors.js 已删除（AppIcon 精确着色不再需要最近匹配索引）
+    if js_path.exists():
+        js_path.unlink()
 
-    accented = sum(1 for s in icons if ACCENT.get(s.stem, ""))
-    print(f"generated {len(hexes)} colors x {len(icons)} icons = "
-          f"{len(qrc_entries)} files ({accented} dual-color)")
+    print(f"generated {len(icons)} master icons published to qrc:/icons/master + icon-runtime.json")
 
     # ── 常显主导色（瓦片光晕垫 tint，45 项）──
     write_icon_tints(palettes, tints_path)
@@ -543,23 +409,28 @@ def generate(out_base: Path | None = None) -> None:
 
 
 def _generated_rel(base: Path) -> set[str]:
-    """Relative paths of every file the generator produced under base."""
-    return {str(p.relative_to(base)) for p in base.rglob("*") if p.is_file()}
+    """Relative paths (posix separators) of every file the generator
+    produced under base — Windows Path str uses backslashes, which must be
+    normalized so check_drift's set comparison is separator-agnostic."""
+    return {p.relative_to(base).as_posix() for p in base.rglob("*") if p.is_file()}
 
 
 def _real_rel() -> set[str]:
-    """Files on disk the generator owns: <hex>/ icon dirs (ffffff excluded —
-    it is the master INPUT, never rewritten) plus the three top-level
-    outputs.  Non-color files (netanalysis.ico/png, masters-45/) are
+    """Files on disk the generator owns in v4:
+    resources/icons/master/ (published masters) + the top-level outputs
+    (qrc / icon-runtime.json / IconTints.js).  Non-color files
+    (netanalysis.ico/png, masters-45/, resources/icons/ffffff input) are
     intentionally excluded."""
     rel = set()
-    for sub in OUT.iterdir():
-        if sub.is_dir() and re.fullmatch(r"[0-9a-f]{6}", sub.name) and sub.name != "ffffff":
-            for p in sub.rglob("*"):
-                if p.is_file():
-                    rel.add(f"resources/icons/{p.relative_to(OUT)}")
-    for p in (QRC, JS, TINTS_JS):
-        rel.add(str(p.relative_to(ROOT)))
+    if MASTER_DIR.is_dir():
+        for p in MASTER_DIR.rglob("*"):
+            if p.is_file():
+                # as_posix()：Windows 下 Path str 为反斜杠，与 _generated_rel
+                # 的纯正斜杠镜像相对路径不一致会导致 --check 误报缺失。
+                rel.add("/".join(("resources", "icons",
+                                  p.relative_to(MASTER_DIR.parent).as_posix())))
+    for p in (QRC, RUNTIME_JSON, TINTS_JS):
+        rel.add(p.relative_to(ROOT).as_posix())
     return rel
 
 

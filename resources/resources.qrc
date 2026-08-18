@@ -48,7 +48,6 @@
         <file alias="qml/widgets/AppBar.qml">../src/Common/View/widgets/AppBar.qml</file>
         <file alias="qml/widgets/AppIcon.qml">../src/Common/View/widgets/AppIcon.qml</file>
         <file alias="qml/widgets/AppLabel.qml">../src/Common/View/widgets/AppLabel.qml</file>
-        <file alias="qml/widgets/IconColors.js">../src/Common/View/widgets/IconColors.js</file>
         <file alias="qml/widgets/ShareButtons.qml">../src/Common/View/widgets/ShareButtons.qml</file>
         <file alias="qml/widgets/StatusBadge.qml">../src/Common/View/widgets/StatusBadge.qml</file>
         <file alias="qml/widgets/StatusBadgeCluster.qml">../src/Common/View/widgets/StatusBadgeCluster.qml</file>

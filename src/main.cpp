@@ -14,6 +14,7 @@
 #include "Common/Utils/CrashHandler.h"
 #include "Common/Utils/StartupLog.h"
 #include "Settings/Model/PremiumStore.h"
+#include "Common/Services/IconProvider.h"   // 图标管线 v4：image://icon 运行时着色
 #if defined(PLATFORM_IOS) || defined(Q_OS_MACOS)
 #include "Common/Platform/NativePdfDocument.h"
 #endif
@@ -238,6 +239,10 @@ int main(int argc, char* argv[]) {
     QQmlApplicationEngine engine;
     // qrc 目录导入在 Qt6 不可用：统一走 /qt/qml 导入路径下的 qmldir 模块
     engine.addImportPath(QStringLiteral("qrc:/qt/qml"));
+
+    // 图标管线 v4：单母版运行时精确着色（image://icon/<hex>/<name>?theme=..&dpr=..）
+    // Qt 接管 provider 生命周期；注册须在 engine.load 之前。
+    engine.addImageProvider(QStringLiteral("icon"), new IconProvider());
 
     // 条件预览组件标志（hasWebView/hasQtPdf/hasNativePdf——归档语义恢复）
 #if defined(HAS_QTWEBVIEW)

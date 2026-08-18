@@ -1,8 +1,0 @@
-<!-- 5WHY: previous glyph was a "skip-forward" media symbol (play + bar) which
-     reads as "next track", not "this test was skipped".  A circle with a
-     horizontal dash is the established neutral "not executed / not applicable"
-     status metaphor (matches minus-circle in Lucide/Feather status sets). -->
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" fill-opacity="0" stroke="#38BDF8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-  <circle cx="12" cy="12" r="10"/>
-  <path d="M8 12h8"/>
-</svg>

@@ -1,0 +1,863 @@
+{
+ "version": 1,
+ "icons": {
+  "activity": {
+   "accent": "#10B981",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "badge-check": {
+   "accent": "",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "badge-close": {
+   "accent": "",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "badge-error": {
+   "accent": "",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "badge-info": {
+   "accent": "",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "badge-skip": {
+   "accent": "",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "badge-warning": {
+   "accent": "",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "brightness": {
+   "accent": "",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "check": {
+   "accent": "",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "chevron-down": {
+   "accent": "",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "chevron-right": {
+   "accent": "",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "circle": {
+   "accent": "",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "clipboard": {
+   "accent": "",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "close": {
+   "accent": "",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "compass": {
+   "accent": "",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "config": {
+   "accent": "",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "dashboard": {
+   "accent": "",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "database": {
+   "accent": "",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "devices": {
+   "accent": "#06B6D4",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "diagnostics": {
+   "accent": "",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "file-html": {
+   "accent": "",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "file-pdf": {
+   "accent": "",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "file-transfer": {
+   "accent": "",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "gear": {
+   "accent": "",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "info": {
+   "accent": "",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "internet-globe": {
+   "accent": "#0EA5E9",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "mail": {
+   "accent": "#F59E0B",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "maximize": {
+   "accent": "",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "minimize": {
+   "accent": "",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "moon": {
+   "accent": "",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "nd-diag-g1-active-connections": {
+   "accent": "#06B6D4",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "nd-diag-g1-cellular": {
+   "accent": "#6366F1",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [
+    "#F87171",
+    "#FBBF24",
+    "#4ADE80",
+    "#38BDF8"
+   ],
+   "fixedLight": [
+    "#DC2626",
+    "#D97706",
+    "#10B981",
+    "#0EA5E9"
+   ]
+  },
+  "nd-diag-g1-dhcp": {
+   "accent": "#EA580C",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "nd-diag-g1-ip-config": {
+   "accent": "#475569",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "nd-diag-g1-network-adapters": {
+   "accent": "#06B6D4",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "nd-diag-g1-nic-advanced": {
+   "accent": "#475569",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "nd-diag-g1-wifi-info": {
+   "accent": "#0EA5E9",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "nd-diag-g1-wired": {
+   "accent": "#06B6D4",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "nd-diag-g2-arp-table": {
+   "accent": "#475569",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "nd-diag-g2-gateway": {
+   "accent": "#0EA5E9",
+   "second": "#E03040",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [
+    "#38BDF8",
+    "#FFFFFF"
+   ],
+   "fixedLight": [
+    "#0EA5E9",
+    "#FFFFFF"
+   ]
+  },
+  "nd-diag-g2-network-profile": {
+   "accent": "#0EA5E9",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [
+    "#007CC9",
+    "#0094F5"
+   ],
+   "fixedLight": [
+    "#0094F5",
+    "#37AAF9"
+   ]
+  },
+  "nd-diag-g2-proxy": {
+   "accent": "#6366F1",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [
+    "#5CAEFF",
+    "#FFCC5E"
+   ],
+   "fixedLight": [
+    "#1D4ED8",
+    "#F59E0B"
+   ]
+  },
+  "nd-diag-g2-routing-table": {
+   "accent": "#2563EB",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "nd-diag-g2-tcp-settings": {
+   "accent": "#06B6D4",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "nd-diag-g3-dns-cache": {
+   "accent": "#EA580C",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "nd-diag-g3-dns-integrity": {
+   "accent": "#06B6D4",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "nd-diag-g3-dns-servers": {
+   "accent": "#0EA5E9",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "nd-diag-g3-geoip": {
+   "accent": "#10B981",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [
+    "#F43F5E"
+   ],
+   "fixedLight": [
+    "#F43F5E"
+   ]
+  },
+  "nd-diag-g3-internet": {
+   "accent": "#06B6D4",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [
+    "#FD3551",
+    "#4C8FFF",
+    "#FFE824"
+   ],
+   "fixedLight": [
+    "#E11D48",
+    "#2563EB",
+    "#F59E0B"
+   ]
+  },
+  "nd-diag-g4-dns-resolution": {
+   "accent": "#0EA5E9",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "nd-diag-g4-ipv6": {
+   "accent": "#6366F1",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [
+    "#818CF8"
+   ],
+   "fixedLight": [
+    "#6366F1"
+   ]
+  },
+  "nd-diag-g4-mtu": {
+   "accent": "#EA580C",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "nd-diag-g4-pathping": {
+   "accent": "#EA580C",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "nd-diag-g4-ping": {
+   "accent": "#10B981",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "nd-diag-g4-traceroute": {
+   "accent": "#2563EB",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "nd-diag-g5-curl-verbose": {
+   "accent": "#06B6D4",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [
+    "#007CC9",
+    "#0094F5"
+   ],
+   "fixedLight": [
+    "#0094F5",
+    "#37AAF9"
+   ]
+  },
+  "nd-diag-g5-email": {
+   "accent": "#6366F1",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "nd-diag-g5-ftp": {
+   "accent": "#EA580C",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [
+    "#1E293B",
+    "#F87171",
+    "#FBBF24",
+    "#4ADE80"
+   ],
+   "fixedLight": [
+    "#0F172A",
+    "#F87171",
+    "#FBBF24",
+    "#4ADE80"
+   ]
+  },
+  "nd-diag-g5-http-compression": {
+   "accent": "#06B6D4",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [
+    "#007CC9",
+    "#0094F5"
+   ],
+   "fixedLight": [
+    "#0094F5",
+    "#37AAF9"
+   ]
+  },
+  "nd-diag-g5-http-headers": {
+   "accent": "#475569",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [
+    "#007CC9",
+    "#0094F5"
+   ],
+   "fixedLight": [
+    "#0094F5",
+    "#37AAF9"
+   ]
+  },
+  "nd-diag-g5-http-redirect": {
+   "accent": "#6366F1",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [
+    "#007CC9",
+    "#0094F5"
+   ],
+   "fixedLight": [
+    "#0094F5",
+    "#37AAF9"
+   ]
+  },
+  "nd-diag-g5-http-timing": {
+   "accent": "#6366F1",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [
+    "#007CC9",
+    "#0094F5",
+    "#FBBF24"
+   ],
+   "fixedLight": [
+    "#0094F5",
+    "#37AAF9",
+    "#F59E0B"
+   ]
+  },
+  "nd-diag-g5-ldap": {
+   "accent": "#0EA5E9",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "nd-diag-g5-mongodb": {
+   "accent": "#10B981",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [
+    "#007CC9",
+    "#0094F5",
+    "#FFFFFF",
+    "#003E6B",
+    "#0068AA",
+    "#007BC8"
+   ],
+   "fixedLight": [
+    "#0094F5",
+    "#37AAF9",
+    "#0F172A",
+    "#014A75",
+    "#0369A1",
+    "#0284C7"
+   ]
+  },
+  "nd-diag-g5-mqtt": {
+   "accent": "#6366F1",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [
+    "#007CC9",
+    "#0094F5",
+    "#4ADE80"
+   ],
+   "fixedLight": [
+    "#0094F5",
+    "#37AAF9",
+    "#22C55E"
+   ]
+  },
+  "nd-diag-g5-mysql": {
+   "accent": "#D97706",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [
+    "#007CC9",
+    "#0094F5",
+    "#FFFFFF",
+    "#003E6B",
+    "#0068AA",
+    "#007BC8"
+   ],
+   "fixedLight": [
+    "#0094F5",
+    "#37AAF9",
+    "#0F172A",
+    "#014A75",
+    "#0369A1",
+    "#0284C7"
+   ]
+  },
+  "nd-diag-g5-postgres": {
+   "accent": "#0EA5E9",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [
+    "#007CC9",
+    "#0094F5",
+    "#FFFFFF",
+    "#003E6B",
+    "#0068AA",
+    "#007BC8"
+   ],
+   "fixedLight": [
+    "#0094F5",
+    "#37AAF9",
+    "#0F172A",
+    "#014A75",
+    "#0369A1",
+    "#0284C7"
+   ]
+  },
+  "nd-diag-g5-redis": {
+   "accent": "#DC2626",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [
+    "#007CC9",
+    "#0094F5",
+    "#FFFFFF",
+    "#003E6B",
+    "#0068AA",
+    "#007BC8"
+   ],
+   "fixedLight": [
+    "#0094F5",
+    "#37AAF9",
+    "#0F172A",
+    "#014A75",
+    "#0369A1",
+    "#0284C7"
+   ]
+  },
+  "nd-diag-g5-security-headers": {
+   "accent": "#0EA5E9",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [
+    "#007CC9",
+    "#0094F5"
+   ],
+   "fixedLight": [
+    "#0094F5",
+    "#37AAF9"
+   ]
+  },
+  "nd-diag-g5-service-banner": {
+   "accent": "#0EA5E9",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "nd-diag-g5-ssh": {
+   "accent": "#10B981",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [
+    "#1E293B",
+    "#F87171",
+    "#FBBF24",
+    "#4ADE80"
+   ],
+   "fixedLight": [
+    "#0F172A",
+    "#F87171",
+    "#FBBF24",
+    "#4ADE80"
+   ]
+  },
+  "nd-diag-g5-ssl-certificate": {
+   "accent": "#06B6D4",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [
+    "#007CC9",
+    "#0094F5",
+    "#FBBF24",
+    "#4ADE80"
+   ],
+   "fixedLight": [
+    "#0094F5",
+    "#37AAF9",
+    "#F59E0B",
+    "#10B981"
+   ]
+  },
+  "nd-diag-g5-tcp-connect": {
+   "accent": "#06B6D4",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "nd-diag-g5-telnet": {
+   "accent": "#0EA5E9",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [
+    "#1E293B",
+    "#F87171",
+    "#FBBF24",
+    "#4ADE80"
+   ],
+   "fixedLight": [
+    "#0F172A",
+    "#F87171",
+    "#FBBF24",
+    "#4ADE80"
+   ]
+  },
+  "nd-diag-g5-url-parsing": {
+   "accent": "#06B6D4",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "network-card": {
+   "accent": "#818CF8",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "play": {
+   "accent": "",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "protocol-stack": {
+   "accent": "#6366F1",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "remote-host": {
+   "accent": "#0EA5E9",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "restore": {
+   "accent": "",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "shield-network": {
+   "accent": "#10B981",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "translate": {
+   "accent": "",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "user": {
+   "accent": "",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
+  "zap": {
+   "accent": "",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  }
+ }
+}
