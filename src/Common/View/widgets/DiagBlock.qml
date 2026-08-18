@@ -202,7 +202,7 @@ Item {
                     NumberAnimation { from: 0.15; to: 1.0; duration: 530; easing.type: Easing.Linear }
                 }
             }
-            // 运行动画（animType → 五动画，DiagAnimator 调度）
+            // 运行动画（animType → 九动画，DiagAnimator 调度）
             DiagAnimator {
                 anchors.fill: parent
                 diagId: itemData.diagId !== undefined ? itemData.diagId : -1

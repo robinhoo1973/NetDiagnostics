@@ -25,8 +25,8 @@ user-invocable: true
 3. **格式**：根 `<svg>` 必须含 `fill="none"` 与 `fill-opacity="0"`；viewBox `0 0 24 24`；圆头（stroke-linecap="round"）。
 4. **哨兵纪律（仅 ffffff master）**：只允许 `#FFFFFF`（主色）、`#AAAAAA`（主色暗端）、`#000000`（语义强调色）、`#777777`（软灰）四哨兵；每图标 `#000000` 元素 ≤ 2 处；渐变 id 唯一（`ngnddiag<stem>`）。
 5. **辅形纪律（masters-45/*-a.svg）**：只允许 `#666666` 哨兵；不得重复主形内容（应为 accent 补充细节）。
-6. **管线一致性**：改动后的 master 是否已烘焙进全部 hex 变体目录 + `resources_icons.qrc` 是否含对应条目 + `IconColors.js` 是否最新（若主 agent 未重生成 → FAIL，注明需运行生成脚本）。
-7. **动画映射**：`DiagnosticMeta.cpp` 中该检测项的 `DiagAnimType` 是否与新图形隐喻匹配（Path=路径显现、Bounce=往返、Type=逐行键入、Pulse=呼吸、Jiggle=抖动、Lock=盖章落下）。
+6. **管线一致性（v4）**：改动后的 fffffff 母版是否已发布进 `resources/icons/master/` + `resources_icons.qrc` 是否含对应条目 + `resources/icon-runtime.json` 是否最新（若主 agent 未重生成 → FAIL，注明需运行 `python3 scripts/generate-colored-icons.py`）。
+7. **动画映射**：`DiagnosticMeta.cpp` 中该检测项的 `DiagAnimType` 是否与新图形隐喻匹配（Path=路径显现、Bounce=往返、Type=逐行键入、Pulse=呼吸、Jiggle=抖动、Lock=盖章落下、Check=盾牌打勾、Meter=表针摆动、Converge=四箭头聚拢）。
 8. **线宽纪律**：主轮廓 1.6 / 次级 1.2 / 细线 ≤1.1；同一图标内线宽层级不得超过 3 档。
 
 ## 工作方法

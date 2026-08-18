@@ -814,6 +814,9 @@ QString AppState::diagAnimationUrl(int diagIdInt) const {
         case DiagAnimType::Pulse:  return QStringLiteral("qrc:/qt/qml/widgets/animations/PulseAnimation.qml");
         case DiagAnimType::Type:   return QStringLiteral("qrc:/qt/qml/widgets/animations/TypeAnimation.qml");
         case DiagAnimType::Lock:   return QStringLiteral("qrc:/qt/qml/widgets/animations/LockAnimation.qml");
+        case DiagAnimType::Check:  return QStringLiteral("qrc:/qt/qml/widgets/animations/CheckAnimation.qml");
+        case DiagAnimType::Meter:  return QStringLiteral("qrc:/qt/qml/widgets/animations/MeterAnimation.qml");
+        case DiagAnimType::Converge: return QStringLiteral("qrc:/qt/qml/widgets/animations/ConvergeAnimation.qml");
         default:                   return QStringLiteral("qrc:/qt/qml/widgets/animations/JiggleAnimation.qml");
     }
 }

@@ -8,7 +8,10 @@
 
 // ── L5 template + L4 animation categories ────────────────────────────────
 enum class DiagTemplateType { System, Ping, Path, Handshake, Request, Query };
-enum class DiagAnimType     { Pulse, Jiggle, Bounce, Type, Path, Lock };
+// L4 动画（AppState.diagAnimationUrl → qrc:/qt/qml/widgets/animations/）：
+//   Pulse 呼吸 / Jiggle 抖动 / Bounce 往返 / Type 键入 / Path 逐跳
+//   Lock 盖章落下 / Check 盾牌打勾 / Meter 表针摆动 / Converge 箭头聚拢
+enum class DiagAnimType     { Pulse, Jiggle, Bounce, Type, Path, Lock, Check, Meter, Converge };
 
 inline QString diagDisplayName(DiagId id) {
     switch (id) {

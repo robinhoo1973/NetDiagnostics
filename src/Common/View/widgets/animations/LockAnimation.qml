@@ -2,8 +2,9 @@ import QtQuick
 import "../../theme" as T
 import "../../theme/AnimationTokens.js" as Tokens
 
-// ── LockAnimation.qml — Stamp/lock drop-and-settle for ~4 diagnostic tests ──
-// SSL Certificate, DNS Integrity, Security Headers, Internet Connectivity.
+// ── LockAnimation.qml — Stamp/lock drop-and-settle for ~2 diagnostic tests ──
+// SSL Certificate, Security Headers.
+// (DNS Integrity → CheckAnimation、Internet Connectivity → MeterAnimation)
 // A checkmark/shield drops from above and settles with a bounce.
 //
 // Usage: LockAnimation { anchors.fill: parent; running: testRunning }

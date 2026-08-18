@@ -13,6 +13,14 @@ var tokens = {
     typeCharDelay: 40,       // per-character delay for typing effect
     lockDropDuration: 400,   // stamp/lock fall duration
 
+    // ── v5 (2026-08-18): 新动画类型令牌 ────────────────────────────────
+    checkDrawDuration: 420,  // 盾牌打勾：两笔显现总时长（一笔 45% / 二笔 55%）
+    checkHoldDuration: 420,  // 勾完全显现后的保持时长
+    meterSweepDuration: 600, // 表针从左到右单次扫掠时长
+    convergeTravel: 380,     // 网关箭头单程（聚拢/回退）时长
+    convergeStagger: 120,    // 四箭头有序启动间隔
+    convergeHold: 260,       // 全部聚拢到位后的保持时长
+
     // ── Settle / transition (used by DiagBlock.qml Behavior) ─────────────
     settleDuration: 300,     // Done settle pop (OutBack)
     transitionDuration: 200, // color / border transitions

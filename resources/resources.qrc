@@ -44,6 +44,9 @@
         <file alias="qml/widgets/animations/PulseAnimation.qml">../src/Common/View/widgets/animations/PulseAnimation.qml</file>
         <file alias="qml/widgets/animations/TypeAnimation.qml">../src/Common/View/widgets/animations/TypeAnimation.qml</file>
         <file alias="qml/widgets/animations/LockAnimation.qml">../src/Common/View/widgets/animations/LockAnimation.qml</file>
+        <file alias="qml/widgets/animations/CheckAnimation.qml">../src/Common/View/widgets/animations/CheckAnimation.qml</file>
+        <file alias="qml/widgets/animations/MeterAnimation.qml">../src/Common/View/widgets/animations/MeterAnimation.qml</file>
+        <file alias="qml/widgets/animations/ConvergeAnimation.qml">../src/Common/View/widgets/animations/ConvergeAnimation.qml</file>
         <file alias="qml/theme/AnimationTokens.js">../src/Common/View/theme/AnimationTokens.js</file>
         <file alias="qml/widgets/AppBar.qml">../src/Common/View/widgets/AppBar.qml</file>
         <file alias="qml/widgets/AppIcon.qml">../src/Common/View/widgets/AppIcon.qml</file>
