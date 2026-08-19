@@ -61,7 +61,11 @@ PageDisplay {
         // 禁用）；重新可见由 onVisibleChanged 补刷新。
         enabled: page.visible
         function onFilteredDataChanged() { page._refreshTime(); page._refreshGroups() }
-        function onProgressChanged() { page._refreshTime(); page._refreshGroups() }
+        // 5WHY (复核 2026-08-19 冗余扫描): visibleGroups 仅在运行边界/激活组/
+        // 过滤集变更时变化（均有专属信号），progressChanged 逐条事件重扫后
+        // 又被 assignIfChanged 丢弃——保留 _refreshTime 墙钟即可（与
+        // DiagnosticScreen 等价接线一致）。
+        function onProgressChanged() { page._refreshTime() }
         function onRunElapsedChanged() { page._refreshTime() }
         function onCurrentRunningGroupChanged() { page._refreshGroups() }
     }
@@ -78,7 +82,11 @@ PageDisplay {
                     + ("0" + now.getMinutes()).slice(-2) + ":"
                     + ("0" + now.getSeconds()).slice(-2)
             }
-            page._refreshTime(); page._refreshGroups()
+            // 5WHY (复核 2026-08-19 离屏边界): 刷新部分仍须门控——未门控块
+            // 曾在隐藏页上替换 _groups 身份、离屏重建 5 面板 + ~40 瓦片
+            // （恰在运行边界 CPU 最忙时）。隐藏期由 onVisibleChanged 揭示
+            // 补刷自愈；戳章部分不依赖可见性保持未门控。
+            if (page.visible) { page._refreshTime(); page._refreshGroups() }
         }
     }
     Component.onCompleted: {

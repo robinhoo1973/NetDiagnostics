@@ -65,6 +65,10 @@ var Dark = {
     // 白箭头）——曾以裸 "#FFFFFF" 字面量存在于动画层，Palette.js 外复制即
     // 漂移且逃逸对比度审计。两主题同值（深色主色垫上白内容恒清晰）。
     onAccentPad:          "#FFFFFF",
+    // 5WHY (2026-08-19 浅色可读): 深屏上的终端文字/线框内容色
+    //（ssh/ftp/telnet 文字、DHCP 地球线框、IP 配置数字的 dark 槽）。
+    // light=近白（深屏恒深）；dark 与 primary 同值（沿用原外观）。
+    terminalInk:          "#60C8F8",
 };
 
 var Light = {
@@ -115,7 +119,8 @@ var Light = {
     groupHues:            ["#4338CA", "#0284C7", "#0891B2", "#0369A1", "#7C3AED"],
     iconInk:              "#0C4A6E",
     onFail:               "#FFFFFF",  // fail 红上的内容色（与 dark 同值）
-    onAccentPad:          "#FFFFFF"   // 饱和主色垫内容色（与 dark 同值）
+    onAccentPad:          "#FFFFFF",  // 饱和主色垫内容色（与 dark 同值）
+    terminalInk:          "#F8FAFC"   // 深屏内容色（light=近白，见 dark 注释）
 };
 
 Object.freeze(Dark);

@@ -161,6 +161,10 @@ private:
     void loadPreferences();
     void savePreferences();
     void bumpState();
+    // 队列化语义信号广播（5WHY 复核 2026-08-19 反模式 #4：QML 点击栈上
+    // 同步发射会驱动 Repeater 委托销毁；延迟一帧语义不变）
+    void queueFilteredChanged();
+    void queueStateBroadcast();
     // 结果持久化（ProbeDatabase 磁盘缓存能力恢复：重启后保留上次结果）
     void persistResults();
     void loadCachedResults();

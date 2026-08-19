@@ -32,7 +32,14 @@ PageSection {
     readonly property int _diagId: (detailData && detailData.diagId !== undefined)
         ? detailData.diagId : -1
     // 浮层/页面复用：detailData 切换（打开另一检测项详情）即重放
-    onDetailDataChanged: if (root._diagId >= 0) heroAnim.restart()
+    // 5WHY (复核 2026-08-19 陈旧读取): 门控曾读 _diagId——属性变更处理器
+    // 先于依赖绑定重估执行（DiagAnimator 注释同款已证顺序），首次赋值时
+    // 读到陈旧 -1 → 重放永不触发。改读变更源 detailData 本身（处理器运行时
+    // 已是新值）。
+    onDetailDataChanged: {
+        var d = root.detailData
+        if (d && d.diagId !== undefined && d.diagId >= 0) heroAnim.restart()
+    }
 
     RowLayout {
         Layout.fillWidth: true

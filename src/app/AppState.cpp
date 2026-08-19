@@ -229,8 +229,11 @@ void AppState::runDiagnostics() {
     if (m_pendingGroups.isEmpty()) {
         m_runStatus = Error;
         m_errorMessage = QStringLiteral("All groups are disabled");
-        emit runStatusChanged();
-        emit progressChanged();
+        // 5WHY (复核 2026-08-19 反模式 #4 同源): 曾同步发射——本函数由 QML
+        // Run 按钮 onClicked 调用，runStatusChanged 同步驱动
+        // _refreshGroups 替换数组 → Repeater 在点击栈未退栈时销毁 5 面板
+        // 委托（与蜂窝分支同类别）。统一经队列化广播延迟一帧。
+        queueStateBroadcast();
         return;
     }
     // 8-18（5WHY 死机根因 1/3）：蜂窝数据警告前移到整轮开始前。原实现在 G3 前
@@ -239,18 +242,20 @@ void AppState::runDiagnostics() {
     if (m_isPremiumPlatform && !noTarget && !m_cellularWarnAcked) {
         m_cellularWarnVisible = true;
         emit cellularWarnVisibleChanged();
-        // 5WHY (复核 2026-08-19): 此路径已清空 m_results/m_groupDone/m_currentGroup
-        // 却只发 cellularWarnVisibleChanged——所有统计消费方（状态头/组面板/
-        // 摘要卡）不监听它，上一轮计数与瓦片墙在"空结果集"上滞留；hasData 的
-        // NOTIFY 是 progressChanged 也不触发。清屏即过滤数据变更：补发两信号。
+        // 5WHY (复核 2026-08-19 状态语义): 此路径已清空
+        // m_results/m_groupDone/m_currentGroup 却只发
+        // cellularWarnVisibleChanged——所有统计消费方（状态头/组面板/摘要卡）
+        // 不监听它，上一轮计数与瓦片墙在"空结果集"上滞留；hasData 的 NOTIFY
+        // 是 progressChanged 也不触发。清屏即过滤数据变更：补发信号。
+        // 5WHY (复核 2026-08-19 终态残留): 若上一轮 Completed(2) 后再次 Run，
+        // runStatus 停留在 2——清屏后状态头仍显示"已完成 0/0"、空态隐藏。
+        // 弹窗等待期间尚未运行，归 Idle；runStatusChanged 随广播队列化。
         // 5WHY (复核 2026-08-19 栈上销毁): 本函数由 QML onClicked 调用——同步
         // 发射会驱动 _refreshGroups 替换数组 → Repeater 在按钮信号栈未退栈时
         // 销毁重建面板委托（CLAUDE.md 反模式 #4）。队列化延迟一帧：语义不变
         // （消费方读到的都是已清屏状态），栈上无销毁。
-        QMetaObject::invokeMethod(this, [this] {
-            emit filteredDataChanged();
-            emit progressChanged();
-        }, Qt::QueuedConnection);
+        m_runStatus = Idle;
+        queueStateBroadcast();
         return;   // 等待 continueAfterCellularWarn() → 重新 runDiagnostics()
     }
     m_runStatus = Running;
@@ -444,9 +449,12 @@ QVariantMap AppState::itemFor(DiagId id) const {
 QVariantList AppState::allDiagsForGroup(int groupInt) const {
     QVariantList out;
     const DiagGroup g = groupForIndex(groupInt);
+    // 5WHY (复核 2026-08-19 效率): toLower 曾在循环体逐项重算——45 次 QString
+    // 堆分配/调用（groupStats 同病）；归一化一次循环外复用。
+    const QString schemeLower = m_targetScheme.toLower();
     for (DiagId id : allDiagIds())
         if (diagGroup(id) == g && isSchedulable(id)
-            && runnableFor(id, m_targetScheme.toLower()))
+            && runnableFor(id, schemeLower))
             out.append(itemFor(id));
     return out;
 }
@@ -457,11 +465,14 @@ QVariantMap AppState::groupStats(int groupInt) const {
         skip = 0, info = 0, error = 0, cancelled = 0;
     const bool aggregate = (groupInt < 0);
     const DiagGroup g = groupForIndex(qMax(0, groupInt));
+    // 5WHY (复核 2026-08-19 效率): toLower 曾两个循环体各逐项重算（90 次
+    // QString 堆分配/调用）；归一化一次复用。
+    const QString schemeLower = m_targetScheme.toLower();
     for (DiagId id : allDiagIds()) {
         if (!isSchedulable(id)) continue;
         if (!aggregate && diagGroup(id) != g) continue;
         // NEW-3：统计与调度同源——不可运行（平台/scheme/设备）不计入总数
-        if (!runnableFor(id, m_targetScheme.toLower())) continue;
+        if (!runnableFor(id, schemeLower)) continue;
         ++total;
         const auto it = m_results.constFind(id);
         if (it == m_results.constEnd()) continue;
@@ -506,7 +517,7 @@ QVariantMap AppState::groupStats(int groupInt) const {
         // runnableFor 过滤，时长循环此前只按组——换 scheme 不重跑时旧结果时长
         // 混入新过滤集（"3/20 徽标配 20 项时长"）。补齐同一过滤。
         if (!isSchedulable(r.id)) continue;
-        if (!runnableFor(r.id, m_targetScheme.toLower())) continue;
+        if (!runnableFor(r.id, schemeLower)) continue;
         totalMs += r.durationMs;
     }
     s[QStringLiteral("durationMs")] = static_cast<qlonglong>(totalMs);
@@ -692,9 +703,7 @@ bool AppState::setDiagEnabled(int diagIdInt, bool enabled) {
     // QML 点击栈（CLAUDE.md 反模式 #4）。
     if (ok) {
         bumpState();
-        QMetaObject::invokeMethod(this, [this] {
-            emit filteredDataChanged();
-        }, Qt::QueuedConnection);
+        queueFilteredChanged();   // 队列化广播（5WHY 反模式 #4，见 runDiagnostics）
     }
     return ok;
 }
@@ -702,11 +711,25 @@ bool AppState::setGroupEnabled(int groupInt, bool enabled) {
     const bool ok = m_config && m_config->setGroupEnabled(groupInt, enabled);
     if (ok) {
         bumpState();
-        QMetaObject::invokeMethod(this, [this] {
-            emit filteredDataChanged();
-        }, Qt::QueuedConnection);
+        queueFilteredChanged();
     }
     return ok;
+}
+// 5WHY (复核 2026-08-19 单一广播点): 三处 QMetaObject::invokeMethod 队列化
+// 发射逐字复制——收敛为私有助手。QML 点击栈上同步发射会驱动 Repeater 委托
+// 销毁（CLAUDE.md 反模式 #4）；队列化延迟一帧，消费方读到的都是新状态。
+void AppState::queueFilteredChanged() {
+    QMetaObject::invokeMethod(this, [this] {
+        emit filteredDataChanged();
+    }, Qt::QueuedConnection);
+}
+
+void AppState::queueStateBroadcast() {
+    QMetaObject::invokeMethod(this, [this] {
+        emit runStatusChanged();
+        emit progressChanged();
+        emit filteredDataChanged();
+    }, Qt::QueuedConnection);
 }
 bool AppState::isGroupAllEnabled(int groupInt) const {
     return m_config && m_config->isGroupAllEnabled(groupInt);

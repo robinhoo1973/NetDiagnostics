@@ -23,6 +23,11 @@ Item {
     property real minHeight: 0
     property real fixedHeight: -1
     property real contentSpacing: ThemeEngine.spacing.xs
+    // 5WHY (复核 2026-08-19 基类收敛): 屏幕可见性曾在 PageGroupPanelSection /
+    // PageTileGridSection / PageStatusHeaderSection / PageEmptyStateSection
+    // 四处各自重声明（StackView 隐藏页不销毁、信号离屏空转的停扫门控）——
+    // 共享契约上移基类，新 section 不再各自复制。
+    property bool screenVisible: true
     // ── 3. Chrome ──
     enum BackgroundStyle { Plain, Card, Bar }
     property int backgroundStyle: PageSection.Card

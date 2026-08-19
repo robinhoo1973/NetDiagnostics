@@ -36,7 +36,6 @@ PageSection {
     // 新统计键只改一处。
     // 5WHY (复核 2026-08-19 单一订阅点): 订阅/归一化/离屏门控/揭示自愈全部
     // 收敛进 StatsBridge——本处只读归一化结果（screenVisible 经桥生效）。
-    property bool screenVisible: true
     StatsBridge {
         id: stats
         screenVisible: root.screenVisible

@@ -56,7 +56,13 @@ Item {
         var ch = vp.contentHeight   // 依赖读取：上方内容增删改变布局时重估本绑定
         var ty = root.y        // 依赖读取：网格重排时重估本绑定
         var top = root.mapToItem(vp, 0, 0).y
-        return top + root.height > 0 && top < Math.min(vp.height, ch)
+        // 5WHY (复核 2026-08-19 边界迟滞): 边界精确判定在滚动震荡下反复翻转
+        // _isRunning——运行中动画的 Loader 每越过边界一次就销毁/重建并
+        // 从 0 相位重放（qrc 重载 + 重实例化成本高于被省下的空转）。两侧
+        // 各加 80px（≈1 瓦片）迟滞带：震荡不翻转，仅少量越界瓦片继续
+        // 空转（可接受换取稳定）。
+        var hys = 80
+        return top + root.height + hys > 0 && top < Math.min(vp.height, ch) + hys
     }
     readonly property bool _isRunning: root.testRunning && !root._isDisabled
         && !root.isDone && root.visible && root.screenVisible && root._inViewport
@@ -229,7 +235,10 @@ Item {
                 height: Math.max(1.5, root._iconSize * 1.2 / 24)
                 x: iconWell.width / 2 + (root._termCursorX - 12) * root._iconSize / 24
                 y: iconWell.height / 2 + root._termCursorYOff * root._iconSize / 24 - height / 2
-                color: root._iconColor
+                // 5WHY (复核 2026-08-19 浅色可读): 曾用 _iconColor——light 下
+                // iconInk #0C4A6E 压在深屏 #0F172A 上仅 1.89:1，光标不可见。
+                // terminalInk 与图标管线终端文字槽同源（Palette.js 单一事实源）。
+                color: ThemeEngine.colors.terminalInk
                 SequentialAnimation on opacity {
                     loops: Animation.Infinite
                     // 5WHY (review 2026-08-17): 45 个瓦片仅 3 个终端图标显示

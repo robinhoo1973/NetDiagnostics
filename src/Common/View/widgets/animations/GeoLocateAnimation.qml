@@ -11,17 +11,19 @@ import "../../theme/AnimationTokens.js" as Tokens
 // 纯 Rectangle + scale/opacity 动画——无 Canvas/ShapePath/ShaderEffect
 // （iOS 静态 Qt 安全）。
 //
-// Usage: GeoLocateAnimation { anchors.fill: parent; running: testRunning }
+// Usage: 经 DiagAnimator 装载（锚点由 C++ diagAnimationAnchor 下发）——
+//   DiagAnimator { anchors.fill: parent; diagId: ...; running: testRunning }
 
 AnimationBase {
     id: root
 
     // 锚点：geoip 母版定位针头中心（实测 ≈(0.71, 0.30)）。C++ 单一来源
     // （AppState.diagAnimationAnchor，与 animType→URL 同层）经 DiagAnimator
-    // 装载时下发覆盖；此处默认=同值，供直接实例化回退。
-    property real anchorCx: 0.71
-    property real anchorCy: 0.30
-    property real anchorMaxR: 0.29
+    // 装载时下发——不再保留 QML 同值默认（曾双份复制，母版位移只改 C++
+    // 时直接实例化回退静默错位；全仓无 DiagAnimator 之外的本动画实例化）。
+    property real anchorCx
+    property real anchorCy
+    property real anchorMaxR
     readonly property real _cx: parent.width * root.anchorCx
     readonly property real _cy: parent.height * root.anchorCy
     // 5WHY (复核 2026-08-19 边界): 半径在 (cx,cy) 锚点上越界（无裁剪链——

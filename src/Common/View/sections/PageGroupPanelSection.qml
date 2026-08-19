@@ -21,7 +21,6 @@ PageSection {
     // ~60% 空转）。屏幕注入可见性：Connections.enabled 整体禁用（与
     // StatsBridge/两屏同一机制），重新可见无条件 _reload 补刷（面板只
     // 在屏可见时创建，创建期成本即该量级）。默认 true 保持独立使用兼容。
-    property bool screenVisible: true
     // 5WHY (复核 2026-08-19 viewport 门控): 屏幕 Flickable 下传瓦片——
     // 滚动出视口的运行瓦片停动画（与 screenVisible 两级门控）。
     property var viewportItem: null
@@ -37,20 +36,14 @@ PageSection {
     // 身份而非版本 key）——_activeKey 签名门控已完全取代它，删除。
     property int _total: 0
     property int _completed: 0
-    property int _pass: 0
-    property int _warn: 0
-    property int _fail: 0
-    property int _skip: 0
-    property int _info: 0
-    property int _error: 0
-    property int _cancelled: 0
-    property int _durationMs: 0
     property bool _userToggled: false
     property bool _userExpanded: true
-    // 5WHY (复核 2026-08-18): cancelled 缺 key——groupStats 把取消项计入
-    // completed，出现 "X/X 完成但徽标数字对不上"；补全 7 状态。
-    readonly property var _statsObj: ({ pass: _pass, warn: _warn, fail: _fail, skip: _skip, info: _info, error: _error, cancelled: _cancelled,
-                                         total: _total, completed: _completed, durationMs: _durationMs })
+    // 5WHY (复核 2026-08-19 单层直通): 曾以 8 个 typed int 重建
+    // W.normalize 已返回的同键对象——直赋归一化结果（新身份每刷一次，
+    // 徽标簇/注入行头的 stats 绑定照常重估）。completedExclCancelled 键
+    // 随 normalize 直达注入行头——曾在此掉键，DashboardRowHeader 回落
+    // 手工减法（completed-cancelled），与模型单一推导点脱钩。
+    property var _statsObj: W.normalize(null)
 
     readonly property bool isRunning: AppState.runStatus === 1 && AppState.currentRunningGroup === groupIndex
     readonly property bool expanded: _userToggled ? _userExpanded : (isRunning || _completed > 0)
@@ -88,18 +81,11 @@ PageSection {
     property int _activeLen: -1
     function _refreshStats() {   // UI-2：命令式赋值，绑定不调 Q_INVOKABLE
         // 5WHY (复核 2026-08-18 Reuse C3): 键归一化经 StatsUtil.js 单一来源；
-        // 本组件保留 typed int 属性（绑定追踪需要）。
+        // _total/_completed 保留 typed int（expanded/X-Y/Loader 门控绑定消费）。
         var s = W.normalize(AppState.groupStats(groupIndex))
+        _statsObj = s
         _total = s.total
         _completed = s.completed
-        _pass = s.pass
-        _warn = s.warn
-        _fail = s.fail
-        _skip = s.skip
-        _info = s.info
-        _error = s.error
-        _cancelled = s.cancelled
-        _durationMs = s.durationMs   // H2：行时长注入 DashboardRowHeader
     }
     // 5WHY (复核 2026-08-18 单一入口): reloadModel()+_refreshStats() 对曾以
     // 5 处逐字复制出现（runStatus/currentRunningGroup/target/stateVersion/
@@ -125,7 +111,15 @@ PageSection {
         }
         // 8-16：组开始（currentRunningGroup 切换）即加载瓦片墙——
         // 瓦片与组标题同步出现，而非等首条结果/组结束。
-        function onCurrentRunningGroupChanged() { _reload() }
+        // 8-16：组开始（currentRunningGroup 切换）即加载瓦片墙——
+        // 瓦片与组标题同步出现，而非等首条结果/组结束。
+        // 5WHY (复核 2026-08-19 scope-gate): 曾 5 面板全量 _reload——组推进
+        // 边界只有新当前组的模型/统计会变（已结束组刚被结果落地事件刷新，
+        // 未开始组冻结）。仅刷新新当前组；完成时 current=-1 全跳过，由随后
+        // 的 runStatusChanged 全量 _reload 覆盖（onSuiteFinished 顺序保证）。
+        function onCurrentRunningGroupChanged() {
+            if (groupIndex === AppState.currentRunningGroup) _reload()
+        }
         // 5WHY (复核 2026-08-18 语义信号): 换 target scheme 不重跑只发
         // filteredDataChanged——groupStats 按 runnableFor(scheme) 过滤，瓦片墙
         // （allDiagsForGroup/resultsForGroup 同源过滤）也会变。旧实现接

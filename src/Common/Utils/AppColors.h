@@ -94,6 +94,7 @@
 #define APPC_ICON_INK_DARK                           "#60C8F8"
 #define APPC_ON_FAIL_DARK                           "#FFFFFF"
 #define APPC_ON_ACCENT_PAD_DARK                           "#FFFFFF"
+#define APPC_TERMINAL_INK_DARK                           "#60C8F8"
 
 // ── Light palette ─────────────────────────────────────────────────────────────
 #define APPC_ACCENT_LIGHT                          "#F43F5E"
@@ -109,6 +110,7 @@
 #define APPC_ICON_INK_LIGHT                          "#0C4A6E"
 #define APPC_ON_FAIL_LIGHT                          "#FFFFFF"
 #define APPC_ON_ACCENT_PAD_LIGHT                          "#FFFFFF"
+#define APPC_TERMINAL_INK_LIGHT                          "#F8FAFC"
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // REPORT-SPECIFIC COLORS (HTML/PDF report generation — report-local, static)

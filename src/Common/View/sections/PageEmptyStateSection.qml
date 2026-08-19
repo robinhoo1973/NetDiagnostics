@@ -25,7 +25,6 @@ PageSection {
     // 消费方同源；内联 `|| 0` 只防 undefined，不防键重命名/零填充保证移除。
     // 5WHY (复核 2026-08-19 单一订阅点): 订阅/归一化/离屏门控/揭示自愈收敛
     // 进 StatsBridge；_completed 变纯绑定（读桥的 JS 值，无 Q_INVOKABLE）。
-    property bool screenVisible: true
     StatsBridge {
         id: stats
         screenVisible: root.screenVisible

@@ -70,12 +70,20 @@ Item {
     function restart() {
         if (!root.bounded) return
         Qt.callLater(function() {
+            // 5WHY (复核 2026-08-19 生命周期兜底): 详情页同帧 pop 时 callLater
+            // 可能仍被派发——已销毁对象上赋值会抛 TypeError；守卫后静默跳过。
+            if (!root) return
             root._fadeOut = 1
             root.running = true   // 计时器 running 绑定随此重新起算全窗（无需显式 restart）
         })
         root._stopInstance()
     }
 
+    // 5WHY (复核 2026-08-19 作用域回归): 曾声明在 Loader 字面量内、active/
+    // source 却经 root._loaderActive 引用——属性属于 Loader 而 root 是外层
+    // Item，绑定求值 undefined → Loader 永不装载，全部运行动画与 hero 重放
+    // 静默失效。根级声明（readonly 根级规则）供两者共用。
+    readonly property bool _loaderActive: root.running && root.diagId >= 0
     Loader {
         id: loader
         anchors.fill: parent   // 5WHY (复核 2026-08-19 回归): 加 id 时曾误删——动画根几何全部由
@@ -83,7 +91,6 @@ Item {
         opacity: root._fadeOut
         // 5WHY (复核 2026-08-19 单一条件): active 与 source 曾各自书写同一
         // 条件——新门控必须两处同步。_loaderActive 单一来源供两者共用。
-        readonly property bool _loaderActive: root.running && root.diagId >= 0
         active: root._loaderActive
         // C++ resolves DiagId → animation URL — no QML-side switch needed
         source: root._loaderActive ? AppState.diagAnimationUrl(root.diagId) : ""

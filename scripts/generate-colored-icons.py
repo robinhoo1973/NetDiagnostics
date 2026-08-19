@@ -114,9 +114,21 @@ FIXED_COLORS: dict[str, list[str]] = {
     "nd-diag-g3-geoip": ["#F43F5E"],
     "nd-diag-g3-internet": ["#FD3551", "#4C8FFF", "#FFE824"],
     # 终端三协议（用户 ASCII 规格）：屏幕 #1E293B（与 dark 面区分）+ 标题栏三圆点红黄绿
-    "nd-diag-g5-ssh": ["#1E293B", "#F87171", "#FBBF24", "#4ADE80"],
-    "nd-diag-g5-ftp": ["#1E293B", "#F87171", "#FBBF24", "#4ADE80"],
-    "nd-diag-g5-telnet": ["#1E293B", "#F87171", "#FBBF24", "#4ADE80"],
+    # 5WHY (2026-08-19 浅色可读): >_ 提示符+协议文字（#B00005）曾用 #FFFFFF
+    # 请求色——light 下 iconInk #0C4A6E 压在深屏 #0F172A 上仅 1.89:1，终端
+    # 文字不可见。改固定槽，颜色经 Palette.js terminalInk 角色双主题配对。
+    "nd-diag-g5-ssh": ["#1E293B", "#F87171", "#FBBF24", "#4ADE80", "Dark.terminalInk"],
+    "nd-diag-g5-ftp": ["#1E293B", "#F87171", "#FBBF24", "#4ADE80", "Dark.terminalInk"],
+    "nd-diag-g5-telnet": ["#1E293B", "#F87171", "#FBBF24", "#4ADE80", "Dark.terminalInk"],
+    # IP 配置：屏幕 #777777 柔填充 + Hershey 数字（#B00001）。数字曾用
+    # #FFFFFF 请求色——light 下 iconInk #0C4A6E 压在石板屏 #475569 上仅
+    # 1.25:1（用户诉求 "1.1.1.1 看不见"）。dark 深墨 #0F172A / light 白。
+    "nd-diag-g1-ip-config": ["#0F172A"],
+    # DHCP：地球线框（#B00002）曾用 #FFFFFF 请求色——light 下深蓝线框压在
+    # 石板字母 #475569 上仅 1.25:1。改固定槽双主题配色；首槽 #1E293B 是
+    # write_icon_tints 首槽亮度门占位（lum<0.15 → tint 回退 DIAG_ACCENT
+    # 琥珀，光晕垫色保持不变）。
+    "nd-diag-g1-dhcp": ["#1E293B", "Dark.terminalInk"],
     # IPv6 显示器：电源点+底座 → 浅腚（与 DIAG_ACCENT 浅色端一致）
     "nd-diag-g4-ipv6": ["#818CF8"],
     # Proxy 地球线框：蓝色循环箭头 + 黄色闪电（忠实参考图色）
@@ -133,13 +145,16 @@ FIXED_COLORS: dict[str, list[str]] = {
     "nd-diag-g5-redis": ["#007CC9", "#0094F5", "#FFFFFF", "#003E6B", "#0068AA", "#007BC8"],
     "nd-diag-g5-mongodb": ["#007CC9", "#0094F5", "#FFFFFF", "#003E6B", "#0068AA", "#007BC8"],
     # HTTP 六图标：背景 = 1:1 复刻 blankfile.png（页面 #007CC9 + 折角 #0094F5），内部图形保留主题色
-    "nd-diag-g5-http-timing": ["#007CC9", "#0094F5", "#FBBF24"],
-    "nd-diag-g5-http-redirect": ["#007CC9", "#0094F5"],
-    "nd-diag-g5-ssl-certificate": ["#007CC9", "#0094F5", "#FBBF24", "#4ADE80"],
-    "nd-diag-g5-security-headers": ["#007CC9", "#0094F5"],
-    "nd-diag-g5-http-headers": ["#007CC9", "#0094F5"],
-    "nd-diag-g5-curl-verbose": ["#007CC9", "#0094F5"],
-    "nd-diag-g5-http-compression": ["#007CC9", "#0094F5"],
+    # 5WHY (2026-08-19 浅色可读): HTML 文字/白图形（#B0000n）曾用 #FFFFFF
+    # 请求色——页面蓝上 2.3-3.0:1（dark 2.35/light 2.95）。与 DB 四联同
+    # 模式：dark 白、light 深墨 #0F172A（5.6-4.4:1）。
+    "nd-diag-g5-http-timing": ["#007CC9", "#0094F5", "#FBBF24", "#FFFFFF"],
+    "nd-diag-g5-http-redirect": ["#007CC9", "#0094F5", "#FFFFFF"],
+    "nd-diag-g5-ssl-certificate": ["#007CC9", "#0094F5", "#FBBF24", "#4ADE80", "#FFFFFF"],
+    "nd-diag-g5-security-headers": ["#007CC9", "#0094F5", "#FFFFFF"],
+    "nd-diag-g5-http-headers": ["#007CC9", "#0094F5", "#FFFFFF"],
+    "nd-diag-g5-curl-verbose": ["#007CC9", "#0094F5", "#FFFFFF"],
+    "nd-diag-g5-http-compression": ["#007CC9", "#0094F5", "#FFFFFF"],
 }
 
 # ── 浅色主题固定色（#B0000n → 第 n 个固定色，仅 light 变体使用）────────────────
@@ -149,22 +164,26 @@ FIXED_COLORS_LIGHT: dict[str, list[str]] = {
     # A 类：页面双套（dark #007CC9 / light #0094F5，折角 #37AAF9）
     "nd-diag-g2-network-profile": ["#0094F5", "#37AAF9"],
     "nd-diag-g5-mqtt": ["#0094F5", "#37AAF9", "#22C55E"],
-    "nd-diag-g5-http-timing": ["#0094F5", "#37AAF9", "#F59E0B"],
-    "nd-diag-g5-http-redirect": ["#0094F5", "#37AAF9"],
-    "nd-diag-g5-ssl-certificate": ["#0094F5", "#37AAF9", "#F59E0B", "#10B981"],
-    "nd-diag-g5-security-headers": ["#0094F5", "#37AAF9"],
-    "nd-diag-g5-http-headers": ["#0094F5", "#37AAF9"],
-    "nd-diag-g5-curl-verbose": ["#0094F5", "#37AAF9"],
-    "nd-diag-g5-http-compression": ["#0094F5", "#37AAF9"],
+    "nd-diag-g5-http-timing": ["#0094F5", "#37AAF9", "#F59E0B", "#0F172A"],
+    "nd-diag-g5-http-redirect": ["#0094F5", "#37AAF9", "#0F172A"],
+    "nd-diag-g5-ssl-certificate": ["#0094F5", "#37AAF9", "#F59E0B", "#10B981", "#0F172A"],
+    "nd-diag-g5-security-headers": ["#0094F5", "#37AAF9", "#0F172A"],
+    "nd-diag-g5-http-headers": ["#0094F5", "#37AAF9", "#0F172A"],
+    "nd-diag-g5-curl-verbose": ["#0094F5", "#37AAF9", "#0F172A"],
+    "nd-diag-g5-http-compression": ["#0094F5", "#37AAF9", "#0F172A"],
     # DB 四联 light：页面浅蓝 + 深色细节（白描边/白字 → 深 #0F172A，圆柱加深）
     "nd-diag-g5-mysql": ["#0094F5", "#37AAF9", "#0F172A", "#014A75", "#0369A1", "#0284C7"],
     "nd-diag-g5-postgres": ["#0094F5", "#37AAF9", "#0F172A", "#014A75", "#0369A1", "#0284C7"],
     "nd-diag-g5-redis": ["#0094F5", "#37AAF9", "#0F172A", "#014A75", "#0369A1", "#0284C7"],
     "nd-diag-g5-mongodb": ["#0094F5", "#37AAF9", "#0F172A", "#014A75", "#0369A1", "#0284C7"],
     # B 类：终端三协议 light 屏幕保持深黑；proxy/ipv6/cellular/internet light 加深
-    "nd-diag-g5-ssh": ["#0F172A", "#F87171", "#FBBF24", "#4ADE80"],
-    "nd-diag-g5-ftp": ["#0F172A", "#F87171", "#FBBF24", "#4ADE80"],
-    "nd-diag-g5-telnet": ["#0F172A", "#F87171", "#FBBF24", "#4ADE80"],
+    "nd-diag-g5-ssh": ["#0F172A", "#F87171", "#FBBF24", "#4ADE80", "Light.terminalInk"],
+    "nd-diag-g5-ftp": ["#0F172A", "#F87171", "#FBBF24", "#4ADE80", "Light.terminalInk"],
+    "nd-diag-g5-telnet": ["#0F172A", "#F87171", "#FBBF24", "#4ADE80", "Light.terminalInk"],
+    # IP 配置 light：深屏上白色数字（#B00001）；DHCP light：深墨线框 #0F172A
+    # （#B00002）——白卡上 9.5:1 保持球框可见，字母交叉处 1.25→2.4:1
+    "nd-diag-g1-ip-config": ["#FFFFFF"],
+    "nd-diag-g1-dhcp": ["#1E293B", "#0F172A"],
     "nd-diag-g2-proxy": ["#1D4ED8", "#F59E0B"],
     "nd-diag-g4-ipv6": ["#6366F1"],
     "nd-diag-g1-cellular": ["#DC2626", "#D97706", "#10B981", "#0EA5E9"],

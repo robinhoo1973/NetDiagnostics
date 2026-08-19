@@ -272,16 +272,26 @@
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
-   "fixedDark": [],
-   "fixedLight": []
+   "fixedDark": [
+    "#1E293B",
+    "#60C8F8"
+   ],
+   "fixedLight": [
+    "#1E293B",
+    "#0F172A"
+   ]
   },
   "nd-diag-g1-ip-config": {
    "accent": "#475569",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
-   "fixedDark": [],
-   "fixedLight": []
+   "fixedDark": [
+    "#0F172A"
+   ],
+   "fixedLight": [
+    "#FFFFFF"
+   ]
   },
   "nd-diag-g1-network-adapters": {
    "accent": "#06B6D4",
@@ -492,11 +502,13 @@
    "softLight": "#475569",
    "fixedDark": [
     "#007CC9",
-    "#0094F5"
+    "#0094F5",
+    "#FFFFFF"
    ],
    "fixedLight": [
     "#0094F5",
-    "#37AAF9"
+    "#37AAF9",
+    "#0F172A"
    ]
   },
   "nd-diag-g5-email": {
@@ -516,13 +528,15 @@
     "#1E293B",
     "#F87171",
     "#FBBF24",
-    "#4ADE80"
+    "#4ADE80",
+    "#60C8F8"
    ],
    "fixedLight": [
     "#0F172A",
     "#F87171",
     "#FBBF24",
-    "#4ADE80"
+    "#4ADE80",
+    "#F8FAFC"
    ]
   },
   "nd-diag-g5-http-compression": {
@@ -532,11 +546,13 @@
    "softLight": "#475569",
    "fixedDark": [
     "#007CC9",
-    "#0094F5"
+    "#0094F5",
+    "#FFFFFF"
    ],
    "fixedLight": [
     "#0094F5",
-    "#37AAF9"
+    "#37AAF9",
+    "#0F172A"
    ]
   },
   "nd-diag-g5-http-headers": {
@@ -546,11 +562,13 @@
    "softLight": "#475569",
    "fixedDark": [
     "#007CC9",
-    "#0094F5"
+    "#0094F5",
+    "#FFFFFF"
    ],
    "fixedLight": [
     "#0094F5",
-    "#37AAF9"
+    "#37AAF9",
+    "#0F172A"
    ]
   },
   "nd-diag-g5-http-redirect": {
@@ -560,11 +578,13 @@
    "softLight": "#475569",
    "fixedDark": [
     "#007CC9",
-    "#0094F5"
+    "#0094F5",
+    "#FFFFFF"
    ],
    "fixedLight": [
     "#0094F5",
-    "#37AAF9"
+    "#37AAF9",
+    "#0F172A"
    ]
   },
   "nd-diag-g5-http-timing": {
@@ -575,12 +595,14 @@
    "fixedDark": [
     "#007CC9",
     "#0094F5",
-    "#FBBF24"
+    "#FBBF24",
+    "#FFFFFF"
    ],
    "fixedLight": [
     "#0094F5",
     "#37AAF9",
-    "#F59E0B"
+    "#F59E0B",
+    "#0F172A"
    ]
   },
   "nd-diag-g5-ldap": {
@@ -702,11 +724,13 @@
    "softLight": "#475569",
    "fixedDark": [
     "#007CC9",
-    "#0094F5"
+    "#0094F5",
+    "#FFFFFF"
    ],
    "fixedLight": [
     "#0094F5",
-    "#37AAF9"
+    "#37AAF9",
+    "#0F172A"
    ]
   },
   "nd-diag-g5-service-banner": {
@@ -726,13 +750,15 @@
     "#1E293B",
     "#F87171",
     "#FBBF24",
-    "#4ADE80"
+    "#4ADE80",
+    "#60C8F8"
    ],
    "fixedLight": [
     "#0F172A",
     "#F87171",
     "#FBBF24",
-    "#4ADE80"
+    "#4ADE80",
+    "#F8FAFC"
    ]
   },
   "nd-diag-g5-ssl-certificate": {
@@ -744,13 +770,15 @@
     "#007CC9",
     "#0094F5",
     "#FBBF24",
-    "#4ADE80"
+    "#4ADE80",
+    "#FFFFFF"
    ],
    "fixedLight": [
     "#0094F5",
     "#37AAF9",
     "#F59E0B",
-    "#10B981"
+    "#10B981",
+    "#0F172A"
    ]
   },
   "nd-diag-g5-tcp-connect": {
@@ -770,13 +798,15 @@
     "#1E293B",
     "#F87171",
     "#FBBF24",
-    "#4ADE80"
+    "#4ADE80",
+    "#60C8F8"
    ],
    "fixedLight": [
     "#0F172A",
     "#F87171",
     "#FBBF24",
-    "#4ADE80"
+    "#4ADE80",
+    "#F8FAFC"
    ]
   },
   "nd-diag-g5-url-parsing": {
