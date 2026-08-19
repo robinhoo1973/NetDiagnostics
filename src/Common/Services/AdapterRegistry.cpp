@@ -70,6 +70,11 @@ static bool unsupportedOnCurrentPlatform(DiagId id) {
         case DiagId::G2ArpTable:
         case DiagId::G2ProxySettings:
         case DiagId::G3DnsCache:
+        // 5WHY (复核 2026-08-20 iOS 启动 qFatal): G3NetskopeStatus 恢复为
+        // 可调度后仅注册 PF_Desktop|PF_Android——iOS 无适配器且不在白名单，
+        // verifyAllDiagIds 在 iOS 调试构建 qFatal（启动崩溃链）。iOS 沙箱
+        // 不暴露进程表，按契约入不可支持白名单（与 G2ProxySettings 同级）。
+        case DiagId::G3NetskopeStatus:
             return true;
         default:
             return false;
