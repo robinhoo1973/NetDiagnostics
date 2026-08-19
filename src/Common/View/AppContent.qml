@@ -68,8 +68,12 @@ Item {
             var d = detailComp.createObject(stackView)
             if (typeof d.sectionAction !== "undefined")
                 d.sectionAction.connect(handlePageAction)
-            d.detail = AppState.resultFor(payload.diagId)
+            // 5WHY (复核 2026-08-19 窗口时序): 曾在 push 前赋值——hero 重放
+            // 窗口在推入转场（~250-400ms，低功耗板更慢）开始前启动，开场
+            // 相位在屏外播完。先推入再赋值：窗口起点不早于页面进入，
+            // onDetailDataChanged 即触发重放。
             stackView.push(d)
+            d.detail = AppState.resultFor(payload.diagId)
         } else if (action === "back") {
             if (stackView.currentItem && stackView.currentItem.objectName === "detail")
                 stackView.pop()

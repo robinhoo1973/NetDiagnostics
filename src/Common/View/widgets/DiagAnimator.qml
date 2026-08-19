@@ -60,6 +60,17 @@ Item {
         }
         root.running = false
     }
+    // 5WHY (复核 2026-08-19 无界路径清理): 瓦片等无界用法（bounded=false）
+    // 不经过 _stopInstance——Loader.active 绑定先销毁实例，动画自身的
+    // onRunningChanged 清理（Jiggle 旋转复位）被跳过，图标井冻结在 ±2.5°
+    // 随机倾角直到下轮。属性变更处理器先于依赖绑定重估执行：此处先清
+    // 实例再让其随 active 销毁。有界路径已由 _stopInstance 处理，跳过。
+    onRunningChanged: {
+        if (!running && !root.bounded && loader.item) {
+            loader.item.running = false
+            loader.item.running = Qt.binding(function() { return root.running })
+        }
+    }
     function restart() {
         if (!root.bounded) return
         Qt.callLater(function() {
