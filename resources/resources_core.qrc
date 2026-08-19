@@ -37,9 +37,10 @@
         <file alias="widgets/IconActionButton.qml">../src/Common/View/widgets/IconActionButton.qml</file>
         <file alias="widgets/NavArrowButton.qml">../src/Common/View/widgets/NavArrowButton.qml</file>
         <file alias="widgets/WindowButton.qml">../src/Common/View/widgets/WindowButton.qml</file>
-        <!-- animations（九动画：六基础 Pulse/Jiggle/Bounce/Type/Path/Lock +
-             三检测专属 Check/Meter/Converge；清单与 AppState::diagAnimationUrl
-             一一对应，pre-commit 18b fail-closed 校验） -->
+        <!-- animations（十动画：六基础 Pulse/Jiggle/Bounce/Type/Path/Lock +
+             四检测专属 Check/Meter/Converge/GeoLocate；清单与
+             AppState::diagAnimationUrl 一一对应，pre-commit 18b fail-closed
+             校验） -->
         <file alias="widgets/animations/PulseAnimation.qml">../src/Common/View/widgets/animations/PulseAnimation.qml</file>
         <file alias="widgets/animations/JiggleAnimation.qml">../src/Common/View/widgets/animations/JiggleAnimation.qml</file>
         <file alias="widgets/animations/BounceAnimation.qml">../src/Common/View/widgets/animations/BounceAnimation.qml</file>
@@ -54,6 +55,7 @@
         <file alias="widgets/animations/CheckAnimation.qml">../src/Common/View/widgets/animations/CheckAnimation.qml</file>
         <file alias="widgets/animations/MeterAnimation.qml">../src/Common/View/widgets/animations/MeterAnimation.qml</file>
         <file alias="widgets/animations/ConvergeAnimation.qml">../src/Common/View/widgets/animations/ConvergeAnimation.qml</file>
+        <file alias="widgets/animations/GeoLocateAnimation.qml">../src/Common/View/widgets/animations/GeoLocateAnimation.qml</file>
         <file alias="theme/AnimationTokens.js">../src/Common/View/theme/AnimationTokens.js</file>
         <!-- detail 组件（page-detail.md 复用件） -->
         <file alias="detail/qmldir">../src/Common/View/detail/qmldir</file>

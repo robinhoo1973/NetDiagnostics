@@ -35,3 +35,14 @@ function normalize(map) {
         durationMs:              (map && map.durationMs) || 0
     }
 }
+
+// 5WHY (复核 2026-08-19): 数组身份门控（内容未变不替换 model 数组，避免
+// Repeater 全量重建）曾在 Dashboard/Diagnostic 两屏逐字复制——收敛为单一
+// helper；内容相同时返回旧数组（身份保持）。元素级比较（本库消费方均为
+// ≤5 元素 int 数组，JSON 序列化比较属过量成本）。
+function assignIfChanged(current, next) {
+    if (current.length !== next.length) return next
+    for (var i = 0; i < next.length; ++i)
+        if (current[i] !== next[i]) return next
+    return current
+}

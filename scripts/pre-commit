@@ -488,19 +488,44 @@ fi
 	# 5WHY (复核 2026-08-18): a7e9d9c6 的三个检测动画被 AppState::diagAnimationUrl
 	# 引用却只登记在旧 resources.qrc（未进 QML_RESOURCES、从不编译）——运行时
 	# Loader "No such file or directory"、动画在发布版静默缺失；rcc 只校验反向
-	# （qrc 引用了已删文件）。比对 C++ URL 字面量与 qrc 条目，fail-closed。
+	# （qrc 引用了已删文件）。比对代码 URL 字面量与 qrc 条目，fail-closed。
+	# 5WHY (复核 2026-08-19): 三个缺口补齐——(a) 全仓扫描（C++/QML/JS，URL 映射
+	# 迁出 AppState.cpp 即静默失效）；(b) -qF 字面匹配（grep -q 把文件名 `.` 当
+	# 通配符，可能假匹配无关条目）；(c) 无 `|| true` 吞错误——扫描源缺失即
+	# fail，不再"无输入也 PASS"。
+	# 5WHY (复核 2026-08-19 泛化): URL↔qrc 漂移类不限于 animations/——detail/viz
+	# 的 Loader 字面量同病（ResultChart 曾文档化"静默空白"类）。正则放宽到
+	# 全部 qrc:/qt/qml/*.qml 字面量，同一机制覆盖全仓。
 	echo ""
-	echo "── 18b. Animation QML ↔ qrc registration ──"
-	ANIM_MISSING=$(grep -oE 'qrc:/qt/qml/widgets/animations/[A-Za-z0-9]+\.qml' "$ROOT/src/app/AppState.cpp" \
-	    | sed -E 's|qrc:/qt/qml/||' | sort -u \
-	    | while read -r a; do \
-	        grep -q "alias=\"$a\"" "$ROOT/resources/resources_core.qrc" || echo "$a"; \
-	    done || true)
+	echo "── 18b. QML URL ↔ qrc registration ──"
+	ANIM_MISSING=""
+	if [ ! -f "$ROOT/src/app/AppState.cpp" ] || [ ! -f "$ROOT/resources/resources_core.qrc" ]; then
+	    ANIM_MISSING="<scan-source-missing>"
+	else
+	    # grep 单独执行并显式分支退出码：exit 1（无匹配）是合法空集；
+	    # exit ≥2（src 树内文件不可读/符号链接断裂）必须 fail——不能
+	    # 与空集混淆后静默 PASS（旧 `|| true` 吞掉两者的教训）。
+	    set +e
+	    ANIM_RAW=$(grep -rhoE 'qrc:/qt/qml/[A-Za-z0-9_/]+\.qml' "$ROOT/src" \
+	        --include='*.cpp' --include='*.h' --include='*.qml' --include='*.js' 2>/dev/null)
+	    ANIM_RC=$?
+	    set -e
+	    if [ "$ANIM_RC" -ge 2 ]; then
+	        fail "18b: cannot scan qrc:/qt/qml URL literals (grep exit $ANIM_RC)"
+	        ANIM_MISSING="<scan-error>"
+	    fi
+	    ANIM_REFS=$(printf '%s\n' "$ANIM_RAW" | sed -E 's|qrc:/qt/qml/||' | sort -u)
+	    while read -r a; do
+	        [ -z "$a" ] && continue
+	        grep -qF "alias=\"$a\"" "$ROOT/resources/resources_core.qrc" \
+	            || ANIM_MISSING="$ANIM_MISSING $a"
+	    done <<< "$ANIM_REFS"
+	fi
 	if [ -n "$ANIM_MISSING" ]; then
-	    fail "animation QML referenced in code but not registered in resources_core.qrc:"
+	    fail "QML referenced by qrc:/qt/qml URL but not registered in resources_core.qrc:"
 	    echo "$ANIM_MISSING" | while read -r line; do echo "       $line"; done
 	else
-	    pass "animation QML registered"
+	    pass "QML URLs registered"
 	fi
 
 	# ── 19. Icon pipeline outputs: staleness check ──────────────────────────

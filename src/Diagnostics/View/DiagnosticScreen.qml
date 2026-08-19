@@ -9,22 +9,36 @@ import core
 import sections as S
 import widgets
 import theme
+import "../widgets/StatsUtil.js" as W   // qrc:/qt/qml/Diagnostics/View/ → ../widgets/ 直接 JS 导入
 
 PageDisplay {
     id: page
     objectName: "diagnostic"
 
     // visibleGroups：仅激活组（UI-2：命令式刷新，绑定不调 visibleGroups()）
+    // 5WHY (复核 2026-08-19 效率): 内容比较——组集合未变不替换数组身份，
+    // 避免 Repeater 全量销毁重建面板/瓦片墙（同 DashboardScreen）。
     property var _groups: []
-    function _refreshGroups() { _groups = AppState.visibleGroups() }
+    function _refreshGroups() {
+        // 5WHY (复核 2026-08-19 效率): 数组身份门控经 StatsUtil.assignIfChanged
+        // 收敛——内容未变不替换身份（Repeater 不重建面板/瓦片墙）。
+        _groups = W.assignIfChanged(_groups, AppState.visibleGroups())
+    }
+    // 5WHY (复核 2026-08-19 效率 + 揭示自愈): 离屏（切到 Dashboard/Config）
+    // 时跳过信号扫描；重新可见时全量补刷新，自愈隐藏期间的遗漏事件。
+    onVisibleChanged: if (visible) _refreshGroups()
     Connections {
         target: AppState
         // 5WHY (复核 2026-08-18 语义信号): visibleGroups 按激活组过滤——
         // 激活组变更经 filteredDataChanged 刷新（旧接 stateVersionChanged：
         // 语言/凭据等无关 bump 也误触发）。
+        // 5WHY (复核 2026-08-19): enabled 门控取代逐处理器 if（离屏整体
+        // 禁用）；重新可见由 onVisibleChanged 补刷新。
+        enabled: page.visible
         function onFilteredDataChanged() { page._refreshGroups() }
         function onRunStatusChanged() { page._refreshGroups() }
-        function onCurrentRunningGroupChanged() { page._refreshGroups() }   // 8-15：渐进呈现
+        // 8-15：渐进呈现
+        function onCurrentRunningGroupChanged() { page._refreshGroups() }
     }
     Component.onCompleted: _refreshGroups()
 
@@ -65,6 +79,7 @@ PageDisplay {
 
     bodyContent: [
         S.PageStatusHeaderSection {
+            screenVisible: page.visible   // 5WHY 2026-08-19：离屏停扫
             onShareRequested: function(format) {
                 if (format === "locked") {
                     page.showToast(T.tr("premiumRequiredMsg"))
@@ -79,6 +94,7 @@ PageDisplay {
             delegate: S.PageGroupPanelSection {
                 Layout.fillWidth: true
                 groupIndex: modelData
+                screenVisible: page.visible   // 5WHY 2026-08-19：离屏面板跳过刷新
                 onDetailRequested: function(d) {
                     // 8-18：双保险——未完成的检测不允许激活详情页（瓦片层已禁用
                     // MouseArea，此处再按 isPending 拦截一次）。
@@ -90,7 +106,7 @@ PageDisplay {
                 }
             }
         },
-        S.PageEmptyStateSection { errorState: AppState.runStatus === 4 }
+        S.PageEmptyStateSection { screenVisible: page.visible; errorState: AppState.runStatus === 4 }
     ]
 
     floatingContent: [
@@ -115,21 +131,46 @@ PageDisplay {
             Rectangle {
                 anchors.centerIn: parent
                 width: Math.min(parent.width - 48, 400)
-                height: warnCol.implicitHeight + 40
+                height: warnCol.implicitHeight + 2 * ThemeEngine.spacing.xl
                 radius: ThemeEngine.radius.xl
                 color: ThemeEngine.colors.surfaceContainerLow
                 border { width: 1; color: ThemeEngine.colors.outlineVariant }
+                // 5WHY (2026-08-19 用户诉求 "流量弹窗与整体界面不匹配"): 全仓
+                // 浮层均已按 M3 模式（图标垫 + 居中标题/正文 + 等宽主次按钮
+                // + RTL 镜像，参照 PremiumDialog/报告预览）设计，唯此弹窗仍
+                // 用默认 QQC2 控件裸拼——字号/配色/按钮样式全部脱离设计
+                // 系统。补齐同一模式；并补 LayoutMirroring（PremiumDialog
+                // 5WHY 2026-08-17：阿拉伯语下关闭钮与按钮顺序停在错误视觉边）。
+                LayoutMirroring.enabled: T.isRtl
+                LayoutMirroring.childrenInherit: true
                 ColumnLayout {
                     id: warnCol
-                    anchors { fill: parent; leftMargin: 20; rightMargin: 20; topMargin: 20; bottomMargin: 20 }
+                    anchors {
+                        fill: parent
+                        leftMargin: ThemeEngine.spacing.xl
+                        rightMargin: ThemeEngine.spacing.xl
+                        topMargin: ThemeEngine.spacing.xl
+                        bottomMargin: ThemeEngine.spacing.xl
+                    }
                     spacing: ThemeEngine.spacing.md
+                    // 身份图标：蜂窝数据检测项图标（IconPad 光晕垫，tint 自
+                    // iconName 派生——与 PremiumDialog 的 zap 图标同一位置规格）
+                    IconPad {
+                        Layout.alignment: Qt.AlignHCenter
+                        Layout.preferredWidth: 56
+                        Layout.preferredHeight: 56
+                        iconName: "nd-diag-g1-cellular"
+                        iconSize: 36
+                        iconColor: ThemeEngine.colors.iconInk
+                    }
                     Label {
                         Layout.fillWidth: true
                         text: T.tr("cellularWarnTitle")
                         font.family: ThemeEngine.fontUi
-                        font.pixelSize: ThemeEngine.fontSize.subhead
+                        font.pixelSize: ThemeEngine.fontSize.title
                         font.weight: Font.Bold
                         color: ThemeEngine.colors.onSurface
+                        horizontalAlignment: Text.AlignHCenter
                     }
                     Label {
                         Layout.fillWidth: true
@@ -137,16 +178,25 @@ PageDisplay {
                         font.family: ThemeEngine.fontUi
                         font.pixelSize: ThemeEngine.fontSize.body
                         color: ThemeEngine.colors.onSurfaceVariant
+                        horizontalAlignment: Text.AlignHCenter
                         wrapMode: Text.WordWrap
                     }
                     RowLayout {
                         Layout.fillWidth: true
+                        Layout.topMargin: ThemeEngine.spacing.sm
                         spacing: ThemeEngine.spacing.sm
+                        // M3 对话框惯例：次要动作（取消）弱化、主动作（继续）
+                        // 填充强调，两钮等宽。
                         Button {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 44
                             text: T.tr("cellularCancel")
+                            flat: true
                             onClicked: AppState.cancel()
                         }
                         Button {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 48
                             text: T.tr("cellularContinue")
                             onClicked: AppState.continueAfterCellularWarn()
                         }

@@ -1,10 +1,13 @@
 // =============================================================================
-// DashboardSummaryComp.qml — 摘要统计层（归档 SummaryCards 迁移）
+// DashboardSummaryComp.qml — 摘要统计层（Summary 单卡合并）
 //
-// 归档布局：Summary + Total 小标题行，7 类结果彩色行（Pass/Info/Warning/
-// Fail/Skipped/Error/Cancelled），空态单行提示。数据源：AppState.groupStats(-1) 聚合。
-// 5WHY (复核 2026-08-18): 头部注释曾滞留"6 类"——模型已含 7 类（含 Cancelled），
-// 头部更新防维护者误判 Cancelled 仍缺失而重开已修复的 bug。
+// 5WHY (2026-08-19 用户诉求 "两个 Summary 合一 + 零计数不显示"):
+// 归档恢复曾平行迁回两张卡——"Summary+Total 头 + 7 类结果行"与"总览卡
+// （3 统计 + 分层计时）"——同一页两个 Summary 语义重复、信息割裂。
+// 合并为单卡内容：聚合统计（总数/总耗时/已完成）→ 7 类结果行（零计数
+// 隐藏）→ 分层计时。卡标题由外层 PageCardSection.cardTitle 承担。
+// 数据源：AppState.groupStats(-1) 聚合（W.normalize 归一化）；总耗时/
+// 分层时长同在本卡 _refresh() 派生（单一刷新归属）。
 // UI-2：命令式刷新（绑定不调 Q_INVOKABLE）。
 // =============================================================================
 import NetDiagnostics.App 1.0
@@ -19,6 +22,14 @@ Item {
     id: root
     implicitHeight: sumCol.implicitHeight
 
+    // 5WHY (复核 2026-08-19 单一归属): 总耗时/分层时长曾由 DashboardScreen
+    // 计算后注入——同一张可见卡的数据由两个文件、两套 Connections 分别刷新
+    // （5WHY 记录过的"漏接消费方"类缺陷的温床）。合并后本卡完全自持：聚合
+    // _s、总耗时 _timeText、分层时长 _layers 在同一 _refresh() 派生，单一
+    // 刷新入口；DashboardScreen 不再为其做任何 groupStats 扫描。
+    property string _timeText: "—"
+    property var _layers: []
+
     // 5WHY (复核 2026-08-18 Reuse C3): 键集合归一化上移到 StatsUtil.js。
     property var _s: W.normalize(null)
     // 5WHY (复核 2026-08-18 单一推导点): _count 曾手算 7 状态求和——C++
@@ -28,11 +39,40 @@ Item {
 
     function _refresh() {
         _s = W.normalize(AppState.groupStats(-1))
+        _refreshTimeOnly()
+        // 5WHY (复核 2026-08-19 身份门控): 每事件无条件换新数组 → Repeater
+        // 全量销毁重建 5 行（~50 事件/轮 × 5 行 × 6 对象）。分层时长只在
+        // 结果落地时变化——签名比较，未变不替换身份（与组面板滚动哈希/
+        // 两屏 assignIfChanged 同一策略）。
+        var layers = []
+        var sig = ""
+        for (var i = 0; i < 5; ++i) {
+            var gs = AppState.groupStats(i)
+            var ms = gs.durationMs || 0
+            layers.push({ index: i, ms: ms })
+            sig += (i ? "," : "") + ms
+        }
+        if (sig !== _layerSig) {
+            _layerSig = sig
+            _layers = layers
+        }
+    }
+    property string _layerSig: ""
+    // 5WHY (复核 2026-08-19 离屏门控): 合并后本卡自持 Connections——若不加
+    // 门控，屏幕级门控省下的 6 次 groupStats 扫描恰被本卡在隐藏页上照跑
+    // （门控的"~60% 收益"被击穿）。屏幕注入 screenVisible：Connections
+    // 整体禁用 + 重新可见时补刷新。
+    property bool screenVisible: true
+    onScreenVisibleChanged: if (screenVisible) _refresh()
+    function _refreshTimeOnly() {
+        _timeText = ThemeEngine.formatDuration(AppState.runDurationMs())
     }
     Connections {
         target: AppState
+        enabled: root.screenVisible
         function onProgressChanged() { root._refresh() }
         function onRunStatusChanged() { root._refresh() }
+        function onRunElapsedChanged() { root._refreshTimeOnly() }
         // 5WHY (复核 2026-08-18 语义信号): 换 target scheme 不重跑只发
         // filteredDataChanged——摘要卡（groupStats(-1) 按 scheme 过滤）经
         // 语义信号单次刷新（旧接 targetChanged+stateVersionChanged 双发双刷）。
@@ -45,31 +85,27 @@ Item {
         anchors.fill: parent
         spacing: 0
 
-        // Header: "Summary" + "Total: N"
-        RowLayout {
+        // ── 聚合统计（原总览卡 3 项；总数=Total 头并入，避免重复呈现）──
+        StatRow {
             Layout.fillWidth: true
-            Label {
-                Layout.fillWidth: true
-                text: T.tr("summary")
-                font.family: ThemeEngine.fontUi
-                font.pixelSize: ThemeEngine.fontSize.caption
-                font.weight: Font.DemiBold
-                color: ThemeEngine.colors.onSurfaceVariant
-                elide: Text.ElideRight
-            }
-            Label {
-                text: T.tr("totalDiagsLabel") + ": " + root._s.total
-                font.family: ThemeEngine.monoFont
-                font.pixelSize: ThemeEngine.fontSize.caption
-                color: ThemeEngine.colors.onSurfaceVariant
-            }
+            iconName: "badge-check"; accent: ThemeEngine.colors.tertiary
+            valueText: String(root._s.total); label: T.tr("totalDiagsLabel")
         }
-        Item { Layout.preferredHeight: 6 }
+        StatRow {
+            Layout.fillWidth: true
+            iconName: "activity"; accent: ThemeEngine.colors.secondary
+            valueText: root._timeText; label: T.tr("totalTimeLabel")
+        }
+        StatRow {
+            Layout.fillWidth: true
+            iconName: "check"; accent: ThemeEngine.colors.success
+            valueText: String(root._count); label: T.tr("completedLabel")
+        }
 
         // 空态：单行提示（归档行为）
         Label {
             Layout.fillWidth: true
-            Layout.topMargin: 4
+            Layout.topMargin: 6
             visible: root._count === 0
             text: T.tr("runFromDiag")
             font.family: ThemeEngine.monoFont
@@ -78,57 +114,129 @@ Item {
             horizontalAlignment: Text.AlignHCenter
         }
 
-        // 7 类结果彩色行（5WHY simplify 2026-08-17：各行仅 accent/icon/label/
-        // count 键不同，且与 ThemeEngine.statusColors/statusIconNames 1:1
-        // 对应——一张表驱动，状态映射不再双份维护）
+        // ── 7 类结果彩色行（零计数隐藏：用户诉求 2026-08-19）──
+        // 5WHY simplify 2026-08-17：各行仅 accent/icon/label/count 键不同，
+        // 且与 ThemeEngine.statusColors/statusIconNames 1:1 对应——一张表
+        // 驱动，状态映射不再双份维护。
         // 5WHY (复核 2026-08-18 五表漂移): 表上移到 ThemeEngine.statusRows
         // 单一来源，与 StatusBadgeCluster 同源消费。
         Repeater {
             model: ThemeEngine.statusRows
-            SummaryCard {
+            StatRow {
                 Layout.fillWidth: true
+                boxed: true
                 accent: ThemeEngine.statusColors[modelData.code] || ThemeEngine.colors.skip
                 iconName: ThemeEngine.statusIconNames[modelData.code] || "badge-info"
                 label: T.tr(modelData.labelKey)
-                count: root._s[modelData.countKey] || 0
-                visible: root._count > 0
+                valueText: String(root._s[modelData.countKey] || 0)
+                // 5WHY (2026-08-19): 曾整组 `visible: _count > 0`——零计数
+                // 状态行（如 Skipped）也占 34px 空行，7 行全零时列表冗长。
+                // 逐行隐藏，只留实际发生的状态。
+                visible: (root._s[modelData.countKey] || 0) > 0
+            }
+        }
+
+        // ── 分层计时（原总览卡迁移；已完成才显示）──
+        // 5WHY (复核 2026-08-19 单一门控): 分割线/间距/标题/行组曾各自重复
+        // `visible: _count > 0`（4 处）——整块是一个逻辑单元，收敛为单一
+        // 容器门控，新增子元素不再逐个复制守卫。
+        ColumnLayout {
+            Layout.fillWidth: true
+            visible: root._count > 0
+            spacing: 0
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.topMargin: 8
+                implicitHeight: 1
+                color: ThemeEngine.colors.outlineVariant
+            }
+            Item { Layout.preferredHeight: 4 }
+            Label {
+                text: T.tr("layerTimings")
+                font.family: ThemeEngine.fontUi
+                font.pixelSize: ThemeEngine.fontSize.caption
+                font.weight: Font.DemiBold
+                color: ThemeEngine.colors.onSurfaceVariant
+            }
+            Repeater {
+                model: root._layers
+                delegate: RowLayout {
+                    Layout.fillWidth: true
+                    spacing: ThemeEngine.spacing.sm
+                    AppIcon {
+                        name: ThemeEngine.groupIconName(modelData.index)
+                        size: 14
+                        color: ThemeEngine.groupHue(modelData.index)
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        text: T.groupName(modelData.index)
+                        font.family: ThemeEngine.monoFont
+                        font.pixelSize: ThemeEngine.fontSize.caption
+                        color: ThemeEngine.colors.onSurface
+                        elide: Text.ElideRight
+                    }
+                    Label {
+                        text: ThemeEngine.formatDuration(modelData.ms || 0)
+                        font.family: ThemeEngine.monoFont
+                        font.pixelSize: ThemeEngine.fontSize.caption
+                        color: ThemeEngine.colors.onSurfaceVariant
+                    }
+                }
             }
         }
     }
 
-    component SummaryCard: Rectangle {
-        property color accent: ThemeEngine.colors.success
+    // ── StatRow（图标 + 标签 + 大数值行；5WHY 复核 2026-08-19）──
+    // 摘要卡合并后本文件内曾并存两个近同行组件：无盒 SummaryStat（图标 16/
+    // 数值 subhead/行高自内容）与盒式 SummaryCard（图标 14/数值 body/32px
+    // 底色行）——同一 AppIcon+标签+加粗数值形状，双份漂移（字号/图标尺寸/
+    // 行高各写一次）。合并为单一组件，boxed 开关区分镀铬。
+    component StatRow: Rectangle {
+        property color accent: ThemeEngine.colors.tertiary
         property string label: ""
         property string iconName: "badge-info"
-        property int count: 0
-        implicitHeight: 32
+        property string valueText: ""
+        property bool boxed: false
+        implicitHeight: boxed ? 32 : 0
         radius: 6
-        Layout.topMargin: 2
-        color: Qt.alpha(accent, 0.06)
-        border { width: 1; color: Qt.alpha(accent, 0.2) }
+        Layout.topMargin: boxed ? 2 : 0
+        color: boxed ? Qt.alpha(accent, 0.06) : "transparent"
+        border {
+            width: boxed ? 1 : 0
+            color: boxed ? Qt.alpha(accent, 0.2) : "transparent"
+        }
 
         RowLayout {
-            anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
+            anchors {
+                fill: parent
+                leftMargin: boxed ? 8 : 0
+                rightMargin: boxed ? 8 : 0
+            }
+            spacing: boxed ? 8 : 10
             AppIcon {
                 name: iconName
-                size: 14
+                size: boxed ? 14 : 16
                 color: accent
+                Layout.alignment: Qt.AlignVCenter
             }
-            Item { Layout.fillWidth: true }
             Label {
+                Layout.fillWidth: true
                 text: label
                 font.family: ThemeEngine.monoFont
                 font.pixelSize: ThemeEngine.fontSize.caption
-                font.weight: Font.Medium
+                font.weight: boxed ? Font.Medium : Font.Normal
                 color: ThemeEngine.colors.onSurfaceVariant
+                verticalAlignment: Text.AlignVCenter
+                elide: Text.ElideRight
             }
-            Item { width: 8 }
             Label {
-                text: count
+                text: valueText
                 font.family: ThemeEngine.monoFont
-                font.pixelSize: ThemeEngine.fontSize.body
+                font.pixelSize: boxed ? ThemeEngine.fontSize.body : ThemeEngine.fontSize.subhead
                 font.weight: Font.Bold
                 color: accent
+                verticalAlignment: Text.AlignVCenter
             }
         }
     }

@@ -20,6 +20,20 @@ PageSection {
     // 可见性，无需回退分支（回退状态徽标会与状态圆盘同图形异色冲突）。
     readonly property bool _hasDiagIcon: detailData.iconName !== undefined && detailData.iconName !== ""
 
+    // 5WHY (2026-08-19 用户诉求 "进入详情也播放检测项动画"): 瓦片动画由
+    // DiagBlock 承载，hero 只有静态 IconPad——进详情时检测项身份动效缺失。
+    // 业界惯例（详情页身份动效）：进入/切换检测项时有界窗口回放一次瓦片
+    // 同款动画（DiagAnimator 复用，animType 由 diagId 经 C++ 单一来源解析，
+    // 与瓦片同源不漂移）。
+    // 5WHY (复核 2026-08-19): 有界窗口收敛进 DiagAnimator（bounded/restart，
+    // 窗口不再消费方硬编码）；触发源唯一化——onCompleted 臂在两类消费方
+    // （DetailPage createObject 后赋值 / Sheet 预建绑定）均不生效，删除，
+    // 仅 onDetailDataChanged 重放。
+    readonly property int _diagId: (detailData && detailData.diagId !== undefined)
+        ? detailData.diagId : -1
+    // 浮层/页面复用：detailData 切换（打开另一检测项详情）即重放
+    onDetailDataChanged: if (root._diagId >= 0) heroAnim.restart()
+
     RowLayout {
         Layout.fillWidth: true
         spacing: ThemeEngine.spacing.md
@@ -27,12 +41,32 @@ PageSection {
         // 45 图标全彩常显：诊断图标光晕垫（共享 IconPad——tint 由组件从
         // iconName 派生，调用方不再维护 _padTint）
         IconPad {
+            id: iconWell
             visible: root._hasDiagIcon
             Layout.preferredWidth: 56
             Layout.preferredHeight: 56
             iconName: detailData.iconName || ""
             iconSize: 40
             iconColor: ThemeEngine.colors.iconInk
+
+            // 检测项动画有界回放（5WHY 2026-08-19，见 _diagId）
+            // 5WHY (复核 2026-08-19): 曾缺 targetItem——Jiggle 类动画
+            // （IP 配置/网络档案/TCP 设置/DNS 缓存/MTU/HTTP 压缩/HTTP
+            // 计时/邮件等 8 项）门控 `running && targetItem !== null`
+            // 恒不启动，重放特性对其静默失效。补与瓦片同款 iconWell。
+            // 5WHY (复核 2026-08-19 锚点空间): 动画几何按图标框计量
+            // （GeoLocate 针头锚点 / Meter 中心），但垫 56px > 图标 40px
+            // ——直接填垫把锚点画错位（针头偏移 ~3px、环溢出垫外）。动画
+            // 层与 AppIcon 同框：DiagAnimator 自身承载几何（居中 + iconSize
+            // 正方形），不另设匿名包装层。
+            DiagAnimator {
+                id: heroAnim
+                anchors.centerIn: parent
+                width: iconWell.iconSize; height: iconWell.iconSize
+                diagId: root._diagId
+                bounded: true
+                targetItem: iconWell
+            }
         }
 
         // 状态圆盘

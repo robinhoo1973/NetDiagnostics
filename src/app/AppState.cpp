@@ -159,7 +159,10 @@ void AppState::setTarget(const QString& host, const QString& scheme) {
     const int slash = h.indexOf(QLatin1Char('/'));
     if (slash > 0) { path = h.mid(slash); h = h.left(slash); }
     if (m_targetHost != h || m_targetPath != path || m_targetScheme != effScheme) {
-        const QString finalScheme = effScheme.isEmpty() ? QStringLiteral("https") : effScheme;
+        // 5WHY (复核 2026-08-19 归一化): 下拉路径不保证小写（仅粘贴 URL 分支
+        // toLower）——本处统一小写存储/比较：大小写差异不再触发 schemeChanged
+        // 逐键风暴，AdapterRegistry 匹配也拿到归一化输入。
+        const QString finalScheme = (effScheme.isEmpty() ? QStringLiteral("https") : effScheme).toLower();
         // 5WHY (复核 2026-08-18): 过滤视图只随 scheme 变——host/path 逐键编辑
         // （DiagnosticToolbar.onTextChanged 每键一次）不再驱动 5 面板全量重载；
         // 语义信号只在过滤集实际变化时单次发射。
@@ -232,6 +235,12 @@ void AppState::runDiagnostics() {
     if (m_isPremiumPlatform && !noTarget && !m_cellularWarnAcked) {
         m_cellularWarnVisible = true;
         emit cellularWarnVisibleChanged();
+        // 5WHY (复核 2026-08-19): 此路径已清空 m_results/m_groupDone/m_currentGroup
+        // 却只发 cellularWarnVisibleChanged——所有统计消费方（状态头/组面板/
+        // 摘要卡）不监听它，上一轮计数与瓦片墙在"空结果集"上滞留；hasData 的
+        // NOTIFY 是 progressChanged 也不触发。清屏即过滤数据变更：补发两信号。
+        emit filteredDataChanged();
+        emit progressChanged();
         return;   // 等待 continueAfterCellularWarn() → 重新 runDiagnostics()
     }
     m_runStatus = Running;
@@ -663,12 +672,15 @@ bool AppState::isDiagEnabled(int diagIdInt) const {
 }
 bool AppState::setDiagEnabled(int diagIdInt, bool enabled) {
     const bool ok = m_config && m_config->setDiagEnabled(diagIdInt, enabled);
-    if (ok) bumpState();
+    // 5WHY (复核 2026-08-19 语义信号缺口): visibleGroups() 经 isGroupAnyEnabled
+    // 过滤（按 diag 级启用态）——切换"组内最后一个启用的检测项"会改变面板
+    // 集合，而消费方已不监听 stateVersionChanged。与 setGroupActive 同级补发。
+    if (ok) { bumpState(); emit filteredDataChanged(); }
     return ok;
 }
 bool AppState::setGroupEnabled(int groupInt, bool enabled) {
     const bool ok = m_config && m_config->setGroupEnabled(groupInt, enabled);
-    if (ok) bumpState();
+    if (ok) { bumpState(); emit filteredDataChanged(); }
     return ok;
 }
 bool AppState::isGroupAllEnabled(int groupInt) const {
@@ -849,6 +861,7 @@ QString AppState::diagAnimationUrl(int diagIdInt) const {
         case DiagAnimType::Check:  return QStringLiteral("qrc:/qt/qml/widgets/animations/CheckAnimation.qml");
         case DiagAnimType::Meter:  return QStringLiteral("qrc:/qt/qml/widgets/animations/MeterAnimation.qml");
         case DiagAnimType::Converge: return QStringLiteral("qrc:/qt/qml/widgets/animations/ConvergeAnimation.qml");
+        case DiagAnimType::GeoRadar: return QStringLiteral("qrc:/qt/qml/widgets/animations/GeoLocateAnimation.qml");
         default:                   return QStringLiteral("qrc:/qt/qml/widgets/animations/JiggleAnimation.qml");
     }
 }

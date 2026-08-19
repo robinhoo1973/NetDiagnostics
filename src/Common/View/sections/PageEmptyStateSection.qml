@@ -25,8 +25,13 @@ PageSection {
     // 消费方同源；内联 `|| 0` 只防 undefined，不防键重命名/零填充保证移除。
     property int _completed: 0
     function _refresh() { root._completed = W.normalize(AppState.groupStats(-1)).completed }
+    // 5WHY (复核 2026-08-19 离屏门控): 同状态头/摘要卡——screenVisible 注入，
+    // Connections 整体禁用 + 重新可见补刷新。
+    property bool screenVisible: true
+    onScreenVisibleChanged: if (screenVisible) _refresh()
     Connections {
         target: AppState
+        enabled: root.screenVisible
         function onProgressChanged() { root._refresh() }
         function onRunStatusChanged() { root._refresh() }
         // 5WHY (复核 2026-08-18 语义信号): 与状态头/摘要卡同源——换 scheme

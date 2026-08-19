@@ -11,7 +11,9 @@ enum class DiagTemplateType { System, Ping, Path, Handshake, Request, Query };
 // L4 动画（AppState.diagAnimationUrl → qrc:/qt/qml/widgets/animations/）：
 //   Pulse 呼吸 / Jiggle 抖动 / Bounce 往返 / Type 键入 / Path 逐跳
 //   Lock 盖章落下 / Check 盾牌打勾 / Meter 表针摆动 / Converge 箭头聚拢
-enum class DiagAnimType     { Pulse, Jiggle, Bounce, Type, Path, Lock, Check, Meter, Converge };
+//   GeoRadar 定位雷达波（IP Geolocation；2026-08-19 替代无语义的 Bounce）
+// 5WHY：新值一律追加尾部——枚举值即 int，插入中间会重排全部下游值。
+enum class DiagAnimType     { Pulse, Jiggle, Bounce, Type, Path, Lock, Check, Meter, Converge, GeoRadar };
 
 inline QString diagDisplayName(DiagId id) {
     switch (id) {

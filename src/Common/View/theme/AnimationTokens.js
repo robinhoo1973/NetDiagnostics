@@ -20,6 +20,14 @@ var tokens = {
     convergeTravel: 380,     // 网关箭头单程（聚拢/回退）时长
     convergeStagger: 120,    // 四箭头有序启动间隔
     convergeHold: 260,       // 全部聚拢到位后的保持时长
+    geoRadarPeriod: 900,     // 定位雷达波单圈扩散时长（GeoLocateAnimation）
+    geoRadarStagger: 300,    // 三圈雷达波有序启动间隔
+
+    // 5WHY (复核 2026-08-19 单一来源): 详情页有界回放窗口曾是 DiagAnimator
+    // 硬编码 2400——与各循环周期的手算关系写在注释里（meter 600、geoRadar
+    // 900+2×300=1500、jiggle 540）。窗口与周期同为动画时序事实，收敛进
+    // tokens 同源维护；新增动画周期超过窗口时由 250ms 淡出兜底截断。
+    replayWindowMs: 2400,
 
     // ── Settle / transition (used by DiagBlock.qml Behavior) ─────────────
     settleDuration: 300,     // Done settle pop (OutBack)

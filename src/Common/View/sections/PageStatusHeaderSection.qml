@@ -38,8 +38,14 @@ PageSection {
     function _refreshAgg() {
         _agg = W.normalize(AppState.groupStats(-1))
     }
+    // 5WHY (复核 2026-08-19 离屏门控): 隐藏屏的状态头仍每事件重扫
+    // groupStats(-1)——屏幕注入 screenVisible，Connections 整体禁用 +
+    // 重新可见时补刷新（与摘要卡/空态同一机制）。
+    property bool screenVisible: true
+    onScreenVisibleChanged: if (screenVisible) _refreshAgg()
     Connections {
         target: AppState
+        enabled: root.screenVisible
         function onProgressChanged() { root._refreshAgg() }
         function onRunStatusChanged() { root._refreshAgg() }
         // 5WHY (复核 2026-08-18 语义信号): 换 scheme 不重跑只发 filteredDataChanged

@@ -11,6 +11,9 @@ Item {
     property bool compact: false
     property bool usePerItemRunning: false
     property bool groupRunning: false
+    // 5WHY (复核 2026-08-19): 屏幕可见性下传（面板→网格壳→网格→瓦片），
+    // 隐藏页瓦片停止运行动画。
+    property bool screenVisible: true
     signal tileClicked(var data)
 
     readonly property real _k: compact ? 0.06 : 0.08
@@ -75,6 +78,7 @@ Item {
                 // 触发 settle+光晕动画——按网格序号错峰 30ms/瓦片（封顶
                 // 300ms），并行 Suite 结果burst 时动画压力摊平。
                 staggerIndex: index
+                screenVisible: root.screenVisible
                 testRunning: root.usePerItemRunning
                              ? (root.groupRunning && modelData.isPending === true && !modelData.isDisabled)
                              : false

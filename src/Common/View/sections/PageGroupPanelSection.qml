@@ -16,6 +16,19 @@ PageSection {
 
     property int groupIndex: 0
     signal detailRequested(var data)
+    // 5WHY (复核 2026-08-19 效率): StackView 隐藏屏不销毁面板——离屏时每个
+    // 信号仍驱动 5 面板 × (list 重建 + groupStats 扫描)（事件总工作量的
+    // ~60% 空转）。屏幕注入可见性：离屏跳过刷新并置脏，重新可见仅当有
+    // 遗漏事件时才 _reload（无事件期间切回不付全量刷新成本）。默认 true
+    // 保持独立使用兼容。
+    property bool screenVisible: true
+    property bool _dirty: false
+    onScreenVisibleChanged: {
+        if (screenVisible && _dirty) {
+            _dirty = false
+            _reload()
+        }
+    }
 
     // Dashboard 行变体注入（UI-5：依赖方向页面→Common）
     property Component rowHeaderDelegate: null   // 行头徽标（DashboardRowHeader 注入）
@@ -97,7 +110,11 @@ PageSection {
     function _reload() { reloadModel(); _refreshStats() }
     Connections {
         target: AppState
+        // 5WHY (复核 2026-08-19): 各处理器首行统一离屏门控（screenVisible，
+        // 见属性注释）——跳过时置脏供揭示补刷；折叠偏好重置不依赖可见性
+        // （8-18 语义须在任何时机生效）。
         function onProgressChanged() {
+            if (!root.screenVisible) { root._dirty = true; return }
             // UI-3 scope-gate：仅刷新运行中的组；非运行面板用 per-item 绑定。
             if (groupIndex === AppState.currentRunningGroup) reloadModel()
             _refreshStats()
@@ -109,17 +126,24 @@ PageSection {
                 _userToggled = false
                 _userExpanded = true
             }
+            if (!root.screenVisible) { root._dirty = true; return }
             _reload()   // B1：运行边界全量刷新
         }
         // 8-16：组开始（currentRunningGroup 切换）即加载瓦片墙——
         // 瓦片与组标题同步出现，而非等首条结果/组结束。
-        function onCurrentRunningGroupChanged() { _reload() }
+        function onCurrentRunningGroupChanged() {
+            if (!root.screenVisible) { root._dirty = true; return }
+            _reload()
+        }
         // 5WHY (复核 2026-08-18 语义信号): 换 target scheme 不重跑只发
         // filteredDataChanged——groupStats 按 runnableFor(scheme) 过滤，瓦片墙
         // （allDiagsForGroup/resultsForGroup 同源过滤）也会变。旧实现接
         // targetChanged+stateVersionChanged：同轮双发双刷（5 面板 × 2），
         // host 逐键编辑与凭据/语言变更也误触发。语义信号单次驱动。
-        function onFilteredDataChanged() { _reload() }
+        function onFilteredDataChanged() {
+            if (!root.screenVisible) { root._dirty = true; return }
+            _reload()
+        }
     }
     // 5WHY (复核 2026-08-18 创建期零统计): 归档 DiagGroupPanel 的 _gstat 是
     // 绑定（创建即求值）；重构改为命令式 _refreshStats 后 Component.onCompleted
@@ -127,14 +151,13 @@ PageSection {
     // 应用重启后无新 progress 事件）统计永久停留 0/0。补创建期刷新。
     Component.onCompleted: _reload()
 
-    // 内建统计簇（宽/窄两行共用；5WHY review round 3: 计数+三徽标曾逐字复制
-    // 两份，加徽标/改格式必须双处同步——现为单一内联组件）
+    // 内建统计簇（5WHY review round 3: 计数+三徽标曾逐字复制两份，加徽标/
+    // 改格式必须双处同步——现为单一内联组件）
     // 5WHY (复核 2026-08-18, 用户诉求): 仅 pass/warn/fail 三徽标是回归——归档
     // DiagGroupPanel 是 6 徽标（0/5/1/2/3/4）；补全 7 状态（含 cancelled=6）。
-    // 5WHY (复核 2026-08-18 三处复制收敛 + Loader 门控): 单一 Component 供两行
-    // Loader 复用，stats 在构造时绑定注入。
+    // 5WHY (2026-08-19 用户诉求 "X/Y 第一行、状态图标第二行"): X/Y 计数已
+    // 上移到组头首行 Label，徽标簇只呈现 7 状态图标（showLabel 删除）。
     component BuiltinStats: StatusBadgeCluster {
-        showLabel: true
         compact: ThemeEngine.isMobile
     }
     Component {
@@ -170,7 +193,8 @@ PageSection {
     ColumnLayout {
         spacing: ThemeEngine.spacing.sm
 
-        // ── 组头（宽屏单行 / 窄屏两行——统计移到第二行，归档 DiagGroupPanel compact 行为）──
+        // ── 组头（2026-08-19：诊断页恒两行——首行组识别+X/Y 计数，
+        //    第二行状态徽标；Dashboard 宽屏单行内联行头 / 窄屏两行进度条）──
         Item {
             id: headerBox
             Layout.fillWidth: true
@@ -179,7 +203,11 @@ PageSection {
                 id: headerCol
                 anchors.fill: parent
                 spacing: 0
-                // ── 第一行：组识别（名称/运行中标签）+ 宽屏内联统计 ──
+                // ── 第一行：组识别（名称/运行中标签）+ X/Y 计数 + 宽屏内联行头 ──
+                // 5WHY (2026-08-19 用户诉求 "5/5 显示在第一行"): X/Y 曾与 7
+                // 徽标同簇（StatusBadgeCluster.showLabel）——宽屏与组名挤在
+                // 一行、窄屏落在第二行，位置随断点漂移。计数是组级主指标，
+                // 按业界惯例（层级：主指标→明细）固定于首行行尾。
                 RowLayout {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 44
@@ -221,12 +249,14 @@ PageSection {
                         font.pixelSize: ThemeEngine.fontSize.caption
                         elide: Text.ElideRight
                     }
-                    // 5WHY (复核 2026-08-18 效率): 宽/窄两行的簇各实例化一份
-                    // （7 徽标 × 5 面板 ≈ 70 对象常驻），visible 切换不卸载。
-                    // Loader 门控：非活动行的簇完全不构造。
-                    Loader {
-                        active: root.rowHeaderDelegate === null && !root._headerCompact
-                        sourceComponent: builtinStatsComp
+                    // X/Y 计数（诊断页首行；Dashboard 行头已含徽标不重复显示）
+                    Label {
+                        visible: root.rowHeaderDelegate === null && root._total > 0
+                        text: ThemeEngine.xyLabel(root._completed, root._total)
+                        font.family: ThemeEngine.monoFont
+                        font.pixelSize: ThemeEngine.fontSize.body
+                        font.weight: Font.Bold
+                        color: ThemeEngine.colors.onSurfaceVariant
                     }
                     AppIcon {
                         name: "chevron-down"; size: 14
@@ -235,12 +265,18 @@ PageSection {
                         Behavior on rotation { NumberAnimation { duration: 150 } }
                     }
                 }
-                // ── 第二行（窄屏）：统计徽标/时长/进度条 ──
-                // 5WHY (复核 2026-08-18, 用户诉求): 徽标曾在行尾（被 fillWidth
-                // 行头推到最右）；归档 compact 第二行徽标左对齐——调序为先
-                // 徽标簇、后行头（进度条仍占满剩余宽度）。
+                // ── 第二行（诊断页=状态图标簇；Dashboard 窄屏=进度条行）──
+                // 5WHY (2026-08-19 用户诉求 "状态图标在第二行"): 徽标曾宽屏
+                // 内联在组名行（被推到最右）、窄屏与进度条同行——两个断点
+                // 两种位置。统一为独立第二行：首条结果落地后出现，左对齐
+                // 对位首行图标列。
+                // 5WHY (复核 2026-08-19 脚手架合一): 两行曾各自复制
+                // RowLayout+fillWidth+spacing+4px 对位垫脚手——内容条件互斥
+                // （rowHeaderDelegate 注入与否），合并为单行、OR 门控，内容
+                // 各自可见性/loaderActive 门控；对位规格只在一处维护。
                 RowLayout {
-                    visible: root._headerCompact
+                    visible: (root.rowHeaderDelegate === null && root._completed > 0)
+                          || (root._headerCompact && root.rowHeaderDelegate !== null)
                     Layout.fillWidth: true
                     spacing: ThemeEngine.spacing.sm
                     // 5WHY (复核 2026-08-18 对位目标): 徽标左对齐的对位目标是
@@ -248,14 +284,17 @@ PageSection {
                     // 组图标），不是装饰条左缘——归档 11px 与重构 12px 均对齐
                     // 图标列。保留 4px Item（行 spacing 8 补齐 12px）。
                     Item { Layout.preferredWidth: 4 }
+                    // 5WHY (复核 2026-08-18 效率): 非活动内容的 Loader 门控
+                    // 完全不构造（7 徽标 × 5 面板 ≈ 70 对象常驻的问题）；首条
+                    // 结果落地前（_completed===0）同样不构造。
                     Loader {
-                        active: root.rowHeaderDelegate === null
+                        active: root.rowHeaderDelegate === null && root._completed > 0
                         sourceComponent: builtinStatsComp
                     }
                     RowHeaderInjected {
                         Layout.fillWidth: true   // fillProgress 进度条占满剩余宽度的前提
                         injectedDelegate: root.rowHeaderDelegate
-                        loaderActive: root._headerCompact
+                        loaderActive: root._headerCompact && root.rowHeaderDelegate !== null
                         fillProgress: true
                         _stats: root._statsObj
                     }
@@ -280,6 +319,7 @@ PageSection {
             compact: root.compactTiles
             usePerItemRunning: true
             groupRunning: root.isRunning
+            screenVisible: root.screenVisible
             onTileClicked: function(data) { root.detailRequested(data) }
         }
     }

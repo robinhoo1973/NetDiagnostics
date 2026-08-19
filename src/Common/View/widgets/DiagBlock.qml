@@ -13,6 +13,10 @@ Item {
     property real blockSize: 108
     // 5WHY (复核 2026-08-18 动画批量抖动): 网格序号——完成动画错峰延迟用。
     property int staggerIndex: 0
+    // 5WHY (复核 2026-08-19 效率): 屏幕可见性由面板经网格链注入（StackView
+    // 隐藏页不销毁瓦片，且 Item.visible 是局部属性、不随祖先隐藏传播——
+    // 仅靠 root.visible 门控抓不到离屏页）。默认 true 保持独立使用兼容。
+    property bool screenVisible: true
     signal clicked(var data)
 
     readonly property bool _isPending: itemData.isPending === true
@@ -26,7 +30,13 @@ Item {
     readonly property bool _isSkipped: _status === 3
     readonly property string _statusIcon: isDone ? (ThemeEngine.statusIconNames[_status] || "badge-skip") : ""
     readonly property color _statusColor: isDone ? (ThemeEngine.statusColors[_status] || ThemeEngine.colors.skip) : "transparent"
-    readonly property bool _isRunning: root.testRunning && !root._isDisabled && !root.isDone
+    // 5WHY (复核 2026-08-19 效率): 无可见性门控的无限动画在离屏瓦片上持续
+    // tick——StackView 隐藏整屏时运行中瓦片的 DiagAnimator（GeoLocate 3 路
+    // 无限 SequentialAnimation、Meter 60fps 定时器）在低功耗 ARM 板上空耗
+    // CPU。screenVisible（屏幕注入）+ root.visible（局部）双门控：隐藏页或
+    // 显式隐藏即停；滚动出视口（裁剪不停动画）仍不覆盖，已记录为残余。
+    readonly property bool _isRunning: root.testRunning && !root._isDisabled
+        && !root.isDone && root.visible && root.screenVisible
     // C2：瓦片标签必须经 T.diagName（15 语言响应式）——直读 C++ 英文 label 会让
     // 语言切换对 45 个瓦片失效；label 作回退。
     readonly property string _label: (itemData.diagId !== undefined

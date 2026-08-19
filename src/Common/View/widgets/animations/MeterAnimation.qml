@@ -3,12 +3,17 @@ import "../../theme" as T
 import "../../theme/AnimationTokens.js" as Tokens
 
 // ── MeterAnimation.qml — 表针左右摆动（Internet Connectivity & Speed）──
-// 表针底部固定在表盘圆心，模拟检测采样：每轮随机取一个左侧角度，从左
+// 表针底部固定在图标圆心，模拟检测采样：每轮随机取一个左侧角度，从左
 // 摆到右侧随机角度，到位后小幅回摆稳定，保持片刻再开新一轮。
 // 纯 Rectangle + Rotation；运动由 Timer 逐帧驱动（无 QML NumberAnimation
 // 绑定——对随机变化目标值会产生绑定环/递归重启，见 5WHY）。
 // 无 Canvas/ShapePath/ShaderEffect（iOS 静态 Qt 安全）。
-// 表盘圆心对齐 internet 母版 gauge 表盘（viewBox ≈(19.2,10.6)/24）。
+// 5WHY (2026-08-19 用户诉求 "指针轨迹脱离图标圆心"): 旧锚点
+// (0.80,0.44) 依据"母版含 gauge 表盘"的假设——逐通道渲染实测（QSvgRenderer
+// + 像素聚类）证明 internet 母版（管线 v4 以来字节级未变）是 徽章+白地球
+// +三色轨道弧，并无表盘；该锚点落在右侧绿弧顶端，指针在图形外空挥。
+// 业界惯例（罗盘/测速针语义）：针轴置于图标圆心，针长覆盖地球半径
+// （≈0.42×宽，恰达轨道弧），绕心扫掠——轨迹始终贴合图形本体。
 //
 // Usage: MeterAnimation { anchors.fill: parent; running: testRunning }
 
@@ -20,12 +25,12 @@ Item {
     property color accentColor: T.ThemeEngine ? T.ThemeEngine.colors.primary : "#60C8F8"
     property int sweepDuration: Tokens.tokens.meterSweepDuration
 
-    // 表盘圆心（internet 母版 gauge 表盘中心，非图标中心）
-    readonly property real _cx: parent.width * 0.80
-    readonly property real _cy: parent.height * 0.44
-    readonly property real _needleLen: parent.width * 0.30
-    readonly property real _stroke: Math.max(1.6, parent.width * 2.4 / 24)
-    readonly property real _hub: Math.max(2.4, parent.width * 3.2 / 24)
+    // 针轴 = 图标圆心（internet 母版地球圆心；实测地球半径 ≈0.42×宽）
+    readonly property real _cx: parent.width * 0.5
+    readonly property real _cy: parent.height * 0.5
+    readonly property real _needleLen: parent.width * 0.42
+    readonly property real _stroke: Math.max(1.6, parent.width * 2.6 / 24)
+    readonly property real _hub: Math.max(2.4, parent.width * 3.6 / 24)
 
     // 状态机：_phaseSwing 扫掠 → _phaseSettle 回摆稳定 → 保持 → 新一轮
     property real _angle: 0

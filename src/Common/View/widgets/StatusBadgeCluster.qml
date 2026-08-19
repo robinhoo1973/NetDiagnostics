@@ -11,7 +11,6 @@
 // 上可容纳（徽标 ~28px × 7 + 间距 ≈ 220px < 296px 可用宽度）。
 // =============================================================================
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import theme
 
@@ -19,23 +18,15 @@ RowLayout {
     id: root
     property var stats: ({})
     property bool compact: false
-    // X/Y 计数标签（组面板显示；状态头首行已有计数故关闭）
-    property bool showLabel: false
     spacing: 4
 
     // 5WHY (复核 2026-08-18 五表漂移): 7 行字面量徽标改为 Repeater 消费
     // ThemeEngine.statusRows 单一来源（与 DashboardSummaryComp 同表）——
     // 加状态/调顺序只改一处。被替换的 DashboardRowHeader 原代码对每个徽标
     // 都有 null 守卫——共享公共组件恢复同等契约。
-    Label {
-        visible: root.showLabel
-        // 5WHY (复核 2026-08-18 Reuse C4): X/Y 组合经 ThemeEngine.xyLabel 单一来源。
-        text: ThemeEngine.xyLabel(root.stats ? root.stats.completed : 0,
-                                  root.stats ? root.stats.total : 0)
-        font.family: ThemeEngine.monoFont
-        font.pixelSize: ThemeEngine.fontSize.body
-        color: ThemeEngine.colors.onSurfaceVariant
-    }
+    // 5WHY (2026-08-19 用户诉求 "X/Y 在第一行、状态图标在第二行"):
+    // 内联 X/Y 标签（showLabel）曾是组面板专用——两行头重构后 X/Y 移入
+    // 组头首行（PageGroupPanelSection），属性零消费方，随 Label 一并删除。
     Repeater {
         model: ThemeEngine.statusRows
         StatusBadge {

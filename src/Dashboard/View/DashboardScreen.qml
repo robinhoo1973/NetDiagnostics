@@ -15,35 +15,36 @@ PageDisplay {
     objectName: "dashboard"
 
     // Dashboard 特定组件（经属性注入 —— UI-5：Common 不依赖页面模块）
-    Component { id: dashboardSummaryComp; DashboardSummaryComp { } }
+    // 5WHY (2026-08-19): dashboardSummaryComp 声明后从未被任何 Loader/
+    // createObject 消费（摘要卡直接实例化 DashboardSummaryComp）——删除。
     Component { id: dashboardRowHeaderComp; DashboardRowHeader { } }
 
     readonly property bool hasData: AppState.hasData
 
     // _activeGroups 缓存（UI-2：绑定不调 visibleGroups()）
+    // 5WHY (复核 2026-08-19 效率): 每次事件都赋新数组身份 → Repeater 全量
+    // 销毁重建 5 面板 + ~40 瓦片（连隐藏屏也重建）。内容比较：只有组集合
+    // 实际变化才替换（可见组仅在运行边界/激活组变更时变化）。
     property var _activeGroups: []
     function _refreshGroups() {
-        _activeGroups = AppState.visibleGroups()
+        // 5WHY (复核 2026-08-19 效率): 数组身份门控经 StatsUtil.assignIfChanged
+        // 收敛——内容未变不替换身份（Repeater 不重建面板/瓦片墙）。
+        _activeGroups = W.assignIfChanged(_activeGroups, AppState.visibleGroups())
     }
+    // 5WHY (复核 2026-08-19 效率 + 揭示自愈): StackView 隐藏页不销毁——信号
+    // 处理在离屏页上照跑（空耗 ~60% 事件工作量）。可见才刷新；重新可见时
+    // 补一次全量刷新（自愈隐藏期间的任何遗漏事件）。
+    onVisibleChanged: if (visible) { _refreshGroups(); _refreshTime() }
     // 总耗时（Run Info 卡；命令式刷新 UI-2）
     property string _timeText: "—"
-    // 归档布局迁移：完成时间 + 总览卡数据（命令式刷新）
+    // 归档布局迁移：完成时间（命令式刷新）
     property string _completedAt: ""
-    property int _totDiags: 0
-    property int _totCompleted: 0
-    property var _layers: []
+    // 5WHY (复核 2026-08-19 单一归属): _layers 与 5×groupStats 循环随摘要卡
+    // 合并迁入 DashboardSummaryComp._refresh()——本屏不再为摘要卡扫描；
+    // _refreshTime 只维护 Run Info 卡的墙钟（runDurationMs 零扫描）。
     function _refreshTime() {
-        var s = AppState.groupStats(-1)
         // 8-15：总耗时改用墙钟（runDurationMs），与诊断运行时间一致
         _timeText = ThemeEngine.formatDuration(AppState.runDurationMs())
-        _totDiags = s.total || 0
-        _totCompleted = s.completed || 0
-        var layers = []
-        for (var i = 0; i < 5; ++i) {
-            var gs = AppState.groupStats(i)
-            layers.push({ index: i, ms: gs.durationMs || 0 })
-        }
-        _layers = layers
     }
     Connections {
         target: AppState
@@ -52,12 +53,19 @@ PageDisplay {
         // groupStats(-1)/groupStats(i)（按 scheme 过滤），换 scheme 后
         // 总诊断数/已完成/分层时长停留旧计数，与相邻摘要卡数字矛盾。
         // filteredDataChanged 一次驱动组列表 + 时间卡。
+        // 5WHY (复核 2026-08-19): enabled 门控取代逐处理器 if（离屏整体
+        // 禁用）；重新可见由 onVisibleChanged 补刷新。
+        enabled: page.visible
         function onFilteredDataChanged() { page._refreshTime(); page._refreshGroups() }
         function onProgressChanged() { page._refreshTime(); page._refreshGroups() }
         function onRunElapsedChanged() { page._refreshTime() }
         function onCurrentRunningGroupChanged() { page._refreshGroups() }
+        function onRunStatusChanged() { page._refreshTime(); page._refreshGroups() }
+    }
+    // 完成时刻戳不依赖可见性（揭示时需已定格的值）——独立未门控块
+    Connections {
+        target: AppState
         function onRunStatusChanged() {
-            page._refreshTime(); page._refreshGroups()
             if (AppState.runStatus === 2) {
                 var now = new Date()
                 page._completedAt = ("0" + now.getHours()).slice(-2) + ":"
@@ -129,6 +137,7 @@ PageDisplay {
 
     bodyContent: [
         S.PageEmptyStateSection {
+            screenVisible: page.visible       // 5WHY 2026-08-19：离屏停扫
             hintText: T.tr("runFromDiag")     // M2：新用户引导
         },
 
@@ -206,12 +215,17 @@ PageDisplay {
             }
         },
 
-        // ── 摘要统计卡（归档 SummaryCards：Summary + Total + 6 类结果行）──
+        // ── 摘要统计卡（5WHY 2026-08-19 用户诉求 "两个 Summary 合一"）──
+        // 原 "Summary+Total 头+7 结果行" 与 "总览卡（3 统计+分层计时）"
+        // 两张卡合并为单卡：聚合统计 → 7 类结果行（零计数隐藏）→ 分层计时。
         S.PageCardSection {
             active: page.hasData
-            showHeader: false
+            cardTitle: T.tr("summary")
             bottomMargin: ThemeEngine.spacing.sm
-            DashboardSummaryComp { Layout.fillWidth: true }
+            DashboardSummaryComp {
+                Layout.fillWidth: true
+                screenVisible: page.visible   // 5WHY 2026-08-19：离屏停扫
+            }
         },
 
         // ── 分组结果标签（归档恢复）──
@@ -237,77 +251,12 @@ PageDisplay {
                 showOnlyCompleted: true
                 compactTiles: true
                 rowHeaderDelegate: dashboardRowHeaderComp
+                screenVisible: page.visible     // 5WHY 2026-08-19：离屏面板跳过刷新
                 onDetailRequested: function(d) { page.dashboardOpenDetail(d.diagId) }
             }
         },
 
-        // ── 总览卡（归档：3 项统计 + 分层计时）──
-        S.PageCardSection {
-            active: page.hasData
-            cardTitle: T.tr("summary")
-            bottomMargin: ThemeEngine.spacing.sm
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: 10
-                SummaryStat {
-                    Layout.fillWidth: true
-                    statIcon: "badge-check"; clr: ThemeEngine.colors.tertiary
-                    statVal: String(page._totDiags); lbl: T.tr("totalDiagsLabel")
-                }
-                SummaryStat {
-                    Layout.fillWidth: true
-                    statIcon: "activity"; clr: ThemeEngine.colors.secondary
-                    statVal: page._timeText; lbl: T.tr("totalTimeLabel")
-                }
-                SummaryStat {
-                    Layout.fillWidth: true
-                    statIcon: "check"; clr: ThemeEngine.colors.success
-                    statVal: String(page._totCompleted); lbl: T.tr("completedLabel")
-                }
-                Rectangle {
-                    Layout.fillWidth: true
-                    implicitHeight: 1
-                    color: ThemeEngine.colors.outlineVariant
-                    visible: page._totCompleted > 0
-                }
-                Item { Layout.preferredHeight: 4; visible: page._totCompleted > 0 }
-                Label {
-                    visible: page._totCompleted > 0
-                    text: T.tr("layerTimings")
-                    font.family: ThemeEngine.fontUi
-                    font.pixelSize: ThemeEngine.fontSize.caption
-                    font.weight: Font.DemiBold
-                    color: ThemeEngine.colors.onSurfaceVariant
-                }
-                Repeater {
-                    model: page._layers
-                    delegate: RowLayout {
-                        Layout.fillWidth: true
-                        visible: page._totCompleted > 0
-                        spacing: ThemeEngine.spacing.sm
-                        AppIcon {
-                            name: ThemeEngine.groupIconName(modelData.index)
-                            size: 14
-                            color: ThemeEngine.groupHue(modelData.index)
-                        }
-                        Label {
-                            Layout.fillWidth: true
-                            text: T.groupName(modelData.index)
-                            font.family: ThemeEngine.monoFont
-                            font.pixelSize: ThemeEngine.fontSize.caption
-                            color: ThemeEngine.colors.onSurface
-                            elide: Text.ElideRight
-                        }
-                        Label {
-                            text: ThemeEngine.formatDuration(modelData.ms || 0)
-                            font.family: ThemeEngine.monoFont
-                            font.pixelSize: ThemeEngine.fontSize.caption
-                            color: ThemeEngine.colors.onSurfaceVariant
-                        }
-                    }
-                }
-            }
-        },
+        // 总览卡已并入上方摘要统计卡（5WHY 2026-08-19 两个 Summary 合一）
 
         // ── 报告预览卡（归档：标题 + 提示 + 主色按钮）──
         S.PageCardSection {
@@ -466,35 +415,5 @@ PageDisplay {
         if (action === "preview") page.openPreview()
     }
 
-    // ── 归档 SummaryStat（图标 + 标签 + 大数值）──
-    component SummaryStat: RowLayout {
-        property string statIcon: ""
-        property color clr: ThemeEngine.colors.tertiary
-        property string statVal: ""
-        property string lbl: ""
-        spacing: 10
-        AppIcon {
-            name: statIcon
-            size: 16
-            color: clr
-            Layout.alignment: Qt.AlignVCenter
-        }
-        Label {
-            Layout.fillWidth: true
-            text: lbl
-            font.family: ThemeEngine.monoFont
-            font.pixelSize: ThemeEngine.fontSize.caption
-            color: ThemeEngine.colors.onSurfaceVariant
-            verticalAlignment: Text.AlignVCenter
-            elide: Text.ElideRight
-        }
-        Label {
-            text: statVal
-            font.family: ThemeEngine.monoFont
-            font.pixelSize: ThemeEngine.fontSize.subhead
-            font.weight: Font.Bold
-            color: clr
-            verticalAlignment: Text.AlignVCenter
-        }
-    }
+    // SummaryStat 组件已随摘要卡合并上移 DashboardSummaryComp（5WHY 2026-08-19）
 }
