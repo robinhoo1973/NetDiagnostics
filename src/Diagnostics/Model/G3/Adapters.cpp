@@ -29,6 +29,7 @@
 
 #include <QProcess>
 #include <QFile>
+#include <QDir>
 #include <QTextStream>
 #include <QElapsedTimer>
 #include <QRegularExpression>
@@ -1129,6 +1130,67 @@ static DiagnosticResult probeInternetConnectivity(DiagId id, const QString&, Run
     return r;
 }
 
+// ── G3NetskopeStatus（5WHY 复核 2026-08-19 v0.0.3 对等恢复）─────────────
+// 移植自 v0.0.3 G3NetskopeStatus.cpp：扫描运行进程（Windows 快照 / /proc
+// comm）中的安全代理客户端（nsproxy/zscaler/netskope/zsproxy），
+// 检出=Pass、未检出=Info，终端转储呈现。
+static DiagnosticResult probeNetskopeStatus(DiagId id, const QString&, RunContext& ctx) {
+    QStringList out;
+    out.append(QString());
+    out.append(QStringLiteral("Security Proxy Status:"));
+    out.append(QString());
+    bool found = false;
+#if defined(_WIN32)
+    HANDLE hSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (hSnap != INVALID_HANDLE_VALUE) {
+        PROCESSENTRY32W pe;
+        pe.dwSize = sizeof(pe);
+        if (Process32FirstW(hSnap, &pe)) {
+            do {
+                if (ctx.cancelled.load()) break;
+                const QString name = QString::fromWCharArray(pe.szExeFile);
+                if (name.contains(QStringLiteral("nsproxy"), Qt::CaseInsensitive)
+                    || name.contains(QStringLiteral("zsproxy"), Qt::CaseInsensitive)
+                    || name.contains(QStringLiteral("zscaler"), Qt::CaseInsensitive)
+                    || name.contains(QStringLiteral("netskope"), Qt::CaseInsensitive)) {
+                    out.append(QStringLiteral("  Found: %1 (PID %2)").arg(name).arg(pe.th32ProcessID));
+                    found = true;
+                }
+            } while (Process32NextW(hSnap, &pe));
+        }
+        CloseHandle(hSnap);
+    }
+#else
+    const QDir procDir(QStringLiteral("/proc"));
+    const auto entries = procDir.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot);
+    for (const auto& fi : entries) {
+        if (ctx.cancelled.load()) break;
+        bool ok = false;
+        fi.fileName().toInt(&ok);
+        if (!ok) continue;   // 非 PID 目录
+        QFile cmdLine(fi.absoluteFilePath() + QStringLiteral("/comm"));
+        if (cmdLine.open(QIODevice::ReadOnly)) {
+            const QString comm = QString::fromLatin1(cmdLine.readAll().trimmed());
+            if (comm.contains(QStringLiteral("nsproxy"), Qt::CaseInsensitive)
+                || comm.contains(QStringLiteral("zsproxy"), Qt::CaseInsensitive)
+                || comm.contains(QStringLiteral("zscaler"), Qt::CaseInsensitive)
+                || comm.contains(QStringLiteral("netskope"), Qt::CaseInsensitive)) {
+                out.append(QStringLiteral("  Found: %1 (PID %2)").arg(comm, fi.fileName()));
+                found = true;
+            }
+        }
+    }
+#endif
+    if (!found) out.append(QStringLiteral("  No security proxy process detected"));
+    DiagnosticResult r = makeResult(id,
+        found ? DiagStatus::Pass : DiagStatus::Info,
+        found ? QStringLiteral("Security proxy detected")
+              : QStringLiteral("No security proxy detected"),
+        {}, out.join(QLatin1Char('\n')));
+    r.data[QStringLiteral("detected")] = found;
+    return r;
+}
+
 } // namespace g3
 
 // ── Registration (NEW-1 platform masks) ───────────────────────────────────
@@ -1166,5 +1228,9 @@ void registerG3Adapters() {
         {PF_Desktop, "Desktop", {}, g3::probeInternetConnectivity},
         {PF_IOS,     "iOS",     {}, g3::probeInternetConnectivity},
         {PF_Android, "Android", {}, g3::probeInternetConnectivity},
+    });
+    AdapterRegistry::registerAdapters(DiagId::G3NetskopeStatus, {
+        {PF_Desktop, "Desktop", {}, g3::probeNetskopeStatus},
+        {PF_Android, "Android", {}, g3::probeNetskopeStatus},
     });
 }

@@ -31,7 +31,7 @@ inline QString diagDisplayName(DiagId id) {
         case DiagId::G2RoutingTable:     return QStringLiteral("Routing Table");
         case DiagId::G2ArpTable:         return QStringLiteral("ARP Table");
         case DiagId::G2ProxySettings:    return QStringLiteral("Proxy Settings");
-        case DiagId::_G3Reserved17_Deprecated: return QStringLiteral("(removed)");
+        case DiagId::G3NetskopeStatus: return QStringLiteral("Security Proxy Status");
         case DiagId::G3DnsServers:       return QStringLiteral("DNS Servers");
         case DiagId::G3DnsCache:         return QStringLiteral("DNS Cache");
         case DiagId::G3DnsIntegrity:     return QStringLiteral("DNS Integrity");

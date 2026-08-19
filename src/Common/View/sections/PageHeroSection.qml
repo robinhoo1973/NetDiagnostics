@@ -19,6 +19,15 @@ PageSection {
     // 5WHY (review round 2+3): 垫只承载真实诊断图标——_hasDiagIcon 门控
     // 可见性，无需回退分支（回退状态徽标会与状态圆盘同图形异色冲突）。
     readonly property bool _hasDiagIcon: detailData.iconName !== undefined && detailData.iconName !== ""
+    // 5WHY (复核 2026-08-19): 状态名经 statusRows 单一表派生（色盘读屏名 +
+    // 可见状态文字共用；v0.0.3 有状态名文字行，恢复对等呈现）。
+    readonly property string _statusLabel: {
+        var st = detailData.status !== undefined ? detailData.status : 5
+        for (var i = 0; i < ThemeEngine.statusRows.length; ++i)
+            if (ThemeEngine.statusRows[i].code === st)
+                return ThemeEngine.statusRows[i].labelKey
+        return "summaryInfo"
+    }
 
     // 5WHY (2026-08-19 用户诉求 "进入详情也播放检测项动画"): 瓦片动画由
     // DiagBlock 承载，hero 只有静态 IconPad——进详情时检测项身份动效缺失。
@@ -76,7 +85,9 @@ PageSection {
             }
         }
 
-        // 状态圆盘
+        // 状态圆盘（5WHY 复核 2026-08-19 v0.0.3 对等 + a11y）: v0.0.3 详情
+        // 浮层有状态名文字行（"Pass/Warning/Fail" + 时长）——现仅色盘传达
+        // 状态身份，色盲/读屏用户丢失该信息。补状态名文字 + 读屏名。
         Rectangle {
             Layout.preferredWidth: 44
             Layout.preferredHeight: 44
@@ -88,6 +99,8 @@ PageSection {
                 size: 24
                 color: ThemeEngine.statusColors[(detailData.status !== undefined ? detailData.status : 5)] || ThemeEngine.colors.skip
             }
+            Accessible.name: T.tr(root._statusLabel)
+            Accessible.role: Accessible.Graphic
         }
         ColumnLayout {
             Layout.fillWidth: true
@@ -100,6 +113,15 @@ PageSection {
                 color: ThemeEngine.colors.onSurface
                 Layout.fillWidth: true
                 elide: Text.ElideRight
+            }
+            // v0.0.3 对等：状态名文字（色盲/读屏可达的状态身份，5WHY 见
+            // _statusLabel 派生）
+            Label {
+                text: T.tr(root._statusLabel)
+                font.family: ThemeEngine.fontUi
+                font.pixelSize: ThemeEngine.fontSize.caption
+                font.weight: Font.DemiBold
+                color: ThemeEngine.statusColors[(detailData.status !== undefined ? detailData.status : 5)] || ThemeEngine.colors.skip
             }
             Label {
                 visible: text !== ""

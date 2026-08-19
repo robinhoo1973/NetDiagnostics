@@ -177,7 +177,11 @@ void AppState::setTarget(const QString& host, const QString& scheme) {
         m_targetError = QString();   // 8-4：无目标不再报错（空目标仅跑 G1-G3）
         bumpState();   // 列表/统计按 scheme 过滤，目标变更驱动 UI 重估
         emit targetChanged();
-        if (schemeChanged) emit filteredDataChanged();
+        // 5WHY (复核 2026-08-19 队列化统一): scheme 变更是唯一在可见屏上
+        // 触发的 filteredDataChanged 发射点（下拉框/粘贴 URL 的输入栈）——
+        // 同步发射在输入栈上驱动 5 面板 _reload（瓦片墙重建）。与其余
+        // 突变点统一经队列助手延迟一帧。
+        if (schemeChanged) queueFilteredChanged();
     }
 }
 
@@ -241,7 +245,6 @@ void AppState::runDiagnostics() {
     // “界面卡死、无法切页、组不推进”。前移后：清屏 → 弹窗 → 确认/取消。
     if (m_isPremiumPlatform && !noTarget && !m_cellularWarnAcked) {
         m_cellularWarnVisible = true;
-        emit cellularWarnVisibleChanged();
         // 5WHY (复核 2026-08-19 状态语义): 此路径已清空
         // m_results/m_groupDone/m_currentGroup 却只发
         // cellularWarnVisibleChanged——所有统计消费方（状态头/组面板/摘要卡）
@@ -254,7 +257,12 @@ void AppState::runDiagnostics() {
         // 发射会驱动 _refreshGroups 替换数组 → Repeater 在按钮信号栈未退栈时
         // 销毁重建面板委托（CLAUDE.md 反模式 #4）。队列化延迟一帧：语义不变
         // （消费方读到的都是已清屏状态），栈上无销毁。
+        // 5WHY (复核 2026-08-19 瞬态窗口): Idle 赋值先于 cellularWarnVisibleChanged
+        // 发射——同步监听方（如未来弹窗处理器读 runStatus）不再看到
+        // 「已清屏 + 旧终态」的混合视图。
         m_runStatus = Idle;
+        m_runElapsedMs = 0;   // 墙钟随清屏复位（否则弹窗期间显示上一轮时长）
+        emit cellularWarnVisibleChanged();
         queueStateBroadcast();
         return;   // 等待 continueAfterCellularWarn() → 重新 runDiagnostics()
     }
@@ -262,8 +270,12 @@ void AppState::runDiagnostics() {
     m_runTimer.start();      // 8-15：墙钟计时开始
     m_runElapsedMs = 0;
     if (m_elapsedTicker) m_elapsedTicker->start();
-    emit runStatusChanged();
-    emit progressChanged();
+    // 5WHY (复核 2026-08-19 主路径队列化): 曾同步发射——本函数由 QML Run
+    // 按钮 onClicked 调用，同步 runStatusChanged 驱动 _refreshGroups 在
+    // 点击栈未退栈时销毁 5 面板委托（反模式 #4；早退两分支已队列化而主
+    // 路径漏网）。队列化延迟一帧：消费方送达时读到的都是已启动状态；
+    // runNextGroup 保持同步（组 0 创建而非销毁，栈上创建安全）。
+    queueStateBroadcast();
     runNextGroup();
 }
 
@@ -387,9 +399,11 @@ void AppState::cancel() {
     m_currentGroup = -1;
     m_runElapsedMs = m_runTimer.isValid() ? m_runTimer.elapsed() : m_runElapsedMs;
     if (m_elapsedTicker) m_elapsedTicker->stop();
-    emit currentRunningGroupChanged();
-    emit runStatusChanged();
-    emit progressChanged();
+    // 5WHY (复核 2026-08-19 主路径队列化): cancel 由 QML 取消按钮 onClicked
+    // 调用——同步发射在点击栈未退栈时驱动可见组集合翻转（部分揭示→全量）
+    // 与 5 面板重建（反模式 #4，与 runDiagnostics 同源）。统一队列化
+    // （含 currentRunningGroupChanged，见 queueStateBroadcast 注释）。
+    queueStateBroadcast();
 }
 
 void AppState::continueAfterCellularWarn() {
@@ -579,6 +593,11 @@ QVariantMap AppState::resultFor(int diagIdInt) const {
     // 但重建的契约层不再向结果注入该字段——在此由 meta 注入（不改探针结果）。
     QVariantMap data = it->data;
     data[QStringLiteral("templateType")] = static_cast<int>(diagnosticMeta(it->id).tmplType);
+    // 5WHY (复核 2026-08-19 死门复活): KeyMetric.js 的时长回退门读
+    // data.keyMetricField，但此处从不注入——结构化键缺失的失败结果
+    // （黑洞 Ping、TLS 握手失败等）恒无 MetricCard。由 meta 注入。
+    if (diagnosticMeta(it->id).detail.keyMetricField)
+        data[QStringLiteral("keyMetricField")] = QString::fromLatin1(diagnosticMeta(it->id).detail.keyMetricField);
     m[QStringLiteral("data")] = data;
     // 8-16：契约开关注入——详情区块（错误/属性/终端）按 meta DetailProfile
     // 自门控，避免模板不支持的区块出现空卡/错误内容。
@@ -681,7 +700,8 @@ void AppState::setGroupActive(int groupInt, bool active) {
     savePreferences();
     bumpState();
     // visibleGroups() 按激活组过滤——组面板列表消费方需语义信号刷新
-    emit filteredDataChanged();
+    // （与 setDiagEnabled/setGroupEnabled 同一队列化策略，5WHY 见 runDiagnostics）
+    queueFilteredChanged();
 }
 
 bool AppState::isGroupActive(int groupInt) const {
@@ -725,7 +745,17 @@ void AppState::queueFilteredChanged() {
 }
 
 void AppState::queueStateBroadcast() {
-    QMetaObject::invokeMethod(this, [this] {
+    // 5WHY (复核 2026-08-19 过期广播守卫): 广播排队后用户可能已 Continue——
+    // continueAfterCellularWarn 同步重启 runDiagnostics（Running 路径另行
+    // 广播）后，此处过期 lambda 仍会按当前状态再发一轮（5 面板三次重扫）。
+    // 捕获排队时的 runStatus：送达时状态已变即跳过（Continue 后 Running≠
+    // Idle；dismiss 后仍 Idle 正常送达）。
+    const int expected = m_runStatus;   // m_runStatus 为 int 成员（Q_PROPERTY）
+    QMetaObject::invokeMethod(this, [this, expected] {
+        if (m_runStatus != expected) return;
+        // currentRunningGroupChanged 一并队列：cancel 路径的可见组集合翻转
+        // （部分揭示→全量）也经同一延迟帧送达，点击栈上无任何消费方重建。
+        emit currentRunningGroupChanged();
         emit runStatusChanged();
         emit progressChanged();
         emit filteredDataChanged();

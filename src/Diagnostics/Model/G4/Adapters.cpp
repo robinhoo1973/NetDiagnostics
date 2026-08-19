@@ -105,6 +105,13 @@ static DiagnosticResult makeResult(DiagId id, DiagStatus status,
     r.status = status; r.summary = summary; r.properties = props;
     r.details = details; r.rawOutput = details;
     r.timestamp = QDateTime::currentDateTime();
+    // 5WHY (复核 2026-08-19 错误区块缺失): G5 的 makeResult 对 Fail/Warning/
+    // Error 自动回填 errorOutput（摘要入错误区块），G4 无此行——失败的
+    // Ping/Traceroute/MTU 等错误区块永不渲染（showError=true 契约落空）。
+    // 对齐 G5 同一规则。
+    if ((status == DiagStatus::Fail || status == DiagStatus::Warning
+         || status == DiagStatus::Error) && r.errorOutput.isEmpty())
+        r.errorOutput = summary;
     return r;
 }
 

@@ -93,8 +93,11 @@ enum class DiagId {
     G2ArpTable,
     G2ProxySettings,
 
-    // G3 — Internet & DNS (5 + 1 deprecated slot)
-    _G3Reserved17_Deprecated,
+    // G3 — Internet & DNS
+    // 5WHY (复核 2026-08-19 v0.0.3 对等恢复): 本槽位原为 Netskope Status
+    // 安全代理检测，重构期弃用为保留槽——用户诉求"历史版本数据全部呈现"，
+    // 恢复为正式检测项（探针移植自 v0.0.3 G3NetskopeStatus.cpp）。
+    G3NetskopeStatus,
     G3DnsServers,
     G3DnsCache,
     G3DnsIntegrity,
@@ -136,7 +139,7 @@ inline DiagGroup diagGroup(DiagId id) {
     const int v = static_cast<int>(id);
     if (v >= static_cast<int>(DiagId::G1NetworkAdapters) && v <= static_cast<int>(DiagId::G1CellularInfo)) return DiagGroup::G1;
     if (v >= static_cast<int>(DiagId::G2NetworkProfile)   && v <= static_cast<int>(DiagId::G2ProxySettings)) return DiagGroup::G2;
-    if (v >= static_cast<int>(DiagId::_G3Reserved17_Deprecated) && v <= static_cast<int>(DiagId::G3InternetConnectivity)) return DiagGroup::G3;
+    if (v >= static_cast<int>(DiagId::G3NetskopeStatus) && v <= static_cast<int>(DiagId::G3InternetConnectivity)) return DiagGroup::G3;
     if (v >= static_cast<int>(DiagId::G4DnsResolution)    && v <= static_cast<int>(DiagId::G4IPv6Connectivity)) return DiagGroup::G4;
     return DiagGroup::G5;
 }
@@ -154,13 +157,15 @@ inline const QVector<DiagId>& allDiagIds() {
     return ids;
 }
 
-inline bool isSchedulable(DiagId id) { return id != DiagId::_G3Reserved17_Deprecated; }
+// 5WHY (复核 2026-08-19): 弃用槽已恢复为 Netskope——全部槽位可调度。
+// 函数形状保留（调用方契约；未来新增保留槽时在此排除）。
+inline bool isSchedulable(DiagId id) { Q_UNUSED(id); return true; }
 
 inline const QVector<DiagId>& diagIdsForGroup(DiagGroup g) {
     static const std::array<QVector<DiagId>, 5> cache = [] {
         std::array<QVector<DiagId>, 5> a;
         for (DiagId id : allDiagIds()) {
-            // L6：接口内过滤不可调度槽（_G3Reserved17_Deprecated），
+            // L6：接口内过滤不可调度槽（如未来新增保留槽），
             // 消除调用方依赖外部过滤的隐患
             if (!isSchedulable(id)) continue;
             const int gi = static_cast<int>(diagGroup(id));

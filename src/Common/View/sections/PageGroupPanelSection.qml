@@ -101,7 +101,12 @@ PageSection {
             // UI-3 scope-gate：仅运行中的组逐条刷新（瓦片墙 + 统计）——
             // 已结束组的统计冻结，其边界由 runStatus/currentRunningGroup
             // 处理器全量刷新（5WHY 复核 2026-08-19：曾 5 面板每事件全扫）。
-            if (groupIndex === AppState.currentRunningGroup) {
+            // 5WHY (复核 2026-08-19 取消排水): cancel 后 currentGroup 已 -1
+            // 而池内探针的迟到 Cancelled 结果仍逐一落库并发射——scope-gate
+            // 会全量丢弃，瓦片冻结在取消前快照（状态头却计入）。取消态
+            // （runStatus 3 且 current=-1）下全面板随迟到结果排水刷新。
+            if (groupIndex === AppState.currentRunningGroup
+                || (AppState.runStatus === 3 && AppState.currentRunningGroup === -1)) {
                 reloadModel()
                 _refreshStats()
             }
@@ -109,8 +114,6 @@ PageSection {
         function onRunStatusChanged() {
             _reload()   // B1：运行边界全量刷新
         }
-        // 8-16：组开始（currentRunningGroup 切换）即加载瓦片墙——
-        // 瓦片与组标题同步出现，而非等首条结果/组结束。
         // 8-16：组开始（currentRunningGroup 切换）即加载瓦片墙——
         // 瓦片与组标题同步出现，而非等首条结果/组结束。
         // 5WHY (复核 2026-08-19 scope-gate): 曾 5 面板全量 _reload——组推进

@@ -407,9 +407,16 @@ static DiagnosticResult probeTcpConnect(DiagId id, const QString& target, RunCon
     const bool ok = sock.waitForConnected(5000);
     const qint64 ms = t.elapsed();
     sock.disconnectFromHost();
+    // 5WHY (复核 2026-08-19 v0.0.3 对等): Host/Port 曾以属性行呈现
+    // （G5TcpConnect.cpp: Host/Port）——现只存 data 键（无区块消费）。
+    // 补属性行：测试目标对用户可见。
+    const QVector<ResultProperty> props = {
+        {QStringLiteral("Host"), u.host()},
+        {QStringLiteral("Port"), QString::number(port)},
+    };
     DiagnosticResult r = makeResult(id, ok ? DiagStatus::Pass : DiagStatus::Fail,
         ok ? QStringLiteral("Connected in %1ms").arg(ms)
-           : QStringLiteral("Failed: %1").arg(sock.errorString()), {}, {});
+           : QStringLiteral("Failed: %1").arg(sock.errorString()), props, {});
     r.data[QStringLiteral("host")] = u.host();
     r.data[QStringLiteral("port")] = port;
     r.data[QStringLiteral("connected")] = ok;
@@ -604,6 +611,11 @@ static DiagnosticResult probeSslCertificate(DiagId id, const QString& target, Ru
         out.append(QStringLiteral("  Valid:     %1 → %2").arg(notBefore.toString(Qt::ISODate), notAfter.toString(Qt::ISODate)));
         out.append(QStringLiteral("  Days left: %1").arg(daysLeft));
         out.append(QStringLiteral("  Serial:    %1").arg(QString::fromLatin1(cert.serialNumber().toHex())));
+        // 5WHY (复核 2026-08-19 v0.0.3 对等): SHA-256 指纹曾以表格行呈现
+        // （G5SslCertificate.cpp: Thumbprint 40 hex）——现仅存 data 键无
+        // 区块消费。补入终端转储行，指纹核对场景可见。
+        out.append(QStringLiteral("  SHA-256:   %1").arg(QString::fromLatin1(
+            cert.digest(QCryptographicHash::Sha256).toHex())));
         out.append(QString());
         if (certIdx == 1) {
             const QSslCertificate& leaf = cert;

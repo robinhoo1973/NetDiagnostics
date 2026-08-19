@@ -32,7 +32,12 @@ PageSection {
         ResultChart {
             id: chartView
             Layout.fillWidth: true
-            data: root.detailData
+            // 5WHY (复核 2026-08-19 图表全灭): 曾传外层 resultFor 图——ResultChart
+            // 读的是嵌套 data 键（templateType/individualRtts/hops/waterfall…），
+            // 顶层全为 undefined → _source 恒空、hasChart 恒假，图表区块对
+            // 全部 46 项从未渲染（v0.0.3 的 RTT/跳数/瀑布/证书天数全无页面
+            // 元素）。注入嵌套 data 子图。
+            data: root.detailData.data
             expanded: root._expanded
         }
     }

@@ -28,6 +28,7 @@
 #include <QNetworkInterface>
 #include <QNetworkAddressEntry>
 #include <QHostAddress>
+#include <QHostInfo>
 #include <QFile>
 #include <QFileInfo>
 #include <QTextStream>
@@ -56,16 +57,16 @@
 // 且外层单守卫内 #define 四个符号——只缺部分变体的工具链被整体跳过仍编译失败。
 // 改为 __MINGW32__（真正的受影响工具链）+ 逐符号独立守卫。
 #if defined(__MINGW32__)
-#ifndef DOT11_AUTH_ALGO_WPA3
+#if !defined(DOT11_AUTH_ALGO_WPA3)
 #define DOT11_AUTH_ALGO_WPA3 0x00000008
 #endif
-#ifndef DOT11_AUTH_ALGO_WPA3_ENT_192
+#if !defined(DOT11_AUTH_ALGO_WPA3_ENT_192)
 #define DOT11_AUTH_ALGO_WPA3_ENT_192 0x00000009
 #endif
-#ifndef DOT11_AUTH_ALGO_OWE
+#if !defined(DOT11_AUTH_ALGO_OWE)
 #define DOT11_AUTH_ALGO_OWE          0x0000000A
 #endif
-#ifndef DOT11_AUTH_ALGO_WPA3_ENT
+#if !defined(DOT11_AUTH_ALGO_WPA3_ENT)
 #define DOT11_AUTH_ALGO_WPA3_ENT     0x0000000B
 #endif
 #endif
@@ -115,8 +116,23 @@ static DiagnosticResult makeResult(DiagId id, DiagStatus status,
     r.status = status;
     r.summary = summary;
     r.properties = props;
-    r.details = details;
-    r.rawOutput = details;
+    // 5WHY (复核 2026-08-19 v0.0.3 对等): 8 个 G1 探针全部传空 details——
+    // 详情页终端区块（details||rawOutput 门控）对 G1 恒隐藏，而 v0.0.3
+    // 各探针都输出格式化多行转储。空 details 时由 props 生成转储文本，
+    // 终端区块恢复呈现（子属性缩进，与剪贴板格式一致）。
+    if (details.isEmpty() && !props.isEmpty()) {
+        QStringList lines;
+        for (const ResultProperty& p : props) {
+            lines.append(QStringLiteral("%1: %2").arg(p.label, p.value));
+            for (const auto& c : p.children)
+                lines.append(QStringLiteral("  %1: %2").arg(c.label, c.value));
+        }
+        r.details = lines.join(QLatin1Char('\n'));
+        r.rawOutput = r.details;
+    } else {
+        r.details = details;
+        r.rawOutput = details;
+    }
     r.timestamp = QDateTime::currentDateTime();
     return r;
 }
@@ -680,6 +696,12 @@ static DiagnosticResult probeIpConfig(DiagId id, const QString&, RunContext& ctx
         if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
         for (const auto& e : i.addressEntries()) {
             ResultProperty p(i.name(), e.ip().toString());
+            // 5WHY (复核 2026-08-19 v0.0.3 对等): 每接口 MAC（Physical
+            // Address）曾随 ipconfig 转储呈现——补为子属性（首个地址条目
+            // 携带，全零 MAC 视为虚拟接口不呈现）。
+            if (!i.hardwareAddress().isEmpty()
+                && i.hardwareAddress() != QLatin1String("00:00:00:00:00:00"))
+                p.children.prepend({QStringLiteral("MAC"), i.hardwareAddress()});
             if (!e.netmask().isNull())
                 p.children.append({QStringLiteral("netmask"), e.netmask().toString()});
 #if defined(__linux__) || defined(__ANDROID__)
@@ -691,6 +713,11 @@ static DiagnosticResult probeIpConfig(DiagId id, const QString&, RunContext& ctx
             props.append(p);
         }
     }
+    // 5WHY (复核 2026-08-19 v0.0.3 对等): 主机名曾随 ipconfig 转储呈现
+    // （G1IpConfiguration.cpp: Host Name）——现丢失，前置一条补回。
+    // （IPv6 已随 addressEntries 全族覆盖；DHCP Enabled/DNS 后缀无便携
+    // 探测，记录为已知缺口。）
+    props.prepend({QStringLiteral("Host Name"), QHostInfo::localHostName()});
     if (props.isEmpty())
         return makeResult(id, DiagStatus::Info, QStringLiteral("No IP configuration found"), {}, {});
     return makeResult(id, DiagStatus::Pass, QStringLiteral("IP configuration"), props, {});
@@ -701,26 +728,49 @@ static DiagnosticResult probeActiveConnections(DiagId id, const QString&, RunCon
     int count = 0;
     QVector<ResultProperty> props;
 #if defined(__linux__) || defined(__ANDROID__)
-    QFile f(QStringLiteral("/proc/net/tcp"));
-    if (f.open(QIODevice::ReadOnly | QIODevice::Text)) {
+    // 5WHY (复核 2026-08-19 v0.0.3 对等): v0.0.3 以 Proto/Local/Foreign/State
+    // 表格呈现全部连接——曾只抓 ESTABLISHED 的本地端点 hex 串。恢复全状态
+    // + 可读端点（hex→点分十进制）+ 状态名 + tcp6。
+    static const char* kStateNames[12] = {"", "ESTABLISHED", "SYN_SENT",
+        "SYN_RECV", "FIN_WAIT1", "FIN_WAIT2", "TIME_WAIT", "CLOSE",
+        "CLOSE_WAIT", "LAST_ACK", "LISTEN", "CLOSING"};
+    const auto parseSockets = [&](const QString& path, const char* proto) {
+        QFile f(path);
+        if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) return;
         QTextStream in(&f);
         in.readLine(); // header
         while (!in.atEnd()) {
-            if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
+            if (ctx.cancelled.load()) return;
             const QString line = in.readLine();
             if (line.simplified().isEmpty()) continue;
             const auto fields = line.split(QLatin1Char(' '), Qt::SkipEmptyParts);
-            if (fields.size() >= 4) {
+            if (fields.size() < 4) continue;
+            const auto decodeEp = [](const QString& ep) {
+                // "0100007F:1F90"（IP 小端 hex + 端口 hex）→ "127.0.0.1:8080"
+                const auto parts = ep.split(QLatin1Char(':'));
+                if (parts.size() != 2) return ep;
                 bool ok = false;
-                const int state = fields[3].toInt(&ok, 16);
-                // 01 = ESTABLISHED
-                if (ok && state == 0x01) {
-                    props.append({QStringLiteral("connection"), fields[1]});
-                    ++count;
-                }
-            }
+                const uint32_t ip = parts[0].toUInt(&ok, 16);
+                const uint16_t port = parts[1].toUInt(&ok, 16);
+                if (!ok) return ep;
+                return QStringLiteral("%1.%2.%3.%4:%5")
+                    .arg(int(ip & 0xFF)).arg(int((ip >> 8) & 0xFF))
+                    .arg(int((ip >> 16) & 0xFF)).arg(int((ip >> 24) & 0xFF))
+                    .arg(port);
+            };
+            bool ok = false;
+            const int state = fields[3].toInt(&ok, 16);
+            const QString stateName = (ok && state >= 1 && state <= 11)
+                ? QString::fromLatin1(kStateNames[state]) : QStringLiteral("UNKNOWN");
+            props.append({QStringLiteral("connection"),
+                QStringLiteral("%1 %2 -> %3 [%4]")
+                    .arg(QLatin1String(proto), decodeEp(fields[1]),
+                         decodeEp(fields[2]), stateName)});
+            ++count;
         }
-    }
+    };
+    parseSockets(QStringLiteral("/proc/net/tcp"), "tcp");
+    parseSockets(QStringLiteral("/proc/net/tcp6"), "tcp6");
 #else
 #if defined(_WIN32)
     // GetExtendedTcpTable 真实枚举（含 PID）；仅统计 ESTABLISHED。
@@ -829,8 +879,20 @@ DiagnosticResult iosWifiProbe(DiagId id, const QString&, RunContext&) {
 
 DiagnosticResult iosCellularProbe(DiagId id) {
     const QVariantMap info = iosCellularInfo();
-    if (info.isEmpty())
-        return DiagnosticResult::skipped(id, QStringLiteral("No cellular modem present"));
+    // 5WHY (复核 2026-08-19 v0.0.3 对等): v0.0.3 的 "No cellular service"
+    // 是 Info 态（G1CellularInfo.cpp）——曾返回 skipped 丢失该呈现。
+    // iOS 设备恒有调制解调器：空图即"无服务"而非"无硬件"。
+    if (info.isEmpty()) {
+        DiagnosticResult r;
+        r.id = id; r.displayName = diagDisplayName(id); r.group = diagGroup(id);
+        r.status = DiagStatus::Info;
+        r.summary = QStringLiteral("No cellular service");
+        r.properties = {{QStringLiteral("cellular"), QStringLiteral("No cellular service available")}};
+        r.details = QStringLiteral("cellular: No cellular service available");
+        r.rawOutput = r.details;
+        r.timestamp = QDateTime::currentDateTime();
+        return r;
+    }
     QVector<ResultProperty> props;
     auto add = [&props](const char* label, const QString& v) {
         if (!v.isEmpty()) props.append({QLatin1String(label), v});
@@ -840,6 +902,18 @@ DiagnosticResult iosCellularProbe(DiagId id) {
     add("MCC", info.value(QStringLiteral("mcc")).toString());
     add("MNC", info.value(QStringLiteral("mnc")).toString());
     add("signal", info.value(QStringLiteral("signalStrength")).toString());
+    // 5WHY (复核 2026-08-19 v0.0.3 对等): 数据 IP/网关/多卡槽位（SIM-by-SIM）
+    // 曾随表呈现——ObjC 侧若提供相应键即呈现（防御性读取；键缺失不崩）。
+    add("Data IP", info.value(QStringLiteral("dataIp")).toString());
+    add("Gateway", info.value(QStringLiteral("gateway")).toString());
+    const QVariantList slots = info.value(QStringLiteral("simSlots")).toList();
+    for (const QVariant& s : slots) {
+        const QVariantMap sim = s.toMap();
+        if (sim.isEmpty()) continue;
+        props.append({QStringLiteral("SIM %1").arg(sim.value(QStringLiteral("slot")).toString()),
+            QStringLiteral("%1 / %2").arg(sim.value(QStringLiteral("carrier")).toString(),
+                                          sim.value(QStringLiteral("rat")).toString())});
+    }
     DiagnosticResult r;
     r.id = id; r.displayName = diagDisplayName(id); r.group = diagGroup(id);
     r.status = DiagStatus::Pass;
