@@ -158,11 +158,15 @@ void AppState::setTarget(const QString& host, const QString& scheme) {
     QString path;
     const int slash = h.indexOf(QLatin1Char('/'));
     if (slash > 0) { path = h.mid(slash); h = h.left(slash); }
-    if (m_targetHost != h || m_targetPath != path || m_targetScheme != effScheme) {
-        // 5WHY (复核 2026-08-19 归一化): 下拉路径不保证小写（仅粘贴 URL 分支
-        // toLower）——本处统一小写存储/比较：大小写差异不再触发 schemeChanged
-        // 逐键风暴，AdapterRegistry 匹配也拿到归一化输入。
-        const QString finalScheme = (effScheme.isEmpty() ? QStringLiteral("https") : effScheme).toLower();
+    // 5WHY (复核 2026-08-19 归一化): 下拉路径不保证小写（仅粘贴 URL 分支
+    // toLower）——本处统一小写存储/比较：大小写差异不再触发 schemeChanged
+    // 逐键风暴，AdapterRegistry 匹配也拿到归一化输入。
+    const QString finalScheme = (effScheme.isEmpty() ? QStringLiteral("https") : effScheme).toLower();
+    // 5WHY (复核 2026-08-19 入闸同源): 入闸条件曾比裸 effScheme——大写输入
+    // 会令存储值 "https" ≠ "HTTPS" 恒真，每键重入分支（bumpState+targetChanged
+    // 逐键风暴，filteredDataChanged 虽正确门控但其余消费仍空转）。入闸与
+    // schemeChanged 同用归一化值。
+    if (m_targetHost != h || m_targetPath != path || m_targetScheme != finalScheme) {
         // 5WHY (复核 2026-08-18): 过滤视图只随 scheme 变——host/path 逐键编辑
         // （DiagnosticToolbar.onTextChanged 每键一次）不再驱动 5 面板全量重载；
         // 语义信号只在过滤集实际变化时单次发射。

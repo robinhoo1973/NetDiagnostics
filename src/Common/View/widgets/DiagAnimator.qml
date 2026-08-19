@@ -49,7 +49,15 @@ Item {
         onTriggered: root._stopInstance()
     }
     function _stopInstance() {
-        if (loader.item) loader.item.running = false
+        // 5WHY (复核 2026-08-19 绑定剥离): 命令式置假触发各动画的
+        // onRunningChanged 清理（先于 Loader 销毁）——但直接赋值会剥除
+        // onLoaded 安装的 Qt.binding（暂停不销毁的用法将永久冻结）。置假后
+        // 立刻重装绑定：item.running 恒为 root.running 的绑定（随后
+        // root.running=false 使重装的绑定同步归假，行为不变）。
+        if (loader.item) {
+            loader.item.running = false
+            loader.item.running = Qt.binding(function() { return root.running })
+        }
         root.running = false
     }
     function restart() {

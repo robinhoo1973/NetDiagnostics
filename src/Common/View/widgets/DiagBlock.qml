@@ -112,7 +112,11 @@ Item {
         // 给结果图形（用户诉求），完成后 _elapsed 无任何消费方；停止路径
         // （中断/异常未落结果）同样清零，冻结计数不再残留。
         onRunningChanged: {
-            root._elapsed = 0
+            // 5WHY (复核 2026-08-19 离屏续计): 离屏门控（screenVisible/visible）
+            // 暂停计时器时同样触发本处理器——切页往返把运行中瓦片计时归零
+            // （与 startedAtMs 真实起点设计相悖）。仅当运行语义真正结束
+            // （testRunning 归假）才清零；离屏暂停保留进度，回屏续计。
+            if (!root.testRunning) root._elapsed = 0
         }
     }
     // 5WHY (复核 2026-08-18): 委托重建（reloadModel 换模型身份）会把 _elapsed
