@@ -207,4 +207,8 @@ private:
     // H1：移动数据警告（G3 起大流量探测前暂停，移动/Apple 平台）
     bool m_cellularWarnVisible = false;
     bool m_cellularWarnAcked = false;
+    // 5WHY (复核 2026-08-20 去重): 队列广播待发标志——runNextGroup 的组推进
+    // 路径与 runDiagnostics 主路径广播同帧双发 currentRunningGroupChanged
+    // （面板双载）。主路径广播待发时组推进跳过自有发射；lambda 送达即清。
+    bool m_broadcastPending = false;
 };

@@ -53,10 +53,15 @@ AnimationBase {
         // 直接瞬跳回左侧再右摆：右→左腿永远缺席，观感是"单摆 + 瞬移"
         // 而非测速表指针往复。业界惯例（转速表/测速表指针）：指针停在
         // 哪侧，下一轮就从该落点连续摆向对侧——双向连续扫掠、零瞬跳。
-        // 首轮（复位后 0°）保留原语义：先从左随机角摆向右侧随机角。
+        // 5WHY (复核 2026-08-20 窗口起始瞬跳): 首轮曾"左随机角→右随机角"——
+        // 复位态指针在 0°，首个驱动 tick 从 0° 瞬跳 ~18-55° 到左侧起点，
+        // 每次回放窗口开头可见一次 snap。首轮改从 0° 连续摆出（起点即
+        // 当前静息角），后续轮保持落点→对侧连续往复。
         if (root._angle === 0) {
-            root._fromAngle = -(18 + Math.random() * 37)
-            root._toAngle   =  18 + Math.random() * 37
+            root._fromAngle = 0
+            root._toAngle   = Math.random() < 0.5
+                ? -(18 + Math.random() * 37)
+                :  (18 + Math.random() * 37)
         } else {
             root._fromAngle = root._angle   // 起点 = 上轮落点（连续往复）
             root._toAngle   = (root._angle >= 0)
@@ -138,6 +143,10 @@ AnimationBase {
         if (root.running) root._startSwing()
         else resetVisuals()
     }
+    // 5WHY (复核 2026-08-20 创建即真): 属性变更处理器不响应创建期初值——
+    // 以 running:true 直接实例化（Usage 契约）时针不动约 260ms 才被
+    // 计时器兜底启动。onCompleted 补启动判定（与 GeoLocate 同模式）。
+    Component.onCompleted: if (root.running) root._startSwing()
     function resetVisuals() {
         root._angle = 0
         root._phaseSwing = false

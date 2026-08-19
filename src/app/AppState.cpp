@@ -262,6 +262,11 @@ void AppState::runDiagnostics() {
         // 「已清屏 + 旧终态」的混合视图。
         m_runStatus = Idle;
         m_runElapsedMs = 0;   // 墙钟随清屏复位（否则弹窗期间显示上一轮时长）
+        // 5WHY (复核 2026-08-20 陈旧计时器): m_runTimer 从未失效——上一轮
+        // 的 QElapsedTimer 在弹窗期间仍有效，cancel() 的
+        // `m_runTimer.isValid() ? elapsed() : m_runElapsedMs` 会把分钟级旧
+        // 时长写入（未开始即取消却显示数分钟"总时间"）。清屏即失效计时器。
+        m_runTimer.invalidate();
         emit cellularWarnVisibleChanged();
         queueStateBroadcast();
         return;   // 等待 continueAfterCellularWarn() → 重新 runDiagnostics()
@@ -287,9 +292,12 @@ void AppState::runNextGroup() {
         if (m_elapsedTicker) m_elapsedTicker->stop();
         m_cellularWarnAcked = false;   // 8-18：下一轮 run 重新询问
         persistResults();   // 运行完成：落盘结果快照（重启恢复）
-        emit currentRunningGroupChanged();
-        emit runStatusChanged();
-        emit progressChanged();
+        // 5WHY (复核 2026-08-20 同步发射残余): 曾同步发射三信号——全组自动
+        // 跳过（无适配器/能力不符）时本分支经 onSuiteFinished 在 QML Run
+        // 按钮点击栈上可达：同步驱动 _refreshGroups/面板重载在栈未退栈时
+        // 销毁委托（反模式 #4）。与其余路径统一队列化（expected 守卫：
+        // 此时状态已是 Completed，过期广播不干扰）。
+        queueStateBroadcast();
         return;
     }
     const int gi = m_pendingGroups.takeFirst();
@@ -307,7 +315,11 @@ void AppState::runNextGroup() {
     // 首轮成立。队列化延迟一帧：消费方送达时读到的是已登记状态；
     // 工作线程路径（onSuiteFinished → runNextGroup）经 invokeMethod 同样
     // 归主线程派发，语义不变。
-    QMetaObject::invokeMethod(this, [this] { emit currentRunningGroupChanged(); },
+    // 5WHY (复核 2026-08-20 去重): runDiagnostics 主路径的广播已含
+    // currentRunningGroupChanged——待发时跳过自有发射（曾同帧双发、
+    // 面板双载）；组推进路径（onSuiteFinished）无广播待发，正常发射。
+    if (!m_broadcastPending)
+        QMetaObject::invokeMethod(this, [this] { emit currentRunningGroupChanged(); },
                               Qt::QueuedConnection);
 
     // H3：每次建 suite 递增 generation，迟到信号按 generation 丢弃
@@ -764,7 +776,9 @@ void AppState::queueStateBroadcast() {
     // 捕获排队时的 runStatus：送达时状态已变即跳过（Continue 后 Running≠
     // Idle；dismiss 后仍 Idle 正常送达）。
     const int expected = m_runStatus;   // m_runStatus 为 int 成员（Q_PROPERTY）
+    m_broadcastPending = true;
     QMetaObject::invokeMethod(this, [this, expected] {
+        m_broadcastPending = false;
         if (m_runStatus != expected) return;
         // currentRunningGroupChanged 一并队列：cancel 路径的可见组集合翻转
         // （部分揭示→全量）也经同一延迟帧送达，点击栈上无任何消费方重建。

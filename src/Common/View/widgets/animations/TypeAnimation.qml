@@ -17,6 +17,7 @@ AnimationBase {
         spacing: 4
 
         Repeater {
+            id: repeater
             model: 3
             Rectangle {
                 id: typeBar
@@ -37,6 +38,15 @@ AnimationBase {
                     PauseAnimation { duration: 120 }
                 }
             }
+        }
+    }
+
+    // 5WHY (复核 2026-08-20 直接实例化残留): 停止时条停在 PropertyAction
+    // 中途透明度（0.7）——补复位（与 PathAnimation 同模式）。
+    function resetVisuals() {
+        for (var i = 0; i < repeater.count; ++i) {
+            var d = repeater.itemAt(i)
+            if (d) d.opacity = 0
         }
     }
 }

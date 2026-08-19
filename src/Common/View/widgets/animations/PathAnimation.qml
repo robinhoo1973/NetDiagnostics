@@ -14,6 +14,7 @@ AnimationBase {
 
     // ── Generate node positions along a zigzag path ──────────────────────
     Repeater {
+        id: repeater
         model: root.nodes
         Rectangle {
             id: node
@@ -44,4 +45,12 @@ AnimationBase {
         opacity: root.running ? 0.3 : 0.1
     }
 
+    // 5WHY (复核 2026-08-20 直接实例化残留): 停止时节点停在 PropertyAction
+    // 中途透明度（0.8/0.15）——基类钩子无覆写即空操作。补全量复位。
+    function resetVisuals() {
+        for (var i = 0; i < repeater.count; ++i) {
+            var d = repeater.itemAt(i)
+            if (d) d.opacity = 0
+        }
+    }
 }

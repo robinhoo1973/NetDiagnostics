@@ -708,14 +708,21 @@ static DiagnosticResult probeIpConfig(DiagId id, const QString&, RunContext& ctx
     const auto ifaces = runningInterfaces();
     for (const auto& i : ifaces) {
         if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
+        // 5WHY (复核 2026-08-20 重复 MAC): MAC 子属性曾在每地址条目内
+        // prepend——双栈接口（IPv4+IPv6 等）每行重复同值。首条目携带的
+        // 契约用 per-iface 标志落实。
+        bool macAttached = false;
         for (const auto& e : i.addressEntries()) {
             ResultProperty p(i.name(), e.ip().toString());
             // 5WHY (复核 2026-08-19 v0.0.3 对等): 每接口 MAC（Physical
             // Address）曾随 ipconfig 转储呈现——补为子属性（首个地址条目
             // 携带，全零 MAC 视为虚拟接口不呈现）。
-            if (!i.hardwareAddress().isEmpty()
-                && i.hardwareAddress() != QLatin1String("00:00:00:00:00:00"))
+            if (!macAttached
+                && !i.hardwareAddress().isEmpty()
+                && i.hardwareAddress() != QLatin1String("00:00:00:00:00:00")) {
                 p.children.prepend({QStringLiteral("MAC"), i.hardwareAddress()});
+                macAttached = true;
+            }
             if (!e.netmask().isNull())
                 p.children.append({QStringLiteral("netmask"), e.netmask().toString()});
 #if defined(__linux__) || defined(__ANDROID__)
