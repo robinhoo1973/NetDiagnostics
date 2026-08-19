@@ -1167,6 +1167,31 @@ static DiagnosticResult probeNetskopeStatus(DiagId id, const QString&, RunContex
         CloseHandle(hSnap);
     }
 #else
+#if defined(__APPLE__)
+    // 5WHY (复核 2026-08-20 macOS 假阴性): PF_Desktop 含 macOS——原 /proc
+    // 分支在 macOS 上恒为空表、"No security proxy detected" 恒假阴性。
+    // macOS 无 /proc：ps 单次快照（与 ActiveConnections 的 macOS 分支
+    // 同模式）。
+    QProcess ps;
+    ps.start(QStringLiteral("ps"), QStringList() << QStringLiteral("-e") << QStringLiteral("-o") << QStringLiteral("comm="));
+    if (ps.waitForFinished(3000)) {
+        for (const auto& line : QString::fromLocal8Bit(ps.readAllStandardOutput()).split(QLatin1Char('\n'))) {
+            if (ctx.cancelled.load()) break;
+            const QString comm = line.trimmed();
+            if (comm.isEmpty()) continue;
+            if (comm.contains(QStringLiteral("nsproxy"), Qt::CaseInsensitive)
+                || comm.contains(QStringLiteral("zsproxy"), Qt::CaseInsensitive)
+                || comm.contains(QStringLiteral("zscaler"), Qt::CaseInsensitive)
+                || comm.contains(QStringLiteral("netskope"), Qt::CaseInsensitive)) {
+                out.append(QStringLiteral("  Found: %1").arg(comm));
+                found = true;
+            }
+        }
+    } else {
+        ps.kill();
+        ps.waitForFinished(2000);   // R5-1
+    }
+#else
     const QDir procDir(QStringLiteral("/proc"));
     const auto entries = procDir.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot);
     for (const auto& fi : entries) {
@@ -1187,6 +1212,12 @@ static DiagnosticResult probeNetskopeStatus(DiagId id, const QString&, RunContex
         }
     }
 #endif
+#endif   // closes #if defined(__APPLE__)
+    // 5WHY (复核 2026-08-20 取消语义): 循环内 break 早停后曾直接落
+    // makeResult——取消的扫描计为 Pass/Info 假阴性/假阳性（与
+    // ActiveConnections 的循环后复查同源缺陷）。统一复查返回 Cancelled。
+    if (ctx.cancelled.load())
+        return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
     if (!found) out.append(QStringLiteral("  No security proxy process detected"));
     DiagnosticResult r = makeResult(id,
         found ? DiagStatus::Pass : DiagStatus::Info,

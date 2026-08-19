@@ -84,12 +84,15 @@
 #endif
 #if defined(__linux__)
 #include <ifaddrs.h>
+// 5WHY (复核 2026-08-20 Android 编译): gethostname 的 POSIX 声明在
+// <unistd.h>——曾在 !PLATFORM_ANDROID 门内（Bionic 与桌面 Linux 均有此
+// 头），Android 构建 'undeclared identifier'。移出平台门供 Android 共用。
+#include <unistd.h>
 #if !defined(PLATFORM_ANDROID)
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <net/if.h>
 #include <net/if_arp.h>
-#include <unistd.h>
 #include <linux/wireless.h>   // iwreq / SIOCGIWESSID / SIOCGIWAP / SIOCGIWFREQ（Bionic 无此头）
 #endif
 #endif
@@ -733,11 +736,14 @@ static DiagnosticResult probeIpConfig(DiagId id, const QString&, RunContext& ctx
     // gethostname()（即时、无线程风险）。
     // （IPv6 已随 addressEntries 全族覆盖；DHCP Enabled/DNS 后缀无便携
     // 探测，记录为已知缺口。）
+    // 5WHY (复核 2026-08-20 分支可达性): 主机名前置曾位于空检查之前——
+    // 空枚举时 props 因主机名行恒非空，Info "No IP configuration found"
+    // 分支不可达（空栈误报 Pass）。先判空，再前置主机名。
+    if (props.isEmpty())
+        return makeResult(id, DiagStatus::Info, QStringLiteral("No IP configuration found"), {}, {});
     char hostBuf[256] = {};
     gethostname(hostBuf, sizeof(hostBuf) - 1);
     props.prepend({QStringLiteral("Host Name"), QString::fromLocal8Bit(hostBuf)});
-    if (props.isEmpty())
-        return makeResult(id, DiagStatus::Info, QStringLiteral("No IP configuration found"), {}, {});
     return makeResult(id, DiagStatus::Pass, QStringLiteral("IP configuration"), props, {});
 }
 
@@ -771,10 +777,17 @@ static DiagnosticResult probeActiveConnections(DiagId id, const QString&, RunCon
                 // "0100007F:1F90"（IP 小端 hex + 端口 hex）→ "127.0.0.1:8080"
                 const auto parts = ep.split(QLatin1Char(':'));
                 if (parts.size() != 2) return ep;
-                bool ok = false;
-                const uint32_t ip = parts[0].toUInt(&ok, 16);
-                const uint16_t port = parts[1].toUInt(&ok, 16);
-                if (!ok) return ep;
+                // 5WHY (复核 2026-08-20 数据伪造): 曾共用 ok 标志——tcp6 的
+                // 32 位 hex IP 溢出 toUInt（ip=0, ok=false），随后端口解析
+                // 成功覆盖 ok=true → 溢出未检出、端点被渲染为 "0.0.0.0:port"
+                // （伪造数据而非回退原文）。IP/端口独立标志，任一侧失败
+                // 即回退原文 hex。
+                bool ipOk = false;
+                const uint32_t ip = parts[0].toUInt(&ipOk, 16);
+                if (!ipOk) return ep;
+                bool portOk = false;
+                const uint16_t port = parts[1].toUInt(&portOk, 16);
+                if (!portOk) return ep;
                 return QStringLiteral("%1.%2.%3.%4:%5")
                     .arg(int(ip & 0xFF)).arg(int((ip >> 8) & 0xFF))
                     .arg(int((ip >> 16) & 0xFF)).arg(int((ip >> 24) & 0xFF))
