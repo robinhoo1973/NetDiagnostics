@@ -68,112 +68,100 @@ Rectangle {
         onClicked: root.closeDialog()
     }
 
-    // ── 卡片 ──
-    Rectangle {
-        anchors.centerIn: parent
-        width: Math.min(parent.width - 48, 420)
-        height: Math.min(parent.height - 48, bodyCol.implicitHeight + 2 * ThemeEngine.spacing.xl)
-        radius: ThemeEngine.radius.xl
-        color: ThemeEngine.colors.surfaceContainerLow
-        border { width: 1; color: ThemeEngine.colors.outlineVariant }
+    // ── 卡片（5WHY 复核 2026-08-19 壳抽取）──
+    // 卡片镀铬（双向钳制/radius/底色/边框/边距/RTL 镜像）与蜂窝弹窗同源
+    // 收敛进 DialogCard；本处只余 Premium 专属内容。
+    DialogCard {
+        // 关闭：共享 IconActionButton（5WHY simplify 2026-08-17：本处是
+        // 该脚手架的第三份复制，且曾漏掉键盘支持——现已统一）
+        IconActionButton {
+            Layout.alignment: Qt.AlignRight
+            Layout.preferredWidth: 44
+            Layout.preferredHeight: 44
+            iconName: "close"
+            iconSize: 18
+            iconColor: ThemeEngine.colors.textMuted
+            Accessible.name: T.tr("dialogCancel")
+            onActivated: root.closeDialog()
+        }
 
-        ColumnLayout {
-            id: bodyCol
-            anchors.fill: parent
-            anchors.margins: ThemeEngine.spacing.xl
-            spacing: ThemeEngine.spacing.md
+        AppIcon {
+            Layout.alignment: Qt.AlignHCenter
+            name: "zap"; size: 40
+            color: ThemeEngine.colors.primary
+        }
+        Label {
+            Layout.alignment: Qt.AlignHCenter
+            Layout.fillWidth: true
+            text: T.tr("premiumHero")
+            font.family: ThemeEngine.fontUi
+            font.pixelSize: 19
+            font.weight: Font.Bold
+            color: ThemeEngine.colors.onSurface
+            horizontalAlignment: Text.AlignHCenter
+            wrapMode: Text.WordWrap
+        }
+        Label {
+            Layout.alignment: Qt.AlignHCenter
+            Layout.fillWidth: true
+            text: T.tr("premiumOneTime")
+            font.family: ThemeEngine.fontUi
+            font.pixelSize: ThemeEngine.fontSize.body
+            color: ThemeEngine.colors.onSurfaceVariant
+            horizontalAlignment: Text.AlignHCenter
+            wrapMode: Text.WordWrap
+        }
 
-            // 关闭：共享 IconActionButton（5WHY simplify 2026-08-17：本处是
-            // 该脚手架的第三份复制，且曾漏掉键盘支持——现已统一）
-            IconActionButton {
-                Layout.alignment: Qt.AlignRight
-                Layout.preferredWidth: 44
-                Layout.preferredHeight: 44
-                iconName: "close"
-                iconSize: 18
-                iconColor: ThemeEngine.colors.textMuted
-                Accessible.name: T.tr("dialogCancel")
-                onActivated: root.closeDialog()
-            }
-
-            AppIcon {
-                Layout.alignment: Qt.AlignHCenter
-                name: "zap"; size: 40
-                color: ThemeEngine.colors.primary
-            }
-            Label {
-                Layout.alignment: Qt.AlignHCenter
+        Repeater {
+            model: ["premiumFeatureLifetime", "premiumFeaturePdf", "premiumFeatureHtml"]
+            delegate: RowLayout {
                 Layout.fillWidth: true
-                text: T.tr("premiumHero")
-                font.family: ThemeEngine.fontUi
-                font.pixelSize: 19
-                font.weight: Font.Bold
-                color: ThemeEngine.colors.onSurface
-                horizontalAlignment: Text.AlignHCenter
-                wrapMode: Text.WordWrap
-            }
-            Label {
-                Layout.alignment: Qt.AlignHCenter
-                Layout.fillWidth: true
-                text: T.tr("premiumOneTime")
-                font.family: ThemeEngine.fontUi
-                font.pixelSize: ThemeEngine.fontSize.body
-                color: ThemeEngine.colors.onSurfaceVariant
-                horizontalAlignment: Text.AlignHCenter
-                wrapMode: Text.WordWrap
-            }
-
-            Repeater {
-                model: ["premiumFeatureLifetime", "premiumFeaturePdf", "premiumFeatureHtml"]
-                delegate: RowLayout {
+                spacing: ThemeEngine.spacing.sm
+                AppIcon {
+                    name: "badge-check"; size: 18
+                    color: ThemeEngine.colors.success
+                }
+                Label {
                     Layout.fillWidth: true
-                    spacing: ThemeEngine.spacing.sm
-                    AppIcon {
-                        name: "badge-check"; size: 18
-                        color: ThemeEngine.colors.success
-                    }
-                    Label {
-                        Layout.fillWidth: true
-                        text: T.tr(modelData)
-                        font.family: ThemeEngine.fontUi
-                        font.pixelSize: ThemeEngine.fontSize.body
-                        color: ThemeEngine.colors.onSurface
-                        wrapMode: Text.WordWrap
-                    }
+                    text: T.tr(modelData)
+                    font.family: ThemeEngine.fontUi
+                    font.pixelSize: ThemeEngine.fontSize.body
+                    color: ThemeEngine.colors.onSurface
+                    wrapMode: Text.WordWrap
                 }
             }
+        }
 
-            Label {
-                Layout.fillWidth: true
-                visible: root.statusText !== ""
-                text: root.statusText
-                font.family: ThemeEngine.fontUi
-                font.pixelSize: ThemeEngine.fontSize.caption
-                color: ThemeEngine.colors.warning
-                horizontalAlignment: Text.AlignHCenter
-                wrapMode: Text.WordWrap
-            }
+        Label {
+            Layout.fillWidth: true
+            visible: root.statusText !== ""
+            text: root.statusText
+            font.family: ThemeEngine.fontUi
+            font.pixelSize: ThemeEngine.fontSize.caption
+            color: ThemeEngine.colors.warning
+            horizontalAlignment: Text.AlignHCenter
+            wrapMode: Text.WordWrap
+        }
 
-            // 5WHY (2026-08-18): Buy/Restore 此前无条件显示——Android 发布端
-            // supportsIap()=false 时 Buy 点击是死胡同（premiumRequired 无处理器），
-            // Restore 直接 no-op。PremiumStore.h 契约声明"UI 按 supportsIap
-            // 门控购买按钮"，实现却未遵守。现在补齐门控：不支持的平台隐藏购买
-            // 按钮，仅显示功能列表——App Store 审核姿态也更正确。
-            Button {
-                Layout.fillWidth: true
-                Layout.preferredHeight: 48
-                text: T.tr("subscribeBtn")
-                visible: PremiumStore.supportsIap
-                onClicked: PremiumStore.requestSubscription()
-            }
-            Button {
-                Layout.fillWidth: true
-                Layout.preferredHeight: 40
-                text: T.tr("restoreBtn")
-                flat: true
-                visible: PremiumStore.supportsIap
-                onClicked: PremiumStore.restorePurchases()
-            }
+        // 5WHY (2026-08-18): Buy/Restore 此前无条件显示——Android 发布端
+        // supportsIap()=false 时 Buy 点击是死胡同（premiumRequired 无处理器），
+        // Restore 直接 no-op。PremiumStore.h 契约声明"UI 按 supportsIap
+        // 门控购买按钮"，实现却未遵守。现在补齐门控：不支持的平台隐藏购买
+        // 按钮，仅显示功能列表——App Store 审核姿态也更正确。
+        Button {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 48
+            text: T.tr("subscribeBtn")
+            visible: PremiumStore.supportsIap
+            onClicked: PremiumStore.requestSubscription()
+        }
+        Button {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 40
+            text: T.tr("restoreBtn")
+            flat: true
+            visible: PremiumStore.supportsIap
+            onClicked: PremiumStore.restorePurchases()
         }
     }
 }

@@ -16,6 +16,7 @@ ShareButtons 1.0 ShareButtons.qml
 PremiumCard 1.0 PremiumCard.qml
 ZoomBar 1.0 ZoomBar.qml
 IconPad 1.0 IconPad.qml
+StatsBridge 1.0 StatsBridge.qml
 IconActionButton 1.0 IconActionButton.qml
 NavArrowButton 1.0 NavArrowButton.qml
 WindowButton 1.0 WindowButton.qml

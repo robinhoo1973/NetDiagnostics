@@ -18,6 +18,7 @@
         <file alias="widgets/AppIcon.qml">../src/Common/View/widgets/AppIcon.qml</file>
         <file alias="widgets/IconTints.js">../src/Common/View/widgets/IconTints.js</file>
         <file alias="widgets/StatsUtil.js">../src/Common/View/widgets/StatsUtil.js</file>
+        <file alias="widgets/StatsBridge.qml">../src/Common/View/widgets/StatsBridge.qml</file>
         <file alias="widgets/StatusBadgeCluster.qml">../src/Common/View/widgets/StatusBadgeCluster.qml</file>
         <file alias="widgets/AppBar.qml">../src/Common/View/widgets/AppBar.qml</file>
         <file alias="widgets/AppLabel.qml">../src/Common/View/widgets/AppLabel.qml</file>
@@ -68,6 +69,7 @@
         <file alias="detail/viz/ResultChart.qml">../src/Common/View/detail/viz/ResultChart.qml</file>
         <file alias="dialogs/qmldir">../src/Common/View/dialogs/qmldir</file>
         <file alias="dialogs/PremiumDialog.qml">../src/Common/View/dialogs/PremiumDialog.qml</file>
+        <file alias="dialogs/DialogCard.qml">../src/Common/View/dialogs/DialogCard.qml</file>
         <!-- sections (P0) -->
         <file alias="sections/qmldir">../src/Common/View/sections/qmldir</file>
         <file alias="sections/PageCardSection.qml">../src/Common/View/sections/PageCardSection.qml</file>

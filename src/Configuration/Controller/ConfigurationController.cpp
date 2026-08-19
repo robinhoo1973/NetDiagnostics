@@ -29,10 +29,6 @@ bool ConfigurationController::setGroupEnabled(int groupInt, bool enabled) {
     return true;
 }
 
-bool ConfigurationController::setAutomaticGroupEnabled(int groupInt, bool enabled) {
-    return m_config.setGroupEnabled(groupInt, enabled);
-}
-
 bool ConfigurationController::isGroupAllEnabled(int groupInt) const { return m_config.isGroupAllEnabled(groupInt); }
 bool ConfigurationController::isGroupAnyEnabled(int groupInt) const { return m_config.isGroupAnyEnabled(groupInt); }
 

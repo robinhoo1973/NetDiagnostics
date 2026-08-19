@@ -1,2 +1,3 @@
 # Dialogs directory qmldir — required for QRC directory enumeration on static builds.
 PremiumDialog 1.0 PremiumDialog.qml
+DialogCard 1.0 DialogCard.qml

@@ -5,7 +5,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import theme
 import widgets
-import "../widgets/StatsUtil.js" as W   // 直接 JS 导入（qmldir 模块目录不可相对导入）
+// 统计订阅经 StatsBridge（5WHY 复核 2026-08-19）——StatsUtil.js 不再直接导入
 import core
 
 PageSection {
@@ -34,27 +34,14 @@ PageSection {
     // 对不上。统一为同一数据源：completed 字段补入 _agg，X=Y=_agg。
     // 5WHY (复核 2026-08-18 Reuse C3): 键集合归一化上移到 StatsUtil.js——
     // 新统计键只改一处。
-    property var _agg: W.normalize(null)
-    function _refreshAgg() {
-        _agg = W.normalize(AppState.groupStats(-1))
-    }
-    // 5WHY (复核 2026-08-19 离屏门控): 隐藏屏的状态头仍每事件重扫
-    // groupStats(-1)——屏幕注入 screenVisible，Connections 整体禁用 +
-    // 重新可见时补刷新（与摘要卡/空态同一机制）。
+    // 5WHY (复核 2026-08-19 单一订阅点): 订阅/归一化/离屏门控/揭示自愈全部
+    // 收敛进 StatsBridge——本处只读归一化结果（screenVisible 经桥生效）。
     property bool screenVisible: true
-    onScreenVisibleChanged: if (screenVisible) _refreshAgg()
-    Connections {
-        target: AppState
-        enabled: root.screenVisible
-        function onProgressChanged() { root._refreshAgg() }
-        function onRunStatusChanged() { root._refreshAgg() }
-        // 5WHY (复核 2026-08-18 语义信号): 换 scheme 不重跑只发 filteredDataChanged
-        // （旧实现接 targetChanged+stateVersionChanged——两者同轮双发导致双刷，
-        // host 逐键编辑与凭据/语言变更也误触发）。_agg 按 runnableFor(scheme)
-        // 过滤，语义信号单次驱动刷新。
-        function onFilteredDataChanged() { root._refreshAgg() }
+    StatsBridge {
+        id: stats
+        screenVisible: root.screenVisible
     }
-    Component.onCompleted: _refreshAgg()
+    property var _agg: stats._s
 
     // 5WHY (复核 2026-08-18 一致性): active 门控曾读 AppState.totalCompleted
     // （m_results.size()，含换 scheme/停用后保留的旧结果）而内容读 _agg——

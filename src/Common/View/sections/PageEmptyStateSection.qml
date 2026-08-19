@@ -5,7 +5,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import theme
 import widgets
-import "../widgets/StatsUtil.js" as W   // 直接 JS 导入（qmldir 模块目录不可相对导入）
+// 统计订阅经 StatsBridge（5WHY 复核 2026-08-19）——StatsUtil.js 不再直接导入
 import core
 
 PageSection {
@@ -21,25 +21,16 @@ PageSection {
     // （m_results.size()，含换 scheme/停用后保留的旧结果）——与状态头/徽标的
     // 过滤后统计分叉：旧结果残留时空态与头部互相矛盾。统一读 groupStats 的
     // completed（UI-2：命令式刷新，绑定不调 Q_INVOKABLE）。
-    // 5WHY (复核 2026-08-18 单一守卫): 经 W.normalize 归一化——与其余三个
+    // 5WHY (复核 2026-08-18 单一守卫): 经 StatsBridge 归一化——与其余三个
     // 消费方同源；内联 `|| 0` 只防 undefined，不防键重命名/零填充保证移除。
-    property int _completed: 0
-    function _refresh() { root._completed = W.normalize(AppState.groupStats(-1)).completed }
-    // 5WHY (复核 2026-08-19 离屏门控): 同状态头/摘要卡——screenVisible 注入，
-    // Connections 整体禁用 + 重新可见补刷新。
+    // 5WHY (复核 2026-08-19 单一订阅点): 订阅/归一化/离屏门控/揭示自愈收敛
+    // 进 StatsBridge；_completed 变纯绑定（读桥的 JS 值，无 Q_INVOKABLE）。
     property bool screenVisible: true
-    onScreenVisibleChanged: if (screenVisible) _refresh()
-    Connections {
-        target: AppState
-        enabled: root.screenVisible
-        function onProgressChanged() { root._refresh() }
-        function onRunStatusChanged() { root._refresh() }
-        // 5WHY (复核 2026-08-18 语义信号): 与状态头/摘要卡同源——换 scheme
-        // 不重跑时 completed 按新过滤集重算，空态门控经 filteredDataChanged
-        // 单次刷新（旧接 targetChanged+stateVersionChanged 双发双刷）。
-        function onFilteredDataChanged() { root._refresh() }
+    StatsBridge {
+        id: stats
+        screenVisible: root.screenVisible
     }
-    Component.onCompleted: _refresh()
+    property int _completed: stats._s.completed
 
     // 5WHY (复核 2026-08-18 与状态头互斥分区): 头部已覆盖全部终态（2/3/4）——
     // 空态仅在 Idle(0) 或 Error(4)（零结果运行失败，errorState 由调用方置位）

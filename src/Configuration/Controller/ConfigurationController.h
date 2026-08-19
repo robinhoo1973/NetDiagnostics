@@ -24,10 +24,11 @@ public:
     Q_INVOKABLE bool isDiagEnabled(int diagIdInt) const;
     Q_INVOKABLE bool setDiagEnabled(int diagIdInt, bool enabled);
     Q_INVOKABLE bool setGroupEnabled(int groupInt, bool enabled);
-    // Memory-only group enable — used for G4/G5 runtime availability when a
-    // target is present. NEVER persists (unlike setGroupEnabled), so a
-    // transient target state can't pollute QSettings.
-    bool setAutomaticGroupEnabled(int groupInt, bool enabled);
+    // 5WHY (复核 2026-08-19 死代码清除): setAutomaticGroupEnabled 曾在此声明
+    // ——运行时按目标切换 G4/G5 启用的旧机制，后被"默认全启用 + 运行期仅按
+    // m_activeGroups 门控"取代（DiagnosticConfig.cpp enableDefaultGroups 注释
+    // 记录了该历史）。零调用方 + 绕过 AppState 语义信号封装（旁路隐患），
+    // 随本轮清除。
     Q_INVOKABLE bool isGroupAllEnabled(int groupInt) const;
     Q_INVOKABLE bool isGroupAnyEnabled(int groupInt) const;
 

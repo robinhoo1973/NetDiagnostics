@@ -9,6 +9,7 @@ import core
 import sections as S
 import widgets
 import theme
+import dialogs
 // 5WHY (复核 2026-08-19 深度回归): ../widgets/ 曾少一级——相对导入按文档
 // URL 目录解析：qrc:/qt/qml/Diagnostics/View/ 的 ../ 是 Diagnostics/（未注册
 // 的 qrc 路径），编译期导入失败沿通用崩溃链炸掉整文档。正确深度与
@@ -132,78 +133,60 @@ PageDisplay {
             // 5WHY (review round 3): 遮罩点击仅关闭警告（dismiss 语义）——
             // 误触遮罩不得触发 continueAfterCellularWarn 的整轮大流量启动
             onCloseRequested: AppState.dismissCellularWarn()
-            Rectangle {
-                anchors.centerIn: parent
-                width: Math.min(parent.width - 48, 400)
-                height: warnCol.implicitHeight + 2 * ThemeEngine.spacing.xl
-                radius: ThemeEngine.radius.xl
-                color: ThemeEngine.colors.surfaceContainerLow
-                border { width: 1; color: ThemeEngine.colors.outlineVariant }
-                // 5WHY (2026-08-19 用户诉求 "流量弹窗与整体界面不匹配"): 全仓
-                // 浮层均已按 M3 模式（图标垫 + 居中标题/正文 + 等宽主次按钮
-                // + RTL 镜像，参照 PremiumDialog/报告预览）设计，唯此弹窗仍
-                // 用默认 QQC2 控件裸拼——字号/配色/按钮样式全部脱离设计
-                // 系统。补齐同一模式；并补 LayoutMirroring（PremiumDialog
-                // 5WHY 2026-08-17：阿拉伯语下关闭钮与按钮顺序停在错误视觉边）。
-                LayoutMirroring.enabled: T.isRtl
-                LayoutMirroring.childrenInherit: true
-                ColumnLayout {
-                    id: warnCol
-                    anchors {
-                        fill: parent
-                        leftMargin: ThemeEngine.spacing.xl
-                        rightMargin: ThemeEngine.spacing.xl
-                        topMargin: ThemeEngine.spacing.xl
-                        bottomMargin: ThemeEngine.spacing.xl
-                    }
-                    spacing: ThemeEngine.spacing.md
-                    // 身份图标：蜂窝数据检测项图标（IconPad 光晕垫，tint 自
-                    // iconName 派生——与 PremiumDialog 的 zap 图标同一位置规格）
-                    IconPad {
-                        Layout.alignment: Qt.AlignHCenter
-                        Layout.preferredWidth: 56
-                        Layout.preferredHeight: 56
-                        iconName: "nd-diag-g1-cellular"
-                        iconSize: 36
-                        iconColor: ThemeEngine.colors.iconInk
-                    }
-                    Label {
+            // 5WHY (2026-08-19 用户诉求 "流量弹窗与整体界面不匹配"): 全仓浮层
+            // 均已按 M3 模式（图标垫 + 居中标题/正文 + 等宽主次按钮）设计，
+            // 唯此弹窗仍用默认 QQC2 控件裸拼——字号/配色/按钮样式全部脱离
+            // 设计系统。补齐同一模式。
+            // 5WHY (复核 2026-08-19 壳抽取): 卡片镀铬（双向钳制/radius/底色/
+            // 边框/边距/RTL 镜像）已与 PremiumDialog 同源收敛进 DialogCard。
+            DialogCard {
+                maxWidth: 400
+                // 身份图标：蜂窝数据检测项图标（IconPad 光晕垫，tint 自
+                // iconName 派生——与 PremiumDialog 的 zap 图标同一位置规格）
+                IconPad {
+                    Layout.alignment: Qt.AlignHCenter
+                    Layout.preferredWidth: 56
+                    Layout.preferredHeight: 56
+                    iconName: "nd-diag-g1-cellular"
+                    iconSize: 36
+                    iconColor: ThemeEngine.colors.iconInk
+                }
+                Label {
+                    Layout.fillWidth: true
+                    text: T.tr("cellularWarnTitle")
+                    font.family: ThemeEngine.fontUi
+                    font.pixelSize: ThemeEngine.fontSize.title
+                    font.weight: Font.Bold
+                    color: ThemeEngine.colors.onSurface
+                    horizontalAlignment: Text.AlignHCenter
+                }
+                Label {
+                    Layout.fillWidth: true
+                    text: T.tr("cellularWarnBody")
+                    font.family: ThemeEngine.fontUi
+                    font.pixelSize: ThemeEngine.fontSize.body
+                    color: ThemeEngine.colors.onSurfaceVariant
+                    horizontalAlignment: Text.AlignHCenter
+                    wrapMode: Text.WordWrap
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.topMargin: ThemeEngine.spacing.sm
+                    spacing: ThemeEngine.spacing.sm
+                    // M3 对话框惯例：次要动作（取消）弱化、主动作（继续）
+                    // 填充强调，两钮等宽。
+                    Button {
                         Layout.fillWidth: true
-                        text: T.tr("cellularWarnTitle")
-                        font.family: ThemeEngine.fontUi
-                        font.pixelSize: ThemeEngine.fontSize.title
-                        font.weight: Font.Bold
-                        color: ThemeEngine.colors.onSurface
-                        horizontalAlignment: Text.AlignHCenter
+                        Layout.preferredHeight: 44
+                        text: T.tr("cellularCancel")
+                        flat: true
+                        onClicked: AppState.cancel()
                     }
-                    Label {
+                    Button {
                         Layout.fillWidth: true
-                        text: T.tr("cellularWarnBody")
-                        font.family: ThemeEngine.fontUi
-                        font.pixelSize: ThemeEngine.fontSize.body
-                        color: ThemeEngine.colors.onSurfaceVariant
-                        horizontalAlignment: Text.AlignHCenter
-                        wrapMode: Text.WordWrap
-                    }
-                    RowLayout {
-                        Layout.fillWidth: true
-                        Layout.topMargin: ThemeEngine.spacing.sm
-                        spacing: ThemeEngine.spacing.sm
-                        // M3 对话框惯例：次要动作（取消）弱化、主动作（继续）
-                        // 填充强调，两钮等宽。
-                        Button {
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 44
-                            text: T.tr("cellularCancel")
-                            flat: true
-                            onClicked: AppState.cancel()
-                        }
-                        Button {
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 48
-                            text: T.tr("cellularContinue")
-                            onClicked: AppState.continueAfterCellularWarn()
-                        }
+                        Layout.preferredHeight: 48
+                        text: T.tr("cellularContinue")
+                        onClicked: AppState.continueAfterCellularWarn()
                     }
                 }
             }

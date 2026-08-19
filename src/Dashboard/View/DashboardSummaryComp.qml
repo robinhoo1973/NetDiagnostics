@@ -6,8 +6,8 @@
 // （3 统计 + 分层计时）"——同一页两个 Summary 语义重复、信息割裂。
 // 合并为单卡内容：聚合统计（总数/总耗时/已完成）→ 7 类结果行（零计数
 // 隐藏）→ 分层计时。卡标题由外层 PageCardSection.cardTitle 承担。
-// 数据源：AppState.groupStats(-1) 聚合（W.normalize 归一化）；总耗时/
-// 分层时长同在本卡 _refresh() 派生（单一刷新归属）。
+// 数据源：AppState.groupStats(-1) 聚合经 StatsBridge 归一化；总耗时/
+// 分层时长由桥的 refreshed 驱动派生（单一刷新归属）。
 // UI-2：命令式刷新（绑定不调 Q_INVOKABLE）。
 // =============================================================================
 import NetDiagnostics.App 1.0
@@ -16,7 +16,6 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import theme
 import widgets
-import "../../widgets/StatsUtil.js" as W   // qrc:/qt/qml/Dashboard/View/ → ../../widgets/ 直接 JS 导入
 
 Item {
     id: root
@@ -25,20 +24,28 @@ Item {
     // 5WHY (复核 2026-08-19 单一归属): 总耗时/分层时长曾由 DashboardScreen
     // 计算后注入——同一张可见卡的数据由两个文件、两套 Connections 分别刷新
     // （5WHY 记录过的"漏接消费方"类缺陷的温床）。合并后本卡完全自持：聚合
-    // _s、总耗时 _timeText、分层时长 _layers 在同一 _refresh() 派生，单一
-    // 刷新入口；DashboardScreen 不再为其做任何 groupStats 扫描。
+    // _s 经 StatsBridge（订阅/归一化/离屏门控/揭示自愈单一订阅点），总耗时
+    // _timeText 与分层时长 _layers 由桥的 refreshed 驱动派生；
+    // DashboardScreen 不再为其做任何 groupStats 扫描。
     property string _timeText: "—"
     property var _layers: []
 
+    // 5WHY (复核 2026-08-19 单一订阅点): _s 直接读桥（变属性绑定，桥替换
+    // 身份即重估）；离屏门控经桥生效。
+    property bool screenVisible: true
+    StatsBridge {
+        id: stats
+        screenVisible: root.screenVisible
+    }
     // 5WHY (复核 2026-08-18 Reuse C3): 键集合归一化上移到 StatsUtil.js。
-    property var _s: W.normalize(null)
+    property var _s: stats._s
     // 5WHY (复核 2026-08-18 单一推导点): _count 曾手算 7 状态求和——C++
     // completed ≡ Σ7 状态（groupStats 单一推导点）；此处复推会在新增第 8
     // 状态桶时与头部/徽标分叉。直接读 _s.completed。
     readonly property int _count: _s.completed
 
-    function _refresh() {
-        _s = W.normalize(AppState.groupStats(-1))
+    // 派生层（分层时长 + 墙钟）：桥每次刷新后重算；墙钟另有每秒跳动。
+    function _refreshDerived() {
         _refreshTimeOnly()
         // 5WHY (复核 2026-08-19 身份门控): 每事件无条件换新数组 → Repeater
         // 全量销毁重建 5 行（~50 事件/轮 × 5 行 × 6 对象）。分层时长只在
@@ -58,27 +65,18 @@ Item {
         }
     }
     property string _layerSig: ""
-    // 5WHY (复核 2026-08-19 离屏门控): 合并后本卡自持 Connections——若不加
-    // 门控，屏幕级门控省下的 6 次 groupStats 扫描恰被本卡在隐藏页上照跑
-    // （门控的"~60% 收益"被击穿）。屏幕注入 screenVisible：Connections
-    // 整体禁用 + 重新可见时补刷新。
-    property bool screenVisible: true
-    onScreenVisibleChanged: if (screenVisible) _refresh()
     function _refreshTimeOnly() {
         _timeText = ThemeEngine.formatDuration(AppState.runDurationMs())
     }
     Connections {
+        target: stats
+        function onRefreshed() { root._refreshDerived() }
+    }
+    Connections {
         target: AppState
         enabled: root.screenVisible
-        function onProgressChanged() { root._refresh() }
-        function onRunStatusChanged() { root._refresh() }
         function onRunElapsedChanged() { root._refreshTimeOnly() }
-        // 5WHY (复核 2026-08-18 语义信号): 换 target scheme 不重跑只发
-        // filteredDataChanged——摘要卡（groupStats(-1) 按 scheme 过滤）经
-        // 语义信号单次刷新（旧接 targetChanged+stateVersionChanged 双发双刷）。
-        function onFilteredDataChanged() { root._refresh() }
     }
-    Component.onCompleted: _refresh()
 
     ColumnLayout {
         id: sumCol
