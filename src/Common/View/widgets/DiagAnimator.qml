@@ -49,27 +49,23 @@ Item {
         onTriggered: root._stopInstance()
     }
     function _stopInstance() {
-        // 5WHY (复核 2026-08-19 绑定剥离): 命令式置假触发各动画的
-        // onRunningChanged 清理（先于 Loader 销毁）——但直接赋值会剥除
-        // onLoaded 安装的 Qt.binding（暂停不销毁的用法将永久冻结）。置假后
-        // 立刻重装绑定：item.running 恒为 root.running 的绑定（随后
-        // root.running=false 使重装的绑定同步归假，行为不变）。
-        if (loader.item) {
-            loader.item.running = false
-            loader.item.running = Qt.binding(function() { return root.running })
-        }
+        // 5WHY (复核 2026-08-19 清理序): 命令式置假触发各动画的
+        // onRunningChanged 清理（先于 Loader 销毁——顺序反了会销毁先于
+        // 清理，Jiggle 半程旋转残留）。随后 root.running=false 令 Loader
+        // active 归假销毁实例，重装 binding 无意义（旧舞蹈已简化）。
+        if (loader.item) loader.item.running = false
         root.running = false
     }
     // 5WHY (复核 2026-08-19 无界路径清理): 瓦片等无界用法（bounded=false）
     // 不经过 _stopInstance——Loader.active 绑定先销毁实例，动画自身的
     // onRunningChanged 清理（Jiggle 旋转复位）被跳过，图标井冻结在 ±2.5°
     // 随机倾角直到下轮。属性变更处理器先于依赖绑定重估执行：此处先清
-    // 实例再让其随 active 销毁。有界路径已由 _stopInstance 处理，跳过。
+    // 实例再让其随 active 销毁。
+    // 5WHY (复核 2026-08-19 绑定契约): bounded 用法必须不绑定 running——
+    // _stopInstance/restart 命令式赋值会剥除消费方绑定（DiagBlock 绑定但
+    // bounded=false 不经过；hero bounded 但不绑定）。bounded XOR 绑定。
     onRunningChanged: {
-        if (!running && !root.bounded && loader.item) {
-            loader.item.running = false
-            loader.item.running = Qt.binding(function() { return root.running })
-        }
+        if (!running && !root.bounded && loader.item) loader.item.running = false
     }
     function restart() {
         if (!root.bounded) return
@@ -85,11 +81,12 @@ Item {
         anchors.fill: parent   // 5WHY (复核 2026-08-19 回归): 加 id 时曾误删——动画根几何全部由
                                // parent.width/height 推导，无此锚即 0×0 静默不可见
         opacity: root._fadeOut
-        active: root.running && root.diagId >= 0
+        // 5WHY (复核 2026-08-19 单一条件): active 与 source 曾各自书写同一
+        // 条件——新门控必须两处同步。_loaderActive 单一来源供两者共用。
+        readonly property bool _loaderActive: root.running && root.diagId >= 0
+        active: root._loaderActive
         // C++ resolves DiagId → animation URL — no QML-side switch needed
-        source: root.running && root.diagId >= 0
-                ? AppState.diagAnimationUrl(root.diagId)
-                : ""
+        source: root._loaderActive ? AppState.diagAnimationUrl(root.diagId) : ""
         onLoaded: {
             if (item) {
                 item.running = Qt.binding(function() { return root.running })

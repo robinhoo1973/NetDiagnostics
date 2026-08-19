@@ -13,9 +13,10 @@ import "../../theme/AnimationTokens.js" as Tokens
 
 AnimationBase {
     id: root
-    // 5WHY (复核 2026-08-19 视觉决策保留): 白色箭头盖深色主色垫——onPrimary
-    // 暗主题为深墨不适用，显式覆盖基类 accent（有意保留的视觉决策）。
-    property color accentColor: "#FFFFFF"
+    // 5WHY (复核 2026-08-19 视觉决策): 白色箭头盖深色主色垫——onPrimary
+    // 暗主题为深墨不适用。经 onAccentPad 令牌（两主题一致白，Palette.js
+    // 单一事实源），不再携带裸字面量。
+    property color accentColor: T.ThemeEngine.colors.onAccentPad
     property int travel: Tokens.tokens.convergeTravel
     property int stagger: Tokens.tokens.convergeStagger
     property int hold: Tokens.tokens.convergeHold

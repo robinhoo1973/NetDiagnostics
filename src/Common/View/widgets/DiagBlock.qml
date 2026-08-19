@@ -40,12 +40,23 @@ Item {
     // CPU。screenVisible（屏幕注入）+ root.visible（局部）+ _inViewport
     // （滚动视口）三级门控：隐藏页/显式隐藏/滚出视口即停。
     readonly property bool _inViewport: {
+        // 5WHY (复核 2026-08-19 空转早退): 无运行语义时直接假——空闲滚动
+        // 不为 ~45 瓦片 × mapToItem 祖先链遍历付费（视口门控的成本只在
+        // 运行中发生）。
+        if (!root.testRunning) return false
         var vp = root.viewportItem
         if (!vp) return true
         var cy = vp.contentY   // 依赖读取：滚动时重估本绑定
+        // 5WHY (复核 2026-08-19 依赖缺口): mapToItem 是函数调用、不参与绑定
+        // 依赖追踪——面板头增删（首条结果落地徽标行出现）把网格整体下移时
+        // contentY 与 root.y（瓦片→网格局部坐标）均不变，视口判定残留旧值：
+        // 刚移出视口的运行瓦片继续空转、刚移入的停摆，直到下一次滚动。
+        // contentHeight 随 bodyCol 隐式高变化（头增删必经），一并读取补齐
+        // 该重估触发；min(height, contentHeight) 同时覆盖内容未满视口情形。
+        var ch = vp.contentHeight   // 依赖读取：上方内容增删改变布局时重估本绑定
         var ty = root.y        // 依赖读取：网格重排时重估本绑定
         var top = root.mapToItem(vp, 0, 0).y
-        return top + root.height > 0 && top < vp.height
+        return top + root.height > 0 && top < Math.min(vp.height, ch)
     }
     readonly property bool _isRunning: root.testRunning && !root._isDisabled
         && !root.isDone && root.visible && root.screenVisible && root._inViewport

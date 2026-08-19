@@ -69,9 +69,9 @@ Item {
             if (typeof d.sectionAction !== "undefined")
                 d.sectionAction.connect(handlePageAction)
             // 5WHY (复核 2026-08-19 窗口时序): 曾在 push 前赋值——hero 重放
-            // 窗口在推入转场（~250-400ms，低功耗板更慢）开始前启动，开场
-            // 相位在屏外播完。先推入再赋值：窗口起点不早于页面进入，
-            // onDetailDataChanged 即触发重放。
+            // 窗口在推入前即启动。先推入再赋值：窗口起点不早于推入开始；
+            // 与转场的重叠（~250-400ms，低功耗板更慢）由 2400ms 窗口 +
+            // 250ms 淡出兜底，属已接受的取舍（较屏外播完仍是改善）。
             stackView.push(d)
             d.detail = AppState.resultFor(payload.diagId)
         } else if (action === "back") {

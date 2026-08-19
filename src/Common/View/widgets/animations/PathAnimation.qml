@@ -1,5 +1,4 @@
 import QtQuick
-import "../../theme" as T
 import "../../theme/AnimationTokens.js" as Tokens
 
 // ── PathAnimation.qml — Hop-by-hop node reveal for ~6 diagnostic tests ──

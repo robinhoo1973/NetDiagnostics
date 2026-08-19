@@ -685,12 +685,27 @@ bool AppState::setDiagEnabled(int diagIdInt, bool enabled) {
     // 5WHY (复核 2026-08-19 语义信号缺口): visibleGroups() 经 isGroupAnyEnabled
     // 过滤（按 diag 级启用态）——切换"组内最后一个启用的检测项"会改变面板
     // 集合，而消费方已不监听 stateVersionChanged。与 setGroupActive 同级补发。
-    if (ok) { bumpState(); emit filteredDataChanged(); }
+    // 5WHY (复核 2026-08-19 反模式 #4 一致性): 本函数由 QML 点击处理器调用，
+    // 当前消费方（面板 Repeater 模型）均被页面可见性门控故同步发射安全——
+    // 但风险类别与 runDiagnostics 蜂窝路径（队列化）相同。同样队列化：
+    // 未来新增可见屏消费方（如诊断页内嵌配置浮层）不会把委托销毁推进
+    // QML 点击栈（CLAUDE.md 反模式 #4）。
+    if (ok) {
+        bumpState();
+        QMetaObject::invokeMethod(this, [this] {
+            emit filteredDataChanged();
+        }, Qt::QueuedConnection);
+    }
     return ok;
 }
 bool AppState::setGroupEnabled(int groupInt, bool enabled) {
     const bool ok = m_config && m_config->setGroupEnabled(groupInt, enabled);
-    if (ok) { bumpState(); emit filteredDataChanged(); }
+    if (ok) {
+        bumpState();
+        QMetaObject::invokeMethod(this, [this] {
+            emit filteredDataChanged();
+        }, Qt::QueuedConnection);
+    }
     return ok;
 }
 bool AppState::isGroupAllEnabled(int groupInt) const {

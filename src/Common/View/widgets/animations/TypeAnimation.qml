@@ -1,5 +1,4 @@
 import QtQuick
-import "../../theme" as T
 import "../../theme/AnimationTokens.js" as Tokens
 
 // ── TypeAnimation.qml — Sequential element reveal for ~5 diagnostic tests ──

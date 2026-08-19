@@ -59,6 +59,7 @@ ROLES = [
     ("ON_SUCCESS_CONTAINER", "onSuccessContainer"),
     ("ICON_INK", "iconInk"),
     ("ON_FAIL", "onFail"),
+    ("ON_ACCENT_PAD", "onAccentPad"),
 ]
 
 # Stem→key lookup built once (5WHY review 2026-08-17: dict(ROLES) was rebuilt
@@ -235,7 +236,7 @@ def build_header() -> str:
          [s for s, _ in ROLES if s in
           ("ACCENT", "TEXT_PLACEHOLDER", "SUCCESS", "WARNING", "WARNING_STRONG",
            "FAIL", "SKIP", "INFO", "TERMINAL_TEXT", "ON_SUCCESS_CONTAINER",
-           "ICON_INK", "ON_FAIL")]),
+           "ICON_INK", "ON_FAIL", "ON_ACCENT_PAD")]),
     ]
     for title, stems in sections:
         out.append("// ═══════════════════════════════════════════════════════════════════════════════")

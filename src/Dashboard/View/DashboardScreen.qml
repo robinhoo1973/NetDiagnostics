@@ -64,9 +64,11 @@ PageDisplay {
         function onProgressChanged() { page._refreshTime(); page._refreshGroups() }
         function onRunElapsedChanged() { page._refreshTime() }
         function onCurrentRunningGroupChanged() { page._refreshGroups() }
-        function onRunStatusChanged() { page._refreshTime(); page._refreshGroups() }
     }
-    // 完成时刻戳不依赖可见性（揭示时需已定格的值）——独立未门控块
+    // 5WHY (复核 2026-08-19 单处处理): runStatusChanged 曾拆在两个块
+    // （门控块刷新 + 未门控块戳章）——同一信号两处处理难保序。合并到
+    // 未门控块：runStatus 只在运行边界变化（每轮至多次），离屏执行成本
+    // 可忽略；完成时刻戳不依赖可见性（揭示时需已定格的值）。
     Connections {
         target: AppState
         function onRunStatusChanged() {
@@ -76,6 +78,7 @@ PageDisplay {
                     + ("0" + now.getMinutes()).slice(-2) + ":"
                     + ("0" + now.getSeconds()).slice(-2)
             }
+            page._refreshTime(); page._refreshGroups()
         }
     }
     Component.onCompleted: {

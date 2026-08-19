@@ -1,5 +1,4 @@
 import QtQuick
-import "../../theme" as T
 import "../../theme/AnimationTokens.js" as Tokens
 
 // ── PulseAnimation.qml — Opacity+scale pulse for ~5 diagnostic tests ──

@@ -506,7 +506,7 @@ fi
 	    # exit ≥2（src 树内文件不可读/符号链接断裂）必须 fail——不能
 	    # 与空集混淆后静默 PASS（旧 `|| true` 吞掉两者的教训）。
 	    set +e
-	    ANIM_RAW=$(grep -rhoE 'qrc:/qt/qml/[A-Za-z0-9_/]+\.qml' "$ROOT/src" \
+	    ANIM_RAW=$(grep -rhoE 'qrc:/qt/qml/[A-Za-z0-9_/-]+\.qml' "$ROOT/src" \
 	        --include='*.cpp' --include='*.h' --include='*.qml' --include='*.js' 2>/dev/null)
 	    ANIM_RC=$?
 	    set -e

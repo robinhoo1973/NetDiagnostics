@@ -1,0 +1,17 @@
+# 5WHY (复核 2026-08-19): On iOS static builds, QRC directory enumeration
+# (QDir::entryList on qrc:/) can return empty results for directories without
+# a qmldir（项目既有规则，见 detail/viz/qmldir）。AnimationBase 抽取后本目录
+# 是唯一「跨文件兄弟类型引用却无 qmldir」的 qrc 目录——iOS 静态构建下 10 个
+# 动画的 Loader 文档编译会解析不到基类，全部动画静默缺失（a7e9d9c6 同类）。
+# 显式登记全部类型，消除对目录扫描的依赖。
+AnimationBase 1.0 AnimationBase.qml
+PulseAnimation 1.0 PulseAnimation.qml
+JiggleAnimation 1.0 JiggleAnimation.qml
+BounceAnimation 1.0 BounceAnimation.qml
+TypeAnimation 1.0 TypeAnimation.qml
+PathAnimation 1.0 PathAnimation.qml
+LockAnimation 1.0 LockAnimation.qml
+CheckAnimation 1.0 CheckAnimation.qml
+MeterAnimation 1.0 MeterAnimation.qml
+ConvergeAnimation 1.0 ConvergeAnimation.qml
+GeoLocateAnimation 1.0 GeoLocateAnimation.qml

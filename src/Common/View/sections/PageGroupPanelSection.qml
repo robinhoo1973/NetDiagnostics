@@ -18,20 +18,14 @@ PageSection {
     signal detailRequested(var data)
     // 5WHY (复核 2026-08-19 效率): StackView 隐藏屏不销毁面板——离屏时每个
     // 信号仍驱动 5 面板 × (list 重建 + groupStats 扫描)（事件总工作量的
-    // ~60% 空转）。屏幕注入可见性：离屏跳过刷新并置脏，重新可见仅当有
-    // 遗漏事件时才 _reload（无事件期间切回不付全量刷新成本）。默认 true
-    // 保持独立使用兼容。
+    // ~60% 空转）。屏幕注入可见性：Connections.enabled 整体禁用（与
+    // StatsBridge/两屏同一机制），重新可见无条件 _reload 补刷（面板只
+    // 在屏可见时创建，创建期成本即该量级）。默认 true 保持独立使用兼容。
     property bool screenVisible: true
     // 5WHY (复核 2026-08-19 viewport 门控): 屏幕 Flickable 下传瓦片——
     // 滚动出视口的运行瓦片停动画（与 screenVisible 两级门控）。
     property var viewportItem: null
-    property bool _dirty: false
-    onScreenVisibleChanged: {
-        if (screenVisible && _dirty) {
-            _dirty = false
-            _reload()
-        }
-    }
+    onScreenVisibleChanged: if (screenVisible) _reload()
 
     // Dashboard 行变体注入（UI-5：依赖方向页面→Common）
     property Component rowHeaderDelegate: null   // 行头徽标（DashboardRowHeader 注入）
@@ -113,39 +107,41 @@ PageSection {
     function _reload() { reloadModel(); _refreshStats() }
     Connections {
         target: AppState
-        // 5WHY (复核 2026-08-19): 各处理器首行统一离屏门控（screenVisible，
-        // 见属性注释）——跳过时置脏供揭示补刷；折叠偏好重置不依赖可见性
-        // （8-18 语义须在任何时机生效）。
+        // 5WHY (复核 2026-08-19 机制统一): enabled 门控取代逐处理器守卫 +
+        // _dirty 状态（曾与其余消费方的 Connections.enabled 机制并存两套）。
+        // 折叠偏好重置拆出独立未门控块（8-18 语义须在任何可见性下生效）。
+        enabled: root.screenVisible
         function onProgressChanged() {
-            if (!root.screenVisible) { root._dirty = true; return }
-            // UI-3 scope-gate：仅刷新运行中的组；非运行面板用 per-item 绑定。
-            if (groupIndex === AppState.currentRunningGroup) reloadModel()
-            _refreshStats()
+            // UI-3 scope-gate：仅运行中的组逐条刷新（瓦片墙 + 统计）——
+            // 已结束组的统计冻结，其边界由 runStatus/currentRunningGroup
+            // 处理器全量刷新（5WHY 复核 2026-08-19：曾 5 面板每事件全扫）。
+            if (groupIndex === AppState.currentRunningGroup) {
+                reloadModel()
+                _refreshStats()
+            }
         }
         function onRunStatusChanged() {
-            // 8-18：新 run 开始（Idle→Running）重置折叠偏好——上一轮的折叠/展开
-            // 状态不得延续到本轮（用户要求按下 Run 即重置显示界面）。
-            if (AppState.runStatus === 1) {
-                _userToggled = false
-                _userExpanded = true
-            }
-            if (!root.screenVisible) { root._dirty = true; return }
             _reload()   // B1：运行边界全量刷新
         }
         // 8-16：组开始（currentRunningGroup 切换）即加载瓦片墙——
         // 瓦片与组标题同步出现，而非等首条结果/组结束。
-        function onCurrentRunningGroupChanged() {
-            if (!root.screenVisible) { root._dirty = true; return }
-            _reload()
-        }
+        function onCurrentRunningGroupChanged() { _reload() }
         // 5WHY (复核 2026-08-18 语义信号): 换 target scheme 不重跑只发
         // filteredDataChanged——groupStats 按 runnableFor(scheme) 过滤，瓦片墙
         // （allDiagsForGroup/resultsForGroup 同源过滤）也会变。旧实现接
         // targetChanged+stateVersionChanged：同轮双发双刷（5 面板 × 2），
         // host 逐键编辑与凭据/语言变更也误触发。语义信号单次驱动。
-        function onFilteredDataChanged() {
-            if (!root.screenVisible) { root._dirty = true; return }
-            _reload()
+        function onFilteredDataChanged() { _reload() }
+    }
+    // 8-18：新 run 开始（Idle→Running）重置折叠偏好——上一轮的折叠/展开
+    // 状态不得延续到本轮（用户要求按下 Run 即重置显示界面）。独立未门控块。
+    Connections {
+        target: AppState
+        function onRunStatusChanged() {
+            if (AppState.runStatus === 1) {
+                _userToggled = false
+                _userExpanded = true
+            }
         }
     }
     // 5WHY (复核 2026-08-18 创建期零统计): 归档 DiagGroupPanel 的 _gstat 是

@@ -61,6 +61,10 @@ var Dark = {
     groupHues:            ["#818CF8", "#38BDF8", "#68E5F4", "#60C8F8", "#A78BFA"],
     iconInk:              "#60C8F8",   // 瓦片图标油墨色（dark=primary 同值）
     onFail:               "#FFFFFF",   // fail 红上的内容色（关闭钮悬停图标，两主题同值）
+    // 5WHY (复核 2026-08-19 M3 单一事实源): 饱和主色垫上的内容色（Converge
+    // 白箭头）——曾以裸 "#FFFFFF" 字面量存在于动画层，Palette.js 外复制即
+    // 漂移且逃逸对比度审计。两主题同值（深色主色垫上白内容恒清晰）。
+    onAccentPad:          "#FFFFFF",
 };
 
 var Light = {
@@ -110,7 +114,8 @@ var Light = {
     iconPadBorderAlpha:   Dark.iconPadBorderAlpha,
     groupHues:            ["#4338CA", "#0284C7", "#0891B2", "#0369A1", "#7C3AED"],
     iconInk:              "#0C4A6E",
-    onFail:               "#FFFFFF"   // fail 红上的内容色（与 dark 同值）
+    onFail:               "#FFFFFF",  // fail 红上的内容色（与 dark 同值）
+    onAccentPad:          "#FFFFFF"   // 饱和主色垫内容色（与 dark 同值）
 };
 
 Object.freeze(Dark);

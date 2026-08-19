@@ -1,5 +1,4 @@
 import QtQuick
-import "../../theme" as T
 import "../../theme/AnimationTokens.js" as Tokens
 
 // ── MeterAnimation.qml — 表针左右摆动（Internet Connectivity & Speed）──
@@ -112,14 +111,18 @@ AnimationBase {
         }
     }
 
+    // 5WHY (复核 2026-08-19 基类契约): 本文件的 onRunningChanged 声明会遮蔽
+    // AnimationBase 的同名处理器（QML 信号处理器不链式继承）——基类的
+    // "!running → resetVisuals()" 钩子对本类型永不触发。重置臂显式收敛进
+    // resetVisuals() 覆写，与基类钩子契约一致（行为不变）。
     onRunningChanged: {
-        if (root.running) {
-            root._startSwing()
-        } else {
-            root._angle = 0
-            root._phaseSwing = false
-            root._phaseSettle = false
-            root._t0 = 0
-        }
+        if (root.running) root._startSwing()
+        else resetVisuals()
+    }
+    function resetVisuals() {
+        root._angle = 0
+        root._phaseSwing = false
+        root._phaseSettle = false
+        root._t0 = 0
     }
 }

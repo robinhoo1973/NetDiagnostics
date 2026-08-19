@@ -16,6 +16,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import theme
 import widgets
+import "../../widgets/StatsUtil.js" as W   // 数组身份门控（qrc:/qt/qml/Dashboard/View/ → ../../widgets/）
 
 Item {
     id: root
@@ -29,6 +30,11 @@ Item {
     // DashboardScreen 不再为其做任何 groupStats 扫描。
     property string _timeText: "—"
     property var _layers: []
+    // 5WHY (复核 2026-08-19 单一策略): 分层时长的身份门控此前用本文件手写
+    // 字符串签名（_layerSig）——与两屏 assignIfChanged 同策略却各写一份。
+    // 收敛进 StatsUtil.assignIfChanged：内容未变不替换 _layers 身份
+    // （Repeater 不重建 5 行）。
+    property var _layerMs: []
 
     // 5WHY (复核 2026-08-19 单一订阅点): _s 直接读桥（变属性绑定，桥替换
     // 身份即重估）；离屏门控经桥生效。
@@ -49,22 +55,22 @@ Item {
         _refreshTimeOnly()
         // 5WHY (复核 2026-08-19 身份门控): 每事件无条件换新数组 → Repeater
         // 全量销毁重建 5 行（~50 事件/轮 × 5 行 × 6 对象）。分层时长只在
-        // 结果落地时变化——签名比较，未变不替换身份（与组面板滚动哈希/
-        // 两屏 assignIfChanged 同一策略）。
-        var layers = []
-        var sig = ""
+        // 结果落地时变化——ms 数组经 assignIfChanged 比较，未变不替换
+        // _layers 身份（与组面板滚动哈希/两屏 assignIfChanged 同一策略）。
+        var msArr = []
         for (var i = 0; i < 5; ++i) {
             var gs = AppState.groupStats(i)
-            var ms = gs.durationMs || 0
-            layers.push({ index: i, ms: ms })
-            sig += (i ? "," : "") + ms
+            msArr.push(gs.durationMs || 0)
         }
-        if (sig !== _layerSig) {
-            _layerSig = sig
+        var next = W.assignIfChanged(_layerMs, msArr)
+        if (next !== _layerMs) {
+            _layerMs = next
+            var layers = []
+            for (var j = 0; j < 5; ++j)
+                layers.push({ index: j, ms: msArr[j] })
             _layers = layers
         }
     }
-    property string _layerSig: ""
     function _refreshTimeOnly() {
         _timeText = ThemeEngine.formatDuration(AppState.runDurationMs())
     }
@@ -72,6 +78,12 @@ Item {
         target: stats
         function onRefreshed() { root._refreshDerived() }
     }
+    // 5WHY (复核 2026-08-19 初始化时序): _s 是绑定（桥替换身份即重估，无
+    // 时序风险），但 _timeText/_layers 是 refreshed() 信号驱动——桥的创建期
+    // _refresh 发 refreshed() 的时刻与本 Connections 完成注册的时刻先后
+    // （QML 子对象 onCompleted 顺序文档未定义）。消费方自身 onCompleted
+    // 保证晚于全部子对象完成，幂等补一次派生（分层签名未变零成本）。
+    Component.onCompleted: root._refreshDerived()
     Connections {
         target: AppState
         enabled: root.screenVisible

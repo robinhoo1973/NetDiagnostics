@@ -1,5 +1,4 @@
 import QtQuick
-import "../../theme" as T
 import "../../theme/AnimationTokens.js" as Tokens
 
 // ── BounceAnimation.qml — Ping-pong bounce for ~6 diagnostic tests ──

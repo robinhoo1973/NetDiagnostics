@@ -23,10 +23,9 @@ Rectangle {
     property string statusText: ""      // 瞬时提示（恢复/不可用）
     signal dismissed()
 
-    // 5WHY (review 2026-08-17): 弹窗缺 LayoutMirroring——阿拉伯语下关闭按钮
-    // 停留在错误视觉边；PremiumCard 已有镜像，弹窗补齐。
-    LayoutMirroring.enabled: T.isRtl
-    LayoutMirroring.childrenInherit: true
+    // 5WHY (复核 2026-08-19 壳单一来源): 根级 LayoutMirroring 曾是本弹窗
+    // 的镜像承载（review 2026-08-17 补齐）——DialogCard 壳现已内置镜像并
+    // 向下继承，根级声明无剩余职责，删除避免双规格互相覆盖。
 
     function openDialog() {
         root.open = true

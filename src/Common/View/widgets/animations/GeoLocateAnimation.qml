@@ -1,5 +1,4 @@
 import QtQuick
-import "../../theme" as T
 import "../../theme/AnimationTokens.js" as Tokens
 
 // ── GeoLocateAnimation.qml — IP Geolocation 雷达定位 ────────────────────
@@ -8,7 +7,7 @@ import "../../theme/AnimationTokens.js" as Tokens
 // 观者无法建立"定位"联想。业界惯例（地图定位 ping）：从定位针头辐射同心
 // 雷达波，逐圈扩散淡出循环——语义即"正在定位"。
 // 锚点对齐 geoip 母版定位针头中心（QSvgRenderer 逐通道实测 viewBox
-// ≈(0.71,0.30)），扩散半径 0.34×宽覆盖针头至针身。
+// ≈(0.71,0.30)），扩散半径 0.29×宽（到右缘的最近距离）覆盖针头至针身。
 // 纯 Rectangle + scale/opacity 动画——无 Canvas/ShapePath/ShaderEffect
 // （iOS 静态 Qt 安全）。
 //
@@ -28,15 +27,22 @@ AnimationBase {
     // 5WHY (复核 2026-08-19 边界): 半径在 (cx,cy) 锚点上越界（无裁剪链——
     // 环画到垫外邻内容上）。半径上限=到最近边缘距离（右 1-cx / 顶 cy），
     // 圆完全落回图标框内。
+    // 5WHY (复核 2026-08-19 回归): 第二 min 项曾误写 (1.0 - anchorCy)——那是
+    // 到【底】边的距离（0.70），顶边距离是 anchorCy 本身（0.30）；方形父项
+    // 下该项恒不生效（死算术），非方垫下环溢出顶边。修正为 anchorCy。
     readonly property real _maxR: Math.min(parent.width * root.anchorMaxR,
-                                            parent.height * (1.0 - root.anchorCy))
+                                            parent.height * root.anchorCy)
     readonly property int _period: Tokens.tokens.geoRadarPeriod
     readonly property int _stagger: Tokens.tokens.geoRadarStagger
 
     // 三圈同心雷达波；每圈周期 = period + 2×stagger（错峰启动 + 等其余圈
     // 完成），全组同周期无缝循环。
+    // 5WHY (复核 2026-08-19 圈数单一来源): 尾部相位数学曾硬编码 (2 - index)
+    // ——加第 4 圈即负相位钳 0、无缝循环破坏。_rings 单一来源供 model 与
+    // 相位共用。
+    property int _rings: 3
     Repeater {
-        model: 3
+        model: root._rings
         delegate: Rectangle {
             id: ring
             x: root._cx - width / 2
@@ -93,7 +99,7 @@ AnimationBase {
                 // 复位 + 等其余圈完成，保持全组同周期
                 PropertyAction { target: ring; property: "opacity"; value: 0 }
                 PropertyAction { target: ring; property: "scale"; value: 0.15 }
-                PauseAnimation { duration: (2 - index) * root._stagger }
+                PauseAnimation { duration: (root._rings - 1 - index) * root._stagger }
             }
         }
     }

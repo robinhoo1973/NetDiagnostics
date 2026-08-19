@@ -1,6 +1,4 @@
 import QtQuick
-import "../../theme" as T
-import "../../theme/AnimationTokens.js" as Tokens
 
 // ── JiggleAnimation.qml — iOS-style icon jiggle (default busy state) ──
 // The DEFAULT animation (~20 diagnostics).  Rotates the icon well itself
