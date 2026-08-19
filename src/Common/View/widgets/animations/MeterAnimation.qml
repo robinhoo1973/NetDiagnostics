@@ -1,9 +1,10 @@
 import QtQuick
 import "../../theme/AnimationTokens.js" as Tokens
 
-// ── MeterAnimation.qml — 表针左右摆动（Internet Connectivity & Speed）──
-// 表针底部固定在图标圆心，模拟检测采样：每轮随机取一个左侧角度，从左
-// 摆到右侧随机角度，到位后小幅回摆稳定，保持片刻再开新一轮。
+// ── MeterAnimation.qml — 表针往复摆动（Internet Connectivity & Speed）──
+// 表针底部固定在图标圆心，模拟检测采样：指针连续往复——每轮从上一轮
+// 落点摆向对侧随机角度（左→右→左→右…），到位后小幅回摆稳定，保持片刻
+// 再开新一轮；无瞬跳，运动轨迹贴合 gauge（测速表）指针模式。
 // 纯 Rectangle + Rotation；运动由 Timer 逐帧驱动（无 QML NumberAnimation
 // 绑定——对随机变化目标值会产生绑定环/递归重启，见 5WHY）。
 // 无 Canvas/ShapePath/ShaderEffect（iOS 静态 Qt 安全）。
@@ -20,10 +21,17 @@ AnimationBase {
     id: root
     property int sweepDuration: Tokens.tokens.meterSweepDuration
 
+    // 5WHY (复核 2026-08-19 单源收敛): 锚点几何（针轴/针长）与 GeoRadar
+    // 同机制——C++ AppState.diagAnimationAnchor 单一来源经 DiagAnimator
+    // 下发；保留同值默认供直接实例化回退（Usage 注释的用法）。母版 SVG
+    // 再生成位移时仅改 C++ 一处，不再 QML 硬编码漂移。
+    property real anchorCx: 0.5
+    property real anchorCy: 0.5
+    property real anchorMaxR: 0.42
     // 针轴 = 图标圆心（internet 母版地球圆心；实测地球半径 ≈0.42×宽）
-    readonly property real _cx: parent.width * 0.5
-    readonly property real _cy: parent.height * 0.5
-    readonly property real _needleLen: parent.width * 0.42
+    readonly property real _cx: parent.width * root.anchorCx
+    readonly property real _cy: parent.height * root.anchorCy
+    readonly property real _needleLen: parent.width * root.anchorMaxR
     readonly property real _stroke: Math.max(1.6, parent.width * 2.6 / 24)
     readonly property real _hub: Math.max(2.4, parent.width * 3.6 / 24)
 
@@ -40,10 +48,21 @@ AnimationBase {
     }
 
     function _startSwing() {
-        // 每轮随机"从左到右"的采样角度（左 -55..-18，右 18..55）
-        root._fromAngle = -(18 + Math.random() * 37)
-        root._toAngle   =  18 + Math.random() * 37
-        root._angle = root._fromAngle
+        // 5WHY (2026-08-19 用户诉求 "指针不按 gauge 模式往复"):
+        // 旧实现每轮固定"左随机角 → 右随机角"单向扫掠——落到右侧后
+        // 直接瞬跳回左侧再右摆：右→左腿永远缺席，观感是"单摆 + 瞬移"
+        // 而非测速表指针往复。业界惯例（转速表/测速表指针）：指针停在
+        // 哪侧，下一轮就从该落点连续摆向对侧——双向连续扫掠、零瞬跳。
+        // 首轮（复位后 0°）保留原语义：先从左随机角摆向右侧随机角。
+        if (root._angle === 0) {
+            root._fromAngle = -(18 + Math.random() * 37)
+            root._toAngle   =  18 + Math.random() * 37
+        } else {
+            root._fromAngle = root._angle   // 起点 = 上轮落点（连续往复）
+            root._toAngle   = (root._angle >= 0)
+                ? -(18 + Math.random() * 37)   // 右侧落点 → 摆向左侧随机角
+                :  (18 + Math.random() * 37)   // 左侧落点 → 摆向右侧随机角
+        }
         root._phaseSwing = true
         root._phaseSettle = false
         root._t0 = 0

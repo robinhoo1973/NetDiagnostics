@@ -16,7 +16,7 @@ PageSection {
 
     // 自门控：KeyMetric 单一来源（与 DiagBlock 瓦片同源）
     readonly property var _km: root.detailData
-        ? KeyMetric.keyMetric(root.detailData.data, root.detailData.durationMs || 0)
+        ? KeyMetric.keyMetric(root.detailData.data)
         : ({ ok: false, value: 0, unitKey: "", labelKey: "", precision: 0, format: "num", trailing: "" })
     readonly property bool _hasMetric: root._km.ok
     active: root._hasMetric

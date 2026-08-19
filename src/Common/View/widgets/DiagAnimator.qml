@@ -30,7 +30,7 @@ Item {
     property bool bounded: false
     // 5WHY (复核 2026-08-19): 窗口与各动画周期同为时序事实——从 tokens 读取
     // （replayWindowMs 单一来源），周期改版不再与窗口隐性脱钩。
-    property int windowMs: Tokens.tokens.replayWindowMs
+    readonly property int windowMs: Tokens.tokens.replayWindowMs
     // 5WHY (复核 2026-08-19 收尾优雅): 窗口不是各循环周期的公倍数——硬截止
     // 会砍在半环（雷达波冻结在半扩散）。截止前 250ms 淡出：任何相位下
     // 收尾都平滑；restart 时回 1 淡入。

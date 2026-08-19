@@ -148,6 +148,14 @@ Item {
             if (!root.testRunning) root._elapsed = 0
         }
     }
+    // 5WHY (复核 2026-08-19 冻结徽标): 瓦片离屏（视口/切页）期间运行语义
+    // 结束（取消/异常无结果）时，计时器本已暂停——running 无翻转，上述
+    // 处理器不触发，_elapsed 冻结值 + startedAtMs>0 令计时圆点永久残留
+    // （"中断/异常未落结果…冻结计数不再残留"契约落空）。补 testRunning
+    // 归假路径直接清零（离屏暂停不改变 testRunning，续计不受影响）。
+    onTestRunningChanged: {
+        if (!root.testRunning) root._elapsed = 0
+    }
     // 5WHY (复核 2026-08-18): 委托重建（reloadModel 换模型身份）会把 _elapsed
     // 清零。真实起点经模型注入 startedAtMs（C++ DiagnosticBase 墙钟）——重建
     // 后计时从真实起点反推，并行 Suite 兄弟结果落地不再重置显示；无起点

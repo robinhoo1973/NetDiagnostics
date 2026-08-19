@@ -53,7 +53,10 @@ static const DiagnosticMeta kDiagMeta[] = {
     { DiagId::G2ProxySettings,     "Proxy Settings",     "nd-diag-g2-proxy",        PF_Desktop|PF_Android,        DiagAnimType::Path,   DiagTemplateType::System, sys(),              60000 },
 
     // ── G3  Internet & DNS ───────────────────────────────────────────────────
-    { DiagId::G3NetskopeStatus,    "Security Proxy Status", "nd-diag-g3-dns-integrity", PF_Desktop|PF_Android,  DiagAnimType::Check, DiagTemplateType::System, sys(),              60000 },
+    // 5WHY (2026-08-19 用户诉求 "逐一审查详情页"): 曾复用 nd-diag-g3-dns-integrity
+    // ——同组 G3DnsIntegrity 瓦片与安全代理共用同一图标（相邻双胞胎）。安全
+    // 代理语义对齐 nd-diag-g2-proxy（代理图形），与 G2 组跨组不构成相邻重复。
+    { DiagId::G3NetskopeStatus,    "Security Proxy Status", "nd-diag-g2-proxy", PF_Desktop|PF_Android,  DiagAnimType::Check, DiagTemplateType::System, sys(),              60000 },
     { DiagId::G3DnsServers,        "DNS Servers",        "nd-diag-g3-dns-servers",   PF_All,                       DiagAnimType::Pulse,  DiagTemplateType::System, sys("serverCount","servers",0), 60000 },
     { DiagId::G3DnsCache,          "DNS Cache",          "nd-diag-g3-dns-cache",    PF_Desktop|PF_Android,        DiagAnimType::Jiggle, DiagTemplateType::System, sys("cacheEntries","entries",0), 60000 },
     { DiagId::G3DnsIntegrity,      "DNS Integrity",      "nd-diag-g3-dns-integrity",   PF_All,                       DiagAnimType::Check,  DiagTemplateType::Handshake, metricOnly("overallScorePercent","%",0,DP::Gauge), 120000 },

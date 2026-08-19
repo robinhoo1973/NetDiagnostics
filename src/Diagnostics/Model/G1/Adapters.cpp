@@ -129,6 +129,11 @@ static DiagnosticResult makeResult(DiagId id, DiagStatus status,
         }
         r.details = lines.join(QLatin1Char('\n'));
         r.rawOutput = r.details;
+        // 5WHY (2026-08-19 用户诉求 "不单独列出 During 区块"): 该转储与
+        // 属性卡逐字重复——详情页曾并列呈现两份相同数据。标记为属性派生
+        // 转储：UI 经 resultFor 关闭终端区块（showTerminal=false），数据
+        // 以结构化属性卡呈现；剪贴板仍含完整转储（details 保留）。
+        r.data[QStringLiteral("propsDump")] = true;
     } else {
         r.details = details;
         r.rawOutput = details;
@@ -600,6 +605,8 @@ static DiagnosticResult probeDhcp(DiagId id, const QString&, RunContext& ctx) {
         QString ipStr, serverStr, expire;
         QTextStream ts(&f);
         while (!ts.atEnd()) {
+            // 5WHY (复核 2026-08-19 取消语义): 租约文件解析微秒级——取消窗口
+            // 可忽略，保留早停（部分租约数据落盘，与 v0.0.3 行为一致）。
             if (ctx.cancelled.load()) return;
             const QString line = ts.readLine().trimmed();
             if (line.startsWith(QLatin1String("ADDRESS="))) ipStr = line.mid(8);
@@ -715,9 +722,16 @@ static DiagnosticResult probeIpConfig(DiagId id, const QString&, RunContext& ctx
     }
     // 5WHY (复核 2026-08-19 v0.0.3 对等): 主机名曾随 ipconfig 转储呈现
     // （G1IpConfiguration.cpp: Host Name）——现丢失，前置一条补回。
+    // 5WHY (复核 2026-08-19 v0.0.3 对等): 主机名曾随 ipconfig 转储呈现
+    // （G1IpConfiguration.cpp: Host Name）——现丢失，前置一条补回。
+    // 5WHY (复核 2026-08-19 探针线程安全): QHostInfo::localHostName() 在
+    // 工作线程上阻塞反查 DNS（Qt 文档明示可阻塞）——改用纯 libc
+    // gethostname()（即时、无线程风险）。
     // （IPv6 已随 addressEntries 全族覆盖；DHCP Enabled/DNS 后缀无便携
     // 探测，记录为已知缺口。）
-    props.prepend({QStringLiteral("Host Name"), QHostInfo::localHostName()});
+    char hostBuf[256] = {};
+    gethostname(hostBuf, sizeof(hostBuf) - 1);
+    props.prepend({QStringLiteral("Host Name"), QString::fromLocal8Bit(hostBuf)});
     if (props.isEmpty())
         return makeResult(id, DiagStatus::Info, QStringLiteral("No IP configuration found"), {}, {});
     return makeResult(id, DiagStatus::Pass, QStringLiteral("IP configuration"), props, {});
@@ -726,6 +740,10 @@ static DiagnosticResult probeIpConfig(DiagId id, const QString&, RunContext& ctx
 // ── G1ActiveConnections ───────────────────────────────────────────────────
 static DiagnosticResult probeActiveConnections(DiagId id, const QString&, RunContext& ctx) {
     int count = 0;
+    // 5WHY (复核 2026-08-19 语义修正): 全状态枚举后 count 含 LISTEN/
+    // TIME_WAIT 等——"established" 摘要若沿用 count 会虚报（Windows/macOS
+    // 仍只计 ESTABLISHED）。单独累计 ESTABLISHED；tcpCount 保持总数语义。
+    int established = 0;
     QVector<ResultProperty> props;
 #if defined(__linux__) || defined(__ANDROID__)
     // 5WHY (复核 2026-08-19 v0.0.3 对等): v0.0.3 以 Proto/Local/Foreign/State
@@ -767,10 +785,15 @@ static DiagnosticResult probeActiveConnections(DiagId id, const QString&, RunCon
                     .arg(QLatin1String(proto), decodeEp(fields[1]),
                          decodeEp(fields[2]), stateName)});
             ++count;
+            if (state == 0x01) ++established;
         }
     };
     parseSockets(QStringLiteral("/proc/net/tcp"), "tcp");
     parseSockets(QStringLiteral("/proc/net/tcp6"), "tcp6");
+    // 5WHY (复核 2026-08-19 取消语义): 解析循环内取消仅早停（部分数据落盘
+    // 是 v0.0.3 行为）——解析后统一复查：取消整项计 Cancelled，不落 Pass/Info。
+    if (ctx.cancelled.load())
+        return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
 #else
 #if defined(_WIN32)
     // GetExtendedTcpTable 真实枚举（含 PID）；仅统计 ESTABLISHED。
@@ -825,9 +848,13 @@ static DiagnosticResult probeActiveConnections(DiagId id, const QString&, RunCon
 #endif
 #endif
 #endif
+#if !defined(__linux__) && !defined(__ANDROID__)
+    established = count;   // Windows/macOS 仅枚举 ESTABLISHED（Linux 在解析内累计）
+#endif
     DiagnosticResult r = makeResult(id, count > 0 ? DiagStatus::Pass : DiagStatus::Info,
-        QStringLiteral("%1 established TCP connection(s)").arg(count), props, {});
+        QStringLiteral("%1 TCP connection(s), %2 established").arg(count).arg(established), props, {});
     r.data[QStringLiteral("tcpCount")] = count;
+    r.data[QStringLiteral("establishedCount")] = established;
     return r;
 }
 
@@ -883,15 +910,12 @@ DiagnosticResult iosCellularProbe(DiagId id) {
     // 是 Info 态（G1CellularInfo.cpp）——曾返回 skipped 丢失该呈现。
     // iOS 设备恒有调制解调器：空图即"无服务"而非"无硬件"。
     if (info.isEmpty()) {
-        DiagnosticResult r;
-        r.id = id; r.displayName = diagDisplayName(id); r.group = diagGroup(id);
-        r.status = DiagStatus::Info;
-        r.summary = QStringLiteral("No cellular service");
-        r.properties = {{QStringLiteral("cellular"), QStringLiteral("No cellular service available")}};
-        r.details = QStringLiteral("cellular: No cellular service available");
-        r.rawOutput = r.details;
-        r.timestamp = QDateTime::currentDateTime();
-        return r;
+        // 5WHY (复核 2026-08-19 simplify): 曾手搭 DiagnosticResult（10 行
+        // 样板）——makeResult 的空 details 分支自动生成同文本转储并打
+        // propsDump 标记（终端区块对属性派生转储让位），一行等价且随
+        // 归一化契约演进（时间戳/转储规则不再旁路）。
+        return makeResult(id, DiagStatus::Info, QStringLiteral("No cellular service"),
+                          {{QStringLiteral("cellular"), QStringLiteral("No cellular service available")}}, {});
     }
     QVector<ResultProperty> props;
     auto add = [&props](const char* label, const QString& v) {

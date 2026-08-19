@@ -19,12 +19,16 @@ PageSection {
     // 5WHY (review round 2+3): 垫只承载真实诊断图标——_hasDiagIcon 门控
     // 可见性，无需回退分支（回退状态徽标会与状态圆盘同图形异色冲突）。
     readonly property bool _hasDiagIcon: detailData.iconName !== undefined && detailData.iconName !== ""
+    // 5WHY (复核 2026-08-19 单点派生): 状态默认值三元曾在 4 处逐字复制、
+    // statusColors 表达式两处（色盘 + 状态名文字）——加状态/改回退须全改
+    // 且一处漏改即色盘与文字异色。收敛为 _status/_statusColor 单一派生。
+    readonly property int _status: detailData.status !== undefined ? detailData.status : 5
+    readonly property color _statusColor: ThemeEngine.statusColors[root._status] || ThemeEngine.colors.skip
     // 5WHY (复核 2026-08-19): 状态名经 statusRows 单一表派生（色盘读屏名 +
     // 可见状态文字共用；v0.0.3 有状态名文字行，恢复对等呈现）。
     readonly property string _statusLabel: {
-        var st = detailData.status !== undefined ? detailData.status : 5
         for (var i = 0; i < ThemeEngine.statusRows.length; ++i)
-            if (ThemeEngine.statusRows[i].code === st)
+            if (ThemeEngine.statusRows[i].code === root._status)
                 return ThemeEngine.statusRows[i].labelKey
         return "summaryInfo"
     }
@@ -92,12 +96,12 @@ PageSection {
             Layout.preferredWidth: 44
             Layout.preferredHeight: 44
             radius: 22
-            color: Qt.alpha(ThemeEngine.statusColors[(detailData.status !== undefined ? detailData.status : 5)] || ThemeEngine.colors.skip, 0.14)
+            color: Qt.alpha(root._statusColor, 0.14)
             AppIcon {
                 anchors.centerIn: parent
-                name: detailData.statusIcon || ThemeEngine.statusIconNames[(detailData.status !== undefined ? detailData.status : 5)] || "badge-info"
+                name: detailData.statusIcon || ThemeEngine.statusIconNames[root._status] || "badge-info"
                 size: 24
-                color: ThemeEngine.statusColors[(detailData.status !== undefined ? detailData.status : 5)] || ThemeEngine.colors.skip
+                color: root._statusColor
             }
             Accessible.name: T.tr(root._statusLabel)
             Accessible.role: Accessible.Graphic
@@ -121,7 +125,7 @@ PageSection {
                 font.family: ThemeEngine.fontUi
                 font.pixelSize: ThemeEngine.fontSize.caption
                 font.weight: Font.DemiBold
-                color: ThemeEngine.statusColors[(detailData.status !== undefined ? detailData.status : 5)] || ThemeEngine.colors.skip
+                color: root._statusColor
             }
             Label {
                 visible: text !== ""

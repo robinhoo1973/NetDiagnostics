@@ -23,23 +23,12 @@
 //   Request(3)   dnsMs, connectMs, sslMs, firstByteMs, totalMs (all CUMULATIVE)
 //   Query(4)     latencyMs, connected
 //   System(5)    (no chart; properties table only)
-// Other keys mapped here (durationMs fallback, queryTimeMs, downloadMbpsBest,
-// overallScorePercent, tcpPingMs, rowCount, connectedCount, responseTimeMs)
-// are additive conveniences — they must never conflict with the contract keys.
+// Other keys mapped here (queryTimeMs, downloadMbpsBest, overallScorePercent,
+// tcpPingMs, rowCount, connectedCount, responseTimeMs) are additive
+// conveniences — they must never conflict with the contract keys.
+// (durationMs is not a metric here: the hero shows it; 5WHY 2026-08-19.)
 // =============================================================================
 .pragma library
-
-// Compact duration formatting for meta lines / fallback display.
-// <1s → "342ms"; <60s → "1.2s"; >=60s → "1:23" (m:ss).
-function formatDuration(ms) {
-    var d = Number(ms) || 0
-    if (d <= 0) return "--"
-    if (d < 1000) return Math.round(d) + "ms"
-    if (d < 60000) return (d / 1000).toFixed(1) + "s"
-    var min = Math.floor(d / 60000)
-    var sec = Math.round((d % 60000) / 1000)
-    return min + ":" + (sec < 10 ? "0" : "") + sec
-}
 
 // Pure number formatting shared by MetricCard (animated) and DiagBlock
 // (static tile text): respects precision and the "minsec" format.
@@ -58,8 +47,9 @@ function formatNumber(value, precision, format) {
 
 // Structured key metric for a diagnostic result.
 // data: the enriched data map (templateType injected by C++) or null/undefined.
-// durationMs: fallback metric used when no structured key is present.
-function keyMetric(data, durationMs) {
+// 5WHY (2026-08-19): durationMs 参数随时长兜底一并移除（hero 恒显示时长，
+// 主指标卡只承载结构化指标）。
+function keyMetric(data) {
     var empty = { ok: false, value: 0, unitKey: "", labelKey: "",
                   precision: 0, format: "num", trailing: "" }
     var d = data || {}
@@ -146,25 +136,13 @@ function keyMetric(data, durationMs) {
         return { ok: true, value: Number(d.responseTimeMs), unitKey: "unitMs",
                  labelKey: "metricLatency", precision: 0, format: "num", trailing: "" }
 
-    // ── Fallback: execution duration (with or without structured data) ──
-    // 5WHY: the duration fallback was unconditional — System-template
-    // diagnostics (Network Adapters, WiFi Info, IP Config, etc.) whose
-    // metadata declares keyMetricField:null were showing a "342ms"
-    // MetricCard, creating phantom spacing between Hero and Properties.
-    // Gate: only show duration metric when the diagnostic type actually
-    // declares a keyMetricField (meaning it expects a structured metric
-    // that may sometimes be absent, e.g. a failed Ping).
-    if (d.keyMetricField === "" || d.keyMetricField === undefined)
-        return empty
-    var dur = Number(durationMs) || 0
-    if (dur <= 0) return empty
-    if (dur < 1000)
-        return { ok: true, value: dur, unitKey: "unitMs", labelKey: "metricDuration",
-                 precision: 0, format: "num", trailing: "" }
-    if (dur < 60000)
-        return { ok: true, value: dur / 1000, unitKey: "unitSec", labelKey: "metricDuration",
-                 precision: 1, format: "num", trailing: "" }
-    // >= 60s: min:sec — MetricCard formats from total seconds (no string parsing)
-    return { ok: true, value: Math.round(dur / 1000), unitKey: "", labelKey: "metricDuration",
-             precision: 0, format: "minsec", trailing: "" }
+    // 5WHY (2026-08-19 用户诉求 "详情页不单独列出 Duration 区块"): 曾有
+    // 执行时长兜底——结构化键缺失的失败结果（黑洞 Ping、TLS 握手失败等）
+    // 以"Duration: 3.2s"占据整个 MetricCard。但 PageHeroSection 恒显示
+    // 时长行（detailDurationLabel）——失败详情页上时长被重复呈现两块，
+    // 且独立大卡仅承载一个可以从 hero 读到的数字（业界惯例：主指标卡只
+    // 承载结构化主指标；时长属元信息，归 hero/summary 区）。失败结果由
+    // 错误区块 + 属性卡承载真实诊断数据（Host/Port 等已随属性行恢复）。
+    // keyMetricField 注入链随兜底一并移除（AppState.resultFor）。
+    return empty
 }

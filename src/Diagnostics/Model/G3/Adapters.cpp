@@ -40,6 +40,12 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QSslSocket>
+#if defined(_WIN32)
+// 5WHY (复核 2026-08-19 Windows 编译): probeNetskopeStatus 使用
+// CreateToolhelp32Snapshot/PROCESSENTRY32W——仅 <tlhelp32.h> 声明（GBase.h
+// 不在此 TU 包含链）。漏含在 MSVC 下 C3861/C2065 编译失败（Apple CI 不覆盖）。
+#include <tlhelp32.h>
+#endif
 #include <QSslCertificate>
 #include <QTcpSocket>
 #include <QHostInfo>

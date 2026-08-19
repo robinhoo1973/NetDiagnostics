@@ -41,6 +41,10 @@ function normalize(map) {
 // helper；内容相同时返回旧数组（身份保持）。元素级比较（本库消费方均为
 // ≤5 元素 int 数组，JSON 序列化比较属过量成本）。
 function assignIfChanged(current, next) {
+    // 5WHY (复核 2026-08-19 null 契约): 与 normalize 同族却曾无 null 守卫——
+    // 消费方以未初始化 var 起步时 TypeError。null/undefined 累积器视为
+    // "无身份可保"，直接采纳新数组。
+    if (!current || !next) return next
     if (current.length !== next.length) return next
     for (var i = 0; i < next.length; ++i)
         if (current[i] !== next[i]) return next

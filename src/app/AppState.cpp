@@ -300,7 +300,15 @@ void AppState::runNextGroup() {
     // 也不在 groupDone，visibleGroups() 的 scheduled 判空将其排除，运行组要等
     // 下一组开始才补显（"正在运行的检测组没有显示"、界面看似卡死）。
     m_groupDone.insert(gi, false);
-    emit currentRunningGroupChanged();
+    // 5WHY (复核 2026-08-19 反模式 #4 覆盖): 曾同步发射——runDiagnostics 由
+    // QML Run 按钮 onClicked 调用，重跑时（上一轮 Completed，_groups 含 5 组）
+    // visibleGroups() 收窄为 [0]，DiagnosticScreen._refreshGroups 在点击栈
+    // 未退栈时销毁 4 个组面板委托（含瓦片）——"组 0 创建而非销毁"前提只对
+    // 首轮成立。队列化延迟一帧：消费方送达时读到的是已登记状态；
+    // 工作线程路径（onSuiteFinished → runNextGroup）经 invokeMethod 同样
+    // 归主线程派发，语义不变。
+    QMetaObject::invokeMethod(this, [this] { emit currentRunningGroupChanged(); },
+                              Qt::QueuedConnection);
 
     // H3：每次建 suite 递增 generation，迟到信号按 generation 丢弃
     const qint64 gen = ++m_runGeneration;
@@ -593,18 +601,23 @@ QVariantMap AppState::resultFor(int diagIdInt) const {
     // 但重建的契约层不再向结果注入该字段——在此由 meta 注入（不改探针结果）。
     QVariantMap data = it->data;
     data[QStringLiteral("templateType")] = static_cast<int>(diagnosticMeta(it->id).tmplType);
-    // 5WHY (复核 2026-08-19 死门复活): KeyMetric.js 的时长回退门读
-    // data.keyMetricField，但此处从不注入——结构化键缺失的失败结果
-    // （黑洞 Ping、TLS 握手失败等）恒无 MetricCard。由 meta 注入。
-    if (diagnosticMeta(it->id).detail.keyMetricField)
-        data[QStringLiteral("keyMetricField")] = QString::fromLatin1(diagnosticMeta(it->id).detail.keyMetricField);
+    // 5WHY (复核 2026-08-19 用户诉求 "详情页不单独列出 Duration 区块"):
+    // keyMetricField 注入与 KeyMetric.js 时长兜底成对出现——失败结果以
+    // 独立 Duration 大卡重复 hero 时长行。兜底已移除（详情页失败结果改
+    // 由错误区块 + 属性卡承载数据），注入链随之一并删除（零剩余消费方）。
     m[QStringLiteral("data")] = data;
     // 8-16：契约开关注入——详情区块（错误/属性/终端）按 meta DetailProfile
     // 自门控，避免模板不支持的区块出现空卡/错误内容。
     const DetailProfile& dp = diagnosticMeta(it->id).detail;
     m[QStringLiteral("showErrorOutput")] = dp.showErrorOutput;
     m[QStringLiteral("showProperties")] = dp.showProperties;
-    m[QStringLiteral("showTerminal")] = dp.showTerminal;
+    m[QStringLiteral("showCharts")] = dp.showCharts;
+    // 5WHY (2026-08-19 用户诉求 "不单独列出 During 区块"): G1 探针的终端
+    // 转储由属性自动生成（propsDump 标记）——与属性卡逐字重复。终端区块
+    // 对属性派生转储让位（数据已以结构化属性卡呈现）；真实原始输出
+    // （G4/G5 逐跳/证书链等）不受影响。
+    m[QStringLiteral("showTerminal")] = dp.showTerminal
+        && !data.value(QStringLiteral("propsDump")).toBool();
     return m;
 }
 
@@ -958,6 +971,15 @@ QVariantMap AppState::diagAnimationAnchor(int diagIdInt) const {
         a[QStringLiteral("cx")] = 0.71;
         a[QStringLiteral("cy")] = 0.30;
         a[QStringLiteral("maxR")] = 0.29;
+    } else if (diagnosticMeta(id).animType == DiagAnimType::Meter) {
+        // 5WHY (复核 2026-08-19 单源补全): internet 母版无 gauge 表盘——
+        // 针轴=图标圆心（白地球中心），针长覆盖地球半径 ≈0.42×宽（恰达
+        // 轨道弧）。曾硬编码于 MeterAnimation——与 GeoRadar 同机制收敛进
+        // 本表：母版再生成位移时仅改此一处（MeterAnimation 保留同值默认
+        // 供直接实例化回退）。
+        a[QStringLiteral("cx")] = 0.5;
+        a[QStringLiteral("cy")] = 0.5;
+        a[QStringLiteral("maxR")] = 0.42;
     }
     return a;
 }
