@@ -139,6 +139,8 @@ PageDisplay {
         S.PageEmptyStateSection {
             screenVisible: page.visible       // 5WHY 2026-08-19：离屏停扫
             hintText: T.tr("runFromDiag")     // M2：新用户引导
+            // 5WHY (复核 2026-08-19): 本屏无状态头——零结果终态 2/3 由空态呈现
+            includeTerminalEmpty: true
         },
 
         // ── Run Info 卡（归档恢复：状态 + 目标 + 总耗时）──

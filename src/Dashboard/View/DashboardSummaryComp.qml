@@ -198,7 +198,10 @@ Item {
         property string iconName: "badge-info"
         property string valueText: ""
         property bool boxed: false
-        implicitHeight: boxed ? 32 : 0
+        // 5WHY (复核 2026-08-19 回归): 无盒行曾 implicitHeight: 0——旧 SummaryStat
+        // 是 RowLayout（隐式高由内容决定），合并成 Rectangle 后 0 高使三行聚合
+        // 统计坍缩重叠。无盒行高按内容（16px 图标 + 上下留白）。
+        implicitHeight: boxed ? 32 : 24
         radius: 6
         Layout.topMargin: boxed ? 2 : 0
         color: boxed ? Qt.alpha(accent, 0.06) : "transparent"

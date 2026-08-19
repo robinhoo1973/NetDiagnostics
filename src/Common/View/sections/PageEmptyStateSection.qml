@@ -44,7 +44,12 @@ PageSection {
     // 5WHY (复核 2026-08-18 与状态头互斥分区): 头部已覆盖全部终态（2/3/4）——
     // 空态仅在 Idle(0) 或 Error(4)（零结果运行失败，errorState 由调用方置位）
     // 显示，Running/Cancelled/Completed 由头部/运行信息卡呈现。
-    active: root._completed === 0 && (AppState.runStatus === 0 || AppState.runStatus === 4)
+    // 5WHY (复核 2026-08-19 Dashboard 空白回归): Dashboard 没有状态头、其
+    // 运行信息卡以 hasData 门控——零结果取消(3)/完成(2)时整页无任何呈现。
+    // includeTerminalEmpty（Dashboard 注入 true）放宽终态 2/3 的零结果空态。
+    property bool includeTerminalEmpty: false
+    active: root._completed === 0 && (AppState.runStatus === 0 || AppState.runStatus === 4
+        || (root.includeTerminalEmpty && (AppState.runStatus === 2 || AppState.runStatus === 3)))
 
     ColumnLayout {
         Layout.alignment: Qt.AlignHCenter

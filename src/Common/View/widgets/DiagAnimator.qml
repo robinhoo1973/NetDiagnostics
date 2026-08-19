@@ -63,6 +63,8 @@ Item {
 
     Loader {
         id: loader
+        anchors.fill: parent   // 5WHY (复核 2026-08-19 回归): 加 id 时曾误删——动画根几何全部由
+                               // parent.width/height 推导，无此锚即 0×0 静默不可见
         opacity: root._fadeOut
         active: root.running && root.diagId >= 0
         // C++ resolves DiagId → animation URL — no QML-side switch needed

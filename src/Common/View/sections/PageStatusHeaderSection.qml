@@ -63,7 +63,12 @@ PageSection {
     // 前取消）时 completed=0 且 runStatus≠1 → 头部隐藏——唯一能呈现"已取消"
     // 字样的位置恰在最需要的状态不可达。终态（2/3/4）一律可见；与空态节
     // （completed===0 && runStatus∈{0,4}）互斥分区。
-    active: root._agg.completed > 0 || AppState.runStatus !== 0
+    // 5WHY (复核 2026-08-19 互斥回归): 曾为覆盖"零结果取消态"扩到 runStatus
+    // !== 0——但 Error(4) 是空态节的专属呈现（errorState 模式），零结果时
+    // 头与空态同时 active → 错误呈现重复。头让出 4：终态 2/3 仍由头呈现
+    // （"已取消/已完成"字样需要头部）。
+    active: root._agg.completed > 0
+        || (AppState.runStatus !== 0 && AppState.runStatus !== 4)
     signal shareRequested(string fmt)
 
     // 5WHY (复核 2026-08-18, 用户诉求): 归档是两行头——第一行运行指示+状态
