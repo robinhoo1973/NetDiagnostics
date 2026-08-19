@@ -8,13 +8,8 @@ import "../../theme/AnimationTokens.js" as Tokens
 //
 // Usage: BounceAnimation { anchors.fill: parent; running: testRunning }
 
-Item {
+AnimationBase {
     id: root
-    property bool running: false
-    // Unused by Bounce (draws own content) — declared so DiagAnimator's
-    // targetItem binding applies uniformly to every animation type.
-    property var targetItem: null
-    property color accentColor: T.ThemeEngine ? T.ThemeEngine.colors.primary : "#60C8F8"
 
     // ── Left endpoint ────────────────────────────────────────────────────
     Rectangle {
@@ -60,5 +55,5 @@ Item {
         }
     }
 
-    onRunningChanged: { if (!running) ball.x = leftEnd.x + 10 }
+    function resetVisuals() { ball.x = leftEnd.x + 10 }
 }

@@ -10,16 +10,13 @@ import "../../theme/AnimationTokens.js" as Tokens
 //
 // Usage: JiggleAnimation { anchors.fill: parent; running: testRunning; targetItem: iconWell }
 
-Item {
+AnimationBase {
     id: root
-    property bool running: false
     // 5WHY (review B5): the original implementation only pulsed a faint
     // transparent ring (opacity ≤0.22) — the icon itself never moved, so
-    // the "iOS jiggle" busy state was nearly invisible.  targetItem (the
-    // icon well passed by DiagBlock) is now what actually rotates.
-    property var targetItem: null
+    // the "iOS jiggle" busy state was nearly invisible.  targetItem（基类
+    // 统一声明——DiagBlock 传入的图标井）now actually rotates.
     property real phaseOffset: Math.random() * 200  // ms, random per block
-    property color accentColor: T.ThemeEngine ? T.ThemeEngine.colors.primary : "#60C8F8"
 
     // ── Real icon jiggle ────────────────────────────────────────────────
     SequentialAnimation {
@@ -33,15 +30,13 @@ Item {
         NumberAnimation { target: root.targetItem; property: "rotation"; from: 2.5;  to: 0;    duration: 90;  easing.type: Easing.InOutQuad }
     }
 
-    onRunningChanged: {
-        if (!running) {
-            if (root.targetItem)
-                root.targetItem.rotation = 0
-            // 5WHY: ring.opacity is driven by SequentialAnimation on opacity
-            // which destroys the declarative binding.  Mid-cycle stop leaves
-            // a ghost ring.  Explicit reset on stop.
-            ring.opacity = 0.0
-        }
+    function resetVisuals() {
+        if (root.targetItem)
+            root.targetItem.rotation = 0
+        // 5WHY: ring.opacity is driven by SequentialAnimation on opacity
+        // which destroys the declarative binding.  Mid-cycle stop leaves
+        // a ghost ring.  Explicit reset on stop.
+        ring.opacity = 0.0
     }
 
     // ── Subtle accent ring (secondary affordance) ────────────────────────

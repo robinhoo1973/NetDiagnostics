@@ -22,6 +22,9 @@ PageSection {
     // 遗漏事件时才 _reload（无事件期间切回不付全量刷新成本）。默认 true
     // 保持独立使用兼容。
     property bool screenVisible: true
+    // 5WHY (复核 2026-08-19 viewport 门控): 屏幕 Flickable 下传瓦片——
+    // 滚动出视口的运行瓦片停动画（与 screenVisible 两级门控）。
+    property var viewportItem: null
     property bool _dirty: false
     onScreenVisibleChanged: {
         if (screenVisible && _dirty) {
@@ -320,6 +323,7 @@ PageSection {
             usePerItemRunning: true
             groupRunning: root.isRunning
             screenVisible: root.screenVisible
+            viewportItem: root.viewportItem
             onTileClicked: function(data) { root.detailRequested(data) }
         }
     }

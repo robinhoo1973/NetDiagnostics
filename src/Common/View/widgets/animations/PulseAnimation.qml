@@ -8,19 +8,16 @@ import "../../theme/AnimationTokens.js" as Tokens
 //
 // Usage: PulseAnimation { anchors.fill: parent; running: testRunning }
 
-Item {
+AnimationBase {
     id: root
-    property bool running: false
-    // Unused by Pulse (draws own glow) — see BounceAnimation 5WHY.
-    property var targetItem: null
-    property color glowColor: T.ThemeEngine ? T.ThemeEngine.colors.primary : "#60C8F8"
+    // accentColor 名统一（曾 glowColor——AnimationBase 单一属性名）
     property int pulsePeriod: Tokens.tokens.pulsePeriod
 
     Rectangle {
         id: glow
         anchors.fill: parent
         radius: 10
-        color: root.glowColor
+        color: root.accentColor
         opacity: 0.0
 
         SequentialAnimation on opacity {
@@ -39,5 +36,5 @@ Item {
         }
     }
 
-    onRunningChanged: { if (!running) glow.opacity = 0.0 }
+    function resetVisuals() { glow.opacity = 0.0 }
 }

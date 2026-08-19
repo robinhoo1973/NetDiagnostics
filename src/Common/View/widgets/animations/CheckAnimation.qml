@@ -11,12 +11,10 @@ import "../../theme/AnimationTokens.js" as Tokens
 //
 // Usage: CheckAnimation { anchors.fill: parent; running: testRunning }
 
-Item {
+AnimationBase {
     id: root
-    property bool running: false
-    // Unused by Check (draws own content) — see BounceAnimation 5WHY.
-    property var targetItem: null
-    property color accentColor: T.ThemeEngine ? T.ThemeEngine.colors.success : "#4ADE80"
+    // Check 成功语义：accent 覆盖为 success 令牌
+    property color accentColor: T.ThemeEngine.colors.success
     property int drawDuration: Tokens.tokens.checkDrawDuration
     property int holdDuration: Tokens.tokens.checkHoldDuration
 
@@ -98,11 +96,9 @@ Item {
         }
     }
 
-    onRunningChanged: {
-        if (!running) {
-            checkGroup.opacity = 0
-            seg1.width = 0
-            seg2.width = 0
-        }
+    function resetVisuals() {
+        checkGroup.opacity = 0
+        seg1.width = 0
+        seg2.width = 0
     }
 }

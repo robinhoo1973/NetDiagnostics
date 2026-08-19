@@ -11,12 +11,11 @@ import "../../theme/AnimationTokens.js" as Tokens
 //
 // Usage: ConvergeAnimation { anchors.fill: parent; running: testRunning }
 
-Item {
+AnimationBase {
     id: root
-    property bool running: false
-    // Unused by Converge (draws own content) — see BounceAnimation 5WHY.
-    property var targetItem: null
-    property color arrowColor: "#FFFFFF"
+    // 5WHY (复核 2026-08-19 视觉决策保留): 白色箭头盖深色主色垫——onPrimary
+    // 暗主题为深墨不适用，显式覆盖基类 accent（有意保留的视觉决策）。
+    property color accentColor: "#FFFFFF"
     property int travel: Tokens.tokens.convergeTravel
     property int stagger: Tokens.tokens.convergeStagger
     property int hold: Tokens.tokens.convergeHold
@@ -41,7 +40,7 @@ Item {
                 width: root._len
                 height: root._shaft
                 radius: root._shaft / 2
-                color: root.arrowColor
+                color: root.accentColor
                 x: root._cx + Math.cos(arrow.angle * Math.PI / 180)
                    * (arrow.radius + root._len / 2) - width / 2
                 y: root._cy + Math.sin(arrow.angle * Math.PI / 180)
@@ -56,7 +55,7 @@ Item {
             Rectangle {
                 width: root._head; height: root._head
                 radius: root._head * 0.22
-                color: root.arrowColor
+                color: root.accentColor
                 x: root._cx + Math.cos(arrow.angle * Math.PI / 180)
                    * arrow.radius - width / 2
                 y: root._cy + Math.sin(arrow.angle * Math.PI / 180)
@@ -102,13 +101,11 @@ Item {
         delegate: arrowComp
     }
 
-    onRunningChanged: {
-        if (!running) {
-            for (var i = 0; i < 4; ++i) {
-                var d = repeater.itemAt(i)
-                if (d)
-                    d.radius = root._r1
-            }
+    function resetVisuals() {
+        for (var i = 0; i < 4; ++i) {
+            var d = repeater.itemAt(i)
+            if (d)
+                d.radius = root._r1
         }
     }
 }

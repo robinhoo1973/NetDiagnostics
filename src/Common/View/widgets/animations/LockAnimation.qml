@@ -9,11 +9,10 @@ import "../../theme/AnimationTokens.js" as Tokens
 //
 // Usage: LockAnimation { anchors.fill: parent; running: testRunning }
 
-Item {
+AnimationBase {
     id: root
-    property bool running: false    // Unused by Lock (draws own content) — see BounceAnimation 5WHY.
-    property var targetItem: null
-    property color accentColor: T.ThemeEngine ? T.ThemeEngine.colors.success : "#4ADE80"
+    // Lock 成功语义：accent 覆盖为 success 令牌
+    property color accentColor: T.ThemeEngine.colors.success
     property int dropDuration: Tokens.tokens.lockDropDuration
 
     // ── Lock indicator ──────────────────────────────────────────────────
@@ -88,5 +87,5 @@ Item {
         }
     }
 
-    onRunningChanged: { if (!running) { stamp.opacity = 0; ripple.opacity = 0; ripple.scale = 0.5 } }
+    function resetVisuals() { stamp.opacity = 0; ripple.opacity = 0; ripple.scale = 0.5 }
 }

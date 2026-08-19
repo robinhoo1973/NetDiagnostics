@@ -116,6 +116,9 @@ public:
 
     // ── 报告/分享/动画（ReportEngine + Premium 后端恢复）──
     Q_INVOKABLE QString diagAnimationUrl(int diagIdInt) const;
+    // 5WHY (复核 2026-08-19): 动画锚点元数据（母版 SVG 几何事实）与 URL
+    // 同层单一来源——DiagAnimator 装载时下发（GeoRadar: cx/cy/maxR）。
+    Q_INVOKABLE QVariantMap diagAnimationAnchor(int diagIdInt) const;
     Q_INVOKABLE QString previewReportHtml() const;         // 预览 HTML（RichText 子集）
     Q_INVOKABLE QString renderPreviewImage(int widthPx) const;  // 预览 PNG 路径
     Q_INVOKABLE QString exportHtmlReport() const;

@@ -8,12 +8,8 @@ import "../../theme/AnimationTokens.js" as Tokens
 //
 // Usage: TypeAnimation { anchors.fill: parent; running: testRunning }
 
-Item {
+AnimationBase {
     id: root
-    property bool running: false
-    // Unused by Type (draws own content) — see BounceAnimation 5WHY.
-    property var targetItem: null
-    property color accentColor: T.ThemeEngine ? T.ThemeEngine.colors.primary : "#60C8F8"
     property int charDelay: Tokens.tokens.typeCharDelay
 
     // ── 3 animated bars representing rows of text ────────────────────────

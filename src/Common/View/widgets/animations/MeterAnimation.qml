@@ -17,12 +17,8 @@ import "../../theme/AnimationTokens.js" as Tokens
 //
 // Usage: MeterAnimation { anchors.fill: parent; running: testRunning }
 
-Item {
+AnimationBase {
     id: root
-    property bool running: false
-    // Unused by Meter (draws own content) — see BounceAnimation 5WHY.
-    property var targetItem: null
-    property color accentColor: T.ThemeEngine ? T.ThemeEngine.colors.primary : "#60C8F8"
     property int sweepDuration: Tokens.tokens.meterSweepDuration
 
     // 针轴 = 图标圆心（internet 母版地球圆心；实测地球半径 ≈0.42×宽）

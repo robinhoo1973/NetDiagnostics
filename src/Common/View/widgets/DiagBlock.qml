@@ -17,6 +17,10 @@ Item {
     // 隐藏页不销毁瓦片，且 Item.visible 是局部属性、不随祖先隐藏传播——
     // 仅靠 root.visible 门控抓不到离屏页）。默认 true 保持独立使用兼容。
     property bool screenVisible: true
+    // 5WHY (复核 2026-08-19 viewport 门控): 内容 Flickable 注入——滚动出
+    // 视口的运行瓦片停动画（Flickable 裁剪不停动画，visible 也不随滚动
+    // 变化，此前是残余空转路径）。
+    property var viewportItem: null
     signal clicked(var data)
 
     readonly property bool _isPending: itemData.isPending === true
@@ -33,10 +37,18 @@ Item {
     // 5WHY (复核 2026-08-19 效率): 无可见性门控的无限动画在离屏瓦片上持续
     // tick——StackView 隐藏整屏时运行中瓦片的 DiagAnimator（GeoLocate 3 路
     // 无限 SequentialAnimation、Meter 60fps 定时器）在低功耗 ARM 板上空耗
-    // CPU。screenVisible（屏幕注入）+ root.visible（局部）双门控：隐藏页或
-    // 显式隐藏即停；滚动出视口（裁剪不停动画）仍不覆盖，已记录为残余。
+    // CPU。screenVisible（屏幕注入）+ root.visible（局部）+ _inViewport
+    // （滚动视口）三级门控：隐藏页/显式隐藏/滚出视口即停。
+    readonly property bool _inViewport: {
+        var vp = root.viewportItem
+        if (!vp) return true
+        var cy = vp.contentY   // 依赖读取：滚动时重估本绑定
+        var ty = root.y        // 依赖读取：网格重排时重估本绑定
+        var top = root.mapToItem(vp, 0, 0).y
+        return top + root.height > 0 && top < vp.height
+    }
     readonly property bool _isRunning: root.testRunning && !root._isDisabled
-        && !root.isDone && root.visible && root.screenVisible
+        && !root.isDone && root.visible && root.screenVisible && root._inViewport
     // C2：瓦片标签必须经 T.diagName（15 语言响应式）——直读 C++ 英文 label 会让
     // 语言切换对 45 个瓦片失效；label 作回退。
     readonly property string _label: (itemData.diagId !== undefined

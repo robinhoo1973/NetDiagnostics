@@ -21,6 +21,10 @@ Item {
     property alias headerContent: headerCol.data
     property alias bodyContent: bodyCol.data
     property alias floatingContent: floatingCol.data
+    // 5WHY (复核 2026-08-19 viewport 门控): 内容 Flickable 暴露给页面——
+    // 瓦片以之判定视口内（滚动出视口的运行瓦片停动画；裁剪不停动画，
+    // 且 visible 不随滚动变化）。
+    readonly property alias contentFlickable: bodyFlick
 
     // NEW-8: pages must set this true/false when a floating overlay opens/
     // closes (e.g. `overlayVisible: floatingOverlay.active`), else

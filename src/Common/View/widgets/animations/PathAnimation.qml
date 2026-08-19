@@ -8,13 +8,9 @@ import "../../theme/AnimationTokens.js" as Tokens
 //
 // Usage: PathAnimation { anchors.fill: parent; running: testRunning; nodes: 5 }
 
-Item {
+AnimationBase {
     id: root
-    property bool running: false
-    // Unused by Path (draws own content) — see BounceAnimation 5WHY.
-    property var targetItem: null
     property int nodes: 5  // number of hop nodes to animate
-    property color accentColor: T.ThemeEngine ? T.ThemeEngine.colors.primary : "#60C8F8"
     property int nodeDelay: Tokens.tokens.pathNodeDelay
 
     // ── Generate node positions along a zigzag path ──────────────────────
@@ -49,5 +45,4 @@ Item {
         opacity: root.running ? 0.3 : 0.1
     }
 
-    onRunningChanged: { if (!running) { /* nodes auto-reset via animation stop */ } }
 }

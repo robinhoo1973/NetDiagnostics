@@ -876,6 +876,24 @@ QString AppState::diagAnimationUrl(int diagIdInt) const {
     }
 }
 
+QVariantMap AppState::diagAnimationAnchor(int diagIdInt) const {
+    // 5WHY (复核 2026-08-19 锚点元数据): 动画锚点是母版 SVG 图形的几何事实
+    // （GeoIP 定位针头位置/扩散半径），此前硬编码在动画 QML 内——母版再生成
+    // 位移时静默错位（Meter 曾因错误假设整体重做）。与 animType→URL 同库
+    // 同层收进 C++：DiagAnimator 装载时下发给动画（动画保留同值默认供
+    // 直接实例化回退）。
+    const DiagId id = static_cast<DiagId>(diagIdInt);
+    QVariantMap a;
+    if (diagnosticMeta(id).animType == DiagAnimType::GeoRadar) {
+        // geoip 母版定位针头中心 + 到最近边缘的半径（QSvgRenderer 逐通道
+        // 实测 viewBox ≈(0.71, 0.30)；右缘距 0.29 为约束紧侧）
+        a[QStringLiteral("cx")] = 0.71;
+        a[QStringLiteral("cy")] = 0.30;
+        a[QStringLiteral("maxR")] = 0.29;
+    }
+    return a;
+}
+
 // 快照构建（ReportEngine 零耦合当前可变状态）
 QString AppState::previewReportHtml() const {
     ReportData d;

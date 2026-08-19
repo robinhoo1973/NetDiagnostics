@@ -15,6 +15,8 @@ PageSection {
     property bool groupRunning: false
     // 5WHY (复核 2026-08-19): 屏幕可见性下传（面板→网格壳→网格→瓦片）。
     property bool screenVisible: true
+    // 5WHY (复核 2026-08-19 viewport 门控): Flickable 下传（同链）。
+    property var viewportItem: null
     signal tileClicked(var data)
 
     sectionImplicitHeight: grid.implicitHeight
@@ -27,6 +29,7 @@ PageSection {
         usePerItemRunning: root.usePerItemRunning
         groupRunning: root.groupRunning
         screenVisible: root.screenVisible
+        viewportItem: root.viewportItem
         onTileClicked: function(data) { root.tileClicked(data) }
     }
 }

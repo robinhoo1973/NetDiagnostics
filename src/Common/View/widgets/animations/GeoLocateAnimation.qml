@@ -14,23 +14,22 @@ import "../../theme/AnimationTokens.js" as Tokens
 //
 // Usage: GeoLocateAnimation { anchors.fill: parent; running: testRunning }
 
-Item {
+AnimationBase {
     id: root
-    property bool running: false
-    // Unused by GeoLocate (draws own content) — declared so DiagAnimator's
-    // targetItem binding applies uniformly to every animation type.
-    // 5WHY (复核 2026-08-19 M3 令牌): 裸 "#60C8F8" 回退字面量把 dark-primary
-    // 值复制出 Palette.js 之外——主题重调即漂移。回放仅经 DiagAnimator
-    // （主题上下文内，无离主题加载路径），直接绑定令牌。
-    property color accentColor: T.ThemeEngine.colors.primary
 
-    // 锚点：geoip 母版定位针头中心（实测 ≈(0.71, 0.30)）
-    readonly property real _cx: parent.width * 0.71
-    readonly property real _cy: parent.height * 0.30
-    // 5WHY (复核 2026-08-19 边界): 0.34×宽 的半径在 (0.71,0.30) 锚点上越界
-    // （右缘 1.05w、顶缘 -0.04h，无裁剪链——环画到垫外邻内容上）。半径
-    // 上限=到最近边缘距离（右 0.29w / 顶 0.30h），圆完全落回图标框内。
-    readonly property real _maxR: Math.min(parent.width * 0.29, parent.height * 0.30)
+    // 锚点：geoip 母版定位针头中心（实测 ≈(0.71, 0.30)）。C++ 单一来源
+    // （AppState.diagAnimationAnchor，与 animType→URL 同层）经 DiagAnimator
+    // 装载时下发覆盖；此处默认=同值，供直接实例化回退。
+    property real anchorCx: 0.71
+    property real anchorCy: 0.30
+    property real anchorMaxR: 0.29
+    readonly property real _cx: parent.width * root.anchorCx
+    readonly property real _cy: parent.height * root.anchorCy
+    // 5WHY (复核 2026-08-19 边界): 半径在 (cx,cy) 锚点上越界（无裁剪链——
+    // 环画到垫外邻内容上）。半径上限=到最近边缘距离（右 1-cx / 顶 cy），
+    // 圆完全落回图标框内。
+    readonly property real _maxR: Math.min(parent.width * root.anchorMaxR,
+                                            parent.height * (1.0 - root.anchorCy))
     readonly property int _period: Tokens.tokens.geoRadarPeriod
     readonly property int _stagger: Tokens.tokens.geoRadarStagger
 

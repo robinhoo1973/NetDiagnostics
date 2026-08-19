@@ -100,6 +100,7 @@ PageDisplay {
                 Layout.fillWidth: true
                 groupIndex: modelData
                 screenVisible: page.visible   // 5WHY 2026-08-19：离屏面板跳过刷新
+                viewportItem: page.contentFlickable   // 滚动视口门控
                 onDetailRequested: function(d) {
                     // 8-18：双保险——未完成的检测不允许激活详情页（瓦片层已禁用
                     // MouseArea，此处再按 isPending 拦截一次）。

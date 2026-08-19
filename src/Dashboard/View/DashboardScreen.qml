@@ -258,6 +258,7 @@ PageDisplay {
                 compactTiles: true
                 rowHeaderDelegate: dashboardRowHeaderComp
                 screenVisible: page.visible     // 5WHY 2026-08-19：离屏面板跳过刷新
+                viewportItem: page.contentFlickable   // 滚动视口门控
                 onDetailRequested: function(d) { page.dashboardOpenDetail(d.diagId) }
             }
         },
