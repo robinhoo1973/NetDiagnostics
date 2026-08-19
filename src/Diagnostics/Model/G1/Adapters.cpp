@@ -74,6 +74,10 @@
 
 #if defined(__APPLE__)
 #include <ifaddrs.h>
+// 5WHY (复核 2026-08-19 Apple CI 失败): gethostname 在 Apple 平台需
+// <unistd.h>（POSIX 声明）——曾仅在 Linux 分支包含，macOS/iOS 构建
+// 'use of undeclared identifier'（本地 Linux 构建含该头、CI 才暴露）。
+#include <unistd.h>
 #if !defined(PLATFORM_IOS)
 #include "Common/Platform/Apple/macOS/WifiHelper.h"   // CoreWLAN SSID/BSSID
 #endif
@@ -914,7 +918,7 @@ DiagnosticResult iosCellularProbe(DiagId id) {
         // 样板）——makeResult 的空 details 分支自动生成同文本转储并打
         // propsDump 标记（终端区块对属性派生转储让位），一行等价且随
         // 归一化契约演进（时间戳/转储规则不再旁路）。
-        return makeResult(id, DiagStatus::Info, QStringLiteral("No cellular service"),
+        return g1::makeResult(id, DiagStatus::Info, QStringLiteral("No cellular service"),
                           {{QStringLiteral("cellular"), QStringLiteral("No cellular service available")}}, {});
     }
     QVector<ResultProperty> props;
