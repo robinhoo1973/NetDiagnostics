@@ -906,8 +906,12 @@ DiagnosticResult iosCellularProbe(DiagId id) {
     // 曾随表呈现——ObjC 侧若提供相应键即呈现（防御性读取；键缺失不崩）。
     add("Data IP", info.value(QStringLiteral("dataIp")).toString());
     add("Gateway", info.value(QStringLiteral("gateway")).toString());
-    const QVariantList slots = info.value(QStringLiteral("simSlots")).toList();
-    for (const QVariant& s : slots) {
+    // 5WHY (复核 2026-08-19 CI 失败根因): 变量名曾为 `slots`——Qt 关键字宏
+    // （#define slots Q_SLOTS，Apple 构建未定义 QT_NO_KEYWORDS）展开成
+    // Q_SLOTS → "expected unqualified-id"。本段在 __APPLE__ 门内，Linux
+    // 本地构建不编译、CI 才暴露。改名避开关键字。
+    const QVariantList simSlotList = info.value(QStringLiteral("simSlots")).toList();
+    for (const QVariant& s : simSlotList) {
         const QVariantMap sim = s.toMap();
         if (sim.isEmpty()) continue;
         props.append({QStringLiteral("SIM %1").arg(sim.value(QStringLiteral("slot")).toString()),

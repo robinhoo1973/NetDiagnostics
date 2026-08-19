@@ -231,6 +231,29 @@ else
     pass "no staged C/C++ files"
 fi
 
+# ── 10b. Qt keywords as identifiers (slots/signals) ───────────────────────
+# 5WHY (复核 2026-08-19 Apple CI 失败根因): `slots`/`signals` 是 Qt 关键字宏
+# （#define slots Q_SLOTS），Apple 构建未定义 QT_NO_KEYWORDS——平台门内
+# （__APPLE__）代码本地 Linux 构建不编译，仅 CI 暴露（"expected
+# unqualified-id"）。扫描「容器类型 + 关键字」声明形态，fail-closed。
+echo ""
+echo "── 10b. Qt keywords as identifiers (slots/signals) ──"
+if [ -n "$CPP_FILES" ]; then
+    for f in $CPP_FILES; do
+        if git show ":$f" | grep -nE '\b(QVariantList|QStringList|QList|QVector|QHash|QMap|std::vector|auto|const auto)\s+(slots|signals)\b' \
+            | grep -v '//' > /tmp/precommit-qtkw.log 2>/dev/null; then
+            fail "$f: Qt keyword used as identifier (slots/signals) — breaks Apple builds (QT_NO_KEYWORDS undefined)"
+            cat /tmp/precommit-qtkw.log | while read line; do
+                echo "       $line"
+            done
+        else
+            pass "$f"
+        fi
+    done
+else
+    pass "no staged C/C++ files"
+fi
+
 # ── 11. std::thread join() without joinable() guard ───────────────────────
 echo ""
 echo "── 11. std::thread join() safety check ──"
