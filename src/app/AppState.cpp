@@ -239,8 +239,14 @@ void AppState::runDiagnostics() {
         // 却只发 cellularWarnVisibleChanged——所有统计消费方（状态头/组面板/
         // 摘要卡）不监听它，上一轮计数与瓦片墙在"空结果集"上滞留；hasData 的
         // NOTIFY 是 progressChanged 也不触发。清屏即过滤数据变更：补发两信号。
-        emit filteredDataChanged();
-        emit progressChanged();
+        // 5WHY (复核 2026-08-19 栈上销毁): 本函数由 QML onClicked 调用——同步
+        // 发射会驱动 _refreshGroups 替换数组 → Repeater 在按钮信号栈未退栈时
+        // 销毁重建面板委托（CLAUDE.md 反模式 #4）。队列化延迟一帧：语义不变
+        // （消费方读到的都是已清屏状态），栈上无销毁。
+        QMetaObject::invokeMethod(this, [this] {
+            emit filteredDataChanged();
+            emit progressChanged();
+        }, Qt::QueuedConnection);
         return;   // 等待 continueAfterCellularWarn() → 重新 runDiagnostics()
     }
     m_runStatus = Running;

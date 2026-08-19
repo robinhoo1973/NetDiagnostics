@@ -58,6 +58,10 @@ Item {
             // 错乱）。委托级 Connections 命令式 restart()/stop()，每次
             // 启动都从 0 相位开始；停止时各圈自复位（根级循环会硬编码
             // 圈数 3——加第 4 圈即漏复位）。
+            // 5WHY (复核 2026-08-19 创建即真): 属性变更处理器不响应创建期
+            // 初值——以 running:true 直接实例化（文件 Usage 注释的用法）
+            // 时 restart 永不触发。onCompleted 兜底补一次启动判定。
+            Component.onCompleted: if (root.running) seq.restart()
             Connections {
                 target: root
                 function onRunningChanged() {

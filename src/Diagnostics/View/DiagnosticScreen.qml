@@ -9,7 +9,11 @@ import core
 import sections as S
 import widgets
 import theme
-import "../widgets/StatsUtil.js" as W   // qrc:/qt/qml/Diagnostics/View/ → ../widgets/ 直接 JS 导入
+// 5WHY (复核 2026-08-19 深度回归): ../widgets/ 曾少一级——相对导入按文档
+// URL 目录解析：qrc:/qt/qml/Diagnostics/View/ 的 ../ 是 Diagnostics/（未注册
+// 的 qrc 路径），编译期导入失败沿通用崩溃链炸掉整文档。正确深度与
+// DashboardSummaryComp 同为 ../../widgets/。
+import "../../widgets/StatsUtil.js" as W   // qrc:/qt/qml/Diagnostics/View/ → ../../widgets/
 
 PageDisplay {
     id: page

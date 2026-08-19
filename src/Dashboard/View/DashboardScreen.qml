@@ -9,6 +9,10 @@ import core
 import sections as S
 import theme
 import widgets
+// 5WHY (复核 2026-08-19 缺失回归): assignIfChanged 曾在无 W 导入下被调用——
+// 每次刷新抛 ReferenceError、_activeGroups 永不更新（面板墙空屏）。补与
+// 同目录 DashboardSummaryComp 相同的导入深度。
+import "../../widgets/StatsUtil.js" as W
 
 PageDisplay {
     id: page
