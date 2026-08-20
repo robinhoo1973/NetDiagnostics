@@ -21,6 +21,12 @@ struct DetailProfile {
     bool showCharts       = false;  // PageChartsSection
     bool showTerminal     = true;   // PageTerminalSection
 
+    // 5WHY (2026-08-20 用户诉求 "属性卡一团混乱数据"): 多实例检测
+    // （N 块网卡 × M 个字段）压进单层扁平 kv 列表无层级可读。
+    // Grouped = 每实例一个子组（标题=实例名，子项=字段行）。
+    enum PropLayout { Kv, Grouped };
+    PropLayout propLayout = Kv;
+
     const char* keyMetricField = nullptr;   // data 键 → MetricCard；nullptr=无
     const char* keyMetricUnit  = nullptr;
     int         keyMetricPrecision = 0;

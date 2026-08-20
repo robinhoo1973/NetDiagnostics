@@ -40,6 +40,10 @@ PageSection {
                 Layout.fillWidth: true
                 detailData: root._data
             }
+            S.PageSummarySection {
+                Layout.fillWidth: true
+                detailData: root._data
+            }
             S.PageMetricSection {
                 Layout.fillWidth: true
                 detailData: root._data

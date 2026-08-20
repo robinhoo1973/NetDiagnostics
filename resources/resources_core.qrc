@@ -88,6 +88,7 @@
         <file alias="sections/PagePropertiesSection.qml">../src/Common/View/sections/PagePropertiesSection.qml</file>
         <file alias="sections/PageSettingsSection.qml">../src/Common/View/sections/PageSettingsSection.qml</file>
         <file alias="sections/PageStatusHeaderSection.qml">../src/Common/View/sections/PageStatusHeaderSection.qml</file>
+        <file alias="sections/PageSummarySection.qml">../src/Common/View/sections/PageSummarySection.qml</file>
         <file alias="sections/PageTabBarSection.qml">../src/Common/View/sections/PageTabBarSection.qml</file>
         <file alias="sections/PageTerminalSection.qml">../src/Common/View/sections/PageTerminalSection.qml</file>
         <file alias="sections/PageTileGridSection.qml">../src/Common/View/sections/PageTileGridSection.qml</file>

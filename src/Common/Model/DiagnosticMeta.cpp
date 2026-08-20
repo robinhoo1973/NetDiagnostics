@@ -22,6 +22,15 @@ static DP sys(const char* field = nullptr, const char* unit = nullptr, int prec 
 static DP sysTT(const char* field = nullptr, const char* unit = nullptr, int prec = 0) {
     DP d = sys(field, unit, prec); d.terminalTypewriter = true; return d;
 }
+static DP sysGrouped(const char* field = nullptr, const char* unit = nullptr, int prec = 0) {
+    // 多实例检测（网卡/接口）：属性卡按实例分组渲染（PagePropertiesSection Grouped）
+    DP d = sys(field, unit, prec); d.propLayout = DP::Grouped; return d;
+}
+static DP sysGroupedTT(const char* field = nullptr, const char* unit = nullptr, int prec = 0) {
+    // 5WHY (复核 2026-08-20 Grouped 丢打字机): WiFi 行曾由 sysTT 换 sysGrouped——
+    // 终端打字机动画属性随基类 sys() 丢失。分组 + 打字机需显式组合。
+    DP d = sysGrouped(field, unit, prec); d.terminalTypewriter = true; return d;
+}
 static DP metricOnly(const char* field, const char* unit, int prec, DP::ChartType chart,
                      const char* chartField = nullptr) {
     DP d;
@@ -35,19 +44,22 @@ static DP metricOnly(const char* field, const char* unit, int prec, DP::ChartTyp
 
 static const DiagnosticMeta kDiagMeta[] = {
     // ── G1  System & Adapters ────────────────────────────────────────────────
-    { DiagId::G1NetworkAdapters,   "Network Adapters",   "nd-diag-g1-network-adapters", PF_All,                       DiagAnimType::Pulse,  DiagTemplateType::System, sys(),              15000 },
-    { DiagId::G1NicAdvanced,       "NIC Advanced",       "nd-diag-g1-nic-advanced", PF_Desktop|PF_Android,        DiagAnimType::Pulse,  DiagTemplateType::System, sys(),              60000 },
-    { DiagId::G1WifiDiagnostics,   "WiFi Information",   "nd-diag-g1-wifi-info",         PF_All,                       DiagAnimType::Pulse,  DiagTemplateType::System, sysTT(),            60000 },
-    { DiagId::G1WiredDiagnostics,  "Wired Information",  "nd-diag-g1-wired",  PF_Desktop|PF_Android,        DiagAnimType::Jiggle, DiagTemplateType::System, sys(),              60000 },
-    { DiagId::G1DhcpStatus,        "DHCP Status",        "nd-diag-g1-dhcp",        PF_All,                       DiagAnimType::Bounce, DiagTemplateType::System, sys("leaseCount","leases",0), 60000 },
-    { DiagId::G1IpConfiguration,   "IP Configuration",   "nd-diag-g1-ip-config",    PF_All,                       DiagAnimType::Jiggle, DiagTemplateType::System, sys(),              60000 },
+    { DiagId::G1NetworkAdapters,   "Network Adapters",   "nd-diag-g1-network-adapters", PF_All,                       DiagAnimType::Pulse,  DiagTemplateType::System, sysGrouped(),              15000 },
+    { DiagId::G1NicAdvanced,       "NIC Advanced",       "nd-diag-g1-nic-advanced", PF_Desktop|PF_Android,        DiagAnimType::Pulse,  DiagTemplateType::System, sysGrouped(),              60000 },
+    { DiagId::G1WifiDiagnostics,   "WiFi Information",   "nd-diag-g1-wifi-info",         PF_All,                       DiagAnimType::Pulse,  DiagTemplateType::System, sysGroupedTT(),            60000 },
+    { DiagId::G1WiredDiagnostics,  "Wired Information",  "nd-diag-g1-wired",  PF_Desktop|PF_Android,        DiagAnimType::Jiggle, DiagTemplateType::System, sysGrouped(),              60000 },
+    { DiagId::G1DhcpStatus,        "DHCP Status",        "nd-diag-g1-dhcp",        PF_All,                       DiagAnimType::Bounce, DiagTemplateType::System, sysGrouped("leaseCount","leases",0), 60000 },
+    { DiagId::G1IpConfiguration,   "IP Configuration",   "nd-diag-g1-ip-config",    PF_All,                       DiagAnimType::Jiggle, DiagTemplateType::System, sysGrouped(),              60000 },
     { DiagId::G1ActiveConnections, "Active Connections", "nd-diag-g1-active-connections",  PF_Desktop|PF_Android,        DiagAnimType::Path,   DiagTemplateType::System, sys("tcpCount","connections",0), 60000 },
     { DiagId::G1CellularInfo,      "Cellular Information","nd-diag-g1-cellular",    PF_All,                       DiagAnimType::Pulse,  DiagTemplateType::System, sys(),              60000 },
 
     // ── G2  Connectivity & Security ──────────────────────────────────────────
     { DiagId::G2NetworkProfile,    "Network Profile",    "nd-diag-g2-network-profile", PF_All,                    DiagAnimType::Jiggle, DiagTemplateType::System, sys(),              60000 },
     { DiagId::G2TcpSettings,       "TCP Settings",       "nd-diag-g2-tcp-settings", PF_Desktop|PF_Android,        DiagAnimType::Jiggle, DiagTemplateType::System, sys(),              60000 },
-    { DiagId::G2DefaultGateway,    "Default Gateway",    "nd-diag-g2-gateway",      PF_All,                       DiagAnimType::Converge, DiagTemplateType::System, sys(),              60000 },
+    // 5WHY (复核 2026-08-20): Gateway 行曾随 grouped 改造误改 animType
+    // （Converge→Jiggle）且改为 sysGrouped——但其 props 是扁平
+    // gateway→interface 对（无 children），Kv 呈现才是原设计。两者还原。
+    { DiagId::G2DefaultGateway,    "Default Gateway",    "nd-diag-g2-gateway",     PF_All,                       DiagAnimType::Converge, DiagTemplateType::System, sys(),              60000 },
     { DiagId::G2RoutingTable,      "Routing Table",      "nd-diag-g2-routing-table",  PF_All,                       DiagAnimType::Path,   DiagTemplateType::System, sys("routeCount","routes",0), 60000 },
     { DiagId::G2ArpTable,          "ARP Table",          "nd-diag-g2-arp-table",    PF_Desktop|PF_Android,        DiagAnimType::Type,   DiagTemplateType::System, sys("entryCount","entries",0), 60000 },
     { DiagId::G2ProxySettings,     "Proxy Settings",     "nd-diag-g2-proxy",        PF_Desktop|PF_Android,        DiagAnimType::Path,   DiagTemplateType::System, sys(),              60000 },

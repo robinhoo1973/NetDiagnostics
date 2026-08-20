@@ -604,6 +604,15 @@ static DiagnosticResult probeDnsResolution(DiagId id, const QString& target, Run
         recList.append(m);
     }
     r.data[QStringLiteral("records")] = recList;
+    // 摘要卡叙述：查询服务器/响应码/应答数与延迟结论
+    r.narrative = QStringLiteral("Query %1 (A) against %2 returned %3 with %4 answer record(s) in %5 ms. ")
+        .arg(host, server,
+             rcode == 0 ? QStringLiteral("NOERROR") : rcode == 3 ? QStringLiteral("NXDOMAIN")
+             : rcode == 2 ? QStringLiteral("SERVFAIL") : QStringLiteral("rcode %1").arg(rcode),
+             QString::number(anCount), QString::number(ms))
+        + (anCount > 0 ? QStringLiteral("Resolved address(es): %1. Full dig-style output is in the terminal section.")
+            .arg(ips.join(QStringLiteral(", ")))
+                       : QStringLiteral("No A records were returned for this name."));
     return r;
 }
 
@@ -725,6 +734,18 @@ static DiagnosticResult probePing(DiagId id, const QString& target, RunContext& 
     r.data[QStringLiteral("rttJitterMs")] = jitter;
     r.data[QStringLiteral("tcpFallback")] = tcpFallback;
     r.data[QStringLiteral("individualRtts")] = individualRtts;
+    // 摘要卡叙述（可达性先行 → 延迟/丢包）：用户诉求顺序约定
+    const QString reachLine = loss >= 100.0
+        ? QStringLiteral("Target %1 is UNREACHABLE (100%% of %2 probe(s) lost).").arg(host).arg(sent)
+        : QStringLiteral("Target %1 is reachable.").arg(host);
+    r.narrative = reachLine + QLatin1Char(' ')
+        + QStringLiteral("Sent %1 packet(s), received %2 — %3%% loss%4. ")
+            .arg(sent).arg(rcvd).arg(loss, 0, 'f', 1)
+            .arg(tcpFallback ? QStringLiteral(" (TCP fallback probe)") : QString())
+        + (rcvd > 0
+            ? QStringLiteral("Latency: average %1 ms (min %2 / max %3), jitter %4 ms.")
+                .arg(avg, 0, 'f', 0).arg(minMs, 0, 'f', 0).arg(maxMs, 0, 'f', 0).arg(jitter, 0, 'f', 1)
+            : QStringLiteral("No responses received — latency unknown."));
     return r;
 }
 
@@ -863,6 +884,15 @@ static DiagnosticResult probeTraceroute(DiagId id, const QString& target, RunCon
     r.data[QStringLiteral("hopCount")] = hopCount;
     r.data[QStringLiteral("hops")] = hops;
     r.data[QStringLiteral("reached")] = reached;
+    // 摘要卡叙述：是否到达目标 → 跳数 → 路径状态
+    r.narrative = reached
+        ? QStringLiteral("Route to %1 complete: %2 hop(s), target reached. Per-hop RTT is in the terminal trace below.")
+            .arg(host).arg(hopCount)
+        : blocked
+            ? QStringLiteral("Route to %1 BLOCKED at hop %2 — a router/firewall filtered the probes.").arg(host).arg(hopCount)
+            : tcpReachable
+                ? QStringLiteral("Route to %1 incomplete (%2 hop(s)) — ICMP filtered, but the target is reachable via TCP.").arg(host).arg(hopCount)
+                : QStringLiteral("Route to %1 incomplete after %2 hop(s) — the target may be firewalled.").arg(host).arg(hopCount);
     return r;
 }
 
@@ -963,6 +993,13 @@ static DiagnosticResult probePathPing(DiagId id, const QString& target, RunConte
     r.data[QStringLiteral("hopCount")] = hopCount;
     r.data[QStringLiteral("hops")] = hopData;
     r.data[QStringLiteral("reached")] = reached;
+    // 摘要卡叙述：可达性 → 跳数 → 末跳丢包
+    r.narrative = reached
+        ? QStringLiteral("Path to %1 traverses %2 hop(s); final-hop packet delivery %3%% (loss %4%%). "
+            "Per-hop loss/RTT is in the terminal section.")
+            .arg(host).arg(hopCount).arg(100.0 - finalLoss, 0, 'f', 0).arg(finalLoss, 0, 'f', 0)
+        : QStringLiteral("Path to %1 incomplete after %2 hop(s) — intermediate hops stopped responding. "
+            "Per-hop details are in the terminal section.").arg(host).arg(hopCount);
     return r;
 }
 
@@ -1118,6 +1155,16 @@ static DiagnosticResult probeMtuDiscovery(DiagId id, const QString& target, RunC
     else if (discoveredMtu < 1280) quality = QStringLiteral("below-ipv6-min");
     r.data[QStringLiteral("mtuQuality")] = quality;
     r.data[QStringLiteral("targetResolved")] = targetResolved;
+    // 摘要卡叙述：MTU 值 → MSS → 质量分级/探测方式
+    r.narrative = QStringLiteral("Path MTU to %1 is %2 bytes (effective MSS %3). ")
+        .arg(host).arg(discoveredMtu).arg(discoveredMtu > 40 ? discoveredMtu - 40 : 0)
+        + (targetResolved
+            ? (quality == QLatin1String("jumbo")
+                ? QStringLiteral("Jumbo frame (>1500) — fragmentation risk across legacy links.")
+                : quality == QLatin1String("below-ipv6-min")
+                    ? QStringLiteral("Below the IPv6 minimum (1280) — IPv6 tunnels may break.")
+                    : QStringLiteral("Standard Ethernet MTU — no fragmentation expected."))
+            : QStringLiteral("Target did not resolve — the value is the local interface MTU only."));
     return r;
 }
 
@@ -1190,6 +1237,12 @@ static DiagnosticResult probeIPv6Connectivity(DiagId id, const QString& target, 
     r.data[QStringLiteral("connectedCount")] = connected;
     r.data[QStringLiteral("failedCount")] = failed;
     r.data[QStringLiteral("totalPorts")] = connected + failed;
+    // 摘要卡叙述：AAAA 解析 → 地址数 → 端口连通结论
+    r.narrative = QStringLiteral("Host %1 resolves to %2 IPv6 address(es). ")
+        .arg(host).arg(v6Addrs.size())
+        + (connected > 0
+            ? QStringLiteral("IPv6 is REACHABLE: %1/%2 test port(s) connected over IPv6.").arg(connected).arg(connected + failed)
+            : QStringLiteral("IPv6 is UNREACHABLE: 0/%1 test port(s) connected — the network may not provide IPv6.").arg(connected + failed));
     return r;
 }
 

@@ -24,6 +24,12 @@ struct DiagnosticResult {
     QVector<ResultProperty> properties;
     QString     rawOutput;
     QString     errorOutput;
+    // 详情页摘要卡叙述文本（结论 + 依据，多行）；空 = 不显示摘要卡。
+    // 5WHY (2026-08-20 用户诉求 "摘要卡文字叙述"): 推导逻辑只存在于探针代码与
+    // 注释中，UI 只呈现单行 summary——用户看不到「如何得出 DNS 被劫持/如何推断
+    // VPN」的推导文字。C++ 探针在构造结果时就地生成（单一来源），剪贴板与
+    // HTML 报告复用同一文本。
+    QString     narrative;
 
     // Structured data for detail-page visualizations (contract-driven).
     QVariantMap data;

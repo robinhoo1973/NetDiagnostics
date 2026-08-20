@@ -178,8 +178,15 @@ static DiagnosticResult probeNetworkAdapters(DiagId id, const QString&, RunConte
     }
     if (props.isEmpty())
         return makeResult(id, DiagStatus::Info, QStringLiteral("No active adapters found"), {}, {});
-    return makeResult(id, DiagStatus::Pass,
+    QStringList parts;
+    for (const auto& p : props)
+        parts.append(QStringLiteral("%1 (%2)").arg(p.label, p.value));
+    DiagnosticResult r = makeResult(id, DiagStatus::Pass,
         QStringLiteral("%1 active adapter(s)").arg(props.size()), props, {});
+    r.narrative = QStringLiteral("Detected %1 active network adapter(s): %2. "
+        "Type and address entries are listed per adapter in the property cards below.")
+        .arg(props.size()).arg(parts.join(QStringLiteral(", ")));
+    return r;
 }
 
 // ── G1NicAdvanced ─────────────────────────────────────────────────────────
@@ -310,13 +317,20 @@ static DiagnosticResult probeNicAdvanced(DiagId id, const QString&, RunContext& 
             suffix = QStringLiteral(" (+%1 more)").arg(shown.size() - 3);
             shown = shown.mid(0, 3);
         }
-        return makeResult(id, DiagStatus::Pass,
+        DiagnosticResult r = makeResult(id, DiagStatus::Pass,
             QStringLiteral("%1 NIC(s), link speed: %2%3").arg(props.size()).arg(shown.join(QStringLiteral(", ")), suffix),
             props, {});
+        r.narrative = QStringLiteral("Enumerated %1 NIC(s); link speed reported for %2: %3%4. "
+            "Speed/duplex/MTU/MAC are listed per adapter below.")
+            .arg(props.size()).arg(speedKnown).arg(shown.join(QStringLiteral(", ")), suffix);
+        return r;
     }
-    return makeResult(id, DiagStatus::Info,
+    DiagnosticResult r = makeResult(id, DiagStatus::Info,
         QStringLiteral("%1 NIC(s) enumerated (driver does not expose link speed)").arg(props.size()),
         props, {});
+    r.narrative = QStringLiteral("Enumerated %1 NIC(s), but the driver does not expose negotiated link speed. "
+        "MTU/MAC/duplex are still listed per adapter below.").arg(props.size());
+    return r;
 }
 
 // ── G1WifiDiagnostics ─────────────────────────────────────────────────────
@@ -477,6 +491,11 @@ static DiagnosticResult probeWifi(DiagId id, const QString&, RunContext& ctx) {
                         : QStringLiteral("WiFi: %1").arg(ssids.join(QStringLiteral(", "))),
         props, {});
     r.data[QStringLiteral("ssids")] = ssids;
+    r.narrative = ssids.isEmpty()
+        ? QStringLiteral("A wireless interface is present but not associated with any network (SSID: -). "
+            "Check that Wi-Fi is enabled and connected to a network.")
+        : QStringLiteral("Wi-Fi is connected to: %1. SSID/BSSID/channel/signal are listed per interface below.")
+            .arg(ssids.join(QStringLiteral(", ")));
     return r;
 }
 
@@ -514,7 +533,10 @@ static DiagnosticResult probeWired(DiagId id, const QString&, RunContext& ctx) {
     }
     if (props.isEmpty())
         return makeResult(id, DiagStatus::Skipped, QStringLiteral("No wired interface present"), {}, {});
-    return makeResult(id, DiagStatus::Pass, QStringLiteral("Wired interface present"), props, {});
+    DiagnosticResult r = makeResult(id, DiagStatus::Pass, QStringLiteral("Wired interface present"), props, {});
+    r.narrative = QStringLiteral("Detected %1 wired interface(s). MTU/link speed/duplex/state are listed per interface below.")
+        .arg(props.size());
+    return r;
 }
 
 // ── G1DhcpStatus ──────────────────────────────────────────────────────────
@@ -665,11 +687,15 @@ static DiagnosticResult probeDhcp(DiagId id, const QString&, RunContext& ctx) {
             props, {});
         r.data[QStringLiteral("leaseCount")] = leaseCount;
         r.data[QStringLiteral("leases")] = leases;
+        r.narrative = QStringLiteral("Found %1 active DHCP lease(s). DHCP server and lease timestamps are listed per interface below.")
+            .arg(leaseCount);
         return r;
     }
     DiagnosticResult r = makeResult(id, DiagStatus::Info,
         QStringLiteral("No DHCP leases found (static IP or managed externally)"), props, {});
     r.data[QStringLiteral("leaseCount")] = 0;
+    r.narrative = QStringLiteral("No DHCP leases found on this device. This typically means the interface uses a "
+        "static IP configuration, or the lease is managed outside the standard lease files (NetworkManager/systemd-networkd/dhclient).");
     return r;
 }
 
@@ -761,7 +787,12 @@ static DiagnosticResult probeIpConfig(DiagId id, const QString&, RunContext& ctx
     // Android）时缓冲为空——曾仍前置 "Host Name: " 空值行。非空才前置。
     if (hostBuf[0])
         props.prepend({QStringLiteral("Host Name"), QString::fromLocal8Bit(hostBuf)});
-    return makeResult(id, DiagStatus::Pass, QStringLiteral("IP configuration"), props, {});
+    DiagnosticResult r = makeResult(id, DiagStatus::Pass, QStringLiteral("IP configuration"), props, {});
+    r.narrative = QStringLiteral("Host %1 with %2 interface address entr(ies). "
+        "IP/MAC per interface, plus gateway and DNS servers, are listed in the property cards below.")
+        .arg(hostBuf[0] ? QString::fromLocal8Bit(hostBuf) : QStringLiteral("(unknown)"))
+        .arg(props.size());
+    return r;
 }
 
 // ── G1ActiveConnections ───────────────────────────────────────────────────
@@ -893,6 +924,8 @@ static DiagnosticResult probeActiveConnections(DiagId id, const QString&, RunCon
         QStringLiteral("%1 TCP connection(s), %2 established").arg(count).arg(established), props, {});
     r.data[QStringLiteral("tcpCount")] = count;
     r.data[QStringLiteral("establishedCount")] = established;
+    r.narrative = QStringLiteral("%1 TCP connection(s) enumerated, of which %2 established. "
+        "Local/remote endpoints are listed in the property card below.").arg(count).arg(established);
     return r;
 }
 
@@ -911,7 +944,11 @@ static DiagnosticResult probeCellular(DiagId id, const QString&, RunContext& ctx
     }
     if (props.isEmpty())
         return makeResult(id, DiagStatus::Skipped, QStringLiteral("No cellular modem present"), {}, {});
-    return makeResult(id, DiagStatus::Pass, QStringLiteral("Cellular modem present"), props, {});
+    DiagnosticResult r = makeResult(id, DiagStatus::Pass, QStringLiteral("Cellular modem present"), props, {});
+    r.narrative = QStringLiteral("Cellular modem interface(s) detected: %1. "
+        "Platform probe data is listed in the property cards below.")
+        .arg([&props] { QStringList n; for (const auto& p : props) n.append(p.label); return n.join(QStringLiteral(", ")); }());
+    return r;
 }
 
 } // namespace g1

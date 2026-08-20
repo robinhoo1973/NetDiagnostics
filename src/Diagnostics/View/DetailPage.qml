@@ -48,6 +48,7 @@ PageDisplay {
 
     bodyContent: [
         S.PageHeroSection { detailData: page.resultData },
+        S.PageSummarySection { detailData: page.resultData },
         S.PageMetricSection { detailData: page.resultData },
         S.PageErrorSection { detailData: page.resultData },
         S.PagePropertiesSection { detailData: page.resultData },

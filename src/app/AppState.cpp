@@ -597,6 +597,7 @@ QVariantMap AppState::resultFor(int diagIdInt) const {
     m[QStringLiteral("summary")] = it->summary;
     m[QStringLiteral("details")] = it->details;
     m[QStringLiteral("rawOutput")] = it->rawOutput;
+    m[QStringLiteral("narrative")] = it->narrative;
     m[QStringLiteral("durationMs")] = it->durationMs;
     m[QStringLiteral("errorOutput")] = it->errorOutput;
     QVariantList props;
@@ -637,6 +638,8 @@ QVariantMap AppState::resultFor(int diagIdInt) const {
     // （G4/G5 逐跳/证书链等）不受影响。
     m[QStringLiteral("showTerminal")] = dp.showTerminal
         && !data.value(QStringLiteral("propsDump")).toBool();
+    // 属性布局（Kv 扁平 / Grouped 分组卡）——PagePropertiesSection 渲染模式
+    m[QStringLiteral("propLayout")] = static_cast<int>(dp.propLayout);
     return m;
 }
 
@@ -948,6 +951,8 @@ void AppState::copyDetailToClipboard(int diagIdInt) {
     QStringList lines;
     lines.append(QStringLiteral("[%1] %2").arg(statusToken(it->status), it->displayName));
     if (!it->summary.isEmpty()) lines.append(it->summary);
+    // 摘要卡叙述（结论 + 依据）——摘要与明细之间，剪贴板与详情页一致
+    if (!it->narrative.isEmpty()) lines.append(it->narrative);
     // 5WHY (复核 2026-08-20 剪贴板双份): G1 的属性派生转储（propsDump）与
     // 属性循环输出逐字相同——曾双双追加，粘贴的票据每条属性出现两次。
     // 转储存在时以其为准、跳过属性循环；否则照旧逐属性输出。

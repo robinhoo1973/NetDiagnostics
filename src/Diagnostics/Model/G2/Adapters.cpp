@@ -355,10 +355,18 @@ static DiagnosticResult probeDefaultGateway(DiagId id, const QString&, RunContex
 #endif
 #endif
 
-    if (found.isEmpty())
-        return makeResult(id, DiagStatus::Warning, QStringLiteral("No default gateway found"), props, {});
-    return makeResult(id, DiagStatus::Pass,
+    if (found.isEmpty()) {
+        DiagnosticResult r = makeResult(id, DiagStatus::Warning, QStringLiteral("No default gateway found"), props, {});
+        r.narrative = QStringLiteral("No default route (0.0.0.0/0 with a gateway) was found — "
+            "the device can only reach its local subnet, not external networks.");
+        return r;
+    }
+    DiagnosticResult r = makeResult(id, DiagStatus::Pass,
         QStringLiteral("%1 default gateway(s)").arg(found.size()), props, found.join('\n'));
+    r.narrative = QStringLiteral("%1 default gateway(s) found: %2. "
+        "Outbound packets to external networks are routed via the listed gateway/interface pair(s).")
+        .arg(found.size()).arg(found.join(QStringLiteral("; ")));
+    return r;
 }
 
 // ── G2NetworkProfile ───────────────────────────────────────────────────────

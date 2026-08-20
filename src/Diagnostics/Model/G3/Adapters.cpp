@@ -739,6 +739,20 @@ static DiagnosticResult probeDnsIntegrity(DiagId id, const QString&, RunContext&
         : phase2AllFailed     ? QStringLiteral("inconclusive")
                               : QStringLiteral("clean");
     r.data[QStringLiteral("overallScorePercent")] = overall;
+    // 摘要卡推导叙述：两阶段检测方法与结论依据（用户可复现判断链）
+    r.narrative = QStringLiteral("Phase 1 (ISP hijack): %1 randomly-named test domains were resolved — "
+        "%2 clean, %3 hijacked, %4 timeout. ")
+        .arg(hijackClean + hijackWarn + hijackTimeout).arg(hijackClean).arg(hijackWarn).arg(hijackTimeout)
+        + QStringLiteral("Phase 2 (pollution): %1 benchmark domains compared local UDP vs DoH — "
+        "%2 clean, %3 polluted, %4 suspicious, %5 errors. ")
+        .arg(pollutionClean + pollutionWarn + pollutionSuspicious + pollutionErrors)
+        .arg(pollutionClean).arg(pollutionWarn).arg(pollutionSuspicious).arg(pollutionErrors)
+        + (hijackDetected ? QStringLiteral("A hijack responder returned answers for non-existent domains (hijack IPs: %1). ")
+            .arg(hijackIPs.join(QStringLiteral(", "))) : QStringLiteral("Non-existent domains did not resolve — no hijack responder found. "));
+    if (pollutionDetected)
+        r.narrative += QStringLiteral("Local answers diverged from DoH ground truth on %1 domain(s) — evidence of DNS pollution. ")
+            .arg(pollutionWarn);
+    r.narrative += QStringLiteral("Overall integrity score: %1/100.").arg(overall);
     return r;
 }
 
@@ -969,6 +983,14 @@ static DiagnosticResult probeGeoIPLoc(DiagId id, const QString&, RunContext& ctx
             vpnConfidence = qMax(10, 40 - (bestForeign - inCountryMedian));
     }
     r.data[QStringLiteral("vpnConfidence")] = vpnConfidence;
+    // 摘要卡推导叙述：出口 IP → 国家码/ASN → RTT 区域启发式 → VPN 结论
+    r.narrative = geoSucceeded
+        ? QStringLiteral("Egress IP %1 is geolocated to %2 (%3), ISP %4, AS %5. ")
+            .arg(publicIp, cc, city.isEmpty() ? QStringLiteral("city unknown") : city, isp.isEmpty() ? QStringLiteral("unknown") : isp, asName.isEmpty() ? QStringLiteral("unknown") : asName)
+          + QStringLiteral("VPN inference compares in-country vs foreign TCP RTT to regional endpoints: %1")
+            .arg(vpnVerdict)
+          + (vpnConfidence >= 0 ? QStringLiteral(" (confidence %1%).").arg(vpnConfidence) : QStringLiteral("."))
+        : QStringLiteral("GeoIP providers were unreachable — country/VPN checks were skipped.");
     return r;
 }
 
@@ -1083,6 +1105,8 @@ static DiagnosticResult probeInternetConnectivity(DiagId id, const QString&, Run
         r.data[QStringLiteral("uploadMbps")] = 0.0;
         r.data[QStringLiteral("downloadMbpsBest")] = 0.0;
         r.data[QStringLiteral("uploadMbpsBest")] = 0.0;
+        r.narrative = QStringLiteral("Internet connectivity: 0/3 endpoints reachable — the device has no Internet access. "
+            "Speed test was not run.");
         return r;
     }
 
@@ -1133,6 +1157,18 @@ static DiagnosticResult probeInternetConnectivity(DiagId id, const QString&, Run
     r.data[QStringLiteral("uploadMbps")] = bestUl;
     r.data[QStringLiteral("downloadMbpsBest")] = bestDl;
     r.data[QStringLiteral("uploadMbpsBest")] = bestUl;
+    // 摘要卡叙述：可达性结论 + TTFB/边缘 RTT + 测速结果
+    r.narrative = QStringLiteral("Internet connectivity: %1/3 endpoints reachable. ")
+        .arg(reachable)
+        + (bestTtfb < INT_MAX
+            ? QStringLiteral("Best endpoint TTFB %1ms. ").arg(bestTtfb)
+            : (tcpMs >= 0 ? QStringLiteral("Edge RTT (TCP connect) %1ms. ").arg(tcpMs) : QStringLiteral("")))
+        + (bestDl > 0
+            ? QStringLiteral("Speed test: download %1 Mbps, upload %2 Mbps (best of three tiers).")
+                .arg(bestDl, 0, 'f', 1).arg(bestUl, 0, 'f', 1)
+            : bestUl > 0
+                ? QStringLiteral("Speed test: download failed, upload %1 Mbps.").arg(bestUl, 0, 'f', 1)
+                : QStringLiteral("Speed test failed despite reachable endpoints."));
     return r;
 }
 

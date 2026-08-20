@@ -467,6 +467,15 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail, bool da
                     if (!r.summary.isEmpty())
                         h += QStringLiteral("<br/><span style=\"font-size:12px;color:%1\">%2</span>")
                             .arg(textSecondary, r.summary.toHtmlEscaped());
+                    // 5WHY (复核 2026-08-20 报告缺叙述): 详情页新增摘要卡叙述
+                    // （DiagnosticResult.narrative）后，HTML/PDF 快照未同步——
+                    // 报告读者看不到推导文字。与详情页/剪贴板同一来源渲染。
+                    if (!r.narrative.isEmpty()) {
+                        QString narr = r.narrative.toHtmlEscaped();
+                        narr.replace(QLatin1Char('\n'), QStringLiteral("<br/>"));
+                        h += QStringLiteral("<br/><span style=\"font-size:12px;color:%1\">%2</span>")
+                            .arg(textPrimary, narr);
+                    }
                     h += QStringLiteral("</td></tr></table></div>");
 
                     // — Code block (page-break-before:avoid — stay with header if there's room) —

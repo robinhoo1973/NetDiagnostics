@@ -14,6 +14,7 @@ PageOverlaySection 1.0 PageOverlaySection.qml
 PagePropertiesSection 1.0 PagePropertiesSection.qml
 PageSettingsSection 1.0 PageSettingsSection.qml
 PageStatusHeaderSection 1.0 PageStatusHeaderSection.qml
+PageSummarySection 1.0 PageSummarySection.qml
 PageTabBarSection 1.0 PageTabBarSection.qml
 PageTerminalSection 1.0 PageTerminalSection.qml
 PageTileGridSection 1.0 PageTileGridSection.qml
