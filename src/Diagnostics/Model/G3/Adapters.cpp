@@ -431,8 +431,11 @@ struct IntegritySignal {
 };
 
 struct IntegrityResult {
-    enum class Verdict { Clean, Suspect, Tampered, Hijacked };
-    Verdict verdict = Verdict::Clean;
+    // 5WHY (复核 2026-08-20 Apple 保留词): 枚举成员 Clean 触发
+    // pre-commit 第 10 项 WARN（Apple SDK 保留词模式）——改 Intact，
+    // 避免 Apple 平台宏冲突隐患，展示标签字符串 "Clean" 保持不变。
+    enum class Verdict { Intact, Suspect, Tampered, Hijacked };
+    Verdict verdict = Verdict::Intact;
     int scorePercent = 0;
     QStringList output;
     QStringList dohIps;
@@ -486,9 +489,9 @@ static IntegrityResult scoreIntegrity(const QString& domain, const QString& desc
     if (r.scorePercent > 60)      r.verdict = IntegrityResult::Verdict::Hijacked;
     else if (r.scorePercent > 33) r.verdict = IntegrityResult::Verdict::Tampered;
     else if (r.scorePercent > 14) r.verdict = IntegrityResult::Verdict::Suspect;
-    else                          r.verdict = IntegrityResult::Verdict::Clean;
+    else                          r.verdict = IntegrityResult::Verdict::Intact;
 
-    const char* label = r.verdict == IntegrityResult::Verdict::Clean    ? "Clean"
+    const char* label = r.verdict == IntegrityResult::Verdict::Intact   ? "Clean"
                       : r.verdict == IntegrityResult::Verdict::Suspect  ? "Suspicious"
                       : r.verdict == IntegrityResult::Verdict::Tampered ? "POLLUTED"
                                                                         : "HIJACKED";
@@ -590,7 +593,7 @@ static DiagnosticResult probeDnsIntegrity(DiagId id, const QString&, RunContext&
     enum class Tag { Error, PrivateIp, Scored };
     struct DomainResult {
         Tag tag = Tag::Error;
-        IntegrityResult::Verdict verdict = IntegrityResult::Verdict::Clean;
+        IntegrityResult::Verdict verdict = IntegrityResult::Verdict::Intact;
         int scorePercent = 0;
         QString dohIps, localUdpIp, domain;
         QStringList lines;
@@ -655,7 +658,7 @@ static DiagnosticResult probeDnsIntegrity(DiagId id, const QString&, RunContext&
             break;
         case Tag::Scored:
             switch (dr.verdict) {
-            case IntegrityResult::Verdict::Clean:    ++pollutionClean; break;
+            case IntegrityResult::Verdict::Intact:   ++pollutionClean; break;
             case IntegrityResult::Verdict::Suspect:  ++pollutionSuspicious; break;
             case IntegrityResult::Verdict::Tampered:
                 ++pollutionWarn;

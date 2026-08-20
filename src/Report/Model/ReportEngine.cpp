@@ -91,7 +91,7 @@ QImage renderStatusIcon(DiagStatus s, int size, bool darkBackground) {
     // 5WHY (复核 2026-08-18 Reuse C5): 字形画法经描述符表 glyph 分发——
     // Cancelled 落入 Cross（X=中止），不再误画 Info "i"。
     switch (statusDescriptor(s).glyph) {
-        case DiagStatusGlyph::Check:
+        case DiagStatusGlyph::Tick:
             p.drawLine(QPointF(cx-r*0.6f, cy), QPointF(cx-r*0.1f, cy+r*0.5f));
             p.drawLine(QPointF(cx-r*0.1f, cy+r*0.5f), QPointF(cx+r*0.7f, cy-r*0.4f));
             break;

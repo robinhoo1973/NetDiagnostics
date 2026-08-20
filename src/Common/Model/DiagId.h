@@ -42,7 +42,10 @@ inline bool isValidDiagStatus(int v) {
 // reportStatusText/reportStatusClass）——加 Cancelled 四处同步、漏一处静默
 // 回退 Info。收敛为单一描述符表；QML 侧 statusColors/statusIconNames 数组
 // 与 ThemeEngine.statusRows 是其镜像（跨语言无法同源，语言内同源）。
-enum class DiagStatusGlyph { Check, Warning, Cross, Skip, Info };
+// 5WHY (复核 2026-08-20 Apple 保留词): 枚举成员 Check 触发 pre-commit
+// 第 10 项 WARN（Apple SDK 保留词模式）——改 Tick，图标名 "badge-check"
+// 与主题镜像均不受影响（QML 侧用字符串图标名，不经此枚举）。
+enum class DiagStatusGlyph { Tick, Warning, Cross, Skip, Info };
 
 struct DiagStatusDescriptor {
     DiagStatus      status;
@@ -55,7 +58,7 @@ struct DiagStatusDescriptor {
 
 inline const DiagStatusDescriptor& statusDescriptor(DiagStatus s) {
     static const DiagStatusDescriptor table[] = {
-        { DiagStatus::Pass,      "badge-check",   "Pass",      "pass",   0, DiagStatusGlyph::Check },
+        { DiagStatus::Pass,      "badge-check",   "Pass",      "pass",   0, DiagStatusGlyph::Tick },
         { DiagStatus::Warning,   "badge-warning", "Warning",   "warn",   1, DiagStatusGlyph::Warning },
         { DiagStatus::Fail,      "badge-close",   "Fail",      "fail",   2, DiagStatusGlyph::Cross },
         { DiagStatus::Error,     "badge-error",   "Error",     "error",  3, DiagStatusGlyph::Cross },
