@@ -709,33 +709,32 @@ static DiagnosticResult probeIpConfig(DiagId id, const QString&, RunContext& ctx
     for (const auto& i : ifaces) {
         if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
         // 5WHY (复核 2026-08-20 重复 MAC): MAC 子属性曾在每地址条目内
-        // prepend——双栈接口（IPv4+IPv6 等）每行重复同值。首条目携带的
-        // 契约用 per-iface 标志落实。
-        bool macAttached = false;
+        // 5WHY (复核 2026-08-20 首条目语义解耦): 曾以 macAttached 兼作
+        // "首条目"标志——无 MAC 接口（lo/隧道/docker0）永不置位，网关/DNS
+        // 在每个地址条目重复追加（转储再复一份）。单一 firstEntry 标志
+        // 服务 MAC 与网关/DNS 两处"首条目携带"契约，与 MAC 是否有效无关。
+        bool firstEntry = true;
         for (const auto& e : i.addressEntries()) {
             ResultProperty p(i.name(), e.ip().toString());
-            // 5WHY (复核 2026-08-19 v0.0.3 对等): 每接口 MAC（Physical
-            // Address）曾随 ipconfig 转储呈现——补为子属性（首个地址条目
-            // 携带，全零 MAC 视为虚拟接口不呈现）。
-            if (!macAttached
-                && !i.hardwareAddress().isEmpty()
-                && i.hardwareAddress() != QLatin1String("00:00:00:00:00:00")) {
-                p.children.prepend({QStringLiteral("MAC"), i.hardwareAddress()});
-                macAttached = true;
-            }
-            if (!e.netmask().isNull())
-                p.children.append({QStringLiteral("netmask"), e.netmask().toString()});
+            if (firstEntry) {
+                // 5WHY (复核 2026-08-19 v0.0.3 对等): 每接口 MAC（Physical
+                // Address）曾随 ipconfig 转储呈现——补为子属性（首个地址
+                // 条目携带，全零 MAC 视为虚拟接口不呈现）。
+                if (!i.hardwareAddress().isEmpty()
+                    && i.hardwareAddress() != QLatin1String("00:00:00:00:00:00"))
+                    p.children.prepend({QStringLiteral("MAC"), i.hardwareAddress()});
 #if defined(__linux__) || defined(__ANDROID__)
-            // 5WHY (复核 2026-08-20 重复子属性): 网关/DNS 曾随每地址条目
-            // 追加——双栈接口每行重复同值（转储再复一份）。与 MAC 同规则：
-            // 首条目携带。
-            if (!macAttached) {
+                // 5WHY (复核 2026-08-20 重复子属性): 网关/DNS 曾随每地址
+                // 条目追加——双栈接口每行重复同值。首条目携带。
                 if (!gateways.isEmpty())
                     p.children.append({QStringLiteral("gateway"), gateways.join(QStringLiteral(", "))});
                 if (!dnsServers.isEmpty())
                     p.children.append({QStringLiteral("dns"), dnsServers.join(QStringLiteral(", "))});
-            }
 #endif
+                firstEntry = false;
+            }
+            if (!e.netmask().isNull())
+                p.children.append({QStringLiteral("netmask"), e.netmask().toString()});
             props.append(p);
         }
     }

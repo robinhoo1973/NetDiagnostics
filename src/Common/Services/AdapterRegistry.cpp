@@ -58,40 +58,18 @@ unsigned AdapterRegistry::registeredPlatforms(DiagId id) {
     return flags;
 }
 
-// NEW-1: iOS-sandbox-impossible set (DiagCapability manifest).  Everything
-// else is registered on all three platforms.
-static bool unsupportedOnCurrentPlatform(DiagId id) {
-#if defined(PLATFORM_IOS)
-    switch (id) {
-        case DiagId::G1NicAdvanced:
-        case DiagId::G1WiredDiagnostics:
-        case DiagId::G1ActiveConnections:
-        case DiagId::G2TcpSettings:
-        case DiagId::G2ArpTable:
-        case DiagId::G2ProxySettings:
-        case DiagId::G3DnsCache:
-        // 5WHY (复核 2026-08-20 iOS 启动 qFatal): G3NetskopeStatus 恢复为
-        // 可调度后仅注册 PF_Desktop|PF_Android——iOS 无适配器且不在白名单，
-        // verifyAllDiagIds 在 iOS 调试构建 qFatal（启动崩溃链）。iOS 沙箱
-        // 不暴露进程表，按契约入不可支持白名单（与 G2ProxySettings 同级）。
-        case DiagId::G3NetskopeStatus:
-            return true;
-        default:
-            return false;
-    }
-#else
-    Q_UNUSED(id);
-    return false;
-#endif
-}
-
 bool AdapterRegistry::verifyAllDiagIds() {
     bool ok = true;
     int overridden = 0;
     for (DiagId id : allDiagIds()) {
         if (!isSchedulable(id)) continue;                 // deprecated slot
         if (!anyRunnable(id)) {
-            if (unsupportedOnCurrentPlatform(id)) continue;  // legitimate whitelist
+            // 5WHY (复核 2026-08-20 白名单派生): 曾手维护 per-id 白名单
+            // switch（Netskope 恢复时漏加即 iOS qFatal、Android 注销后同样
+            // 漏同步即 Android qFatal）——平台缺席的合法性应由 meta 平台
+            // 声明派生：本平台不在声明内即合法缺席，声明含本平台却无
+            // 适配器才是注册缺口。手写 switch 删除，缺口自动封死。
+            if (!(diagnosticMeta(id).platforms & kCurrentPlatformFlag)) continue;
             Logger::instance().error(
                 QStringLiteral("verifyAllDiagIds: DiagId %1 has no adapter for current platform")
                     .arg(static_cast<int>(id)));

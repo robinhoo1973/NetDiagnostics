@@ -56,7 +56,11 @@ static const DiagnosticMeta kDiagMeta[] = {
     // 5WHY (2026-08-19 用户诉求 "逐一审查详情页"): 曾复用 nd-diag-g3-dns-integrity
     // ——同组 G3DnsIntegrity 瓦片与安全代理共用同一图标（相邻双胞胎）。安全
     // 代理语义对齐 nd-diag-g2-proxy（代理图形），与 G2 组跨组不构成相邻重复。
-    { DiagId::G3NetskopeStatus,    "Security Proxy Status", "nd-diag-g2-proxy", PF_Desktop|PF_Android,  DiagAnimType::Check, DiagTemplateType::System, sys(),              60000 },
+    // 5WHY (复核 2026-08-20 平台声明对齐): 曾声明 PF_Desktop|PF_Android 而
+    // 注册仅 PF_Desktop（Android 注销：SELinux 恒假阴性）——meta 声明与
+    // 注册不符使 verifyAllDiagIds 按派生白名单在 Android 调试构建 qFatal。
+    // 声明收敛为实际注册集。
+    { DiagId::G3NetskopeStatus,    "Security Proxy Status", "nd-diag-g2-proxy", PF_Desktop,  DiagAnimType::Check, DiagTemplateType::System, sys(),              60000 },
     { DiagId::G3DnsServers,        "DNS Servers",        "nd-diag-g3-dns-servers",   PF_All,                       DiagAnimType::Pulse,  DiagTemplateType::System, sys("serverCount","servers",0), 60000 },
     { DiagId::G3DnsCache,          "DNS Cache",          "nd-diag-g3-dns-cache",    PF_Desktop|PF_Android,        DiagAnimType::Jiggle, DiagTemplateType::System, sys("cacheEntries","entries",0), 60000 },
     { DiagId::G3DnsIntegrity,      "DNS Integrity",      "nd-diag-g3-dns-integrity",   PF_All,                       DiagAnimType::Check,  DiagTemplateType::Handshake, metricOnly("overallScorePercent","%",0,DP::Gauge), 120000 },
