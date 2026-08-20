@@ -127,6 +127,15 @@ static QString ip4FromU32(uint32_t gw) {
         .arg(int((gw >> 16) & 0xFF)).arg(int((gw >> 24) & 0xFF));
 }
 
+// 5WHY (复核 2026-08-20 iOS 编译失败 "unknown type name 'QProcess'"):
+// QtCore 在 iOS 上定义 QT_NO_PROCESS（无进程模型）——qprocess.h 存在但
+// 类声明被 QT_CONFIG(process) 编译为空，引用 QProcess 即编译错误（且无
+// "file not found" 可定位）。runTool/nmcliDeviceShow 的全部调用方
+// （probeDhcp/probeIpConfig 的 nmcli、WiFi 的 iw、蜂窝的 mmcli）都已在
+// Linux 守卫内，唯这两个静态定义留在顶层——iOS 也参与编译定义体。
+// 修复：定义与调用方同守卫（Linux 且非 Android），iOS 完全跳过。
+// G3 已有同款先例（QProcess 用法逐处 `!PLATFORM_IOS` 守卫）。
+#if defined(__linux__) && !defined(PLATFORM_ANDROID)
 // 5WHY (复核 2026-08-20 R5-1 收敛): findExecutable→start→waitForFinished(N)
 // →kill→waitForFinished(2000) 样板在本文件复制 5 份（nmcli×2/mmcli×2/iw），
 // 超时漂移（3000 vs 4000）与 kill 对漏写都是 R5-1 类崩溃（运行中 QProcess
@@ -174,6 +183,7 @@ static QString nmcliDeviceShow(RunContext& ctx) {
     }
     return ctx.snapshot->nmcliText;
 }
+#endif // defined(__linux__) && !defined(PLATFORM_ANDROID)
 
 static DiagnosticResult makeResult(DiagId id, DiagStatus status,
                                    const QString& summary,
