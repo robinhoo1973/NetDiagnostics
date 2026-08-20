@@ -163,7 +163,7 @@ private:
     void runNextGroup();
     void onSuiteFinished();
     void updateItemModel(DiagId id, const DiagnosticResult& r);
-    QVariantMap itemFor(DiagId id) const;
+    QVariantMap itemFor(DiagId id, const QHash<DiagId, qint64>* startsMono = nullptr) const;
     void loadPreferences();
     void savePreferences();
     void bumpState();

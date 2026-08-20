@@ -634,13 +634,11 @@ DiagnosticResult androidWifiDiag(DiagId id) {
         out.append(QStringLiteral("  BSSID: %1").arg(w.bssid.isEmpty() ? QStringLiteral("(unavailable)") : w.bssid));
         if (w.frequency > 0) {
             int ch = wifiChannelFromFrequency(w.frequency);
-            QString band;
-            if (w.frequency >= 5170 && w.frequency <= 5825)
-                band = QStringLiteral("5 GHz");
-            else if (w.frequency > 5825)
-                band = QStringLiteral("6 GHz");
-            else
-                band = QStringLiteral("2.4 GHz");
+            // 5WHY (复核 2026-08-21 标签漂移): 曾本地边界表（>5825 判
+            // 6 GHz）——信道已收敛 GHelpers（5885 MHz 算 177，5 GHz 表），
+            // 标签却印 "6 GHz"，同频自相矛盾。标签与信道共享同一组边界
+            // 常量（wifiBandLabelMhz）；带外返回 "?"（曾误标 2.4 GHz）。
+            const QString band = SystemDiagnostics::wifiBandLabelMhz(w.frequency);
             out.append(QStringLiteral("  Channel: %1 (%2 MHz, %3)")
                 .arg(ch ? QString::number(ch) : QStringLiteral("?"))
                 .arg(w.frequency).arg(band));
@@ -1008,12 +1006,13 @@ DiagnosticResult androidArpTableDiag(DiagId id) {
     QFile f(QStringLiteral("/proc/net/arp"));
     int shown = 0;
     if (f.open(QIODevice::ReadOnly)) {
-        QTextStream ts(&f);
-        QString header = ts.readLine();
-        if (!header.isEmpty())
-            out.append(QStringLiteral("  %1").arg(header));
-        while (!ts.atEnd()) {
-            QString line = ts.readLine().trimmed();
+        // 5WHY (复核 2026-08-21 procfs atEnd 陷阱): 曾 readLine 表头 +
+        // while(!atEnd())——共享 readProcLines（readLineInto 驱动）。
+        const QStringList lines = SystemDiagnostics::readProcLines(QStringLiteral("/proc/net/arp"));
+        if (!lines.isEmpty())
+            out.append(QStringLiteral("  %1").arg(lines.first().trimmed()));
+        for (int li = 1; li < lines.size(); ++li) {
+            const QString line = lines.at(li).trimmed();
             if (line.isEmpty()) continue;
             out.append(QStringLiteral("  %1").arg(line));
             shown++;
@@ -1846,15 +1845,16 @@ DiagnosticResult androidActiveConnectionsDiag(DiagId id) {
 
     int shown = 0;
     const QStringList paths = {QStringLiteral("/proc/self/net/tcp"), QStringLiteral("/proc/self/net/tcp6")};
+    // 5WHY (复核 2026-08-21 procfs atEnd + 逐行正则): 曾 while(!atEnd())
+    // （/proc size 恒 0 陷阱，同 G2 IPv6 网关事故）且每行编译一次
+    // QRegularExpression——共享 readProcLines + 函数局部 static 一次编译。
+    static const QRegularExpression kWsRe(QStringLiteral("\\s+"));
     for (const auto& path : paths) {
-        QFile f(path);
-        if (!f.open(QIODevice::ReadOnly)) continue;
-        QTextStream ts(&f);
-        ts.readLine(); // header
-        while (!ts.atEnd()) {
-            QString line = ts.readLine().trimmed();
+        const QStringList lines = SystemDiagnostics::readProcLines(path, 1);
+        for (const QString& raw : lines) {
+            QString line = raw.trimmed();
             if (line.isEmpty()) continue;
-            QStringList cols = line.split(QRegularExpression("\\s+"));
+            QStringList cols = line.split(kWsRe);
             if (cols.size() < 4) continue;
             int state = cols[3].toInt(nullptr, 16);
             QString local = cols[1], rem = cols[2];
@@ -1909,16 +1909,14 @@ DiagnosticResult androidDnsServersDiag(DiagId id) {
         if (!dnsList.contains(ns)) dnsList.append(ns);
     }
     // Also attempt /etc/resolv.conf (empty on most Android builds)
-    QFile resolv(QStringLiteral("/etc/resolv.conf"));
-    if (resolv.open(QIODevice::ReadOnly)) {
-        QTextStream ts(&resolv);
-        while (!ts.atEnd()) {
-            QString line = ts.readLine().trimmed();
-            if (line.startsWith("nameserver ")) {
-                QString ns = line.mid(11);
-                dnsRows.append({QStringLiteral("resolv.conf"), ns});
-                if (!dnsList.contains(ns)) dnsList.append(ns);
-            }
+    // 5WHY (复核 2026-08-21 procfs atEnd 陷阱): 曾 while(!atEnd())——共享
+    // SystemDiagnostics::readProcLines 读取（与 G1 probeIpConfig 同源）。
+    for (const QString& raw : SystemDiagnostics::readProcLines(QStringLiteral("/etc/resolv.conf"))) {
+        const QString line = raw.trimmed();
+        if (line.startsWith("nameserver ")) {
+            QString ns = line.mid(11);
+            dnsRows.append({QStringLiteral("resolv.conf"), ns});
+            if (!dnsList.contains(ns)) dnsList.append(ns);
         }
     }
     // Private DNS (DoT) state

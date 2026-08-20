@@ -1,21 +1,26 @@
 import QtQuick
 import "../../theme/AnimationTokens.js" as Tokens
 
-// ── WifiWaveAnimation.qml — 右下角 WiFi 信号弧逐条亮起再逐条熄灭 ──────
-// Internet Connectivity & Speed 专用（替代 MeterAnimation 表针摆动）。
+// ── WifiWaveAnimation.qml — WiFi 信号弧逐条亮起再逐条熄灭 ──────────────
+// Internet Connectivity & Speed / WiFi Information 专用（替代 MeterAnimation
+// 表针摆动）。
 //
 // 5WHY (2026-08-20 用户诉求 "取消表针动画，改为右下角 wifi 信号弧线
 // 逐条显示再逐条消失"): 表针动画历经三轮修调（圆心锚定/双向往复/起始
-// 瞬跳）仍与图标语义脱节——internet 母版右下侧是三道红色信号弧
-// （350 系坐标 y≈216/236/243 弧组，焦点≈(296,244)），表针扫掠在图形上
-// 没有对应元素。业界惯例（WiFi 强度指示器）：信号弧逐条明灭表达
-// "正在采样/检测"——弧 1→2→3 逐条显现、保持片刻、再逐条熄灭，循环。
-// 三弧共用同构序列（亮→保持→灭→休整），仅按 Repeater index 平移相位
-// （i×arcFade）。纯 Rectangle 虚线弧（无 Canvas/ShapePath/ShaderEffect
-// ——iOS 静态 Qt 安全）。
+// 瞬跳）仍与图标语义脱节——internet 母版右下侧是三道红色信号弧，表针
+// 扫掠在图形上没有对应元素。业界惯例（WiFi 强度指示器）：信号弧逐条
+// 明灭表达 "正在采样/检测"。
 //
-// 焦点/半径由 C++ AppState.diagAnimationAnchor 单一来源下发（与 GeoRadar
-// 同机制，母版再生成位移时仅改 C++ 一处）；保留同值默认供直接实例化回退。
+// 5WHY (复核 2026-08-21 用户诉求 "从最短的弧线开始逐层显示，再从最长的
+// 弧线开始逐层抹去"): 曾以 Repeater index 平移相位（i×arcFade）——index 0
+// 是外弧（最长），先亮的是最长弧，与诉求方向相反。改为 (2−i)×arcFade
+// 起显（最短弧先亮），熄灭相位 i×arcFade（最长弧先灭）；周期保持
+// 6×arcFade+arcHold+arcGap（默认 1920ms，落在 replayWindowMs=2400 内）。
+//
+// 锚点几何单一来源 = AnimationTokens.js（每图标锚点集 wifiWaveAnchorSets
+// 键控于母版图标名；internet 默认平坦令牌为回退）。DiagAnimator 装载时
+// 下发 iconName（与 running/targetItem 同层绑定）。纯 Rectangle 虚线弧
+// （无 Canvas/ShapePath/ShaderEffect——iOS 静态 Qt 安全）。
 //
 // Usage: WifiWaveAnimation { anchors.fill: parent; running: testRunning }
 
@@ -25,40 +30,57 @@ AnimationBase {
     property int arcHold: Tokens.tokens.wifiWaveHold
     property int arcGap:  Tokens.tokens.wifiWaveGap
 
-    // 锚点（C++ 经 DiagAnimator 下发覆盖；默认读 AnimationTokens.js 单一
-    // 来源——与 C++ AppState 解析同文件，母版再生成位移仅改 tokens 一处）
-    property real anchorCx: Tokens.tokens.wifiWaveAnchorCx
-    property real anchorCy: Tokens.tokens.wifiWaveAnchorCy
-    property real anchorMaxR: Tokens.tokens.wifiWaveAnchorMaxR
+    // 图标名（DiagAnimator 装载时绑定下发）→ 每图标锚点集。WiFi 信息
+    // 图标（nd-diag-g1-wifi-info）的三弧几何（同心弧，焦点=(12,20)/24）
+    // 与 internet 右下角弧组不同——曾只有一套锚点，第二消费方无法复用。
+    property string iconName: ""
+    readonly property var _anchorSet: root.iconName !== ""
+        ? (Tokens.tokens.wifiWaveAnchorSets[root.iconName] || null)
+        : null
+    property real anchorCx: root._anchorSet ? root._anchorSet.cx : Tokens.tokens.wifiWaveAnchorCx
+    property real anchorCy: root._anchorSet ? root._anchorSet.cy : Tokens.tokens.wifiWaveAnchorCy
+    property real anchorMaxR: root._anchorSet ? root._anchorSet.maxR : Tokens.tokens.wifiWaveAnchorMaxR
 
     // 弧组几何（与母版三道信号弧同焦点、同角跨度）——角跨度与半径
     // 系数同读 AnimationTokens.js（几何事实单一来源，见 tokens v6）
     readonly property real _fx: parent.width * root.anchorCx
     readonly property real _fy: parent.height * root.anchorCy
-    readonly property real _a0: Tokens.tokens.wifiWaveArcA0
-    readonly property real _a1: Tokens.tokens.wifiWaveArcA1
     // 5WHY (复核 2026-08-20 虚线不可见): 片段数/片长曾为固定 9 片 ×
     // 0.045w——默认 40px 图标上外弧弧长仅 ≈9.7px，9 片 1.8px 互相重叠
     // 且片长（1.8px）短于片厚（2.4px），"虚线弧"实际渲染成实心圆角带
     // （设计意图逐条明灭的虚线不可见）。改为按真实弧长推导：片数 =
-    // 弧长/(3×片厚)（钳 [3,9]），片长 = 间距 = 弧长/片数×0.5——任意
-    // 尺寸下虚线占空比 ≈50%，片长恒 ≥1.5×片厚（业界惯例：虚线段长
-    // 不短于线宽，否则视觉上为点而非线）。
-    readonly property real _dashTh: Math.max(0.9, parent.width * 0.025)
+    // floor(弧长/(3×片厚))（钳 [1,9]，片长恒 ≥1.5×片厚；片数 1 = 整弧
+    // 实心），片长 = 弧长/片数×0.5（占空比 ≈50%）——业界惯例：虚线段
+    // 长不短于线宽，否则视觉上为点而非线。细节见 delegate 注释。
 
     Repeater {
         model: 3
         delegate: Item {
             id: arcItem
-            // 外→内三道弧半径（相对 anchorMaxR 收缩；index = 外层 Repeater 序号）
-            property real radius: parent.width * root.anchorMaxR * Tokens.tokens.wifiWaveArcRadii[index]
-            // 5WHY (复核 2026-08-20 负弧长): (_a1 - _a0) = -90° 恒负——
+            // 每图标锚点集（缺省回退 internet 平坦令牌）；index = 外层
+            // Repeater 序号（0=外弧/最长，2=内弧/最短）
+            property real _a0: (root._anchorSet && root._anchorSet.a0) ? root._anchorSet.a0[index] : Tokens.tokens.wifiWaveArcA0
+            property real _a1: (root._anchorSet && root._anchorSet.a1) ? root._anchorSet.a1[index] : Tokens.tokens.wifiWaveArcA1
+            property real _r: (root._anchorSet && root._anchorSet.radii) ? root._anchorSet.radii[index] : Tokens.tokens.wifiWaveArcRadii[index]
+            // 片厚：母版线宽事实（internet 默认 0.025w；wifi-info 1.6/1.2 线宽 → 占比）
+            property real _dashTh: (root._anchorSet && root._anchorSet.dashTh)
+                ? parent.width * root._anchorSet.dashTh[index]
+                : Math.max(0.9, parent.width * 0.025)
+            // 外→内三道弧半径（相对 anchorMaxR 收缩）
+            property real radius: parent.width * root.anchorMaxR * arcItem._r
+            // 5WHY (复核 2026-08-20 负弧长): (_a1 - _a0) 恒负——
             // 曾直接相乘致 arcLen<0 → segCount 钳死在最小值、dashLen<0 →
             // Rectangle 负宽不渲染（虚线弧全平台不可见，正是本 commit
             // 声称修复的缺陷）。取绝对值（角跨度与方向无关）。
-            property real arcLen: Math.abs(root._a1 - root._a0) * Math.PI / 180 * radius
-            property int segCount: Math.max(3, Math.min(9, Math.round(arcLen / (3 * root._dashTh))))
-            property real dashLen: arcLen / segCount * 0.5
+            property real arcLen: Math.abs(arcItem._a1 - arcItem._a0) * Math.PI / 180 * radius
+            // 5WHY (复核 2026-08-21 点非线): 曾 segCount 下限钳 3——内弧
+            // arcLen/th≈4.7 时 3 片 → 片长 0.78×片厚，"片长 ≥ 片厚"的
+            // 虚线不变式（本文件自声明的修复目标）在 3 弧中 2 弧不可达，
+            // 渲染成点而非线。floor(arcLen/(3×th))（下限 1）：片长恒
+            // ≥1.5×片厚；片数 1 时整弧实心（内弧虚线本就不可辨，实心
+            // 与母版一致）。
+            property int segCount: Math.max(1, Math.min(9, Math.floor(arcLen / (3 * arcItem._dashTh))))
+            property real dashLen: arcItem.segCount <= 1 ? arcLen : arcLen / segCount * 0.5
             opacity: 0
 
             Repeater {
@@ -71,9 +93,15 @@ AnimationBase {
                     // (cos,sin) 定位的弧上点，其切线方向即 ang+90（有限
                     // 差分可证；同 ConvergeAnimation 径向惯例）。负号把
                     // 每段虚线绕水平轴镜像（弧缘呈斜肋，非顺滑切线弧）。
-                    property real ang: root._a0 + (root._a1 - root._a0) * (index / (arcItem.segCount - 1))
+                    // 5WHY (复核 2026-08-21 NaN 除零): segCount=1（内弧
+                    // 实心整弧）时 index/(segCount-1) = 0/0 = NaN——单段
+                    // 位置/旋转全 NaN 不可渲染。单段取中点角，整弧直线
+                    // 近似圆心角平分线（微小弧上直线≈弧，且居中摆放）。
+                    property real ang: arcItem.segCount <= 1
+                        ? (arcItem._a0 + arcItem._a1) / 2
+                        : arcItem._a0 + (arcItem._a1 - arcItem._a0) * (index / (arcItem.segCount - 1))
                     width: arcItem.dashLen
-                    height: root._dashTh
+                    height: arcItem._dashTh
                     radius: height / 2
                     color: root.accentColor
                     x: root._fx + arcItem.radius * Math.cos(ang * Math.PI / 180) - width / 2
@@ -82,25 +110,31 @@ AnimationBase {
                 }
             }
 
-            // 相位 = index×arcFade：同构序列整体平移 → 逐条亮、逐条灭。
-            // 周期 = 3×arcFade + arcHold + arcGap + 3×arcFade（默认 1920ms，
-            // 落在 replayWindowMs=2400 的有界重放窗口内）。
+            // 相位（5WHY 复核 2026-08-21 用户诉求 "最短弧先亮、最长弧先灭"）:
+            // 起显相位 (2−index)×arcFade → 内弧（index 2）最先亮、外弧
+            // （index 0）最后亮；熄灭相位 index×arcFade → 外弧最先灭、
+            // 内弧最后灭。周期 = 6×arcFade + arcHold + arcGap（默认 1920ms，
+            // 落在 replayWindowMs=2400 的有界重放窗口内，三弧同周期无缝循环）。
+            // 5WHY (复核 2026-08-21 gap 语义): arcGap 曾并入保持段——全亮
+            // 保持 600ms（hold+gap）而循环边界零休整（tokens 注释"全部熄灭
+            // 后到下一轮的休整时长"落空）。gap 移至尾部休整段：全亮保持
+            // 恰为 arcHold，全熄休整恰为 arcGap。
             SequentialAnimation {
                 id: seq
                 loops: Animation.Infinite
-                PauseAnimation { duration: index * root.arcFade }
+                PauseAnimation { duration: (2 - index) * root.arcFade }
                 NumberAnimation {
                     target: arcItem; property: "opacity"
                     from: 0; to: 1; duration: root.arcFade
                     easing.type: Easing.OutCubic
                 }
-                PauseAnimation { duration: 2 * root.arcFade + root.arcHold + root.arcGap }
+                PauseAnimation { duration: root.arcHold + 2 * index * root.arcFade }
                 NumberAnimation {
                     target: arcItem; property: "opacity"
                     from: 1; to: 0; duration: root.arcFade
                     easing.type: Easing.InCubic
                 }
-                PauseAnimation { duration: (2 - index) * root.arcFade }
+                PauseAnimation { duration: (2 - index) * root.arcFade + root.arcGap }
             }
             // 5WHY (复核 2026-08-20 复位契约): 曾以 onStopped 挂在 delegate
             // Item 上——Item 无 stopped 信号，组件编译失败（Loader 加载

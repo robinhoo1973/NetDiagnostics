@@ -85,15 +85,12 @@ static QString macToStr(const unsigned char* mac, int len = 6) {
     return parts.join(QLatin1Char('-'));
 }
 
-// /proc/net/route 格式：目标/掩码/网关以小端十六进制存储 → 转点分十进制
-static QString ipToStr(uint32_t littleEndianHex) {
-    const quint32 b0 = littleEndianHex & 0xff;
-    const quint32 b1 = (littleEndianHex >> 8) & 0xff;
-    const quint32 b2 = (littleEndianHex >> 16) & 0xff;
-    const quint32 b3 = (littleEndianHex >> 24) & 0xff;
-    return QStringLiteral("%1.%2.%3.%4").arg(b0).arg(b1).arg(b2).arg(b3);
-}
+// 5WHY (复核 2026-08-21 三份漂移收敛): 本文件曾保留一份 ipToStr 本地副本
+// （小端 hex → 点分十进制）——与 SystemDiagnostics::ipToStr（in_addr 内存
+// 序等价，G1 routeGateways 同源消费同一文件）逐字同构；GHelpers.h 自包含
+// 后可直接共享。删除本地副本，调用点统一 SystemDiagnostics::ipToStr。
 
+// ── G2RoutingTable ─────────────────────────────────────────────────────────
 #if defined(_WIN32)
 static QString ip4ToStr(const in_addr& a) { return QString::fromLatin1(inet_ntoa(a)); }
 #endif
@@ -159,26 +156,25 @@ static DiagnosticResult probeRoutingTable(DiagId id, const QString&, RunContext&
         }
     }
 #else // Linux / Android / iOS
-    QFile routeFile(QStringLiteral("/proc/net/route"));
-    if (routeFile.open(QIODevice::ReadOnly)) {
-        QTextStream ts(&routeFile);
-        ts.readLine(); // header
-        while (!ts.atEnd()) {
-            if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
-            const QString line = ts.readLine().trimmed();
-            if (line.isEmpty()) continue;
-            const QStringList cols = line.split(QLatin1Char('\t'));
-            if (cols.size() >= 8) {
-                const QString ifName = cols[0];
-                bool ok = false;
-                const uint32_t dest   = cols[1].toUInt(&ok, 16);
-                const uint32_t gw     = cols[2].toUInt(&ok, 16);
-                const uint32_t mask   = cols[7].toUInt(&ok, 16);
-                const QString gwStr = gw ? ipToStr(gw) : QStringLiteral("On-link");
-                props.append({ipToStr(dest), QStringLiteral("netmask=%1 gw=%2 if=%3").arg(ipToStr(mask), gwStr, ifName)});
-                out.append(QStringLiteral("  %1 → %2 (%3)").arg(ipToStr(dest), gwStr, ifName));
-                ++routeCount;
-            }
+    // 5WHY (复核 2026-08-21 procfs atEnd 陷阱): 曾 readLine+while(!atEnd())
+    // ——/proc size 恒 0，表头后零行风险同 G2 IPv6 网关事故。共享
+    // SystemDiagnostics::readProcLines（readLineInto 驱动）。
+    for (const QString& raw : SystemDiagnostics::readProcLines(QStringLiteral("/proc/net/route"), 1)) {
+        if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
+        const QString line = raw.trimmed();
+        if (line.isEmpty()) continue;
+        const QStringList cols = line.split(QLatin1Char('\t'));
+        if (cols.size() >= 8) {
+            const QString ifName = cols[0];
+            bool ok = false;
+            const uint32_t dest   = cols[1].toUInt(&ok, 16);
+            const uint32_t gw     = cols[2].toUInt(&ok, 16);
+            const uint32_t mask   = cols[7].toUInt(&ok, 16);
+            const QString gwStr = gw ? SystemDiagnostics::ipToStr(gw) : QStringLiteral("On-link");
+            props.append({SystemDiagnostics::ipToStr(dest),
+                QStringLiteral("netmask=%1 gw=%2 if=%3").arg(SystemDiagnostics::ipToStr(mask), gwStr, ifName)});
+            out.append(QStringLiteral("  %1 → %2 (%3)").arg(SystemDiagnostics::ipToStr(dest), gwStr, ifName));
+            ++routeCount;
         }
     }
 #endif
@@ -247,20 +243,19 @@ static DiagnosticResult probeArpTable(DiagId id, const QString&, RunContext& ctx
         }
     }
 #else // Linux / Android
-    QFile arpFile(QStringLiteral("/proc/net/arp"));
-    if (arpFile.open(QIODevice::ReadOnly)) {
-        QTextStream ts(&arpFile);
-        ts.readLine(); // header
-        while (!ts.atEnd()) {
-            if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
-            const QString line = ts.readLine().trimmed();
-            if (line.isEmpty()) continue;
-            const QStringList cols = line.split(QRegularExpression(QStringLiteral("\\s+")));
-            if (cols.size() >= 4 && cols[3] != QStringLiteral("00:00:00:00:00:00")) {
-                props.append({cols[0], cols[3]});
-                out.append(QStringLiteral("  %1  %2").arg(cols[0], -16).arg(cols[3]));
-                ++entryCount;
-            }
+    // 5WHY (复核 2026-08-21 procfs atEnd + 逐行正则): 曾 readLine+while
+    // (!atEnd()) 且每行编译一次 QRegularExpression——共享 readProcLines
+    // 读取 + 函数局部 static 一次编译（同 probeDefaultGateway 修正）。
+    static const QRegularExpression kWsRe(QStringLiteral("\\s+"));
+    for (const QString& raw : SystemDiagnostics::readProcLines(QStringLiteral("/proc/net/arp"), 1)) {
+        if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
+        const QString line = raw.trimmed();
+        if (line.isEmpty()) continue;
+        const QStringList cols = line.split(kWsRe);
+        if (cols.size() >= 4 && cols[3] != QStringLiteral("00:00:00:00:00:00")) {
+            props.append({cols[0], cols[3]});
+            out.append(QStringLiteral("  %1  %2").arg(cols[0], -16).arg(cols[3]));
+            ++entryCount;
         }
     }
 #endif
@@ -357,9 +352,11 @@ static DiagnosticResult probeDefaultGateway(DiagId id, const QString&, RunContex
                 // 十进制（600 = 600，非 0x600=1536）。曾以基 16 解析
                 // 虚报 metric。
                 // 5WHY (复核 2026-08-20 重复换算): ipToStr(gw) 曾在两行
-                // 各算一次——局部一次复用。
-                const uint32_t metric = cols.size() >= 7 ? cols[6].toUInt(nullptr, 10) : 0;
-                const QString gwStr = ipToStr(gw);
+                // 各算一次——局部一次复用（共享 SystemDiagnostics::ipToStr）。
+                // 5WHY (复核 2026-08-21 死守卫): 外层已判 >=8，内层 >=7
+                // 恒真——直接读取。
+                const uint32_t metric = cols[6].toUInt(nullptr, 10);
+                const QString gwStr = SystemDiagnostics::ipToStr(gw);
                 props.append({gwStr,
                     QStringLiteral("via %1, metric %2").arg(cols[0]).arg(metric)});
                 found.append(QStringLiteral("%1 (via %2, metric %3)")

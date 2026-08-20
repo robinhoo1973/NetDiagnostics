@@ -285,6 +285,8 @@ Item {
                 diagId: itemData.diagId !== undefined ? itemData.diagId : -1
                 running: root._isRunning
                 targetItem: iconWell
+                // 锚点按图标分派（WifiWave：internet/wifi-info 两套弧几何）
+                iconName: root._iconName
             }
         }
 

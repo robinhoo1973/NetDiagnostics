@@ -90,6 +90,8 @@ PageSection {
                 diagId: root._diagId
                 bounded: true
                 targetItem: iconWell
+                // 锚点按图标分派（与 DiagBlock 同契约）
+                iconName: detailData.iconName || ""
             }
         }
 

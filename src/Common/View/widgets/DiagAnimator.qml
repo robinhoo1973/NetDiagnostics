@@ -17,6 +17,11 @@ Item {
     // itself (real iOS-style icon jiggle) instead of a detached faint ring.
     // DiagBlock passes its icon-well Item; other animations ignore it.
     property var targetItem: null
+    // 5WHY (复核 2026-08-21 用户诉求 "WiFi 信息动画同款弧线"): 动画锚点
+    // 几何是母版图标事实——同一动画类型（WifiWave）用于不同图标（internet
+    // 右下弧组 / wifi-info 同心弧）时需按图标分派。消费方（DiagBlock/hero）
+    // 传入 iconName，装载时下发给动画（无该属性的动画类型跳过）。
+    property string iconName: ""
     // 5WHY (复核 2026-08-19 详情页重放): 有界播放属于动画层——消费方曾自带
     // Timer+硬编码 2400ms 窗口（与 AnimationTokens 周期脱钩、每消费方复制
     // 且 Jiggle 类动画因缺 targetItem 静默死掉）。bounded=true 时由窗口
@@ -102,6 +107,12 @@ Item {
                 // AnimationTokens.js（各动画 QML 默认直读本类型锚点）——
                 // C++ 下发链（AppState.diagAnimationAnchor）曾是运行时
                 // 再解析同文件后把相同值传回来（纯传递冗余），已删。
+                // 5WHY (复核 2026-08-21): 但同类型多图标仍需图标名分派
+                // （WifiWave：internet vs wifi-info 两套锚点）——消费方
+                // 提供 iconName，动画按名从 tokens 选锚点集；无该属性
+                // 的动画类型跳过（属性检测而非类型判断）。
+                if ("iconName" in item)
+                    item.iconName = Qt.binding(function() { return root.iconName })
             }
         }
         // 5WHY: onLoaded one-frame race — item.running is set AFTER

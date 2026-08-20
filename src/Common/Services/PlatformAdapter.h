@@ -27,9 +27,13 @@
 // args（SystemDiagnostics::cachedRunTool 生成），互斥惰性填充：同一命令
 // 一轮只跑一次，其余探针复用文本。探针不得假设内容完整（空 = 命令缺失
 // 或失败，自行回退到其它数据源）。
+// 5WHY (复核 2026-08-21 串行化): 缓存表锁曾覆盖整个进程执行段——不同命令
+// （nmcli/iw/mmcli -L）被同一把锁串行化，一轮最坏多付 ~10s。表锁只护
+// 表；每键独立键锁（toolMutexes）串行化同键执行，异键并行。
 struct RunSnapshot {
-    QMutex mutex;
+    QMutex mutex;                       // 仅护 toolOutputs/toolMutexes 两表
     QHash<QString, QString> toolOutputs;
+    QHash<QString, std::shared_ptr<QMutex>> toolMutexes;   // 每键执行锁
 };
 
 // ── RunContext (DIAG-3 + NEW-5) ────────────────────────────────────────────

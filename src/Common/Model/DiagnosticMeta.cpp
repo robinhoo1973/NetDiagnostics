@@ -46,7 +46,11 @@ static const DiagnosticMeta kDiagMeta[] = {
     // ── G1  System & Adapters ────────────────────────────────────────────────
     { DiagId::G1NetworkAdapters,   "Network Adapters",   "nd-diag-g1-network-adapters", PF_All,                       DiagAnimType::Pulse,  DiagTemplateType::System, sysGrouped(),              15000 },
     { DiagId::G1NicAdvanced,       "NIC Advanced",       "nd-diag-g1-nic-advanced", PF_Desktop|PF_Android,        DiagAnimType::Pulse,  DiagTemplateType::System, sysGrouped(),              60000 },
-    { DiagId::G1WifiDiagnostics,   "WiFi Information",   "nd-diag-g1-wifi-info",         PF_All,                       DiagAnimType::Pulse,  DiagTemplateType::System, sysGroupedTT(),            60000 },
+    // 5WHY (复核 2026-08-21 用户诉求 "WiFi 信息动画同款弧线"): 曾为 Pulse
+    // （通用呼吸环，与图标三弧无语义锚点）——与 Internet Connectivity
+    // 同用 WifiWave 弧线动画（锚点按图标名由 AnimationTokens.js
+    // wifiWaveAnchorSets 分派，WiFi 信息图标有自己的同心弧几何）。
+    { DiagId::G1WifiDiagnostics,   "WiFi Information",   "nd-diag-g1-wifi-info",         PF_All,                       DiagAnimType::WifiWave,  DiagTemplateType::System, sysGroupedTT(),            60000 },
     { DiagId::G1WiredDiagnostics,  "Wired Information",  "nd-diag-g1-wired",  PF_Desktop|PF_Android,        DiagAnimType::Jiggle, DiagTemplateType::System, sysGrouped(),              60000 },
     { DiagId::G1DhcpStatus,        "DHCP Status",        "nd-diag-g1-dhcp",        PF_All,                       DiagAnimType::Bounce, DiagTemplateType::System, sysGrouped("leaseCount","leases",0), 60000 },
     { DiagId::G1IpConfiguration,   "IP Configuration",   "nd-diag-g1-ip-config",    PF_All,                       DiagAnimType::Jiggle, DiagTemplateType::System, sysGrouped(),              60000 },

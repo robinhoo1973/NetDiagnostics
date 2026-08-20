@@ -88,6 +88,10 @@ void IconProvider::loadMeta()
         const QString name = it.key();
         Meta m;
         m.accent = o.value(QLatin1String("accent")).toString();
+        // 5WHY (复核 2026-08-21 双主题徽章): 按主题分派的强调色（生成器
+        // accentDark/accentLight，缺省回退 accent 单一值）
+        m.accentDark = o.value(QLatin1String("accentDark")).toString();
+        m.accentLight = o.value(QLatin1String("accentLight")).toString();
         m.second = o.value(QLatin1String("second")).toString();
         m.softDark = o.value(QLatin1String("softDark")).toString();
         m.softLight = o.value(QLatin1String("softLight")).toString();
@@ -156,8 +160,12 @@ QByteArray IconProvider::tintedXml(const QString& name, const Meta& meta,
     // 3) 语义强调 #000000（json accent 非空才替换；缺元数据时保持字面黑=确定回退）
     // 5WHY (2026-08-18, loadMeta 修复后暴露): stripHash 去掉 # 前缀会生成
     // 非法 SVG 颜色（fill="38BDF8"）→ 该部分整体不渲染。替换值必须保留 #。
-    if (!meta.accent.isEmpty()) {
-        const QByteArray accentHex = normalizeColor(meta.accent).toLatin1();
+    // 5WHY (复核 2026-08-21 双主题徽章): 曾单一 accent 两主题共用——dark
+    // 无法高亮黄色徽章。优先按主题取 accentDark/accentLight，空回退 accent。
+    const QString themedAccent = dark ? meta.accentDark : meta.accentLight;
+    const QString accentVal = !themedAccent.isEmpty() ? themedAccent : meta.accent;
+    if (!accentVal.isEmpty()) {
+        const QByteArray accentHex = normalizeColor(accentVal).toLatin1();
         xml.replace("#000000", accentHex);
     }
 

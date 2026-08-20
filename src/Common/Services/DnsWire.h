@@ -16,6 +16,7 @@
 #include <QHostAddress>
 #include <QUdpSocket>
 #include <QElapsedTimer>
+#include <QRandomGenerator>
 
 namespace dnsWire {
 
@@ -77,9 +78,13 @@ inline QString readName(const QByteArray& msg, int& pos, int depth = 0) {
     return name;
 }
 
-inline QByteArray buildQuery(const QString& domain, int qtype) {
+inline QByteArray buildQuery(const QString& domain, int qtype, quint16 id = 0x1234) {
     QByteArray q;
-    q.append(char(0x12)); q.append(char(0x34));   // transaction id
+    // 5WHY (复核 2026-08-21 事务 id 死值): 曾恒以常量 0x1234 作事务 id，
+    // 且 udpQuery 只接受 id==0x1234 的应答——新捕获的 Answer.id 因此
+    // 恒为 0x1234（"真实事务 id"修复落空，header 仍打印假 id 4660）。
+    // id 参数由 udpQuery 随机生成；应答按 id 匹配（防串扰应答）。
+    q.append(char((id >> 8) & 0xFF)); q.append(char(id & 0xFF));   // transaction id
     q.append(char(0x01)); q.append(char(0x00));   // flags: RD
     q.append(char(0x00)); q.append(char(0x01));   // QDCOUNT = 1
     q.append(char(0x00)); q.append(char(0x00));   // ANCOUNT
@@ -111,7 +116,10 @@ inline Answer parseResponse(const QByteArray& resp) {
     // Skip the question section (echoed QNAME + QTYPE + QCLASS).
     readName(resp, pos);
     pos += 4;
-    const int rrCount = (int)a.anCount + (int)a.nsCount;
+    // 5WHY (复核 2026-08-21 死迭代): 曾 rrCount = anCount + nsCount——
+    // 解析器只产出 A/AAAA/CNAME（ANSWER 节记录），AUTHORITY 迭代零产出，
+    // 仅给截断报文多一条早退路径。只迭代 ANSWER 计数。
+    const int rrCount = (int)a.anCount;
     for (int i = 0; i < rrCount && pos + 12 <= resp.size(); ++i) {
         readName(resp, pos);                 // owner name
         if (pos + 10 > resp.size()) break;
@@ -155,7 +163,9 @@ inline Answer udpQuery(const QString& domain, int qtype, const QString& serverIp
     Answer a;
     QElapsedTimer t; t.start();
     QUdpSocket sock;
-    const QByteArray query = buildQuery(domain, qtype);
+    // 随机事务 id（非 0x1234 常量）——应答按 id 匹配，Answer.id 才是真实值
+    const quint16 txId = QRandomGenerator::global()->bounded(0x10000);
+    const QByteArray query = buildQuery(domain, qtype, txId);
     sock.connectToHost(QHostAddress(serverIp), 53);
     if (!sock.waitForConnected(1500)) { a.elapsedMs = (int)t.elapsed(); return a; }
     if (sock.write(query) != query.size()) { a.elapsedMs = (int)t.elapsed(); return a; }
@@ -167,10 +177,13 @@ inline Answer udpQuery(const QString& domain, int qtype, const QString& serverIp
             QByteArray resp;
             resp.resize((int)sock.pendingDatagramSize());
             sock.readDatagram(resp.data(), resp.size());
-            if (resp.size() >= 12 && (quint8)resp[0] == 0x12 && (quint8)resp[1] == 0x34) {
-                a = parseResponse(resp);
-                a.elapsedMs = (int)t.elapsed();
-                return a;
+            if (resp.size() >= 12) {
+                const quint16 respId = (quint16)((quint8)resp[0] << 8) | (quint8)resp[1];
+                if (respId == txId) {
+                    a = parseResponse(resp);
+                    a.elapsedMs = (int)t.elapsed();
+                    return a;
+                }
             }
         }
     }

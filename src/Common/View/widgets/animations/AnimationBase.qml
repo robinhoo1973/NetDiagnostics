@@ -21,9 +21,10 @@ Item {
     // 裸 "#60C8F8" 回退字面量（Palette.js 外复制即漂移）。个别动画以
     // 视觉决策覆盖（Converge 白箭头等）。
     property color accentColor: T.ThemeEngine.colors.primary
-    // 停止清理钩子：子类覆盖（如 Jiggle 复位旋转）。委托级动画（GeoLocate/
-    // WifiWave）在各自委托内以 Connections 复位（子类无法从 root 按 id
-    // 引用 Repeater 子项，覆写不可行——见 GeoLocate 5WHY）。
+    // 停止清理钩子：子类覆盖（如 Check 复位盖片、Jiggle 复位旋转）。
+    // 委托级动画（GeoLocate/WifiWave）在各自委托内以 RestartController
+    // onStopped 复位（子类无法从 root 按 id 引用 Repeater 子项，覆写
+    // 不可行——见 GeoLocate 5WHY）。
     function resetVisuals() {}
     onRunningChanged: if (!running) resetVisuals()
 }

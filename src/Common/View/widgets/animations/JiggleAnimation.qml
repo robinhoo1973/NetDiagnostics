@@ -6,6 +6,11 @@ import QtQuick
 // home-screen icons in edit mode.  A faint accent ring pulses as a
 // secondary affordance.
 //
+// 5WHY (复核 2026-08-21 相位契约统一): 曾两段声明式 running 绑定——Qt 的
+// stop() 保留 currentTime，重跑从中途续播（与 GeoLocate/WifiWave 同款
+// 相位错乱，彼处已改 RestartController 此处漏改）。改用共享命令式契约：
+// restart 从 0 相位开始；停止即经 onStopped 复位旋转与光环。
+//
 // Usage: JiggleAnimation { anchors.fill: parent; running: testRunning; targetItem: iconWell }
 
 AnimationBase {
@@ -18,7 +23,7 @@ AnimationBase {
 
     // ── Real icon jiggle ────────────────────────────────────────────────
     SequentialAnimation {
-        running: root.running && root.targetItem !== null
+        id: jiggleSeq
         loops: Animation.Infinite
         // Random phase so multiple blocks don't jiggle in sync
         PauseAnimation { duration: root.phaseOffset }
@@ -27,11 +32,16 @@ AnimationBase {
         NumberAnimation { target: root.targetItem; property: "rotation"; from: -2.5; to: 2.5;  duration: 180; easing.type: Easing.InOutQuad }
         NumberAnimation { target: root.targetItem; property: "rotation"; from: 2.5;  to: 0;    duration: 90;  easing.type: Easing.InOutQuad }
     }
+    RestartController {
+        running: root.running && root.targetItem !== null
+        target: jiggleSeq
+        onStopped: if (root.targetItem) root.targetItem.rotation = 0
+    }
 
     function resetVisuals() {
         if (root.targetItem)
             root.targetItem.rotation = 0
-        // 5WHY: ring.opacity is driven by SequentialAnimation on opacity
+        // 5WHY: ring.opacity is driven by target-based SequentialAnimation
         // which destroys the declarative binding.  Mid-cycle stop leaves
         // a ghost ring.  Explicit reset on stop.
         ring.opacity = 0.0
@@ -47,11 +57,16 @@ AnimationBase {
         color: "transparent"
         border { width: 1.5; color: Qt.alpha(root.accentColor, 0.4) }
         opacity: 0.0
-        SequentialAnimation on opacity {
-            running: root.running
+        SequentialAnimation {
+            id: ringSeq
             loops: Animation.Infinite
-            NumberAnimation { from: 0; to: 0.5; duration: 300; easing.type: Easing.InOutQuad }
-            NumberAnimation { from: 0.5; to: 0; duration: 300; easing.type: Easing.InOutQuad }
+            NumberAnimation { target: ring; property: "opacity"; from: 0; to: 0.5; duration: 300; easing.type: Easing.InOutQuad }
+            NumberAnimation { target: ring; property: "opacity"; from: 0.5; to: 0; duration: 300; easing.type: Easing.InOutQuad }
+        }
+        RestartController {
+            running: root.running
+            target: ringSeq
+            onStopped: ring.opacity = 0.0
         }
     }
 }

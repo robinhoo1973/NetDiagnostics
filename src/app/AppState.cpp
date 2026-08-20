@@ -11,6 +11,7 @@
 #include "Common/Services/PlatformAdapter.h"
 #include "Configuration/Controller/ConfigurationController.h"
 #include "Diagnostics/Model/DiagnosticSuite.h"
+#include "Diagnostics/Model/GHelpers.h"   // propsDumpText（终端兜底派生单一来源）
 #include "Report/Model/ReportEngine.h"
 #include "Settings/Model/PremiumStore.h"
 
@@ -452,7 +453,7 @@ void AppState::dismissCellularWarn() {
     emit cellularWarnVisibleChanged();
 }
 
-QVariantMap AppState::itemFor(DiagId id) const {
+QVariantMap AppState::itemFor(DiagId id, const QHash<DiagId, qint64>* startsMono) const {
     QVariantMap m;
     m[QStringLiteral("diagId")] = static_cast<int>(id);
     m[QStringLiteral("label")] = diagDisplayName(id);
@@ -469,12 +470,17 @@ QVariantMap AppState::itemFor(DiagId id) const {
         // Suite 下兄弟结果落地触发网格重建，委托本地计时归零；UI 以
         // startedAtMonoMs 反推真实已运行时长，重建不再重置显示。
         // 5WHY (复核 2026-08-20 墙钟死链): 曾墙钟/单调双表并存且每次重建
-        // 双份扫描（~45 项 × 每次结果落地）——删墙钟，仅留单调表一次
-        // 扫描（同 MonotonicClock 基准，NTP/手动校时步进免疫）。
+        // 双份扫描——删墙钟，仅留单调表（同 MonotonicClock 基准）。
+        // 5WHY (复核 2026-08-21 逐项重建): 曾每 itemFor 重建一次全表——
+        // 一轮内起点不可变，组循环外建一次经 startsMono 传入；单点调用
+        // （nullptr）回退自行构建。
         m[QStringLiteral("startedAtMonoMs")] = 0;
-        if (m_suite && m_suite->isRunning()) {
-            const auto startsMono = m_suite->runningStartTimesMono();
-            if (const auto sitMono = startsMono.constFind(id); sitMono != startsMono.constEnd())
+        if (startsMono) {
+            if (const auto sitMono = startsMono->constFind(id); sitMono != startsMono->constEnd())
+                m[QStringLiteral("startedAtMonoMs")] = sitMono.value();
+        } else if (m_suite && m_suite->isRunning()) {
+            const auto startsLocal = m_suite->runningStartTimesMono();
+            if (const auto sitMono = startsLocal.constFind(id); sitMono != startsLocal.constEnd())
                 m[QStringLiteral("startedAtMonoMs")] = sitMono.value();
         }
         m[QStringLiteral("summary")] = QString();
@@ -495,10 +501,15 @@ QVariantList AppState::allDiagsForGroup(int groupInt) const {
     // 5WHY (复核 2026-08-19 效率): toLower 曾在循环体逐项重算——45 次 QString
     // 堆分配/调用（groupStats 同病）；归一化一次循环外复用。
     const QString schemeLower = m_targetScheme.toLower();
+    // 5WHY (复核 2026-08-21 逐项重建): 起点表一轮内不可变——循环外建一次，
+    // 每瓦片 itemFor 共享（曾每瓦片重建全表：~9 项 × 每次结果落地）。
+    const bool running = m_suite && m_suite->isRunning();
+    const QHash<DiagId, qint64> startsMono =
+        running ? m_suite->runningStartTimesMono() : QHash<DiagId, qint64>();
     for (DiagId id : allDiagIds())
         if (diagGroup(id) == g && isSchedulable(id)
             && runnableFor(id, schemeLower))
-            out.append(itemFor(id));
+            out.append(itemFor(id, running ? &startsMono : nullptr));
     return out;
 }
 
@@ -597,7 +608,15 @@ QVariantMap AppState::resultFor(int diagIdInt) const {
     m[QStringLiteral("iconName")] = diagnosticMeta(it->id).iconName;
     m[QStringLiteral("status")] = static_cast<int>(it->status);
     m[QStringLiteral("summary")] = it->summary;
-    m[QStringLiteral("details")] = it->details;
+    // 5WHY (复核 2026-08-21 用户诉求 "详情页 terminal output 无条件复制
+    // 历史版本输出"): 曾 G2/G3/G4/G5 探针 details 为空时终端区块静默隐藏
+    // （v0.0.3 各探针均输出多行转储）。details 为空时由 props 派生转储
+    // （SystemDiagnostics::propsDumpText 单一来源，与剪贴板/G1 同格式），
+    // 保证凡有数据即呈现终端区块。
+    QString details = it->details;
+    if (details.isEmpty())
+        details = SystemDiagnostics::propsDumpText(it->properties);
+    m[QStringLiteral("details")] = details;
     m[QStringLiteral("rawOutput")] = it->rawOutput;
     m[QStringLiteral("narrative")] = it->narrative;
     m[QStringLiteral("durationMs")] = it->durationMs;
@@ -634,12 +653,12 @@ QVariantMap AppState::resultFor(int diagIdInt) const {
     m[QStringLiteral("showErrorOutput")] = dp.showErrorOutput;
     m[QStringLiteral("showProperties")] = dp.showProperties;
     m[QStringLiteral("showCharts")] = dp.showCharts;
-    // 5WHY (2026-08-19 用户诉求 "不单独列出 During 区块"): G1 探针的终端
-    // 转储由属性自动生成（propsDump 标记）——与属性卡逐字重复。终端区块
-    // 对属性派生转储让位（数据已以结构化属性卡呈现）；真实原始输出
-    // （G4/G5 逐跳/证书链等）不受影响。
-    m[QStringLiteral("showTerminal")] = dp.showTerminal
-        && !data.value(QStringLiteral("propsDump")).toBool();
+    // 5WHY (复核 2026-08-21 用户诉求 "terminal output 无条件复制历史版本
+    // 输出"): 曾以 propsDump 门控关闭 G1 属性派生转储的终端区块——用户
+    // 要求所有检测项详情页无条件下发终端输出（v0.0.3 行为）。属性卡与
+    // 终端区块并存呈现；propsDump 标记保留供剪贴板去重（copyDetailToClipboard
+    // 仍以转储为准跳过属性循环）。
+    m[QStringLiteral("showTerminal")] = dp.showTerminal;
     // 属性布局（Kv 扁平 / Grouped 分组卡）——PagePropertiesSection 渲染模式。
     // 5WHY (复核 2026-08-20 跨语言契约): 曾把枚举序值 int 直传 QML（5 处
     // 裸 === 1 直比）——枚举重排即静默错乱。只下发布尔语义（propGrouped），
@@ -961,14 +980,13 @@ void AppState::copyDetailToClipboard(int diagIdInt) {
     // 5WHY (复核 2026-08-20 剪贴板双份): G1 的属性派生转储（propsDump）与
     // 属性循环输出逐字相同——曾双双追加，粘贴的票据每条属性出现两次。
     // 转储存在时以其为准、跳过属性循环；否则照旧逐属性输出。
+    // 5WHY (复核 2026-08-21 三份同构): 属性循环格式单一来源
+    // SystemDiagnostics::propsDumpText（resultFor/G1 makeResult 同源）。
     const bool isDump = it->data.value(QStringLiteral("propsDump")).toBool();
     if (!it->details.isEmpty()) lines.append(it->details);
     if (!isDump) {
-        for (const auto& p : it->properties) {
-            lines.append(QStringLiteral("%1: %2").arg(p.label, p.value));
-            for (const auto& c : p.children)
-                lines.append(QStringLiteral("  %1: %2").arg(c.label, c.value));
-        }
+        const QString dump = SystemDiagnostics::propsDumpText(it->properties);
+        if (!dump.isEmpty()) lines.append(dump);
     }
     QGuiApplication::clipboard()->setText(lines.join(QLatin1Char('\n')));
 }

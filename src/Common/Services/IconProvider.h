@@ -42,7 +42,12 @@ public:
 
 private:
     struct Meta {
-        QString accent;      // #000000 语义强调（空=保留字面黑）
+        QString accent;      // #000000 语义强调（空=保留字面黑；回退槽）
+        // 5WHY (复核 2026-08-21 双主题徽章): accent 曾单一值两主题共用——
+        // dark 无法高亮黄色徽章（wifi-info 圆圈 i）。accentDark/accentLight
+        // 按主题分派（优先）；空时回退 accent。
+        QString accentDark;  // #000000 语义强调（dark 主题）
+        QString accentLight; // #000000 语义强调（light 主题）
         QString second;      // #101010 第二强调
         QString softDark;    // #777777 柔填充（暗）
         QString softLight;   // #777777 柔填充（亮）

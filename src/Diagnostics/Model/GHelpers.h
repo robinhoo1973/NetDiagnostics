@@ -13,6 +13,8 @@
 #include <QTextStream>
 #include <QProcess>
 #include <QMutexLocker>
+#include <cmath>
+#include <memory>
 
 #if defined(Q_OS_WIN)
 #include <winsock2.h>   // in_addr（各 Windows TU 已先包含，此为保证序）
@@ -45,6 +47,20 @@ static QString ipToStr(uint32_t ip) {
     return ip4ToStr(a);
 }
 
+// ── 属性 → 终端转储文本（"label: value" + 两空格缩进子行）─────────────
+// 5WHY (复核 2026-08-21 三份同构): G1 makeResult 派生 details、AppState
+// 剪贴板属性循环、resultFor 兜底派生三处同格式复制——改缩进/分隔符漏
+// 一处即剪贴板与终端区块分叉。单一 helper 消费（空 props 返回空串）。
+static QString propsDumpText(const QVector<ResultProperty>& props) {
+    QStringList lines;
+    for (const ResultProperty& p : props) {
+        lines.append(QStringLiteral("%1: %2").arg(p.label, p.value));
+        for (const auto& c : p.children)
+            lines.append(QStringLiteral("  %1: %2").arg(c.label, c.value));
+    }
+    return lines.join(QLatin1Char('\n'));
+}
+
 // ── 中心频率(MHz) → WiFi 信道号 ─────────────────────────────────────────
 // 5WHY (复核 2026-08-20 双份漂移): G1（GHz double）与 Android G5（MHz int）
 // 各一份频段表且边界不一致——5885 MHz 在 Linux 判 5 GHz、Android 判
@@ -53,20 +69,44 @@ static QString ipToStr(uint32_t ip) {
 // 5WHY (复核 2026-08-20 边界钳制): 曾 2.4 GHz 公式在带顶算出信道 15
 // （2.484 GHz → (2.484-2.412)/0.005=14.4 → round+1=15）——2.4 GHz 只有
 // 1-14。按频段钳制到真实信道范围，带外返回 0（调用方呈现诚实缺省）。
+// 5WHY (复核 2026-08-21 中心校核): 曾带内任意值就近取整——5000/5100 MHz
+// 报信道 32、5925 MHz 报信道 185（均非真实信道中心，诚實缺省原则落空）。
+// 就近取整后校验与真实信道中心偏差 ≤2.5 MHz，非中心频率返回 0。
 inline int wifiChannelFromFreqMhz(double freqMhz) {
     if (freqMhz >= 2412.0 && freqMhz <= 2484.0) {
-        const int ch = int((freqMhz - 2412.0) / 5.0 + 0.5) + 1;
-        return qBound(1, ch, 14);
+        const int ch = qBound(1, int((freqMhz - 2412.0) / 5.0 + 0.5) + 1, 14);
+        // 信道 14 中心 2484 不连续（2472→2484 间隔 12 MHz），单独处理
+        const double center = (ch == 14) ? 2484.0 : 2412.0 + 5.0 * (ch - 1);
+        return (std::abs(freqMhz - center) <= 2.5) ? ch : 0;
     }
     if (freqMhz >= 5000.0 && freqMhz <= 5925.0) {
-        const int ch = int((freqMhz - 5000.0) / 5.0 + 0.5);
-        return qBound(32, ch, 200);
+        // 上钳 177（5885 MHz）：5925/5900 等非中心频率经 185 取整后
+        // 会被钳回 177，中心校核（|f−5885|≤2.5）将其拒绝为 0——钳 200
+        // 时它们自洽通过（5925→185 伪信道，诚实缺省原则落空）。
+        const int ch = qBound(32, int((freqMhz - 5000.0) / 5.0 + 0.5), 177);
+        const double center = 5000.0 + 5.0 * ch;
+        return (std::abs(freqMhz - center) <= 2.5) ? ch : 0;
     }
     if (freqMhz > 5925.0 && freqMhz <= 7125.0) {
-        const int ch = int((freqMhz - 5955.0) / 5.0 + 0.5) + 1;
-        return qBound(1, ch, 233);
+        // std::round 而非 int()+0.5：负偏移时 int() 向零截断（5935 →
+        // round(-4)+1=-3 同样错）——中心校核把 5926–5954 间隙拒绝为 0，
+        // 但取整本身应无符号歧义。
+        const int ch = qBound(1, int(std::round((freqMhz - 5955.0) / 5.0)) + 1, 233);
+        const double center = 5950.0 + 5.0 * ch;
+        return (std::abs(freqMhz - center) <= 2.5) ? ch : 0;
     }
     return 0;   // 非 WiFi 频段（未关联/驱动不报频段）
+}
+
+// 频率(MHz) → 频段标签（与 wifiChannelFromFreqMhz 共享同一组边界常量）。
+// 5WHY (复核 2026-08-21 标签漂移): 信道表收敛后 Android 频段标签仍是本地
+// 边界表（>5825 判 6 GHz）——5885 MHz 信道算 177（5 GHz 表）标签却印
+// "6 GHz"，同频自相矛盾。带外返回 "?"（曾误标 2.4 GHz）。
+inline QString wifiBandLabelMhz(double freqMhz) {
+    if (freqMhz >= 2412.0 && freqMhz <= 2484.0) return QStringLiteral("2.4 GHz");
+    if (freqMhz >= 5000.0 && freqMhz <= 5925.0) return QStringLiteral("5 GHz");
+    if (freqMhz > 5925.0 && freqMhz <= 7125.0) return QStringLiteral("6 GHz");
+    return QStringLiteral("?");
 }
 
 // ── 蜂窝"无服务"叙述（iOS/Android 共用单一来源）──────────────────────
@@ -115,11 +155,39 @@ inline QString cachedRunTool(RunContext& ctx, const QString& exe,
     };
     if (!ctx.snapshot) return runOnce();   // 无快照（harness/单探针）直跑
     const QString key = exe + QLatin1Char(' ') + args.join(QLatin1Char(' '));
-    QMutexLocker lock(&ctx.snapshot->mutex);
-    auto it = ctx.snapshot->toolOutputs.constFind(key);
-    if (it != ctx.snapshot->toolOutputs.cend()) return it.value();
+    // 5WHY (复核 2026-08-21 串行化): 曾单把表锁覆盖 runOnce 全程——不同命令
+    // 也被串行化（nmcli 4s + iw 3s + mmcli 3s 一轮最坏 ~10s）。改为：表锁
+    // 只做命中检查/键锁注册（O(1)），进程执行在键锁下进行（同键互斥、
+    // 异键并行）；执行后二次命中检查防同键双 spawn。
+    std::shared_ptr<QMutex> keyMutex;
+    {
+        QMutexLocker lock(&ctx.snapshot->mutex);
+        auto it = ctx.snapshot->toolOutputs.constFind(key);
+        if (it != ctx.snapshot->toolOutputs.cend()) return it.value();
+        keyMutex = ctx.snapshot->toolMutexes.value(key);
+        if (!keyMutex) {
+            keyMutex = std::make_shared<QMutex>();
+            ctx.snapshot->toolMutexes.insert(key, keyMutex);
+        }
+    }
+    QMutexLocker keyLock(keyMutex.get());
+    // 等锁期间可能已被取消——先响应取消再执行（同键互斥本意是去重，
+    // 不是为已取消探针继续付外部命令延迟）。
+    if (ctx.cancelled.load()) return QString();
+    {
+        QMutexLocker lock(&ctx.snapshot->mutex);
+        auto it = ctx.snapshot->toolOutputs.constFind(key);
+        if (it != ctx.snapshot->toolOutputs.cend()) return it.value();
+    }
     const QString out = runOnce();
-    ctx.snapshot->toolOutputs.insert(key, out);
+    // 5WHY (复核 2026-08-21 失败不缓存): 曾失败（超时/空输出）也入缓存——
+    // 同键第二消费方整轮复用空串，一次瞬时失败（NM D-Bus 忙）毒化同轮
+    // 所有复用者（旧行为各探针独立 QProcess 自带重试窗口）。空 = 失败
+    // 不入缓存：下一调用方重试一次（互斥保证同键仍只串行执行）。
+    if (!out.isEmpty()) {
+        QMutexLocker lock(&ctx.snapshot->mutex);
+        ctx.snapshot->toolOutputs.insert(key, out);
+    }
     return out;
 }
 #endif

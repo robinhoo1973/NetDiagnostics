@@ -641,9 +641,13 @@ static DiagnosticResult probeDnsResolution(DiagId id, const QString& target, Run
     out.append(DiagnosticFormatter::formatDnsFooter(ms, server, ans.msgSize));
 
     DiagStatus status = anCount > 0 ? DiagStatus::Pass : DiagStatus::Fail;
+    // 5WHY (复核 2026-08-21 第三份 rcode 链): 曾此处再写一条 rcode==3 三元
+    // ——与头部共用的 rcodeText 单一映射脱钩（加 REFUSED 语义即两处说法
+    // 分叉）。判定仍用 rcode 布尔，名称走 rcodeText。
     QString summary = anCount > 0
         ? QStringLiteral("Resolved to %1 (%2 ms)").arg(ips.join(QStringLiteral(", "))).arg(ms)
-        : (rcode == 3 ? QStringLiteral("NXDOMAIN — no such domain") : QStringLiteral("No A records"));
+        : (rcode == 3 ? QStringLiteral("%1 — no such domain").arg(rcodeText(rcode))
+                      : QStringLiteral("No A records"));
 
     DiagnosticResult r = makeResult(id, status, summary, {}, out.join(QLatin1Char('\n')));
     r.data[QStringLiteral("queryTimeMs")] = ms;

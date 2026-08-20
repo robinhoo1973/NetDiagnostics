@@ -101,6 +101,18 @@ DIAG_ACCENT: dict[str, tuple[str, str]] = {
     "nd-diag-g5-mqtt":              ("Dark.secondary", "Light.secondary"),
 }
 
+# ── 逐图标【双主题】语义强调色（#000000 sentinel 的 dark/light 分派）────
+# 5WHY (复核 2026-08-21 用户诉求 "WiFi 信息圆圈 i 徽章高亮黄色（dark）"):
+# write_icon_runtime 曾把 accent 压成单一值（DIAG_ACCENT 浅色端）——同一
+# 颜色用于两主题，dark 下无法给徽章高亮黄（light 下黄色对比度不足）。
+# 本表未列出的图标保持旧行为（accent = DIAG_ACCENT 浅色端，两主题同值）。
+# wifi-info：dark = #F59E0B（Palette Dark.warning，亮黄，深底 ≈9.9:1）；
+# light = #EA580C（Light.warning，琥珀橙，白底 ≈5.1:1 薄线描可读）——
+# M3 惯例：同色相跨主题换调（保持"同一徽章"的认知连续性）。
+DIAG_ACCENT_THEMED: dict[str, tuple[str, str]] = {
+    "nd-diag-g1-wifi-info": ("Dark.warning", "Light.warning"),
+}
+
 # ── 第二强调色（固定色，逐图标；#101010 sentinel）────────────────────────
 # 用于 VTracer 多色复刻图标中除主强调色外的第二种色彩（如网关的红色箭头）。
 SECOND_ACCENT: dict[str, str] = {
@@ -334,6 +346,10 @@ def write_icon_runtime(palettes: dict, json_path: Path = RUNTIME_JSON) -> None:
         fixed_light = [_resolve_role_ref(c, palettes) for c in fl]
         data["icons"][stem] = {
             "accent": accent,
+            # 5WHY (复核 2026-08-21): 双主题强调色分派（DIAG_ACCENT_THEMED）。
+            # accent 保留旧键（回退/兼容）；C++ 优先取 accentDark/accentLight。
+            "accentDark": _resolve_role_ref(DIAG_ACCENT_THEMED.get(stem, (accent, accent))[0], palettes),
+            "accentLight": _resolve_role_ref(DIAG_ACCENT_THEMED.get(stem, (accent, accent))[1], palettes),
             "second": second,
             "softDark": dark_soft,
             "softLight": light_soft,

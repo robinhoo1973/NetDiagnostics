@@ -11,16 +11,15 @@ import "../../theme/AnimationTokens.js" as Tokens
 // 纯 Rectangle + scale/opacity 动画——无 Canvas/ShapePath/ShaderEffect
 // （iOS 静态 Qt 安全）。
 //
-// Usage: 经 DiagAnimator 装载（锚点由 C++ diagAnimationAnchor 下发）——
+// Usage: 经 DiagAnimator 装载——
 //   DiagAnimator { anchors.fill: parent; diagId: ...; running: testRunning }
 
 AnimationBase {
     id: root
 
-    // 锚点：geoip 母版定位针头中心（实测 ≈(0.71, 0.30)）。C++ 经
-    // DiagAnimator 装载时下发覆盖；默认读 AnimationTokens.js 单一来源
-    // （C++ AppState::diagAnimationAnchor 解析同文件——曾 C++/QML 同值
-    // 双份靠注释"两处同改"维系，母版位移改一处即静默错位）。
+    // 锚点：geoip 母版定位针头中心（实测 ≈(0.71, 0.30)）。读
+    // AnimationTokens.js 单一来源（曾 C++/QML 同值双份靠注释"两处同改"
+    // 维系，母版位移改一处即静默错位）。
     property real anchorCx: Tokens.tokens.geoRadarAnchorCx
     property real anchorCy: Tokens.tokens.geoRadarAnchorCy
     property real anchorMaxR: Tokens.tokens.geoRadarAnchorMaxR
@@ -67,14 +66,6 @@ AnimationBase {
             // 复位）。5WHY (复核 2026-08-20 复用): 该契约曾与 WifiWave
             // 各复制一份（照抄时 onStopped 挂错宿主致组件编译失败）——
             // 收敛为 RestartController 共享组件。
-            RestartController {
-                running: root.running
-                target: seq
-                onStopped: {
-                    ring.opacity = 0
-                    ring.scale = 0.15
-                }
-            }
             SequentialAnimation {
                 id: seq
                 loops: Animation.Infinite
@@ -97,6 +88,18 @@ AnimationBase {
                 PropertyAction { target: ring; property: "opacity"; value: 0 }
                 PropertyAction { target: ring; property: "scale"; value: 0.15 }
                 PauseAnimation { duration: (root._rings - 1 - index) * root._stagger }
+            }
+            // 5WHY (复核 2026-08-21 声明序): 控制器必须声明在 target(seq) 之后
+            // ——QML 按声明序构造，onCompleted 兜底（running:true 直接实例化）
+            // 读 target 时须已非 null；曾声明在前，直接实例化时 restart
+            // 永不触发（与 WifiWave 同契约，彼处顺序正确此处曾颠倒）。
+            RestartController {
+                running: root.running
+                target: seq
+                onStopped: {
+                    ring.opacity = 0
+                    ring.scale = 0.15
+                }
             }
         }
     }

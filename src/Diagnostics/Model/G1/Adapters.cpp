@@ -164,18 +164,13 @@ static DiagnosticResult makeResult(DiagId id, DiagStatus status,
     // 各探针都输出格式化多行转储。空 details 时由 props 生成转储文本，
     // 终端区块恢复呈现（子属性缩进，与剪贴板格式一致）。
     if (details.isEmpty() && !props.isEmpty()) {
-        QStringList lines;
-        for (const ResultProperty& p : props) {
-            lines.append(QStringLiteral("%1: %2").arg(p.label, p.value));
-            for (const auto& c : p.children)
-                lines.append(QStringLiteral("  %1: %2").arg(c.label, c.value));
-        }
-        r.details = lines.join(QLatin1Char('\n'));
+        // 5WHY (复核 2026-08-21 三份同构): 转储格式单一来源
+        // SystemDiagnostics::propsDumpText（剪贴板/resultFor 同源消费）。
+        r.details = SystemDiagnostics::propsDumpText(props);
         r.rawOutput = r.details;
         // 5WHY (2026-08-19 用户诉求 "不单独列出 During 区块"): 该转储与
         // 属性卡逐字重复——详情页曾并列呈现两份相同数据。标记为属性派生
-        // 转储：UI 经 resultFor 关闭终端区块（showTerminal=false），数据
-        // 以结构化属性卡呈现；剪贴板仍含完整转储（details 保留）。
+        // 转储（剪贴板去重用；终端区块 2026-08-21 起无条件呈现该转储）。
         r.data[QStringLiteral("propsDump")] = true;
     } else {
         r.details = details;
@@ -1014,7 +1009,12 @@ static DiagnosticResult probeDhcp(DiagId id, const QString&, RunContext& ctx) {
             : (props.isEmpty() ? QStringLiteral("No DHCP information found")
                                : QStringLiteral("No DHCP lease found (static IP or managed externally)")),
         props, {});
-    r.data[QStringLiteral("leaseCount")] = leases.size() + likelyCount;
+    // 5WHY (复核 2026-08-21 指标诚实): 曾 leaseCount = leases.size() +
+    // likelyCount——"Leases" 指标卡（metricLeases 标签）把未确认的
+    // gateway-derived "Likely" 行计入租约数（0 张确认租约却显示 1），
+    // 与叙述 "DHCP not confirmed" 自相矛盾。指标卡只报确认租约；
+    // Likely 证据行由属性卡 + likelyCount 数据键承载。
+    r.data[QStringLiteral("leaseCount")] = leases.size();
     r.data[QStringLiteral("likelyCount")] = likelyCount;
     r.narrative = likelyCount > 0
         ? QStringLiteral("No confirmed DHCP lease was found (lease files and NetworkManager data are "
@@ -1129,7 +1129,10 @@ static DiagnosticResult probeIpConfig(DiagId id, const QString&, RunContext& ctx
         for (const auto& p : props) rendered.insert(p.label);
         for (auto it = gatewaysByIface.constBegin(); it != gatewaysByIface.constEnd(); ++it) {
             if (rendered.contains(it.key()) || it.value().isEmpty()) continue;
-            ResultProperty gp(it.key(), it.value().join(QStringLiteral(", ")));
+            // 5WHY (复核 2026-08-21 主值重复): 曾 value 与子行 gateway 同串——
+            // 分组卡标题右端与子行重复呈现同一网关。value 留空（无地址信息
+            // 即无主值），网关仅由子行承载。
+            ResultProperty gp(it.key(), QString());
             gp.children.append({QStringLiteral("gateway"), it.value().join(QStringLiteral(", "))});
             props.append(gp);
             ++interfaceCount;
@@ -1318,6 +1321,13 @@ static DiagnosticResult probeCellular(DiagId id, const QString&, RunContext& ctx
     // 置——漏一处即摘要与 Skipped 分支矛盾（同 DHCP leaseCount 类缺陷）。
     // found ≡ !foundNames.isEmpty()，删 bool 以列表为单一事实。
     QStringList foundNames;
+    // 5WHY (复核 2026-08-21 跨平台编译破坏): mmcliListed/mmcliFailed 曾声明
+    // 在 Linux 专属守卫内、却在守卫外的公共尾部（foundNames.isEmpty() 分支）
+    // 读取——Windows/macOS/iOS/Android 上 undeclared identifier 硬编译失败。
+    // 声明提升到函数作用域（非 Linux 平台恒 0，尾部分支语义不变）。
+    int mmcliListed = 0;   // mmcli -L 枚举到的 modem 数（失败可见性，见下）
+    int mmcliFailed = 0;   // 详情查询超时/格式解析失败的 modem 数
+    bool mmcliListFailed = false;   // mmcli -L 本身超时/失败（区别于"无 modem"）
 
 #if defined(__linux__) && !defined(PLATFORM_ANDROID)
     // 5WHY (2026-08-20 用户诉求 "Cellular 信息不完全"): v0.0.3 仅在 iOS
@@ -1326,11 +1336,14 @@ static DiagnosticResult probeCellular(DiagId id, const QString&, RunContext& ctx
     // 管理栈是 ModemManager（mmcli，免 root 读运营商/制式/信号/IMEI），
     // 有则完整转储；无则诚实地只报接口枚举（下方）。
     const QString mmcli = QStandardPaths::findExecutable(QStringLiteral("mmcli"));
-    int mmcliListed = 0;   // mmcli -L 枚举到的 modem 数（失败可见性，见下）
-    int mmcliFailed = 0;   // 详情查询超时/格式解析失败的 modem 数
     if (!mmcli.isEmpty()) {
         const QString listOut = SystemDiagnostics::cachedRunTool(ctx, mmcli,
             QStringList() << QStringLiteral("-L"), 3000);
+        // 5WHY (复核 2026-08-21 列表失败可见): mmcli -L 成功至少输出
+        // "No modems were found"——空输出 ⇒ 命令超时/失败。曾把列表
+        // 失败与"无 modem"混为 Skipped（与详情查询失败同源的失败伪装，
+        // 本 commit 的 Warning 修复漏了列表层）。
+        mmcliListFailed = listOut.isEmpty();
         static const QRegularExpression kModemRe(QStringLiteral("Modem/(\\d+)"));
         // 5WHY (复核 2026-08-20 串行等待): 曾逐 modem 串行
         // waitForFinished(3000)——M 个 modem 累计 M×3s 启动延迟（modem
@@ -1466,13 +1479,19 @@ static DiagnosticResult probeCellular(DiagId id, const QString&, RunContext& ctx
         // modem present"——把失败伪装成无硬件，用户被误导。区分两种
         // 语义：无 modem = Skipped；有 modem 但详情不可得 = Warning
         // （Raw 转储尽力保留，故障可见）。
-        if (mmcliListed > 0) {
+        if (mmcliListed > 0 || mmcliListFailed) {
             DiagnosticResult wr = makeResult(id, DiagStatus::Warning,
-                QStringLiteral("Cellular modem(s) present but detail query failed (%1/%2)")
-                    .arg(mmcliFailed).arg(mmcliListed), {}, out.join(QLatin1Char('\n')));
-            wr.narrative = QStringLiteral("ModemManager reported %1 modem(s), but the detail query "
-                "failed for %2 of them (timeout or output format change). "
-                "Raw output is preserved in the terminal section.").arg(mmcliListed).arg(mmcliFailed);
+                mmcliListFailed
+                    ? QStringLiteral("ModemManager present but modem enumeration failed — cellular status unknown")
+                    : QStringLiteral("Cellular modem(s) present but detail query failed (%1/%2)")
+                        .arg(mmcliFailed).arg(mmcliListed),
+                {}, out.join(QLatin1Char('\n')));
+            wr.narrative = mmcliListFailed
+                ? QStringLiteral("ModemManager is installed, but `mmcli -L` produced no output "
+                    "(timeout or daemon failure), so cellular status could not be determined.")
+                : QStringLiteral("ModemManager reported %1 modem(s), but the detail query "
+                    "failed for %2 of them (timeout or output format change). "
+                    "Raw output is preserved in the terminal section.").arg(mmcliListed).arg(mmcliFailed);
             return wr;
         }
         return makeResult(id, DiagStatus::Skipped, QStringLiteral("No cellular modem present"), {}, {});
@@ -1530,8 +1549,9 @@ DiagnosticResult iosCellularProbe(DiagId id) {
     if (info.isEmpty()) {
         // 5WHY (复核 2026-08-19 simplify): 曾手搭 DiagnosticResult（10 行
         // 样板）——makeResult 的空 details 分支自动生成同文本转储并打
-        // propsDump 标记（终端区块对属性派生转储让位），一行等价且随
-        // 归一化契约演进（时间戳/转储规则不再旁路）。
+        // propsDump 标记（剪贴板去重用；终端区块 2026-08-21 起无条件
+        // 呈现该转储），一行等价且随归一化契约演进（时间戳/转储规则
+        // 不再旁路）。
         DiagnosticResult nr = g1::makeResult(id, DiagStatus::Info,
             QStringLiteral("No cellular service"),
             {{QStringLiteral("cellular"), QStringLiteral("No cellular service available")}}, {});
