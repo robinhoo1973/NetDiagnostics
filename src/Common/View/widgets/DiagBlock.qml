@@ -265,7 +265,14 @@ Item {
                 }
             }
             // 运行动画（animType → 九动画，DiagAnimator 调度）
+            // 5WHY (复核 2026-08-20 用户 "动画根本没出现"): 动画层无显式
+            // z（默认 0）而 AppIcon 显式 z:2——叠放时全部动画被压在图标下方。
+            // 表针时代症状轻微（只有图形透明区的针段可见，恰与早前 "指针在
+            // 图形外空挥" 投诉互证）；WifiWave 三道弧线完全落在图标不透明的
+            // 红弧/白地球填充上，遮挡从部分变完全。堆叠契约：动画覆盖层
+            // 必须高于图标层（z:3 > z:2），瓦片与 hero 两处同契约。
             DiagAnimator {
+                z: 3
                 anchors.fill: parent
                 diagId: itemData.diagId !== undefined ? itemData.diagId : -1
                 running: root._isRunning

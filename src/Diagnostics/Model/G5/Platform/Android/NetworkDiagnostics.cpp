@@ -674,6 +674,7 @@ DiagnosticResult androidCellularDiag(DiagId id) {
     QVariantMap cell = androidCellularInfo();
     const bool hasPhonePerm = androidHasPhonePermission();
     QStringList out;
+    QVector<ResultProperty> props;
     out.append(QString());
     out.append(QStringLiteral("Cellular Information:"));
     out.append(QString());
@@ -708,14 +709,51 @@ DiagnosticResult androidCellularDiag(DiagId id) {
                 signalLine += QStringLiteral(" (RSSI %1)").arg(cell["cdmaRssi"].toString());
             out.append(signalLine);
         }
+        // 5WHY (2026-08-20 用户诉求 "Cellular 信息不完全"): Android 探测曾
+        // 只写终端转储、properties 恒空——详情页属性卡（G1CellularInfo
+        // showProperties=true）空白，数据只存在于终端。补结构化属性
+        // （与 iOS/桌面 mmcli 探针同构），属性卡与终端转储并存。
+        auto addProp = [&props](const char* label, const QString& v) {
+            if (!v.isEmpty()) props.append({QLatin1String(label), v});
+        };
+        addProp("carrier", cell.value("carrierName").toString());
+        if (!cell.value("radioAccess").toString().isEmpty())
+            addProp("radio access", cell.value("radioAccess").toString());
+        else
+            addProp("data network type", cell.value("dataNetworkType").toString());
+        if (cell.contains("mcc") && cell.contains("mnc"))
+            addProp("MCC/MNC", QStringLiteral("%1-%2")
+                .arg(cell["mcc"].toString(), cell["mnc"].toString()));
+        if (cell.contains("simState")) addProp("SIM state", cell["simState"].toString());
+        if (cell.contains("dataState")) addProp("data state", cell["dataState"].toString());
+        if (cell.contains("roaming")) addProp("roaming", cell["roaming"].toBool() ? "Yes" : "No");
+        if (cell.contains("signalLevel")) {
+            QString sig = QString::number(cell["signalLevel"].toInt());
+            if (cell.contains("rsrp")) sig += QStringLiteral(" (RSRP %1)").arg(cell["rsrp"].toString());
+            else if (cell.contains("cdmaRssi")) sig += QStringLiteral(" (RSSI %1)").arg(cell["cdmaRssi"].toString());
+            addProp("signal", sig);
+        }
+        r.properties = props;
         r.status = DiagStatus::Pass;
         QString carrier = cell.value("carrierName").toString();
         r.summary = QStringLiteral("Carrier: %1").arg(
             carrier.isEmpty() ? QStringLiteral("(unknown)") : carrier);
+        // 摘要卡叙述：运营商 → 制式 → 信号（权限受限时说明缘由）
+        r.narrative = QStringLiteral("Carrier %1 on %2 (MCC/MNC %3). "
+            "SIM state, data state, roaming and signal are listed in the property cards below.")
+            .arg(carrier.isEmpty() ? QStringLiteral("(unknown)") : carrier,
+                 cell.value("radioAccess").toString().isEmpty()
+                    ? cell.value("dataNetworkType").toString()
+                    : cell.value("radioAccess").toString(),
+                 (cell.contains("mcc") && cell.contains("mnc"))
+                    ? QStringLiteral("%1-%2").arg(cell["mcc"].toString(), cell["mnc"].toString())
+                    : QStringLiteral("(permission required)"));
     } else {
         out.append(QStringLiteral("  No cellular service available"));
         r.status = DiagStatus::Info;
         r.summary = QStringLiteral("No cellular service");
+        r.narrative = QStringLiteral("No cellular service is currently available on this device "
+            "(no SIM registered with a usable data plan, or the modem is offline).");
     }
 
     r.rawOutput = out.join('\n');

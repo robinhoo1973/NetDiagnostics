@@ -34,6 +34,7 @@
 #endif
 
 #include <QNetworkInterface>
+#include <QHostAddress>
 #include <QProcess>
 #include <QFile>
 #include <QTextStream>
@@ -346,23 +347,65 @@ static DiagnosticResult probeDefaultGateway(DiagId id, const QString&, RunContex
                 const uint32_t dest = cols[1].toUInt(&ok, 16);
                 const uint32_t gw   = cols[2].toUInt(&ok, 16);
                 if (dest == 0 && gw != 0) {
-                    props.append({ipToStr(gw), QStringLiteral("interface=%1").arg(cols[0])});
-                    found.append(QStringLiteral("%1 via %2").arg(ipToStr(gw), cols[0]));
+                    // 5WHY (2026-08-20 用户诉求 "Default Gateway 无属性卡"):
+                    // 曾丢失 metric（cols[6]）且只查 IPv4——路由选择依赖
+                    // metric，双栈网络默认走 IPv6 时属性卡为空。补 metric
+                    // 与 IPv6 默认路由（/proc/net/ipv6_route）。
+                    const uint32_t metric = cols.size() >= 7 ? cols[6].toUInt(nullptr, 16) : 0;
+                    props.append({ipToStr(gw),
+                        QStringLiteral("via %1, metric %2").arg(cols[0]).arg(metric)});
+                    found.append(QStringLiteral("%1 (via %2, metric %3)")
+                        .arg(ipToStr(gw), cols[0]).arg(metric));
                 }
+            }
+        }
+    }
+    QFile v6File(QStringLiteral("/proc/net/ipv6_route"));
+    if (v6File.open(QIODevice::ReadOnly)) {
+        QTextStream ts(&v6File);
+        while (!ts.atEnd()) {
+            if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
+            const QString line = ts.readLine().trimmed();
+            if (line.isEmpty()) continue;
+            const QStringList cols = line.split(QRegularExpression(QStringLiteral("\\s+")));
+            if (cols.size() >= 10) {
+                bool ok = false;
+                const int prefix = cols[1].toInt(&ok, 16);
+                if (!ok || prefix != 0) continue;   // 仅默认路由
+                const QByteArray gwBytes = QByteArray::fromHex(cols[4].toLatin1());
+                if (gwBytes.size() != 16) continue;
+                bool allZero = true;
+                for (const char b : gwBytes) { if (b != 0) { allZero = false; break; } }
+                if (allZero) continue;
+                QHostAddress gw6;
+                gw6.setAddress(reinterpret_cast<const quint8*>(gwBytes.constData()));
+                const quint32 metric = cols[5].toUInt(nullptr, 16);
+                props.append({gw6.toString(),
+                    QStringLiteral("via %1, metric %2 (IPv6)").arg(cols[9]).arg(metric)});
+                found.append(QStringLiteral("%1 (via %2, metric %3, IPv6)")
+                    .arg(gw6.toString(), cols[9]).arg(metric));
             }
         }
     }
 #endif
 #endif
 
+    // ipconfig 风格终端转储（v0.0.3 对等：Default Gateway . . . : 行）
+    QStringList out;
+    out.append(QStringLiteral("Default Gateway:"));
     if (found.isEmpty()) {
-        DiagnosticResult r = makeResult(id, DiagStatus::Warning, QStringLiteral("No default gateway found"), props, {});
+        out.append(QStringLiteral("  No default gateway configured"));
+        DiagnosticResult r = makeResult(id, DiagStatus::Warning,
+            QStringLiteral("No default gateway found"), props, out.join(QLatin1Char('\n')));
         r.narrative = QStringLiteral("No default route (0.0.0.0/0 with a gateway) was found — "
             "the device can only reach its local subnet, not external networks.");
         return r;
     }
+    for (const auto& f : found)
+        out.append(QStringLiteral("  Default Gateway . . . . . . . . . : %1").arg(f));
     DiagnosticResult r = makeResult(id, DiagStatus::Pass,
-        QStringLiteral("%1 default gateway(s)").arg(found.size()), props, found.join('\n'));
+        QStringLiteral("%1 default gateway(s)").arg(found.size()), props,
+        out.join(QLatin1Char('\n')));
     r.narrative = QStringLiteral("%1 default gateway(s) found: %2. "
         "Outbound packets to external networks are routed via the listed gateway/interface pair(s).")
         .arg(found.size()).arg(found.join(QStringLiteral("; ")));

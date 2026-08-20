@@ -565,26 +565,41 @@ static DiagnosticResult probeDnsResolution(DiagId id, const QString& target, Run
     int anCount = 0;
     QStringList ips;
     QStringList out;
-    // DiagnosticFormatter（CJK 感知 dig 风格输出）——恢复共享格式化器
+    // 5WHY (2026-08-20 用户诉求 "输出与 dig 有距离"): 曾硬编码
+    // "flags: qr rd ra" 与 ANSWER 计数——真实响应头的 aa/tc/ra 位与
+    // AUTHORITY/ADDITIONAL 计数丢失，空应答时也打印空的 ANSWER SECTION
+    // 标题（dig 只在该节非空时输出标题）。改为响应头真实 flags 字 +
+    // 真实计数；ANSWER SECTION 标题仅在存在应答记录时输出（dig 行为）。
+    QString flags;
+    if (ans.flags & 0x8000) flags += QStringLiteral("qr ");
+    if (ans.flags & 0x0400) flags += QStringLiteral("aa ");
+    if (ans.flags & 0x0200) flags += QStringLiteral("tc ");
+    if (ans.flags & 0x0100) flags += QStringLiteral("rd ");
+    if (ans.flags & 0x0080) flags += QStringLiteral("ra ");
+    flags = flags.trimmed();
+    if (flags.isEmpty()) flags = QStringLiteral("qr rd");
     out.append(DiagnosticFormatter::formatDnsHeader(host,
         rcode == 0 ? QStringLiteral("NOERROR") : rcode == 3 ? QStringLiteral("NXDOMAIN")
         : rcode == 2 ? QStringLiteral("SERVFAIL") : rcode == 1 ? QStringLiteral("FORMERR")
-        : QStringLiteral("UNKNOWN"), 0, ans.records.size()));
+        : QStringLiteral("UNKNOWN"), 0x1234, ans.records.size(), flags));
     out.append(QStringLiteral(";; QUESTION SECTION:"));
     out.append(DiagnosticFormatter::formatDnsQuestion(host, QStringLiteral("A")));
     out.append(QString());
-    out.append(QStringLiteral(";; ANSWER SECTION:"));
-    for (const auto& rec : ans.records) {
-        if (rec.type == 1 || rec.type == 28) {
-            out.append(DiagnosticFormatter::formatDnsRecord(host, rec.ttl,
-                rec.type == 1 ? QStringLiteral("A") : QStringLiteral("AAAA"), rec.value));
-            ips.append(rec.value);
-            ++anCount;
-        } else if (rec.type == 5) {
-            out.append(DiagnosticFormatter::formatDnsRecord(host, rec.ttl, QStringLiteral("CNAME"), rec.value));
+    if (!ans.records.isEmpty()) {
+        out.append(QStringLiteral(";; ANSWER SECTION:"));
+        for (const auto& rec : ans.records) {
+            if (rec.type == 1 || rec.type == 28) {
+                out.append(DiagnosticFormatter::formatDnsRecord(host, rec.ttl,
+                    rec.type == 1 ? QStringLiteral("A") : QStringLiteral("AAAA"), rec.value));
+                ips.append(rec.value);
+                ++anCount;
+            } else if (rec.type == 5) {
+                out.append(DiagnosticFormatter::formatDnsRecord(host, rec.ttl, QStringLiteral("CNAME"), rec.value));
+            }
         }
+        out.append(QString());
     }
-    out.append(DiagnosticFormatter::formatDnsFooter(ms, server));
+    out.append(DiagnosticFormatter::formatDnsFooter(ms, server, ans.msgSize));
 
     DiagStatus status = anCount > 0 ? DiagStatus::Pass : DiagStatus::Fail;
     QString summary = anCount > 0
@@ -965,10 +980,17 @@ static DiagnosticResult probePathPing(DiagId id, const QString& target, RunConte
         if (ip.isEmpty()) continue;
         const bool isFinal = (i == stats.size() - 1);
         const HopStats& hs = stats[i];
-        lines.append(QStringLiteral("  %1  %2  %3/%4 = %5%  avg %6ms")
-            .arg(ttlNum, 2).arg(ip, -16)
-            .arg(hs.rcvd).arg(hs.sent).arg(100.0 - hs.loss, 0, 'f', 0)
-            .arg(hs.avgMs));
+        // 5WHY (2026-08-20 诚实呈现): 中间跳从未被 ping（stats 初始化
+        // sent=4,rcvd=0,loss=100），曾统一打印 "0/4 = 0%"——伪称发了 4 包
+        // 且交付 0%。仅末跳有真实统计；中间跳只列 IP，不再伪造计数行。
+        if (isFinal) {
+            lines.append(QStringLiteral("  %1  %2  %3/%4 = %5%  avg %6ms")
+                .arg(ttlNum, 2).arg(ip, -16)
+                .arg(hs.rcvd).arg(hs.sent).arg(100.0 - hs.loss, 0, 'f', 0)
+                .arg(hs.avgMs));
+        } else {
+            lines.append(QStringLiteral("  %1  %2").arg(ttlNum, 2).arg(ip, -16));
+        }
         QVariantMap h;
         h[QStringLiteral("ttl")] = ttlNum;
         h[QStringLiteral("ip")] = ip;
@@ -1188,6 +1210,12 @@ static DiagnosticResult probeIPv6Connectivity(DiagId id, const QString& target, 
         r.data[QStringLiteral("dnsResolved")] = false;
         r.data[QStringLiteral("connectedCount")] = 0;
         r.data[QStringLiteral("totalPorts")] = 0;
+        // 5WHY (2026-08-20 用户诉求 "G4 各项目需摘要卡"): AAAA 解析失败
+        // 分支曾直接 return——摘要卡（narrative 为空则不渲染）缺失，详情页
+        // 只剩错误区块，无推导叙述。补与其余分支同构的叙述。
+        r.narrative = QStringLiteral("Host %1 returned no IPv6 (AAAA) records — the network or the host "
+            "does not publish IPv6, or IPv6 DNS is unavailable. Connectivity over IPv6 was not tested. "
+            "IPv4 services are unaffected by this result.").arg(host);
         return r;
     }
     out.append(QStringLiteral("DNS AAAA: %1").arg(v6Addrs.join(QStringLiteral(", "))));

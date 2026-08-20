@@ -124,7 +124,9 @@ QStringList DiagnosticFormatter::formatTable(const QVector<ColSpec>& cols,
 // ── dig-style DNS ─────────────────────────────────────────────────
 QStringList DiagnosticFormatter::formatDnsHeader(const QString& host,
                                                    const QString& rcode,
-                                                   uint16_t id, int anCount) {
+                                                   uint16_t id, int anCount,
+                                                   const QString& flags,
+                                                   int nsCount, int arCount) {
     return {
         QString(),
         QStringLiteral("; <<>> NetDiagnostics DNS <<>> %1").arg(host),
@@ -132,13 +134,14 @@ QStringList DiagnosticFormatter::formatDnsHeader(const QString& host,
         QStringLiteral(";; Got answer:"),
         QStringLiteral(";; ->>HEADER<<- opcode: QUERY, status: %1, id: %2")
             .arg(rcode).arg(id),
-        QStringLiteral(";; flags: qr rd ra; QUERY: 1, ANSWER: %1, AUTHORITY: 0, ADDITIONAL: 0")
-            .arg(anCount),
+        QStringLiteral(";; flags: %1; QUERY: 1, ANSWER: %2, AUTHORITY: %3, ADDITIONAL: %4")
+            .arg(flags).arg(anCount).arg(nsCount).arg(arCount),
         QString(),
     };
 }
 
 QString DiagnosticFormatter::formatDnsQuestion(const QString& host, const QString& type) {
+    // dig 格式：;FQDN.（尾点）制表对齐 IN 与 qtype（与 dig 的 QUESTION SECTION 一致）
     return QStringLiteral(";%1.\t\t\tIN\t%2").arg(host, type);
 }
 
@@ -148,11 +151,14 @@ QString DiagnosticFormatter::formatDnsRecord(const QString& owner, int ttl,
         .arg(owner, -30).arg(ttl, 6).arg(type).arg(value);
 }
 
-QStringList DiagnosticFormatter::formatDnsFooter(qint64 elapsedMs, const QString& server) {
-    return {
-        QStringLiteral(";; Query time: %1 msec").arg(elapsedMs),
-        QStringLiteral(";; SERVER: %1").arg(server),
-        QStringLiteral(";; WHEN: %1").arg(
-            QDateTime::currentDateTime().toString(QStringLiteral("ddd MMM d HH:mm:ss yyyy"))),
-    };
+QStringList DiagnosticFormatter::formatDnsFooter(qint64 elapsedMs, const QString& server,
+                                                 int msgSize) {
+    QStringList out;
+    out.append(QStringLiteral(";; Query time: %1 msec").arg(elapsedMs));
+    out.append(QStringLiteral(";; SERVER: %1#53(%1)").arg(server));
+    out.append(QStringLiteral(";; WHEN: %1").arg(
+        QDateTime::currentDateTime().toString(QStringLiteral("ddd MMM d HH:mm:ss yyyy"))));
+    if (msgSize >= 0)
+        out.append(QStringLiteral(";; MSG SIZE  rcvd: %1").arg(msgSize));
+    return out;
 }

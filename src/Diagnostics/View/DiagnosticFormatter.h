@@ -28,11 +28,16 @@ public:
     static QString padToWidth(const QString& val, int targetDisplayWidth, bool rightAlign);
 
     // ── dig-style DNS ────────────────────────────────────────
+    // flags 行与各 SECTION 计数按响应头真实值呈现（dig 1:1）：
+    // flags="qr rd ra"（aa/tc 命中时并入）；msgSize≥0 时输出 MSG SIZE 行。
     static QStringList formatDnsHeader(const QString& host, const QString& rcode,
-                                        uint16_t id, int anCount);
+                                        uint16_t id, int anCount,
+                                        const QString& flags = QStringLiteral("qr rd ra"),
+                                        int nsCount = 0, int arCount = 0);
     static QString formatDnsQuestion(const QString& host, const QString& type = "A");
     static QString formatDnsRecord(const QString& owner, int ttl,
                                     const QString& type, const QString& value);
-    static QStringList formatDnsFooter(qint64 elapsedMs, const QString& server);
+    static QStringList formatDnsFooter(qint64 elapsedMs, const QString& server,
+                                       int msgSize = -1);
 
 };

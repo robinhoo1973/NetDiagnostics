@@ -33,6 +33,12 @@ struct Answer {
     int         elapsedMs = 0;
     int         rcode     = -1;   // DNS RCODE（0=NOERROR, 3=NXDOMAIN...）
     QVector<Record> records;      // 全部应答记录（含 AAAA）
+    // 5WHY (2026-08-20 用户诉求 "输出与 dig 有距离"): dig 的 flags 行
+    // （qr/aa/tc/rd/ra）与 "MSG SIZE rcvd" 均来自响应头——此前解析器
+    // 丢弃 flags 字与报文长度，dig 风格输出只能硬编码 "qr rd ra"。
+    // 捕获真实值供 G4DnsResolution 呈现。
+    quint16 flags    = 0;        // 响应头 flags 字（RFC 1035 §4.1.1 第 2-3 字节）
+    int     msgSize  = 0;        // 响应报文总字节数
 };
 
 // Name parsing with RFC 1035 compression pointers.
@@ -82,6 +88,8 @@ inline Answer parseResponse(const QByteArray& resp) {
     Answer a;
     if (resp.size() < 12) return a;
     a.rcode = (quint8)resp[3] & 0x0F;
+    a.flags = (quint16)((quint8)resp[2] << 8) | (quint8)resp[3];
+    a.msgSize = resp.size();
     const quint16 an = (quint16)((quint8)resp[6] << 8) | (quint8)resp[7];
     const quint16 ns = (quint16)((quint8)resp[8] << 8) | (quint8)resp[9];
     int pos = 12;

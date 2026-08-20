@@ -54,16 +54,23 @@ PageSection {
                         font.weight: _isGroup ? Font.DemiBold : Font.Normal
                         color: _isGroup ? ThemeEngine.colors.tertiary : ThemeEngine.colors.onSurfaceVariant
                         Layout.preferredWidth: _isGroup ? -1 : Math.min(180, implicitWidth)
+                        Layout.fillWidth: _isGroup
                         elide: Text.ElideRight
                     }
+                    // 5WHY (2026-08-20 用户诉求 "属性卡一团混乱数据"): Grouped
+                    // 模式下曾整体隐藏 value——组标题只有接口名（wlan0），
+                    // 主值（SSID/首地址/状态）随行丢失，组与组难以区分。
+                    // 业界惯例：组标题 = 实例名，主值常显于标题行右端
+                    // （弱化色、等宽）——扫描一眼即可区分各实例。
                     Label {
                         text: modelData.value || ""
                         font.family: ThemeEngine.monoFont
-                        font.pixelSize: ThemeEngine.fontSize.body
-                        color: ThemeEngine.colors.onSurface
-                        Layout.fillWidth: true
+                        font.pixelSize: _isGroup ? ThemeEngine.fontSize.caption : ThemeEngine.fontSize.body
+                        color: _isGroup ? ThemeEngine.colors.textMuted : ThemeEngine.colors.onSurface
+                        Layout.fillWidth: !_isGroup
                         wrapMode: Text.WrapAnywhere
-                        visible: !_isGroup
+                        visible: !_isGroup || text !== ""
+                        horizontalAlignment: _isGroup ? Text.AlignRight : Text.AlignLeft
                     }
                 }
                 Repeater {

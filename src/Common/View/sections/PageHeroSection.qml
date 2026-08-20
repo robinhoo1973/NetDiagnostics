@@ -81,6 +81,10 @@ PageSection {
             // 正方形），不另设匿名包装层。
             DiagAnimator {
                 id: heroAnim
+                // 堆叠契约（与 DiagBlock 同源）：动画覆盖层高于图标层——
+                // 此处 AppIcon 无显式 z（0），声明顺序已在上层；显式 z:1
+                // 固化契约，防止未来图标加 z 后重演 DiagBlock 的遮挡缺陷。
+                z: 1
                 anchors.centerIn: parent
                 width: iconWell.iconSize; height: iconWell.iconSize
                 diagId: root._diagId
