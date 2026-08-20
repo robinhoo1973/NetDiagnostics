@@ -147,20 +147,26 @@ Rectangle {
         // Restore 直接 no-op。PremiumStore.h 契约声明"UI 按 supportsIap
         // 门控购买按钮"，实现却未遵守。现在补齐门控：不支持的平台隐藏购买
         // 按钮，仅显示功能列表——App Store 审核姿态也更正确。
-        Button {
+        // 5WHY (复核 2026-08-20): 操作行入 DialogCard footer 槽——钉底恒
+        // 可见（主操作不随内容滚出首屏）。
+        footer: ColumnLayout {
             Layout.fillWidth: true
-            Layout.preferredHeight: 48
-            text: T.tr("subscribeBtn")
-            visible: PremiumStore.supportsIap
-            onClicked: PremiumStore.requestSubscription()
-        }
-        Button {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 40
-            text: T.tr("restoreBtn")
-            flat: true
-            visible: PremiumStore.supportsIap
-            onClicked: PremiumStore.restorePurchases()
+            spacing: ThemeEngine.spacing.sm
+            Button {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 48
+                text: T.tr("subscribeBtn")
+                visible: PremiumStore.supportsIap
+                onClicked: PremiumStore.requestSubscription()
+            }
+            Button {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 40
+                text: T.tr("restoreBtn")
+                flat: true
+                visible: PremiumStore.supportsIap
+                onClicked: PremiumStore.restorePurchases()
+            }
         }
     }
 }

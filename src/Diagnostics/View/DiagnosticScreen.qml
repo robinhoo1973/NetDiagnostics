@@ -170,12 +170,13 @@ PageDisplay {
                     horizontalAlignment: Text.AlignHCenter
                     wrapMode: Text.WordWrap
                 }
-                RowLayout {
+                // M3 对话框惯例：次要动作（取消）弱化、主动作（继续）
+                // 填充强调，两钮等宽。5WHY (复核 2026-08-20): 操作行入
+                // DialogCard footer 槽——高钳制滚屏时钉底恒可见（主操作
+                // 不再被滚出首屏）。
+                footer: RowLayout {
                     Layout.fillWidth: true
-                    Layout.topMargin: ThemeEngine.spacing.sm
                     spacing: ThemeEngine.spacing.sm
-                    // M3 对话框惯例：次要动作（取消）弱化、主动作（继续）
-                    // 填充强调，两钮等宽。
                     Button {
                         Layout.fillWidth: true
                         Layout.preferredHeight: 44

@@ -7,6 +7,10 @@
 // RTL 修复曾在 PremiumDialog 补一次、蜂窝弹窗再复制一次（漂移实证）。
 // 壳收敛于此：内容以默认属性子项注入（Layout.* 附着属性可用），规格只
 // 在一处维护。
+// 5WHY (复核 2026-08-20 主操作埋没): 高钳制时整卡滚屏把底部主按钮滚出
+// 首屏（AsNeeded 滚动条触屏不可见、无滚动提示）——用户够不到"继续/购买"
+// 即流程卡死。业界对话框惯例：内容滚动、操作行钉底恒可见。footer 槽
+// 供操作行注入（property-object 语法），内容/操作分离。
 // =============================================================================
 import QtQuick
 import QtQuick.Controls
@@ -19,14 +23,17 @@ Rectangle {
 
     // 内容最大宽（Premium 420 / 蜂窝 400）
     property real maxWidth: 420
+    // 操作行槽（钉底恒可见；Layout.* 附着属性可用）
+    property list<Item> footer
 
-    width: Math.min(parent.width - 48, root.maxWidth)
+    // 5WHY (复核 2026-08-20 下界): 父容器 <48px 时钳制为负——补下界。
+    width: Math.max(0, Math.min(parent.width - 48, root.maxWidth))
     // 5WHY (复核 2026-08-19 高度钳制): 蜂窝弹窗重构后内容增高（56px 图标垫
     // + title 标题 + 44/48 按钮）——横屏手机上 parent.height-48 小于内容
     // 隐式高，Math.min 静默裁掉底部按钮（旧蜂窝弹窗无钳制、内容恒全显）。
     // 业界惯例：高度受限时内容滚动——Flickable 兜底，内容不超界时行为不变。
-    height: Math.min(parent.height - 48,
-                     bodyFlick.contentHeight + 2 * ThemeEngine.spacing.xl)
+    height: Math.max(0, Math.min(parent.height - 48,
+                     cardCol.implicitHeight + 2 * ThemeEngine.spacing.xl))
     radius: ThemeEngine.radius.xl
     color: ThemeEngine.colors.surfaceContainerLow
     border { width: 1; color: ThemeEngine.colors.outlineVariant }
@@ -38,20 +45,34 @@ Rectangle {
 
     default property alias content: bodyCol.data
 
-    Flickable {
-        id: bodyFlick
+    ColumnLayout {
+        id: cardCol
         anchors.fill: parent
         anchors.margins: ThemeEngine.spacing.xl
-        contentWidth: width
-        contentHeight: bodyCol.implicitHeight
-        clip: true
-        boundsBehavior: Flickable.StopAtBounds
-        ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+        spacing: ThemeEngine.spacing.md
 
+        Flickable {
+            id: bodyFlick
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            contentWidth: width
+            contentHeight: bodyCol.implicitHeight
+            clip: true
+            boundsBehavior: Flickable.StopAtBounds
+            ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+
+            ColumnLayout {
+                id: bodyCol
+                width: parent.width
+                spacing: ThemeEngine.spacing.md
+            }
+        }
         ColumnLayout {
-            id: bodyCol
-            width: parent.width
-            spacing: ThemeEngine.spacing.md
+            id: footerCol
+            Layout.fillWidth: true
+            spacing: ThemeEngine.spacing.sm
+            data: root.footer
+            visible: footerCol.data.length > 0
         }
     }
 }

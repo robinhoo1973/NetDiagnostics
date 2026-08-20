@@ -240,8 +240,12 @@ echo ""
 echo "── 10b. Qt keywords as identifiers (slots/signals) ──"
 if [ -n "$CPP_FILES" ]; then
     for f in $CPP_FILES; do
-        if git show ":$f" | grep -nE '\b(QVariantList|QStringList|QList|QVector|QHash|QMap|std::vector|auto|const auto)\s+(slots|signals)\b' \
-            | grep -v '//' > /tmp/precommit-qtkw.log 2>/dev/null; then
+        # 5WHY (复核 2026-08-20 误放行): grep -v '//' 曾整行丢弃带注释的
+        # 违规（"QVariantList slots; // legacy" 形式 PASS）——先剥离注释
+        # 再匹配，行内注释不再豁免。
+        if git show ":$f" | sed 's|//.*||' \
+            | grep -nE '\b(QVariantList|QStringList|QList|QVector|QHash|QMap|std::vector|auto|const auto)\s+(slots|signals)\b' \
+            > /tmp/precommit-qtkw.log 2>/dev/null; then
             fail "$f: Qt keyword used as identifier (slots/signals) — breaks Apple builds (QT_NO_KEYWORDS undefined)"
             cat /tmp/precommit-qtkw.log | while read line; do
                 echo "       $line"

@@ -798,9 +798,13 @@ static DiagnosticResult probeActiveConnections(DiagId id, const QString&, RunCon
                 bool ipOk = false;
                 const uint32_t ip = parts[0].toUInt(&ipOk, 16);
                 if (!ipOk) return ep;
+                // 5WHY (复核 2026-08-20 截断): toUInt 32 位结果隐式窄化进
+                // uint16_t 会静默回绕（"1F90A"→0xF90A）——伪造端口。先取
+                // 32 位并范围校验，越界回退原文。
                 bool portOk = false;
-                const uint16_t port = parts[1].toUInt(&portOk, 16);
-                if (!portOk) return ep;
+                const uint32_t portRaw = parts[1].toUInt(&portOk, 16);
+                if (!portOk || portRaw > 0xFFFF) return ep;
+                const quint16 port = static_cast<quint16>(portRaw);
                 return QStringLiteral("%1.%2.%3.%4:%5")
                     .arg(int(ip & 0xFF)).arg(int((ip >> 8) & 0xFF))
                     .arg(int((ip >> 16) & 0xFF)).arg(int((ip >> 24) & 0xFF))

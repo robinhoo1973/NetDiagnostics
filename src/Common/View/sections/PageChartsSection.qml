@@ -14,6 +14,9 @@ PageSection {
     contentSpacing: 8
 
     property var detailData: ({})
+    // 5WHY (复核 2026-08-20 身份稳定): 空图回落曾内联 ({}) ——每次绑定
+    // 重估新建对象身份、ResultChart.data 下游绑定随之重跑。稳定哨兵。
+    readonly property var _emptyData: ({})
 
     readonly property bool _hasChart: chartView.hasChart
     active: _hasChart && detailData.showCharts !== false
@@ -48,7 +51,7 @@ PageSection {
             // push 前 detailData 均为 {} ——data 绑定求值为 undefined，
             // ResultChart._source 读 root.data.templateType 抛 TypeError
             // （iOS 静态 Qt 视 QML 错误为启动崩溃链）。缺 data 键时回落空图。
-            data: root.detailData.data !== undefined ? root.detailData.data : ({})
+            data: root.detailData.data !== undefined ? root.detailData.data : root._emptyData
             expanded: root._expanded
         }
     }
