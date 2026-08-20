@@ -1167,11 +1167,15 @@ static DiagnosticResult probeNetskopeStatus(DiagId id, const QString&, RunContex
         CloseHandle(hSnap);
     }
 #else
-#if defined(__APPLE__)
+#if defined(__APPLE__) && !defined(PLATFORM_IOS)
     // 5WHY (复核 2026-08-20 macOS 假阴性): PF_Desktop 含 macOS——原 /proc
     // 分支在 macOS 上恒为空表、"No security proxy detected" 恒假阴性。
     // macOS 无 /proc：ps 单次快照（与 ActiveConnections 的 macOS 分支
     // 同模式）。
+    // 5WHY (2026-08-20 CI): 必须排除 PLATFORM_IOS——iOS 也定义 __APPLE__，
+    // 而 QtCore 在 iOS 上定义 QT_NO_PROCESS（无进程模型，QProcess 类未声明），
+    // 裸 __APPLE__ 会让该分支在 iOS 编译并报 "unknown type name 'QProcess'"。
+    // iOS 走下方 /proc 分支（编译安全，空结果 → Info）。
     QProcess ps;
     ps.start(QStringLiteral("ps"), QStringList() << QStringLiteral("-e") << QStringLiteral("-o") << QStringLiteral("comm="));
     if (ps.waitForFinished(3000)) {
