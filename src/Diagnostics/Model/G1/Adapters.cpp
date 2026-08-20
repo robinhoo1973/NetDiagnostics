@@ -37,6 +37,7 @@
 #include <QDateTime>
 #include <QRegularExpression>
 #include <QSet>
+#include <QHash>
 #include <QStandardPaths>
 
 #include <cstring>
@@ -182,10 +183,13 @@ static bool isWirelessInterface(const QString& ifName) {
     QFile pw(QStringLiteral("/proc/net/wireless"));
     if (pw.open(QIODevice::ReadOnly)) {
         QTextStream ts(&pw);
-        ts.readLine(); ts.readLine();   // 表头两行
-        while (!ts.atEnd()) {
-            const QString line = ts.readLine().trimmed();
-            if (line.startsWith(ifName + QLatin1Char(':'))) return true;
+        // 5WHY (复核 2026-08-20 procfs atEnd 陷阱): /proc 文件 size 恒 0，
+        // atEnd() 首行缓冲前恒真——readLineInto 驱动，与文件大小无关。
+        QString line;
+        int header = 0;
+        while (ts.readLineInto(&line)) {
+            if (header < 2) { ++header; continue; }   // 表头两行
+            if (line.trimmed().startsWith(ifName + QLatin1Char(':'))) return true;
         }
     }
     return false;
@@ -216,6 +220,11 @@ static DiagnosticResult probeNetworkAdapters(DiagId id, const QString&, RunConte
         QString type = (i.flags().testFlag(QNetworkInterface::IsLoopBack))
                      ? QStringLiteral("loopback")
                      : QStringLiteral("ethernet");
+#if defined(__linux__)
+        // 5WHY (2026-08-20 分类失真): 无线接口（wlan0）曾被归类 ethernet
+        // ——用与 WiFi 探针同源的现代判据（phy80211/uevent）标注 wireless。
+        if (isWirelessInterface(i.name())) type = QStringLiteral("wireless");
+#endif
         p.children.append({QStringLiteral("type"), type});
         // 5WHY (2026-08-20 用户诉求 "属性卡一团混乱"): 地址子行曾一律标
         // "address"——v4/v6 混排无法区分协议。按协议标注 IPv4/IPv6，
@@ -496,9 +505,19 @@ static DiagnosticResult probeWifi(DiagId id, const QString&, RunContext& ctx) {
                     // 8-18：chained .arg() 中混入 %1 与 %.3f——QString::arg 的
                     // 占位符解析会把 %.3f 误当 %3 消费导致 "Argument missing"。
                     // 拆成两次独立格式化消除歧义。
-                    channel = QStringLiteral("%1 (%2 GHz)")
-                        .arg(static_cast<int>((freq - 2.412) / 0.005 + 1))
-                        .arg(QString::number(freq, 'f', 3));
+                    // 5WHY (复核 2026-08-20 未关联状态): ioctl 成功但频率
+                    // 为微小正值（未关联 AP / 驱动不报频段）时曾算出
+                    // channel=-481 "(-481 (0.000 GHz))"。仅当频率落在
+                    // 真实 WiFi 频段（2.4/5/6 GHz）内才换算信道，
+                    // 否则保持 "-"（诚实缺省）。
+                    const bool plausible =
+                        (freq >= 2.4 && freq <= 2.5)
+                        || (freq >= 5.1 && freq <= 5.9)
+                        || (freq >= 5.9 && freq <= 7.2);
+                    if (plausible)
+                        channel = QStringLiteral("%1 (%2 GHz)")
+                            .arg(static_cast<int>((freq - 2.412) / 0.005 + 1))
+                            .arg(QString::number(freq, 'f', 3));
                 }
                 ::close(sock);
             }
@@ -922,9 +941,12 @@ static DiagnosticResult probeDhcp(DiagId id, const QString&, RunContext& ctx) {
 // ── G1IpConfiguration ─────────────────────────────────────────────────────
 static DiagnosticResult probeIpConfig(DiagId id, const QString&, RunContext& ctx) {
     QVector<ResultProperty> props;
-    // L7/Linux：默认网关（/proc/net/route）与 DNS（resolv.conf）补入属性
+    // L7/Linux：默认网关（/proc/net/route）与 DNS 补入属性。
+    // 5WHY (复核 2026-08-20 逐接口归属): 网关曾是无归属的全局列表、每个
+    // 接口组重复同一串（lo/tailscale 也带 "gateway: 192.168.20.1"）——
+    // 按路由表 iface 列映射到所属接口，网关只挂在其真实出口上。
 #if defined(__linux__) || defined(__ANDROID__)
-    QStringList gateways;
+    QHash<QString, QStringList> gatewaysByIface;
     QFile rf(QStringLiteral("/proc/net/route"));
     if (rf.open(QIODevice::ReadOnly)) {
         QTextStream ts(&rf);
@@ -937,22 +959,49 @@ static DiagnosticResult probeIpConfig(DiagId id, const QString&, RunContext& ctx
                 const uint32_t dest = cols[1].toUInt(&ok, 16);
                 const uint32_t gw   = cols[2].toUInt(&ok, 16);
                 if (dest == 0 && gw != 0) {
-                    QHostAddress a(QStringLiteral("%1.%2.%3.%4")
+                    const QString gwStr = QStringLiteral("%1.%2.%3.%4")
                         .arg(int(gw & 0xFF)).arg(int((gw >> 8) & 0xFF))
-                        .arg(int((gw >> 16) & 0xFF)).arg(int((gw >> 24) & 0xFF)));
-                    gateways.append(a.toString());
+                        .arg(int((gw >> 16) & 0xFF)).arg(int((gw >> 24) & 0xFF));
+                    gatewaysByIface[cols[0]].append(gwStr);
                 }
             }
         }
     }
     QStringList dnsServers;
-    QFile df(QStringLiteral("/etc/resolv.conf"));
-    if (df.open(QIODevice::ReadOnly)) {
-        QTextStream ts(&df);
-        while (!ts.atEnd()) {
-            const QString line = ts.readLine().trimmed();
-            if (line.startsWith(QLatin1String("nameserver")))
-                dnsServers.append(line.section(QRegularExpression(QStringLiteral("\\s+")), 1));
+#if defined(__linux__) && !defined(PLATFORM_ANDROID)
+    // 5WHY (2026-08-20 systemd-resolved stub): resolv.conf 常只有
+    // 127.0.0.53（stub 解析器）——真实上游 DNS 经 NetworkManager D-Bus
+    // 暴露（IP4.DNS）。nmcli 可用时取真实上游；不可用回退 resolv.conf。
+    const QString nmcli = QStandardPaths::findExecutable(QStringLiteral("nmcli"));
+    if (!nmcli.isEmpty()) {
+        QProcess proc;
+        proc.start(nmcli, QStringList() << QStringLiteral("-t")
+            << QStringLiteral("-m") << QStringLiteral("multiline")
+            << QStringLiteral("-f") << QStringLiteral("GENERAL.DEVICE,IP4.DNS")
+            << QStringLiteral("device") << QStringLiteral("show"));
+        if (proc.waitForFinished(4000)) {
+            for (const QString& line : QString::fromLocal8Bit(proc.readAllStandardOutput()).split(QLatin1Char('\n'))) {
+                const QString t = line.trimmed();
+                if (t.startsWith(QLatin1String("IP4.DNS"))) {
+                    const QString v = t.section(QLatin1Char(':'), 1).trimmed();
+                    if (!v.isEmpty() && !dnsServers.contains(v)) dnsServers.append(v);
+                }
+            }
+        } else {
+            proc.kill();
+            proc.waitForFinished(2000);   // R5-1
+        }
+    }
+#endif
+    if (dnsServers.isEmpty()) {
+        QFile df(QStringLiteral("/etc/resolv.conf"));
+        if (df.open(QIODevice::ReadOnly)) {
+            QTextStream ts(&df);
+            while (!ts.atEnd()) {
+                const QString line = ts.readLine().trimmed();
+                if (line.startsWith(QLatin1String("nameserver")))
+                    dnsServers.append(line.section(QRegularExpression(QStringLiteral("\\s+")), 1));
+            }
         }
     }
 #endif
@@ -983,10 +1032,10 @@ static DiagnosticResult probeIpConfig(DiagId id, const QString&, RunContext& ctx
             ++addressCount;
         }
 #if defined(__linux__) || defined(__ANDROID__)
-        if (!gateways.isEmpty())
-            p.children.append({QStringLiteral("gateway"), gateways.join(QStringLiteral(", "))});
-        if (!dnsServers.isEmpty())
-            p.children.append({QStringLiteral("dns"), dnsServers.join(QStringLiteral(", "))});
+        // 网关只挂在其真实出口接口组上（gatewaysByIface 归属映射）
+        const QStringList ifaceGws = gatewaysByIface.value(i.name());
+        if (!ifaceGws.isEmpty())
+            p.children.append({QStringLiteral("gateway"), ifaceGws.join(QStringLiteral(", "))});
 #endif
         props.append(p);
         ++interfaceCount;
@@ -998,9 +1047,9 @@ static DiagnosticResult probeIpConfig(DiagId id, const QString&, RunContext& ctx
     // gethostname()（即时、无线程风险）。
     // （IPv6 已随 addressEntries 全族覆盖；DHCP Enabled/DNS 后缀无便携
     // 探测，记录为已知缺口。）
-    // 5WHY (复核 2026-08-20 分支可达性): 主机名前置曾位于空检查之前——
-    // 空枚举时 props 因主机名行恒非空，Info "No IP configuration found"
-    // 分支不可达（空栈误报 Pass）。先判空，再前置主机名。
+    // 5WHY (复核 2026-08-20 分支可达性): 主机名/DNS 前置曾位于空检查
+    // 之前——空枚举时 props 因这些行恒非空，Info "No IP configuration
+    // found" 分支不可达（空栈误报 Pass）。先判空，再前置平铺行。
     if (props.isEmpty())
         return makeResult(id, DiagStatus::Info, QStringLiteral("No IP configuration found"), {}, {});
     char hostBuf[256] = {};
@@ -1009,6 +1058,11 @@ static DiagnosticResult probeIpConfig(DiagId id, const QString&, RunContext& ctx
     // Android）时缓冲为空——曾仍前置 "Host Name: " 空值行。非空才前置。
     if (hostBuf[0])
         props.prepend({QStringLiteral("Host Name"), QString::fromLocal8Bit(hostBuf)});
+    // DNS 是主机级配置（非接口级）——独立平铺行，不重复挂每个接口组。
+#if defined(__linux__) || defined(__ANDROID__)
+    if (!dnsServers.isEmpty())
+        props.prepend({QStringLiteral("DNS Servers"), dnsServers.join(QStringLiteral(", "))});
+#endif
     DiagnosticResult r = makeResult(id, DiagStatus::Pass,
         QStringLiteral("IP configuration: %1 interface(s), %2 address(es)")
             .arg(interfaceCount).arg(addressCount), props, {});

@@ -147,8 +147,11 @@ QString DiagnosticFormatter::formatDnsQuestion(const QString& host, const QStrin
 
 QString DiagnosticFormatter::formatDnsRecord(const QString& owner, int ttl,
                                                const QString& type, const QString& value) {
+    // dig 记录行：owner. <tab> TTL <tab> IN <tab> type <tab> value——
+    // 曾用 %1.arg(owner,-30) 空格填充导致 "example.com                   ."
+    // （尾点悬空）。改为 dig 同款制表分隔，终端等宽呈现即对齐。
     return QStringLiteral("%1.\t%2\tIN\t%3\t%4")
-        .arg(owner, -30).arg(ttl, 6).arg(type).arg(value);
+        .arg(owner).arg(ttl).arg(type).arg(value);
 }
 
 QStringList DiagnosticFormatter::formatDnsFooter(qint64 elapsedMs, const QString& server,

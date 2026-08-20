@@ -351,7 +351,11 @@ static DiagnosticResult probeDefaultGateway(DiagId id, const QString&, RunContex
                     // 曾丢失 metric（cols[6]）且只查 IPv4——路由选择依赖
                     // metric，双栈网络默认走 IPv6 时属性卡为空。补 metric
                     // 与 IPv6 默认路由（/proc/net/ipv6_route）。
-                    const uint32_t metric = cols.size() >= 7 ? cols[6].toUInt(nullptr, 16) : 0;
+                    // 5WHY (复核 2026-08-20 进制): /proc/net/route 仅
+                    // Destination/Gateway/Mask 为十六进制——Metric 列是
+                    // 十进制（600 = 600，非 0x600=1536）。曾以基 16 解析
+                    // 虚报 metric。
+                    const uint32_t metric = cols.size() >= 7 ? cols[6].toUInt(nullptr, 10) : 0;
                     props.append({ipToStr(gw),
                         QStringLiteral("via %1, metric %2").arg(cols[0]).arg(metric)});
                     found.append(QStringLiteral("%1 (via %2, metric %3)")
@@ -363,9 +367,15 @@ static DiagnosticResult probeDefaultGateway(DiagId id, const QString&, RunContex
     QFile v6File(QStringLiteral("/proc/net/ipv6_route"));
     if (v6File.open(QIODevice::ReadOnly)) {
         QTextStream ts(&v6File);
-        while (!ts.atEnd()) {
+        // 5WHY (复核 2026-08-20 procfs atEnd 陷阱): /proc 文件 size 恒为 0
+        // ——QTextStream::atEnd() 在首行读入缓冲前恒真。v4 循环因先
+        // readLine() 表头再 while(!atEnd()) 侥幸可跑；本文件无表头，
+        // while(!atEnd()) 空转零行（IPv6 网关从未上报）。改用
+        // readLineInto 驱动循环，与文件大小无关。
+        QString line;
+        while (ts.readLineInto(&line)) {
             if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
-            const QString line = ts.readLine().trimmed();
+            line = line.trimmed();
             if (line.isEmpty()) continue;
             const QStringList cols = line.split(QRegularExpression(QStringLiteral("\\s+")));
             if (cols.size() >= 10) {
