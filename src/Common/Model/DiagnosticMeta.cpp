@@ -24,7 +24,7 @@ static DP sysTT(const char* field = nullptr, const char* unit = nullptr, int pre
 }
 static DP sysGrouped(const char* field = nullptr, const char* unit = nullptr, int prec = 0) {
     // 多实例检测（网卡/接口）：属性卡按实例分组渲染（PagePropertiesSection Grouped）
-    DP d = sys(field, unit, prec); d.propLayout = DP::Grouped; return d;
+    DP d = sys(field, unit, prec); d.propLayout = DP::PropLayout::Grouped; return d;
 }
 static DP sysGroupedTT(const char* field = nullptr, const char* unit = nullptr, int prec = 0) {
     // 5WHY (复核 2026-08-20 Grouped 丢打字机): WiFi 行曾由 sysTT 换 sysGrouped——

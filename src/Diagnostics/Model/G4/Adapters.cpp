@@ -552,6 +552,20 @@ static QString systemDnsServer() {
     return server;
 }
 
+// RCODE → dig 风格状态名。5WHY (复核 2026-08-20 单一来源): 头部与摘要
+// 卡各有一条 rcode 三元链——新增映射（如 REFUSED）漏改一处即两卡对同一
+// 响应说法不一。收敛为本文件单一 helper（formatter 只收文本不译码）。
+static QString rcodeText(int rcode) {
+    switch (rcode) {
+    case 0:  return QStringLiteral("NOERROR");
+    case 1:  return QStringLiteral("FORMERR");
+    case 2:  return QStringLiteral("SERVFAIL");
+    case 3:  return QStringLiteral("NXDOMAIN");
+    case 5:  return QStringLiteral("REFUSED");
+    default: return QStringLiteral("UNKNOWN");
+    }
+}
+
 // ═════════════════════════════════════════════════════════════════════════
 // G4DnsResolution — dig-like output (A/AAAA/CNAME)
 // ═════════════════════════════════════════════════════════════════════════
@@ -562,9 +576,26 @@ static DiagnosticResult probeDnsResolution(DiagId id, const QString& target, Run
     const int ms = ans.elapsedMs;
     const int rcode = ans.rcode;
     if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
+    // rcode=-1 ⇒ parseResponse 从未运行 ⇒ 连接失败/超时。dig 在此仅输出
+    // 一行 "connection timed out"——不伪造 header（"Got answer"/假 id 4660）
+    // 与 footer（"MSG SIZE rcvd: 0"）。5WHY (复核 2026-08-20 失败伪造)。
+    const bool gotResponse = rcode >= 0;
     int anCount = 0;
     QStringList ips;
     QStringList out;
+    if (!gotResponse) {
+        out.append(QStringLiteral(";; connection timed out; no servers could be reached"));
+        DiagnosticResult r = makeResult(id, DiagStatus::Fail,
+            QStringLiteral("No response from %1").arg(server), {}, out.join(QLatin1Char('\n')));
+        r.data[QStringLiteral("queryTimeMs")] = ms;
+        r.data[QStringLiteral("rcode")] = -1;
+        r.data[QStringLiteral("answerCount")] = 0;
+        r.narrative = QStringLiteral("Sent an A query for %1 to %2 but no DNS response arrived within 3 s. "
+            "The server may be unreachable, silently dropping UDP port 53, or the path to it is down. "
+            "No dig-style header is shown because no response was received.")
+            .arg(host, server);
+        return r;
+    }
     // 5WHY (2026-08-20 用户诉求 "输出与 dig 有距离"): 曾硬编码
     // "flags: qr rd ra" 与 ANSWER 计数——真实响应头的 aa/tc/ra 位与
     // AUTHORITY/ADDITIONAL 计数丢失，空应答时也打印空的 ANSWER SECTION
@@ -578,10 +609,8 @@ static DiagnosticResult probeDnsResolution(DiagId id, const QString& target, Run
     if (ans.flags & 0x0080) flags += QStringLiteral("ra ");
     flags = flags.trimmed();
     if (flags.isEmpty()) flags = QStringLiteral("qr rd");
-    out.append(DiagnosticFormatter::formatDnsHeader(host,
-        rcode == 0 ? QStringLiteral("NOERROR") : rcode == 3 ? QStringLiteral("NXDOMAIN")
-        : rcode == 2 ? QStringLiteral("SERVFAIL") : rcode == 1 ? QStringLiteral("FORMERR")
-        : QStringLiteral("UNKNOWN"), 0x1234, ans.records.size(), flags));
+    out.append(DiagnosticFormatter::formatDnsHeader(host, rcodeText(rcode),
+        ans.id, ans.anCount, flags, ans.nsCount, ans.arCount));
     out.append(QStringLiteral(";; QUESTION SECTION:"));
     out.append(DiagnosticFormatter::formatDnsQuestion(host, QStringLiteral("A")));
     out.append(QString());
@@ -621,10 +650,7 @@ static DiagnosticResult probeDnsResolution(DiagId id, const QString& target, Run
     r.data[QStringLiteral("records")] = recList;
     // 摘要卡叙述：查询服务器/响应码/应答数与延迟结论
     r.narrative = QStringLiteral("Query %1 (A) against %2 returned %3 with %4 answer record(s) in %5 ms. ")
-        .arg(host, server,
-             rcode == 0 ? QStringLiteral("NOERROR") : rcode == 3 ? QStringLiteral("NXDOMAIN")
-             : rcode == 2 ? QStringLiteral("SERVFAIL") : QStringLiteral("rcode %1").arg(rcode),
-             QString::number(anCount), QString::number(ms))
+        .arg(host, server, rcodeText(rcode), QString::number(anCount), QString::number(ms))
         + (anCount > 0 ? QStringLiteral("Resolved address(es): %1. Full dig-style output is in the terminal section.")
             .arg(ips.join(QStringLiteral(", ")))
                        : QStringLiteral("No A records were returned for this name."));

@@ -37,8 +37,21 @@ struct Answer {
     // （qr/aa/tc/rd/ra）与 "MSG SIZE rcvd" 均来自响应头——此前解析器
     // 丢弃 flags 字与报文长度，dig 风格输出只能硬编码 "qr rd ra"。
     // 捕获真实值供 G4DnsResolution 呈现。
+    // 5WHY (复核 2026-08-20 计数半成品): 前次只捕获 flags/msgSize——
+    // 事务 id 仍以字面量 0x1234 传入 formatter（dig 用户逐字段比对时
+    // 即见常量假 id），AUTHORITY/ADDITIONAL 参数恒默认 0（API 看似
+    // 上报真实计数实则死参）。id 与各节计数一并从响应头捕获。
     quint16 flags    = 0;        // 响应头 flags 字（RFC 1035 §4.1.1 第 2-3 字节）
-    int     msgSize  = 0;        // 响应报文总字节数
+    // 5WHY (复核 2026-08-20 失败伪造): msgSize 曾默认 0——查询失败
+    // （连接失败/超时，parseResponse 从未运行）时调用方拿默认 0 传
+    // footer，guard(>=0) 放行 → 输出 ";; MSG SIZE  rcvd: 0" 伪造收到
+    // 0 字节应答（dig 超时只输出 "connection timed out"，无 footer）。
+    // 默认 -1 = 无响应哨兵，footer 抑制。
+    int     msgSize  = -1;       // 响应报文总字节数；-1 = 未收到响应
+    quint16 id       = 0;        // 事务 id（resp[0..1]）
+    quint16 anCount  = 0;        // ANSWER 计数（真实头值，含未解析类型）
+    quint16 nsCount  = 0;        // AUTHORITY 计数
+    quint16 arCount  = 0;        // ADDITIONAL 计数
 };
 
 // Name parsing with RFC 1035 compression pointers.
@@ -87,16 +100,18 @@ inline QByteArray buildQuery(const QString& domain, int qtype) {
 inline Answer parseResponse(const QByteArray& resp) {
     Answer a;
     if (resp.size() < 12) return a;
+    a.id = (quint16)((quint8)resp[0] << 8) | (quint8)resp[1];
     a.rcode = (quint8)resp[3] & 0x0F;
     a.flags = (quint16)((quint8)resp[2] << 8) | (quint8)resp[3];
     a.msgSize = resp.size();
-    const quint16 an = (quint16)((quint8)resp[6] << 8) | (quint8)resp[7];
-    const quint16 ns = (quint16)((quint8)resp[8] << 8) | (quint8)resp[9];
+    a.anCount = (quint16)((quint8)resp[6] << 8) | (quint8)resp[7];
+    a.nsCount = (quint16)((quint8)resp[8] << 8) | (quint8)resp[9];
+    a.arCount = (quint16)((quint8)resp[10] << 8) | (quint8)resp[11];
     int pos = 12;
     // Skip the question section (echoed QNAME + QTYPE + QCLASS).
     readName(resp, pos);
     pos += 4;
-    const int rrCount = (int)an + (int)ns;
+    const int rrCount = (int)a.anCount + (int)a.nsCount;
     for (int i = 0; i < rrCount && pos + 12 <= resp.size(); ++i) {
         readName(resp, pos);                 // owner name
         if (pos + 10 > resp.size()) break;

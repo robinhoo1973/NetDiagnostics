@@ -114,6 +114,35 @@ static QString mac6ToStr(const unsigned char* mac) {
         .toUpper();
 }
 
+// /proc/net/route 网关字段 = IPv4 小端 uint32（内核字节序直存）→ 点分十进制。
+// 5WHY (复核 2026-08-20 复用): 换字节 .arg 链曾在 probeDhcp/probeIpConfig
+// 各复制一份（与 G2 的 ipToStr 同源第三份）——同一字节序数学三处漂移。
+// 收敛为本文件单一 helper；G2 的本地副本迁移属后续重构项。
+static QString ip4FromU32(uint32_t gw) {
+    return QStringLiteral("%1.%2.%3.%4")
+        .arg(int(gw & 0xFF)).arg(int((gw >> 8) & 0xFF))
+        .arg(int((gw >> 16) & 0xFF)).arg(int((gw >> 24) & 0xFF));
+}
+
+// 5WHY (复核 2026-08-20 R5-1 收敛): findExecutable→start→waitForFinished(N)
+// →kill→waitForFinished(2000) 样板在本文件复制 5 份（nmcli×2/mmcli×2/iw），
+// 超时漂移（3000 vs 4000）与 kill 对漏写都是 R5-1 类崩溃（运行中 QProcess
+// 析构 qFatal）的再引入点。收敛为单一 runner：超时杀进程、stdout 捕获。
+struct ToolOutput { bool ok = false; QString text; };
+static ToolOutput runTool(const QString& exe, const QStringList& args, int timeoutMs) {
+    ToolOutput o;
+    QProcess proc;
+    proc.start(exe, args);
+    if (proc.waitForFinished(timeoutMs)) {
+        o.ok = true;
+        o.text = QString::fromLocal8Bit(proc.readAllStandardOutput());
+    } else {
+        proc.kill();
+        proc.waitForFinished(2000);   // R5-1：析构前必须已终止
+    }
+    return o;
+}
+
 static DiagnosticResult makeResult(DiagId id, DiagStatus status,
                                    const QString& summary,
                                    const QVector<ResultProperty>& props,
@@ -162,6 +191,24 @@ static QVector<QNetworkInterface> runningInterfaces() {
     return out;
 }
 
+// 频率(GHz) → 信道号。5WHY (复核 2026-08-20 频段混淆): 曾单一公式
+// (f-2.412)/0.005+1 并把 5.1–7.2 GHz 判为 plausible——该公式仅对
+// 2.4 GHz 有效（5 GHz 信道 36 @ 5.180 GHz 会被算成 554），门控"诚实
+// 缺省"因此形同虚设。信道数按 nl80211 定义分频段换算：
+//   2.4 GHz: ch = (f-2412)/5+1        （2412–2484，ch 1–14）
+//   5   GHz: ch = (f-5000)/5          （5000–5925 步进 5 MHz）
+//   6   GHz: ch = (f-5955)/5+1        （5955–7115，ch 1/5/9…）
+// 返回 -1 = 非 WiFi 频段（未关联 AP / 驱动不报频段）→ 呈现 "-"。
+static int wifiChannelFromFreq(double freq) {
+    if (freq >= 2.400 && freq <= 2.500)
+        return static_cast<int>((freq - 2.412) / 0.005 + 0.5) + 1;
+    if (freq >= 5.000 && freq <= 5.925)
+        return static_cast<int>((freq - 5.000) / 0.005 + 0.5);
+    if (freq > 5.925 && freq <= 7.125)
+        return static_cast<int>((freq - 5.955) / 0.005 + 0.5) + 1;
+    return -1;
+}
+
 // ── 现代 Linux 无线接口判据（5WHY 2026-08-20 用户诉求 "WiFi 无数据"）──
 // 旧判据只认 /sys/class/net/<if>/wireless（wext 目录）——内核 6.6+ 的
 // mac80211 不再创建该目录（本机 wlan0 即无此目录），过滤恒空 → 探针
@@ -197,10 +244,14 @@ static bool isWirelessInterface(const QString& ifName) {
 #endif
 
 // 子网掩码 → CIDR 前缀长度（业界惯例 CIDR 呈现：192.168.20.150/24）
+// 5WHY (复核 2026-08-20 空掩码): 曾把 null/0.0.0.0 掩码算成前缀 0 →
+// 地址渲染成 "192.168.20.150/0"（伪造显式 /0 路由语义；旧代码以
+// !netmask().isNull() 门控、无掩码时不加后缀）。空掩码 = 无前缀信息
+// → 返回 -1（与 IPv6 同哨兵），调用方跳过 CIDR 后缀。
 static int netmaskPrefixLen(const QHostAddress& mask) {
     if (mask.protocol() == QAbstractSocket::IPv4Protocol) {
         const quint32 m = mask.toIPv4Address();
-        if (m == 0) return 0;
+        if (m == 0) return -1;
         int trailing = 0;
         quint32 v = m;
         while ((v & 1u) == 0) { ++trailing; v >>= 1; }
@@ -509,14 +560,12 @@ static DiagnosticResult probeWifi(DiagId id, const QString&, RunContext& ctx) {
                     // 为微小正值（未关联 AP / 驱动不报频段）时曾算出
                     // channel=-481 "(-481 (0.000 GHz))"。仅当频率落在
                     // 真实 WiFi 频段（2.4/5/6 GHz）内才换算信道，
-                    // 否则保持 "-"（诚实缺省）。
-                    const bool plausible =
-                        (freq >= 2.4 && freq <= 2.5)
-                        || (freq >= 5.1 && freq <= 5.9)
-                        || (freq >= 5.9 && freq <= 7.2);
-                    if (plausible)
+                    // 否则保持 "-"（诚实缺省）。分频段公式见
+                    // wifiChannelFromFreq（5/6 GHz 曾误用 2.4 GHz 公式）。
+                    const int chan = wifiChannelFromFreq(freq);
+                    if (chan > 0)
                         channel = QStringLiteral("%1 (%2 GHz)")
-                            .arg(static_cast<int>((freq - 2.412) / 0.005 + 1))
+                            .arg(chan)
                             .arg(QString::number(freq, 'f', 3));
                 }
                 ::close(sock);
@@ -524,11 +573,17 @@ static DiagnosticResult probeWifi(DiagId id, const QString&, RunContext& ctx) {
             QFile wfile(QStringLiteral("/proc/net/wireless"));
             if (wfile.open(QIODevice::ReadOnly)) {
                 QTextStream ts(&wfile);
-                ts.readLine(); ts.readLine();
-                while (!ts.atEnd()) {
-                    const QString line = ts.readLine().trimmed();
-                    if (line.startsWith(ifName + QLatin1Char(':'))) {
-                        const QStringList cols = line.split(QRegularExpression(QStringLiteral("\\s+")));
+                // 5WHY (复核 2026-08-20 procfs atEnd 陷阱): 曾 readLine()
+                // 表头 ×2 + while(!atEnd())——/proc size 恒 0，atEnd 在
+                // 首行缓冲前恒真，此"侥幸"模式换文件即零行（G2 IPv6
+                // 网关即因此从未上报）。readLineInto 驱动，与文件大小无关。
+                QString line;
+                int header = 0;
+                while (ts.readLineInto(&line)) {
+                    if (header < 2) { ++header; continue; }
+                    const QString t = line.trimmed();
+                    if (t.startsWith(ifName + QLatin1Char(':'))) {
+                        const QStringList cols = t.split(QRegularExpression(QStringLiteral("\\s+")));
                         // 列：face status link level noise ...
                         // cols[0]="wlan0:" cols[1]=status cols[2]=link cols[3]=level cols[4]=noise
                         // 5WHY (2026-08-20 用户诉求 "WiFi 信息无数据"): 曾取
@@ -553,18 +608,13 @@ static DiagnosticResult probeWifi(DiagId id, const QString&, RunContext& ctx) {
             if (bitrate == QLatin1String("-")) {
                 const QString iw = QStandardPaths::findExecutable(QStringLiteral("iw"));
                 if (!iw.isEmpty()) {
-                    QProcess iproc;
-                    iproc.start(iw, QStringList() << QStringLiteral("dev") << ifName << QStringLiteral("link"));
-                    if (iproc.waitForFinished(3000)) {
-                        const QStringList iwl = QString::fromLocal8Bit(iproc.readAllStandardOutput()).split(QLatin1Char('\n'));
-                        for (const QString& il : iwl) {
-                            const QString t = il.trimmed();
-                            if (t.startsWith(QLatin1String("tx bitrate:")))
-                                bitrate = t.section(QLatin1Char(':'), 1).trimmed();
-                        }
-                    } else {
-                        iproc.kill();
-                        iproc.waitForFinished(2000);   // R5-1
+                    const ToolOutput io = runTool(iw,
+                        QStringList() << QStringLiteral("dev") << ifName << QStringLiteral("link"), 3000);
+                    const QStringList iwl = io.text.split(QLatin1Char('\n'));
+                    for (const QString& il : iwl) {
+                        const QString t = il.trimmed();
+                        if (t.startsWith(QLatin1String("tx bitrate:")))
+                            bitrate = t.section(QLatin1Char(':'), 1).trimmed();
                     }
                 }
             }
@@ -642,6 +692,7 @@ static DiagnosticResult probeDhcp(DiagId id, const QString&, RunContext& ctx) {
     QVector<ResultProperty> props;
     QStringList leases;
     int leaseCount = 0;
+    int likelyCount = 0;   // 路由表网关推断的 "Likely" 行数（非确认租约）
 
 #if defined(_WIN32)
     // 真实租约：GetAdaptersInfo（旧 API，MinGW 可用）带 DhcpEnabled、
@@ -726,7 +777,10 @@ static DiagnosticResult probeDhcp(DiagId id, const QString&, RunContext& ctx) {
         // 否则由文件名推导：dhclient.<if>.leases → <if>。
         QString fileName = QFileInfo(path).fileName();
         if (fileName.startsWith(QLatin1String("dhclient."))) fileName = fileName.mid(9);
-        if (fileName.endsWith(QLatin1String(".leases"))) fileName.chop(8);
+        // 5WHY (复核 2026-08-20 越界): ".leases" 7 字符，曾 chop(8) 多吃
+        // 一个字符——dhclient.wlan0.leases → mid(9)="wlan0.leases" →
+        // chop(8)="wla"（接口名截断错标，租约卡标题 "wla"）。chop(7)。
+        if (fileName.endsWith(QLatin1String(".leases"))) fileName.chop(7);
         else if (fileName.endsWith(QLatin1String(".lease"))) fileName.chop(6);
         QString ifName = fileName;
         // 5WHY (2026-08-20): systemd-networkd 租约文件名是接口索引（如
@@ -792,87 +846,108 @@ static DiagnosticResult probeDhcp(DiagId id, const QString&, RunContext& ctx) {
     if (leaseCount == 0 && !ctx.cancelled.load()) {
         const QString nmcli = QStandardPaths::findExecutable(QStringLiteral("nmcli"));
         if (!nmcli.isEmpty()) {
-            QProcess proc;
-            proc.start(nmcli, QStringList() << QStringLiteral("-t")
+            const ToolOutput nm = runTool(nmcli, QStringList() << QStringLiteral("-t")
                 << QStringLiteral("-m") << QStringLiteral("multiline")
                 << QStringLiteral("-f")
                 << QStringLiteral("GENERAL.DEVICE,GENERAL.TYPE,IP4.ADDRESS,IP4.GATEWAY,DHCP4.OPTION")
-                << QStringLiteral("device") << QStringLiteral("show"));
-            if (proc.waitForFinished(4000)) {
-                const QString text = QString::fromLocal8Bit(proc.readAllStandardOutput());
-                QString dev, devType, ipAddr, gateway, server, leaseTime, optIp, subnetMask, hostName;
-                auto flushDevice = [&]() {
-                    if (dev.isEmpty()) return;
-                    const bool dhcpManaged = !server.isEmpty() || !leaseTime.isEmpty() || !optIp.isEmpty();
-                    const QString effIp = ipAddr.isEmpty() ? optIp : ipAddr;
-                    const QString key = dev;
-                    const QString type = devType;
-                    dev.clear(); devType.clear();
-                    // 回环/隧道设备无 DHCP 语义——过滤，避免 lo/tailscale
-                    // 以 "DHCP: No" 行混入租约卡（数据噪声）。
-                    if (type == QLatin1String("loopback") || type == QLatin1String("tun")
-                        || type == QLatin1String("wireguard")) {
-                        ipAddr.clear(); gateway.clear(); server.clear(); leaseTime.clear();
-                        optIp.clear(); subnetMask.clear(); hostName.clear();
-                        return;
-                    }
-                    if (!dhcpManaged && effIp.isEmpty()) {
-                        ipAddr.clear(); gateway.clear(); server.clear(); leaseTime.clear();
-                        optIp.clear(); subnetMask.clear(); hostName.clear();
-                        return;   // 无 DHCP 且无地址的设备：无信息可呈现
-                    }
-                    ResultProperty p(key, effIp.isEmpty() ? QStringLiteral("(DHCP)") : effIp);
-                    p.children.append({QStringLiteral("DHCP"), dhcpManaged ? QStringLiteral("Yes") : QStringLiteral("No")});
-                    if (!server.isEmpty()) p.children.append({QStringLiteral("server"), server});
-                    if (!leaseTime.isEmpty()) {
-                        bool ltOk = false;
-                        const qulonglong lt = leaseTime.toULongLong(&ltOk);
-                        // NM 的无限租约 = 4294967295（UINT32_MAX）
-                        p.children.append({QStringLiteral("lease time"),
-                            (ltOk && lt >= 4294967295ULL) ? QStringLiteral("infinite") : leaseTime + QStringLiteral(" s")});
-                    }
-                    if (!gateway.isEmpty()) p.children.append({QStringLiteral("gateway"), gateway});
-                    if (!subnetMask.isEmpty()) p.children.append({QStringLiteral("subnet mask"), subnetMask});
-                    if (!hostName.isEmpty()) p.children.append({QStringLiteral("host name"), hostName});
-                    props.append(p);
-                    if (dhcpManaged && !effIp.isEmpty()) {
-                        ++leaseCount;
-                        leases.append(key + QLatin1Char('=') + effIp);
-                    }
-                    ipAddr.clear(); gateway.clear(); server.clear(); leaseTime.clear();
-                    optIp.clear(); subnetMask.clear(); hostName.clear();
-                };
-                for (const QString& line : text.split(QLatin1Char('\n'))) {
-                    if (ctx.cancelled.load()) break;
-                    const QString t = line.trimmed();
-                    if (t.isEmpty()) continue;
-                    if (t.startsWith(QLatin1String("GENERAL.DEVICE:"))) {
-                        flushDevice();
-                        dev = t.section(QLatin1Char(':'), 1).trimmed();
-                    } else if (t.startsWith(QLatin1String("GENERAL.TYPE:"))) {
-                        devType = t.section(QLatin1Char(':'), 1).trimmed();
-                    } else if (t.startsWith(QLatin1String("IP4.ADDRESS"))) {
-                        ipAddr = t.section(QLatin1Char(':'), 1).trimmed();
-                    } else if (t.startsWith(QLatin1String("IP4.GATEWAY:"))) {
-                        gateway = t.section(QLatin1Char(':'), 1).trimmed();
-                    } else if (t.startsWith(QLatin1String("DHCP4.OPTION"))) {
-                        // "dhcp_server_identifier = 192.168.20.1"
-                        const QString body = t.section(QLatin1Char(':'), 1).trimmed();
-                        const QString name = body.section(QLatin1Char('='), 0, 0).trimmed();
-                        const QString value = body.section(QLatin1Char('='), 1).trimmed();
-                        if (name == QLatin1String("dhcp_server_identifier")) server = value;
-                        else if (name == QLatin1String("dhcp_lease_time")) leaseTime = value;
-                        else if (name == QLatin1String("ip_address")) optIp = value;
-                        else if (name == QLatin1String("routers") && gateway.isEmpty()) gateway = value;
-                        else if (name == QLatin1String("subnet_mask")) subnetMask = value;
-                        else if (name == QLatin1String("host_name")) hostName = value;
-                    }
+                << QStringLiteral("device") << QStringLiteral("show"), 4000);
+            const QString text = nm.text;
+            QString dev, devType, ipAddr, gateway, server, leaseTime, optIp, subnetMask, hostName;
+            qulonglong leaseExpiry = 0;
+            // 5WHY (复核 2026-08-20 状态重置收敛): 8 个捕获可变字符串曾以
+            // 相同 clear 序列手工复位三处（两个早退 + 尾部）——加第 9 个
+            // 字段即漏一处、下一设备属性卡串入陈旧值。改为进入即全清
+            // （先取局部副本后无条件 clear），任何早退路径都不可能漏。
+            auto flushDevice = [&]() {
+                // 5WHY (复核 2026-08-20 状态重置收敛): 8 个捕获可变字符串曾以
+                // 相同 clear 序列手工复位三处（两个早退 + 尾部）——加第 9 个
+                // 字段即漏一处、下一设备属性卡串入陈旧值。改为进入即全清，
+                // 任何早退路径都不可能漏。注意：清空先于使用——所有字段
+                // 必须先拷贝到局部副本，函数体只读副本（首版曾在清空后仍
+                // 读外部变量，harness 实测 server/lease time 子行整体消失）。
+                const QString key = dev;
+                const QString type = devType;
+                const QString vIpAddr = ipAddr;
+                const QString vGateway = gateway;
+                const QString vServer = server;
+                const QString vLeaseTime = leaseTime;
+                const QString vOptIp = optIp;
+                const QString vSubnetMask = subnetMask;
+                const QString vHostName = hostName;
+                const qulonglong expiry = leaseExpiry;
+                const bool dhcpManaged = !vServer.isEmpty() || !vLeaseTime.isEmpty()
+                    || !vOptIp.isEmpty() || expiry > 0;
+                // IP4.ADDRESS 带 CIDR 后缀（"192.168.20.150/24"）——租约卡
+                // 值列与 leases 列表只用地址本体（CIDR 属 IP 配置卡语义）。
+                QString effIp = (vIpAddr.isEmpty() ? vOptIp : vIpAddr).section(QLatin1Char('/'), 0, 0);
+                dev.clear(); devType.clear();
+                ipAddr.clear(); gateway.clear(); server.clear(); leaseTime.clear();
+                optIp.clear(); subnetMask.clear(); hostName.clear();
+                leaseExpiry = 0;
+                if (key.isEmpty()) return;
+                // 回环/隧道设备无 DHCP 语义——过滤，避免 lo/tailscale
+                // 以 "DHCP: No" 行混入租约卡（数据噪声）。
+                if (type == QLatin1String("loopback") || type == QLatin1String("tun")
+                    || type == QLatin1String("wireguard"))
+                    return;
+                if (!dhcpManaged && effIp.isEmpty())
+                    return;   // 无 DHCP 且无地址的设备：无信息可呈现
+                ResultProperty p(key, effIp.isEmpty() ? QStringLiteral("(DHCP)") : effIp);
+                p.children.append({QStringLiteral("DHCP"), dhcpManaged ? QStringLiteral("Yes") : QStringLiteral("No")});
+                if (!vServer.isEmpty()) p.children.append({QStringLiteral("server"), vServer});
+                if (!vLeaseTime.isEmpty()) {
+                    bool ltOk = false;
+                    const qulonglong lt = vLeaseTime.toULongLong(&ltOk);
+                    // NM 的无限租约 = 4294967295（UINT32_MAX）
+                    p.children.append({QStringLiteral("lease time"),
+                        (ltOk && lt >= 4294967295ULL) ? QStringLiteral("infinite") : vLeaseTime + QStringLiteral(" s")});
                 }
-                flushDevice();
-            } else {
-                proc.kill();
-                proc.waitForFinished(2000);   // R5-1
+                if (!vGateway.isEmpty()) p.children.append({QStringLiteral("gateway"), vGateway});
+                if (!vSubnetMask.isEmpty()) p.children.append({QStringLiteral("subnet mask"), vSubnetMask});
+                if (!vHostName.isEmpty()) p.children.append({QStringLiteral("host name"), vHostName});
+                if (expiry > 0)
+                    p.children.append({QStringLiteral("lease expiry"),
+                        QDateTime::fromSecsSinceEpoch(static_cast<qint64>(expiry))
+                            .toString(QStringLiteral("yyyy-MM-dd HH:mm:ss"))});
+                props.append(p);
+                if (dhcpManaged && !effIp.isEmpty()) {
+                    ++leaseCount;
+                    leases.append(key + QLatin1Char('=') + effIp);
+                }
+            };
+            for (const QString& line : text.split(QLatin1Char('\n'))) {
+                if (ctx.cancelled.load()) break;
+                const QString t = line.trimmed();
+                if (t.isEmpty()) continue;
+                if (t.startsWith(QLatin1String("GENERAL.DEVICE:"))) {
+                    flushDevice();
+                    dev = t.section(QLatin1Char(':'), 1).trimmed();
+                } else if (t.startsWith(QLatin1String("GENERAL.TYPE:"))) {
+                    devType = t.section(QLatin1Char(':'), 1).trimmed();
+                } else if (t.startsWith(QLatin1String("IP4.ADDRESS"))) {
+                    ipAddr = t.section(QLatin1Char(':'), 1).trimmed();
+                } else if (t.startsWith(QLatin1String("IP4.GATEWAY:"))) {
+                    gateway = t.section(QLatin1Char(':'), 1).trimmed();
+                } else if (t.startsWith(QLatin1String("DHCP4.OPTION"))) {
+                    // "dhcp_server_identifier = 192.168.20.1"
+                    const QString body = t.section(QLatin1Char(':'), 1).trimmed();
+                    const QString name = body.section(QLatin1Char('='), 0, 0).trimmed();
+                    const QString value = body.section(QLatin1Char('='), 1).trimmed();
+                    if (name == QLatin1String("dhcp_server_identifier")) server = value;
+                    else if (name == QLatin1String("dhcp_lease_time")) leaseTime = value;
+                    else if (name == QLatin1String("ip_address")) optIp = value;
+                    else if (name == QLatin1String("routers") && gateway.isEmpty()) gateway = value;
+                    else if (name == QLatin1String("subnet_mask")) subnetMask = value;
+                    else if (name == QLatin1String("host_name")) hostName = value;
+                    // 5WHY (复核 2026-08-20 expiry-only 租约): 新版 NM 的
+                    // DHCP4.OPTION 可能只给 expiry = <epoch>（无
+                    // dhcp_lease_time/ip_address）——dhcpManaged 曾因此
+                    // 判 false、真实 DHCP 接口被结论为"静态 IP"。expiry
+                    // 也计入 DHCP 管理证据，并以本地时间呈现。
+                    else if (name == QLatin1String("expiry")) leaseExpiry = value.toULongLong();
+                }
             }
+            flushDevice();
         }
     }
     if (leaseCount == 0 && !ctx.cancelled.load()) {
@@ -881,23 +956,25 @@ static DiagnosticResult probeDhcp(DiagId id, const QString&, RunContext& ctx) {
         QFile rf(QStringLiteral("/proc/net/route"));
         if (rf.open(QIODevice::ReadOnly)) {
             QTextStream ts(&rf);
-            ts.readLine();
-            while (!ts.atEnd()) {
+            // readLineInto 驱动（procfs atEnd 陷阱，见 isWirelessInterface）
+            QString line;
+            int header = 0;
+            while (ts.readLineInto(&line)) {
+                if (header < 1) { ++header; continue; }
                 if (ctx.cancelled.load()) break;
-                const QString line = ts.readLine().trimmed();
-                if (line.isEmpty()) continue;
-                const QStringList cols = line.split(QLatin1Char('\t'));
+                const QString t = line.trimmed();
+                if (t.isEmpty()) continue;
+                const QStringList cols = t.split(QLatin1Char('\t'));
                 if (cols.size() >= 3) {
                     bool ok = false;
                     const uint32_t gw = cols[2].toUInt(&ok, 16);
                     if (ok && gw != 0) {
-                        const QString gwStr = QStringLiteral("%1.%2.%3.%4")
-                            .arg(int(gw & 0xFF)).arg(int((gw >> 8) & 0xFF))
-                            .arg(int((gw >> 16) & 0xFF)).arg(int((gw >> 24) & 0xFF));
+                        const QString gwStr = ip4FromU32(gw);
                         ResultProperty p(cols[0], QStringLiteral("DHCP likely"));
                         p.children.append({QStringLiteral("DHCP"), QStringLiteral("Likely")});
                         p.children.append({QStringLiteral("gateway"), gwStr});
                         props.append(p);
+                        ++likelyCount;
                     }
                 }
             }
@@ -924,17 +1001,28 @@ static DiagnosticResult probeDhcp(DiagId id, const QString&, RunContext& ctx) {
             "sourced from lease files or NetworkManager (D-Bus).").arg(leaseCount);
         return r;
     }
+    // 5WHY (复核 2026-08-20 Likely 落穿): 回退行（"DHCP: Likely"）曾只
+    // append props 不计入任何计数——指标卡 leaseCount=0 与属性行自相
+    // 矛盾，且叙述声称数据"reported by NetworkManager"（实际来自
+    // /proc/net/route）、结论"最可能静态 IP"与 Likely 行相抵。Likely
+    // 行计数进指标卡与摘要（明确标注 gateway-derived），三处同源一致。
     DiagnosticResult r = makeResult(id, DiagStatus::Info,
-        props.isEmpty() ? QStringLiteral("No DHCP information found")
-                        : QStringLiteral("No DHCP lease found (static IP or managed externally)"),
+        likelyCount > 0
+            ? QStringLiteral("DHCP not confirmed — %1 gateway-derived 'likely' interface(s)").arg(likelyCount)
+            : (props.isEmpty() ? QStringLiteral("No DHCP information found")
+                               : QStringLiteral("No DHCP lease found (static IP or managed externally)")),
         props, {});
-    r.data[QStringLiteral("leaseCount")] = 0;
-    r.narrative = props.isEmpty()
-        ? QStringLiteral("No DHCP leases or DHCP-derived configuration were found on this device. "
-            "The interface may use a static IP, or the DHCP client does not expose lease data "
-            "(lease files are unreadable and NetworkManager is not installed).")
-        : QStringLiteral("No active DHCP lease was found, but configuration reported by NetworkManager "
-            "is listed below — the interface most likely uses a static IP configuration.");
+    r.data[QStringLiteral("leaseCount")] = likelyCount > 0 ? likelyCount : 0;
+    r.narrative = likelyCount > 0
+        ? QStringLiteral("No confirmed DHCP lease was found (lease files and NetworkManager data are "
+            "unavailable), but the routing table shows a default gateway on %1 interface(s) — listed "
+            "below as 'DHCP: Likely' (gateway-derived evidence, not a confirmed lease).").arg(likelyCount)
+        : (props.isEmpty()
+            ? QStringLiteral("No DHCP leases or DHCP-derived configuration were found on this device. "
+                "The interface may use a static IP, or the DHCP client does not expose lease data "
+                "(lease files are unreadable and NetworkManager is not installed).")
+            : QStringLiteral("No active DHCP lease was found, but configuration reported by NetworkManager "
+                "is listed below — the interface most likely uses a static IP configuration."));
     return r;
 }
 
@@ -950,20 +1038,21 @@ static DiagnosticResult probeIpConfig(DiagId id, const QString&, RunContext& ctx
     QFile rf(QStringLiteral("/proc/net/route"));
     if (rf.open(QIODevice::ReadOnly)) {
         QTextStream ts(&rf);
-        ts.readLine();
-        while (!ts.atEnd()) {
-            const QString line = ts.readLine().trimmed();
-            const QStringList cols = line.split(QLatin1Char('\t'));
+        // readLineInto 驱动（procfs atEnd 陷阱，见 isWirelessInterface）
+        QString line;
+        int header = 0;
+        while (ts.readLineInto(&line)) {
+            if (header < 1) { ++header; continue; }
+            if (ctx.cancelled.load()) break;
+            const QString t = line.trimmed();
+            if (t.isEmpty()) continue;
+            const QStringList cols = t.split(QLatin1Char('\t'));
             if (cols.size() >= 8) {
                 bool ok = false;
                 const uint32_t dest = cols[1].toUInt(&ok, 16);
                 const uint32_t gw   = cols[2].toUInt(&ok, 16);
-                if (dest == 0 && gw != 0) {
-                    const QString gwStr = QStringLiteral("%1.%2.%3.%4")
-                        .arg(int(gw & 0xFF)).arg(int((gw >> 8) & 0xFF))
-                        .arg(int((gw >> 16) & 0xFF)).arg(int((gw >> 24) & 0xFF));
-                    gatewaysByIface[cols[0]].append(gwStr);
-                }
+                if (dest == 0 && gw != 0)
+                    gatewaysByIface[cols[0]].append(ip4FromU32(gw));
             }
         }
     }
@@ -974,37 +1063,37 @@ static DiagnosticResult probeIpConfig(DiagId id, const QString&, RunContext& ctx
     // 暴露（IP4.DNS）。nmcli 可用时取真实上游；不可用回退 resolv.conf。
     const QString nmcli = QStandardPaths::findExecutable(QStringLiteral("nmcli"));
     if (!nmcli.isEmpty()) {
-        QProcess proc;
-        proc.start(nmcli, QStringList() << QStringLiteral("-t")
+        const ToolOutput nm = runTool(nmcli, QStringList() << QStringLiteral("-t")
             << QStringLiteral("-m") << QStringLiteral("multiline")
             << QStringLiteral("-f") << QStringLiteral("GENERAL.DEVICE,IP4.DNS")
-            << QStringLiteral("device") << QStringLiteral("show"));
-        if (proc.waitForFinished(4000)) {
-            for (const QString& line : QString::fromLocal8Bit(proc.readAllStandardOutput()).split(QLatin1Char('\n'))) {
-                const QString t = line.trimmed();
-                if (t.startsWith(QLatin1String("IP4.DNS"))) {
-                    const QString v = t.section(QLatin1Char(':'), 1).trimmed();
-                    if (!v.isEmpty() && !dnsServers.contains(v)) dnsServers.append(v);
-                }
-            }
-        } else {
-            proc.kill();
-            proc.waitForFinished(2000);   // R5-1
-        }
-    }
-#endif
-    if (dnsServers.isEmpty()) {
-        QFile df(QStringLiteral("/etc/resolv.conf"));
-        if (df.open(QIODevice::ReadOnly)) {
-            QTextStream ts(&df);
-            while (!ts.atEnd()) {
-                const QString line = ts.readLine().trimmed();
-                if (line.startsWith(QLatin1String("nameserver")))
-                    dnsServers.append(line.section(QRegularExpression(QStringLiteral("\\s+")), 1));
+            << QStringLiteral("device") << QStringLiteral("show"), 4000);
+        for (const QString& line : nm.text.split(QLatin1Char('\n'))) {
+            const QString t = line.trimmed();
+            if (t.startsWith(QLatin1String("IP4.DNS"))) {
+                const QString v = t.section(QLatin1Char(':'), 1).trimmed();
+                if (!v.isEmpty() && !dnsServers.contains(v)) dnsServers.append(v);
             }
         }
     }
+    // 5WHY (复核 2026-08-20 数据源收窄): resolv.conf 曾以 isEmpty() 门控
+    // ——nmcli 一有输出即整体跳过，VPN/Tailscale/静态配置等非 NM 源注入
+    // 的 nameserver 静默丢失。改为合并（去重）；已有真实上游时跳过
+    // 127.x stub（systemd-resolved 转发器噪声），列表全空时保留（唯一
+    // 可得数据，不因过滤而空卡）。
+    QFile df(QStringLiteral("/etc/resolv.conf"));
+    if (df.open(QIODevice::ReadOnly)) {
+        QTextStream ts(&df);
+        while (!ts.atEnd()) {
+            const QString line = ts.readLine().trimmed();
+            if (!line.startsWith(QLatin1String("nameserver"))) continue;
+            const QString v = line.section(QRegularExpression(QStringLiteral("\\s+")), 1);
+            const bool isStub = v.startsWith(QLatin1String("127."));
+            if (!v.isEmpty() && !dnsServers.contains(v) && !(isStub && !dnsServers.isEmpty()))
+                dnsServers.append(v);
+        }
+    }
 #endif
+#endif   // __linux__ || __ANDROID__（网关 + DNS 数据源段）
     const auto ifaces = runningInterfaces();
     int addressCount = 0;
     int interfaceCount = 0;
@@ -1016,7 +1105,7 @@ static DiagnosticResult probeIpConfig(DiagId id, const QString&, RunContext& ctx
     // 组标题 = 接口名（主值 = 首个地址），子行 = MAC/各地址(CIDR)/网关/DNS。
     for (const auto& i : ifaces) {
         if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
-        const auto entries = i.addressEntries();
+        const auto& entries = i.addressEntries();   // 引用绑定临时，避免整表拷贝
         if (entries.isEmpty()) continue;   // 无地址接口（空 down 口）不入卡
         const QString firstIp = entries.first().ip().toString();
         ResultProperty p(i.name(), firstIp);
@@ -1040,6 +1129,26 @@ static DiagnosticResult probeIpConfig(DiagId id, const QString&, RunContext& ctx
         props.append(p);
         ++interfaceCount;
     }
+#if defined(__linux__) || defined(__ANDROID__)
+    // 5WHY (复核 2026-08-20 孤儿网关): 路由表默认路由的出口接口若无任何
+    // 地址条目（PPPoE/DSL 的 ppp0、指向 down 口的路由），上面的
+    // entries.isEmpty() 提前 continue 使其网关行永不渲染——数据静默
+    // 消失。补一行接口+网关（无地址信息时网关即全部可得数据）。
+    {
+        QSet<QString> rendered;
+        for (const auto& p : props) rendered.insert(p.label);
+        for (auto it = gatewaysByIface.constBegin(); it != gatewaysByIface.constEnd(); ++it) {
+            if (rendered.contains(it.key()) || it.value().isEmpty()) continue;
+            ResultProperty gp(it.key(), it.value().join(QStringLiteral(", ")));
+            gp.children.append({QStringLiteral("gateway"), it.value().join(QStringLiteral(", "))});
+            props.append(gp);
+            ++interfaceCount;
+        }
+    }
+#endif
+    // 统一复查（同 probeDhcp/ActiveConnections 规则：解析后取消整项计 Cancelled）
+    if (ctx.cancelled.load())
+        return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
     // 5WHY (复核 2026-08-19 v0.0.3 对等): 主机名曾随 ipconfig 转储呈现
     // （G1IpConfiguration.cpp: Host Name）——现丢失，前置一条补回。
     // 5WHY (复核 2026-08-19 探针线程安全): QHostInfo::localHostName() 在
@@ -1226,62 +1335,65 @@ static DiagnosticResult probeCellular(DiagId id, const QString&, RunContext& ctx
     // 有则完整转储；无则诚实地只报接口枚举（下方）。
     const QString mmcli = QStandardPaths::findExecutable(QStringLiteral("mmcli"));
     if (!mmcli.isEmpty()) {
-        QProcess listProc;
-        listProc.start(mmcli, QStringList() << QStringLiteral("-L"));
-        if (listProc.waitForFinished(3000)) {
-            const QString listOut = QString::fromLocal8Bit(listProc.readAllStandardOutput());
-            static const QRegularExpression kModemRe(QStringLiteral("Modem/(\\d+)"));
-            auto it = kModemRe.globalMatch(listOut);
-            while (it.hasNext()) {
-                if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
-                const QRegularExpressionMatch m = it.next();
-                const QString num = m.captured(1);
-                QProcess detailProc;
-                detailProc.start(mmcli, QStringList() << QStringLiteral("-m") << num);
-                if (!detailProc.waitForFinished(3000)) {
-                    detailProc.kill();
-                    detailProc.waitForFinished(2000);   // R5-1
-                    continue;
-                }
-                const QString text = QString::fromLocal8Bit(detailProc.readAllStandardOutput());
-                QString carrier, rat, signal, mccmnc, state, imei, device;
-                for (const QString& rawLine : text.split(QLatin1Char('\n'))) {
-                    const QString t = rawLine.trimmed();
-                    const int colon = t.indexOf(QLatin1Char(':'));
-                    if (colon < 0) continue;
-                    const QString key = t.left(colon).trimmed();
-                    const QString value = t.mid(colon + 1).trimmed();
-                    if (key == QLatin1String("operator name")) carrier = value;
-                    else if (key == QLatin1String("access tech")) rat = value;
-                    else if (key == QLatin1String("signal quality")) signal = value;
-                    else if (key == QLatin1String("operator code")) mccmnc = value;
-                    else if (key == QLatin1String("state")) state = value;
-                    else if (key == QLatin1String("imei")) imei = value;
-                    else if (key == QLatin1String("device")) device = value;
-                }
-                if (carrier.isEmpty() && rat.isEmpty() && state.isEmpty()) continue;
-                ResultProperty p(QStringLiteral("modem %1").arg(num),
-                    state.isEmpty() ? QStringLiteral("present") : state);
-                if (!carrier.isEmpty()) p.children.append({QStringLiteral("carrier"), carrier});
-                if (!rat.isEmpty()) p.children.append({QStringLiteral("radio access"), rat});
-                if (!signal.isEmpty()) p.children.append({QStringLiteral("signal"), signal});
-                if (!mccmnc.isEmpty()) p.children.append({QStringLiteral("MCC/MNC"), mccmnc});
-                if (!imei.isEmpty()) p.children.append({QStringLiteral("IMEI"), imei});
-                if (!device.isEmpty()) p.children.append({QStringLiteral("device"), device});
-                props.append(p);
-                found = true;
-                foundNames.append(carrier.isEmpty() ? QStringLiteral("modem %1").arg(num) : carrier);
-                // Raw 数据转储（历史版本样式）
-                out.append(QStringLiteral("  Modem %1:").arg(num));
-                for (const QString& rawLine : text.split(QLatin1Char('\n'))) {
-                    const QString t = rawLine.trimmed();
-                    if (!t.isEmpty()) out.append(QStringLiteral("    %1").arg(t));
-                }
-                out.append(QString());
+        const ToolOutput list = runTool(mmcli, QStringList() << QStringLiteral("-L"), 3000);
+        const QString listOut = list.text;
+        static const QRegularExpression kModemRe(QStringLiteral("Modem/(\\d+)"));
+        auto it = kModemRe.globalMatch(listOut);
+        while (it.hasNext()) {
+            if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
+            const QRegularExpressionMatch m = it.next();
+            const QString num = m.captured(1);
+            const ToolOutput detail = runTool(mmcli, QStringList() << QStringLiteral("-m") << num, 3000);
+            if (!detail.ok) continue;
+            const QString text = detail.text;
+            // 5WHY (复核 2026-08-20 mmcli 格式): 真实 mmcli -m N 每行形如
+            // "  3GPP   | operator name: 'AT&T'"（左侧节名 + '|' 分隔）——
+            // 曾以整行 indexOf(':') 前部作 key 精确比较，"3GPP | operator
+            // name" ≠ "operator name" 恒不匹配，carrier/rat/state 全空、
+            // 守卫跳过每个 modem，深探测整体静默失效（本机无 modem 无法
+            // 实测，仅代码审查可查）。修正：先剥离 '|' 左侧节名再取键值，
+            // 并去除值两侧单引号。单遍 split+trim（曾对同一文本 split
+            // 两次），解析与 Raw 转储共用一份行列表。
+            QString carrier, rat, signal, mccmnc, state, imei, device;
+            QStringList cleanLines;
+            for (const QString& rawLine : text.split(QLatin1Char('\n'))) {
+                QString t = rawLine.trimmed();
+                if (t.isEmpty()) continue;
+                cleanLines.append(t);
+                const int sep = t.indexOf(QLatin1Char('|'));
+                if (sep >= 0) t = t.mid(sep + 1).trimmed();
+                const int colon = t.indexOf(QLatin1Char(':'));
+                if (colon < 0) continue;
+                const QString key = t.left(colon).trimmed();
+                QString value = t.mid(colon + 1).trimmed();
+                if (value.size() >= 2 && value.startsWith(QLatin1Char('\''))
+                    && value.endsWith(QLatin1Char('\'')))
+                    value = value.mid(1, value.size() - 2);
+                if (key == QLatin1String("operator name")) carrier = value;
+                else if (key == QLatin1String("access tech")) rat = value;
+                else if (key == QLatin1String("signal quality")) signal = value;
+                else if (key == QLatin1String("operator code")) mccmnc = value;
+                else if (key == QLatin1String("state")) state = value;
+                else if (key == QLatin1String("imei")) imei = value;
+                else if (key == QLatin1String("device")) device = value;
             }
-        } else {
-            listProc.kill();
-            listProc.waitForFinished(2000);   // R5-1
+            if (carrier.isEmpty() && rat.isEmpty() && state.isEmpty()) continue;
+            ResultProperty p(QStringLiteral("modem %1").arg(num),
+                state.isEmpty() ? QStringLiteral("present") : state);
+            if (!carrier.isEmpty()) p.children.append({QStringLiteral("carrier"), carrier});
+            if (!rat.isEmpty()) p.children.append({QStringLiteral("radio access"), rat});
+            if (!signal.isEmpty()) p.children.append({QStringLiteral("signal"), signal});
+            if (!mccmnc.isEmpty()) p.children.append({QStringLiteral("MCC/MNC"), mccmnc});
+            if (!imei.isEmpty()) p.children.append({QStringLiteral("IMEI"), imei});
+            if (!device.isEmpty()) p.children.append({QStringLiteral("device"), device});
+            props.append(p);
+            found = true;
+            foundNames.append(carrier.isEmpty() ? QStringLiteral("modem %1").arg(num) : carrier);
+            // Raw 数据转储（历史版本样式）
+            out.append(QStringLiteral("  Modem %1:").arg(num));
+            for (const QString& t : cleanLines)
+                out.append(QStringLiteral("    %1").arg(t));
+            out.append(QString());
         }
     }
 #endif

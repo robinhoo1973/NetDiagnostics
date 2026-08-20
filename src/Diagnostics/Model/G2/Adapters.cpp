@@ -336,12 +336,18 @@ static DiagnosticResult probeDefaultGateway(DiagId id, const QString&, RunContex
     QFile routeFile(QStringLiteral("/proc/net/route"));
     if (routeFile.open(QIODevice::ReadOnly)) {
         QTextStream ts(&routeFile);
-        ts.readLine();
-        while (!ts.atEnd()) {
+        // 5WHY (复核 2026-08-20 procfs atEnd 陷阱): 曾 readLine() 表头 +
+        // while(!atEnd())——/proc size 恒 0，atEnd 在首行缓冲前恒真，此
+        // "侥幸"模式换无表头文件即零行（v6 循环即因此从未上报，见下）。
+        // 与 v6 循环同用 readLineInto 驱动，与文件大小无关。
+        QString line;
+        int header = 0;
+        while (ts.readLineInto(&line)) {
+            if (header < 1) { ++header; continue; }
             if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
-            const QString line = ts.readLine().trimmed();
-            if (line.isEmpty()) continue;
-            const QStringList cols = line.split(QLatin1Char('\t'));
+            const QString t = line.trimmed();
+            if (t.isEmpty()) continue;
+            const QStringList cols = t.split(QLatin1Char('\t'));
             if (cols.size() >= 8) {
                 bool ok = false;
                 const uint32_t dest = cols[1].toUInt(&ok, 16);
@@ -368,10 +374,9 @@ static DiagnosticResult probeDefaultGateway(DiagId id, const QString&, RunContex
     if (v6File.open(QIODevice::ReadOnly)) {
         QTextStream ts(&v6File);
         // 5WHY (复核 2026-08-20 procfs atEnd 陷阱): /proc 文件 size 恒为 0
-        // ——QTextStream::atEnd() 在首行读入缓冲前恒真。v4 循环因先
-        // readLine() 表头再 while(!atEnd()) 侥幸可跑；本文件无表头，
-        // while(!atEnd()) 空转零行（IPv6 网关从未上报）。改用
-        // readLineInto 驱动循环，与文件大小无关。
+        // ——QTextStream::atEnd() 在首行读入缓冲前恒真。本文件无表头，
+        // while(!atEnd()) 空转零行（IPv6 网关从未上报）。v4/v6 循环均
+        // 以 readLineInto 驱动，与文件大小无关。
         QString line;
         while (ts.readLineInto(&line)) {
             if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));

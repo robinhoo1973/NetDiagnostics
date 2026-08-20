@@ -24,8 +24,12 @@ struct DetailProfile {
     // 5WHY (2026-08-20 用户诉求 "属性卡一团混乱数据"): 多实例检测
     // （N 块网卡 × M 个字段）压进单层扁平 kv 列表无层级可读。
     // Grouped = 每实例一个子组（标题=实例名，子项=字段行）。
-    enum PropLayout { Kv, Grouped };
-    PropLayout propLayout = Kv;
+    // 5WHY (复核 2026-08-20 跨语言契约): 曾为裸 enum 且序值以 int 序列化
+    // 进 QML（5 处裸 === 1 直比）——枚举重排/插入即静默错乱渲染且无
+    // 编译期报错（项目规范 review/ios-ci-known-issues.md §12：enum class
+    // 而非裸 enum）。改 enum class，跨语言只下发布尔 propGrouped。
+    enum class PropLayout { Kv, Grouped };
+    PropLayout propLayout = PropLayout::Kv;
 
     const char* keyMetricField = nullptr;   // data 键 → MetricCard；nullptr=无
     const char* keyMetricUnit  = nullptr;

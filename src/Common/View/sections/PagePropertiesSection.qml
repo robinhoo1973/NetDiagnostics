@@ -16,8 +16,11 @@ PageSection {
     readonly property bool _hasProperties: (detailData.properties || []).length > 0
     active: _hasProperties && detailData.showProperties !== false
     property bool _expanded: true
-    // C++ 下发的 propLayout 枚举值（AppState 序列化为 int）
-    readonly property int _propLayoutGrouped: 1
+    // 5WHY (复核 2026-08-20 跨语言契约): 曾以 C++ 枚举序值 int（
+    // propLayout === 1）在本文件 5 处裸直比——枚举重排/插入即静默错乱
+    // 渲染，无编译期或运行时报错（与 palette/qrc 不同，pre-commit 无法
+    // 校验此契约）。C++ 只下发布尔 propGrouped，QML 单一命名常量消费。
+    readonly property bool _grouped: detailData.propGrouped === true
 
     ColumnLayout {
         spacing: 0
@@ -34,7 +37,7 @@ PageSection {
                 spacing: 2
                 // 5WHY (2026-08-20 用户诉求 "属性卡一团混乱数据"): 多实例
                 // 检测（网卡/接口）在 Kv 模式下平铺无层级；Grouped 模式
-                // （C++ propLayout 下发）把每个属性渲染为一个子组：实例名
+                // （C++ propGrouped 下发）把每个属性渲染为一个子组：实例名
                 // 为组标题（强调色），子字段为对齐的 label/value 行。
                 // 5WHY (复核 2026-08-20 Grouped 无子行丢值): 扁平属性
                 // （Host Name、gateway→interface、connection 端点、cellular
@@ -42,8 +45,7 @@ PageSection {
                 // 隐藏，整行数据丢失。修正：仅当属性确有 children 时按
                 // 「组标题」渲染；无 children 时回退标准 kv 行（防御纵深）。
                 readonly property bool _isGroup:
-                    detailData.propLayout === root._propLayoutGrouped
-                    && (modelData.children || []).length > 0
+                    root._grouped && (modelData.children || []).length > 0
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: ThemeEngine.spacing.sm
@@ -77,20 +79,20 @@ PageSection {
                     model: modelData.children || []
                     delegate: RowLayout {
                         Layout.fillWidth: true
-                        Layout.leftMargin: detailData.propLayout === 1 ? 0 : ThemeEngine.spacing.lg
+                        Layout.leftMargin: root._grouped ? 0 : ThemeEngine.spacing.lg
                         spacing: ThemeEngine.spacing.sm
                         Label {
-                            text: (detailData.propLayout === 1 ? "" : "· ") + (modelData.label || "")
+                            text: (root._grouped ? "" : "· ") + (modelData.label || "")
                             font.family: ThemeEngine.fontUi
-                            font.pixelSize: detailData.propLayout === 1 ? ThemeEngine.fontSize.body : ThemeEngine.fontSize.caption
+                            font.pixelSize: root._grouped ? ThemeEngine.fontSize.body : ThemeEngine.fontSize.caption
                             color: ThemeEngine.colors.textMuted
-                            Layout.preferredWidth: detailData.propLayout === 1 ? 140 : -1
+                            Layout.preferredWidth: root._grouped ? 140 : -1
                             elide: Text.ElideRight
                         }
                         Label {
                             text: modelData.value || ""
                             font.family: ThemeEngine.monoFont
-                            font.pixelSize: detailData.propLayout === 1 ? ThemeEngine.fontSize.body : ThemeEngine.fontSize.caption
+                            font.pixelSize: root._grouped ? ThemeEngine.fontSize.body : ThemeEngine.fontSize.caption
                             color: ThemeEngine.colors.onSurfaceVariant
                             Layout.fillWidth: true
                             wrapMode: Text.WrapAnywhere

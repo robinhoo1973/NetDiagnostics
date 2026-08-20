@@ -638,8 +638,11 @@ QVariantMap AppState::resultFor(int diagIdInt) const {
     // （G4/G5 逐跳/证书链等）不受影响。
     m[QStringLiteral("showTerminal")] = dp.showTerminal
         && !data.value(QStringLiteral("propsDump")).toBool();
-    // 属性布局（Kv 扁平 / Grouped 分组卡）——PagePropertiesSection 渲染模式
-    m[QStringLiteral("propLayout")] = static_cast<int>(dp.propLayout);
+    // 属性布局（Kv 扁平 / Grouped 分组卡）——PagePropertiesSection 渲染模式。
+    // 5WHY (复核 2026-08-20 跨语言契约): 曾把枚举序值 int 直传 QML（5 处
+    // 裸 === 1 直比）——枚举重排即静默错乱。只下发布尔语义（propGrouped），
+    // QML 单一命名常量消费，跨语言不再存在序值契约。
+    m[QStringLiteral("propGrouped")] = dp.propLayout == DetailProfile::PropLayout::Grouped;
     return m;
 }
 
