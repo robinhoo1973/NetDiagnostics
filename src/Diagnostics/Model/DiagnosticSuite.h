@@ -16,6 +16,7 @@
 #include <QHash>
 
 class QThreadPool;
+struct RunSnapshot;
 class QTimer;
 class DiagnosticBase;
 
@@ -44,6 +45,8 @@ public:
     // 5WHY (复核 2026-08-18 计时连续性): 暴露运行中探针的墙钟起点——UI 委托
     // 重建后从模型恢复真实计时，而非委托诞生时刻重新起算。
     QHash<DiagId, qint64> runningStartTimes() const;
+    // 5WHY (复核 2026-08-20 墙钟步进): 单调起点表（同 MonotonicClock 基准）
+    QHash<DiagId, qint64> runningStartTimesMono() const;
 
     // Run the suite.  Non-runnable (platform/scheme/device) tests are reported
     // as Skipped so progress totals are stable.  (A4: caller = AppState.)
@@ -76,4 +79,6 @@ private:
     qint64         m_deadlineSec = 600;
     QString        m_target;
     QString        m_scheme;
+    // 每轮运行共享的系统快照（nmcli 等外部命令一轮只 spawn 一次）
+    std::shared_ptr<RunSnapshot> m_snapshot;
 };

@@ -17,14 +17,13 @@ import "../../theme/AnimationTokens.js" as Tokens
 AnimationBase {
     id: root
 
-    // 锚点：geoip 母版定位针头中心（实测 ≈(0.71, 0.30)）。C++ 单一来源
-    // （AppState.diagAnimationAnchor，与 animType→URL 同层）经 DiagAnimator
-    // 装载时下发覆盖；保留同值默认供直接实例化回退（本文件 Usage 契约与
-    // 兄弟动画一致）——C++ 与 QML 同值双份以"同值默认"为不变式：母版位移
-    // 时两处同改（默认=回退，单一来源=运行时事实）。
-    property real anchorCx: 0.71
-    property real anchorCy: 0.30
-    property real anchorMaxR: 0.29
+    // 锚点：geoip 母版定位针头中心（实测 ≈(0.71, 0.30)）。C++ 经
+    // DiagAnimator 装载时下发覆盖；默认读 AnimationTokens.js 单一来源
+    // （C++ AppState::diagAnimationAnchor 解析同文件——曾 C++/QML 同值
+    // 双份靠注释"两处同改"维系，母版位移改一处即静默错位）。
+    property real anchorCx: Tokens.tokens.geoRadarAnchorCx
+    property real anchorCy: Tokens.tokens.geoRadarAnchorCy
+    property real anchorMaxR: Tokens.tokens.geoRadarAnchorMaxR
     readonly property real _cx: parent.width * root.anchorCx
     readonly property real _cy: parent.height * root.anchorCy
     // 5WHY (复核 2026-08-19 边界): 半径在 (cx,cy) 锚点上越界（无裁剪链——

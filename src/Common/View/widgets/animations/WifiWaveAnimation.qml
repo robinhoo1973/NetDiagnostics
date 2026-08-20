@@ -25,10 +25,11 @@ AnimationBase {
     property int arcHold: Tokens.tokens.wifiWaveHold
     property int arcGap:  Tokens.tokens.wifiWaveGap
 
-    // 锚点（C++ 下发；默认 = 母版右下信号弧组焦点 + 外弧半径，归一化到宽度）
-    property real anchorCx: 0.85
-    property real anchorCy: 0.70
-    property real anchorMaxR: 0.155
+    // 锚点（C++ 经 DiagAnimator 下发覆盖；默认读 AnimationTokens.js 单一
+    // 来源——与 C++ AppState 解析同文件，母版再生成位移仅改 tokens 一处）
+    property real anchorCx: Tokens.tokens.wifiWaveAnchorCx
+    property real anchorCy: Tokens.tokens.wifiWaveAnchorCy
+    property real anchorMaxR: Tokens.tokens.wifiWaveAnchorMaxR
 
     // 弧组几何（与母版三道信号弧同焦点、同角跨度）
     readonly property real _fx: parent.width * root.anchorCx

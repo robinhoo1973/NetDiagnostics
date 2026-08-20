@@ -165,19 +165,22 @@ Item {
         var ms = root.itemData.durationMs
         if (ms !== undefined && ms > 0) root._elapsed = Math.round(ms / 1000)
     }
-    readonly property real _startedAtMs: root.itemData.startedAtMs !== undefined
-        ? root.itemData.startedAtMs : 0
-    // 5WHY (复核 2026-08-20 Date.now 不可追踪): startedAtMs 注入后本绑定
-    // 只读 Date.now()/startedAtMs——两者均不参与 QML 依赖追踪，每秒 _elapsed
-    // tick 不再触发重估，长探针（180s）计时圆点冻结在注入时刻值。显式读
-    // _elapsed 作依赖钩（与 _inViewport 同习语）。
+    readonly property real _startedAtMonoMs: root.itemData.startedAtMonoMs !== undefined
+        ? root.itemData.startedAtMonoMs : 0
+    // 5WHY (复核 2026-08-20 墙钟步进): 曾以 Date.now() 与 startedAtMs（均
+    // 墙钟）相减——NTP 校时/手动改时在长探针（180s）中段步进，计时圆点
+    // 瞬时跳变、颜色阈值随错误时长重估。改为单调毫秒相减：起点
+    // startedAtMonoMs 与现在 AppState.monotonicNowMs 同 MonotonicClock
+    // 基准（CLOCK_MONOTONIC），墙钟步进免疫。
+    // 5WHY (复核 2026-08-20 依赖钩): 两者均不参与 QML 依赖追踪——显式读
+    // _elapsed 作依赖钩（每秒 tick 触发重估，与 _inViewport 同习语）。
     readonly property int _timerSecs: {
         var tick = root._elapsed   // 依赖读取：每秒重估
-        if (root._startedAtMs > 0)
-            return Math.max(1, Math.floor((Date.now() - root._startedAtMs) / 1000))
+        if (root._startedAtMonoMs > 0 && typeof AppState !== "undefined" && AppState)
+            return Math.max(1, Math.floor((AppState.monotonicNowMs - root._startedAtMonoMs) / 1000))
         return Math.max(1, tick)
     }
-    readonly property bool _timerVisible: !root.isDone && (root._startedAtMs > 0 || root._elapsed > 0)
+    readonly property bool _timerVisible: !root.isDone && (root._startedAtMonoMs > 0 || root._elapsed > 0)
     readonly property string _timerColor: {
         if (_timerSecs > 20) return ThemeEngine.colors.fail
         if (_timerSecs >= 10) return ThemeEngine.colors.warningStrong

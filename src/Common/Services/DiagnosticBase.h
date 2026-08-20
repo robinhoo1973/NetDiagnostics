@@ -31,7 +31,8 @@ class DiagnosticBase : public QObject {
 public:
     DiagnosticBase(DiagId id, const QString& target, QThreadPool* pool,
                    std::function<DiagnosticResult(DiagId, const QString&, RunContext&)> impl,
-                   int timeoutMs, QObject* parent = nullptr);
+                   int timeoutMs, QObject* parent = nullptr,
+                   std::shared_ptr<RunSnapshot> snapshot = nullptr);
     ~DiagnosticBase() override;
 
     // ── Identity / metadata ──────────────────────────────────────────────
@@ -55,6 +56,9 @@ public:
     // 5WHY (复核 2026-08-18 计时连续性): 墙钟起点（ms 时间戳）——QML 委托被
     // 重建时本地计时归零，UI 需从模型恢复真实起点而非委托诞生时刻。
     qint64 startedAtMs() const { return m_startedAtMs; }
+    // 5WHY (复核 2026-08-20 墙钟步进): 单调起点（MonotonicClock 同源基准）——
+    // UI 计时以单调毫秒相减，NTP/手动校时步进不再跳变。
+    qint64 startedAtMonoMs() const { return m_startedAtMonoMs; }
 
 signals:
     void finished(const DiagnosticResult& result);
@@ -75,6 +79,7 @@ private:
         std::function<DiagnosticResult(DiagId, const QString&, RunContext&)> impl;
         std::atomic<bool> cancelled{false};
         std::atomic<bool> finishedEmitted{false};
+        std::shared_ptr<RunSnapshot> snapshot;   // 每轮套件共享系统快照
     };
     std::shared_ptr<State> m_state;
 
@@ -83,6 +88,7 @@ private:
     int        m_timeoutMs;
     bool       m_started = false;
     qint64     m_startedAtMs = 0;
+    qint64     m_startedAtMonoMs = 0;
     // 8-16：探针级墙钟——集中补 durationMs（诊断函数大多不自填时长，
     // 导致 Dashboard 分层计时全 0 与详情页时长缺失）
     QElapsedTimer m_elapsed;

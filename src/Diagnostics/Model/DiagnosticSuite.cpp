@@ -35,6 +35,10 @@ void DiagnosticSuite::run(const QString& target, const QString& schemeLower) {
     m_stats = Stats{};
     m_stats.total = m_ids.size();
     m_probes.clear();
+    // 5WHY (复核 2026-08-20 nmcli 双 spawn): 每轮新建共享快照——池线程并行
+    // 的 probeDhcp/probeIpConfig 经 RunContext.snapshot 复用同一次
+    // `nmcli device show` 输出（互斥惰性填充，一轮只 spawn 一次）。
+    m_snapshot = std::make_shared<RunSnapshot>();
 
     DeviceCapability::invalidateCache();   // NEW-4: refresh device probes pre-run
 
@@ -50,7 +54,7 @@ void DiagnosticSuite::run(const QString& target, const QString& schemeLower) {
         }
         auto* probe = new DiagnosticBase(
             id, target, m_pool, adapter->run,
-            static_cast<int>(diagnosticMeta(id).durationProfileMs), this);
+            static_cast<int>(diagnosticMeta(id).durationProfileMs), this, m_snapshot);
         connect(probe, &DiagnosticBase::finished, this, &DiagnosticSuite::onProbeFinished);
         connect(probe, &DiagnosticBase::progressChanged, this, &DiagnosticSuite::onProbeProgress);
         m_probes.append(probe);
@@ -142,5 +146,12 @@ QHash<DiagId, qint64> DiagnosticSuite::runningStartTimes() const {
     QHash<DiagId, qint64> out;
     for (const auto* p : m_probes)
         out.insert(p->diagId(), p->startedAtMs());
+    return out;
+}
+
+QHash<DiagId, qint64> DiagnosticSuite::runningStartTimesMono() const {
+    QHash<DiagId, qint64> out;
+    for (const auto* p : m_probes)
+        out.insert(p->diagId(), p->startedAtMonoMs());
     return out;
 }

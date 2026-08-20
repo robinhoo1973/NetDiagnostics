@@ -3,6 +3,7 @@
 // =============================================================================
 #include "Common/Services/DiagnosticBase.h"
 #include "Common/Platform/DeviceCapability.h"
+#include "Common/Services/MonotonicClock.h"
 
 #include <QFutureWatcher>
 #include <QtConcurrent/QtConcurrentRun>
@@ -11,13 +12,14 @@
 DiagnosticBase::DiagnosticBase(
     DiagId id, const QString& target, QThreadPool* pool,
     std::function<DiagnosticResult(DiagId, const QString&, RunContext&)> impl,
-    int timeoutMs, QObject* parent)
+    int timeoutMs, QObject* parent, std::shared_ptr<RunSnapshot> snapshot)
     : QObject(parent), m_id(id), m_pool(pool),
       m_timeoutMs(timeoutMs > 0 ? timeoutMs : 60000),
       m_state(std::make_shared<State>()) {
     m_state->id = id;
     m_state->target = target;
     m_state->impl = std::move(impl);
+    m_state->snapshot = std::move(snapshot);
 }
 
 DiagnosticBase::~DiagnosticBase() {
@@ -58,6 +60,8 @@ void DiagnosticBase::start() {
     // 8-16：探针墙钟起点（结果未自带时长时由 onFutureFinished 补齐）
     m_elapsed.start();
     m_startedAtMs = QDateTime::currentMSecsSinceEpoch();
+    // 单调起点（同 MonotonicClock 基准，UI 计时防墙钟步进）
+    m_startedAtMonoMs = monotonicMsSinceAppStart();
 
     // NEW-5: progress() only queues to the main thread; the worker never
     // touches QObject signal machinery directly.
@@ -73,7 +77,7 @@ void DiagnosticBase::start() {
     const auto work = [state, progressFn]() -> DiagnosticResult {
         if (state->cancelled.load(std::memory_order_acquire))
             return DiagnosticResult::cancelled(state->id, QStringLiteral("Cancelled before start"));
-        RunContext ctx{state->cancelled, progressFn};
+        RunContext ctx{state->cancelled, progressFn, state->snapshot};
         return state->impl(state->id, state->target, ctx);
     };
 

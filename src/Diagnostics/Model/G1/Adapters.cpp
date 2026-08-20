@@ -39,8 +39,11 @@
 #include <QSet>
 #include <QHash>
 #include <QStandardPaths>
+#include <QMutexLocker>
 
 #include <cstring>
+#include <memory>
+#include <vector>
 
 #if defined(_WIN32)
 #include <winsock2.h>
@@ -143,6 +146,35 @@ static ToolOutput runTool(const QString& exe, const QStringList& args, int timeo
     return o;
 }
 
+// `nmcli -t -m multiline device show` 每轮快照。5WHY (复核 2026-08-20 双
+// spawn): probeDhcp（DHCP4.OPTION）与 probeIpConfig（IP4.DNS）字段出自同
+// 一次输出——池线程并行时曾每轮 spawn 两次 nmcli（各带 4s 超时）。经
+// RunContext.snapshot（RunSnapshot 互斥惰性填充）一轮只 spawn 一次；无
+// 快照（harness/单探针直跑）时回退直接执行。字段取两探针并集。
+static QString nmcliDeviceShow(RunContext& ctx) {
+    if (!ctx.snapshot) {
+        const QString nmcli = QStandardPaths::findExecutable(QStringLiteral("nmcli"));
+        if (nmcli.isEmpty()) return QString();
+        return runTool(nmcli, QStringList() << QStringLiteral("-t")
+            << QStringLiteral("-m") << QStringLiteral("multiline")
+            << QStringLiteral("-f")
+            << QStringLiteral("GENERAL.DEVICE,GENERAL.TYPE,IP4.ADDRESS,IP4.GATEWAY,IP4.DNS,DHCP4.OPTION")
+            << QStringLiteral("device") << QStringLiteral("show"), 4000).text;
+    }
+    QMutexLocker lock(&ctx.snapshot->mutex);
+    if (!ctx.snapshot->nmcliTried) {
+        ctx.snapshot->nmcliTried = true;
+        const QString nmcli = QStandardPaths::findExecutable(QStringLiteral("nmcli"));
+        if (!nmcli.isEmpty())
+            ctx.snapshot->nmcliText = runTool(nmcli, QStringList() << QStringLiteral("-t")
+                << QStringLiteral("-m") << QStringLiteral("multiline")
+                << QStringLiteral("-f")
+                << QStringLiteral("GENERAL.DEVICE,GENERAL.TYPE,IP4.ADDRESS,IP4.GATEWAY,IP4.DNS,DHCP4.OPTION")
+                << QStringLiteral("device") << QStringLiteral("show"), 4000).text;
+    }
+    return ctx.snapshot->nmcliText;
+}
+
 static DiagnosticResult makeResult(DiagId id, DiagStatus status,
                                    const QString& summary,
                                    const QVector<ResultProperty>& props,
@@ -218,7 +250,13 @@ static int wifiChannelFromFreq(double freq) {
 //   3. 旧 wext 目录（旧内核兼容）
 //   4. /proc/net/wireless 行成员（最后手段）
 #if defined(__linux__)
-static bool isWirelessInterface(const QString& ifName) {
+// 5WHY (复核 2026-08-20 重复读 proc): 判据第 4 级曾逐接口整读
+// /proc/net/wireless——每个非无线接口（lo/eth0/docker0/tailscale0…）都
+// 走完前三级 sysfs 检查后再通读同一份文件 N 次。改为探针级解析一次
+// （wirelessNames 传入 QSet），逐接口判据退化为纯内存查表；无预解析
+// 集合（单接口调用场景）保留单读回退。
+static bool isWirelessInterface(const QString& ifName,
+                                const QSet<QString>* wirelessNames = nullptr) {
     if (QFileInfo::exists(QStringLiteral("/sys/class/net/%1/phy80211").arg(ifName)))
         return true;
     QFile uevent(QStringLiteral("/sys/class/net/%1/uevent").arg(ifName));
@@ -227,6 +265,7 @@ static bool isWirelessInterface(const QString& ifName) {
         return true;
     if (QFile::exists(QStringLiteral("/sys/class/net/%1/wireless").arg(ifName)))
         return true;
+    if (wirelessNames) return wirelessNames->contains(ifName);
     QFile pw(QStringLiteral("/proc/net/wireless"));
     if (pw.open(QIODevice::ReadOnly)) {
         QTextStream ts(&pw);
@@ -240,6 +279,23 @@ static bool isWirelessInterface(const QString& ifName) {
         }
     }
     return false;
+}
+
+// /proc/net/wireless 接口名集合——探针级一次解析（见 isWirelessInterface）。
+static QSet<QString> wirelessInterfaceNames() {
+    QSet<QString> out;
+    QFile pw(QStringLiteral("/proc/net/wireless"));
+    if (pw.open(QIODevice::ReadOnly)) {
+        QTextStream ts(&pw);
+        QString line;
+        int header = 0;
+        while (ts.readLineInto(&line)) {
+            if (header < 2) { ++header; continue; }
+            const QString name = line.section(QLatin1Char(':'), 0, 0).trimmed();
+            if (!name.isEmpty()) out.insert(name);
+        }
+    }
+    return out;
 }
 #endif
 
@@ -264,6 +320,10 @@ static int netmaskPrefixLen(const QHostAddress& mask) {
 static DiagnosticResult probeNetworkAdapters(DiagId id, const QString&, RunContext& ctx) {
     QVector<ResultProperty> props;
     const auto ifaces = runningInterfaces();
+#if defined(__linux__)
+    // 无线接口名集合探针级解析一次（逐接口判据见 isWirelessInterface）
+    const QSet<QString> wirelessNames = wirelessInterfaceNames();
+#endif
     for (const auto& i : ifaces) {
         if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
         ResultProperty p(i.name(), i.hardwareAddress().isEmpty()
@@ -274,7 +334,7 @@ static DiagnosticResult probeNetworkAdapters(DiagId id, const QString&, RunConte
 #if defined(__linux__)
         // 5WHY (2026-08-20 分类失真): 无线接口（wlan0）曾被归类 ethernet
         // ——用与 WiFi 探针同源的现代判据（phy80211/uevent）标注 wireless。
-        if (isWirelessInterface(i.name())) type = QStringLiteral("wireless");
+        if (isWirelessInterface(i.name(), &wirelessNames)) type = QStringLiteral("wireless");
 #endif
         p.children.append({QStringLiteral("type"), type});
         // 5WHY (2026-08-20 用户诉求 "属性卡一团混乱"): 地址子行曾一律标
@@ -514,6 +574,10 @@ static DiagnosticResult probeWifi(DiagId id, const QString&, RunContext& ctx) {
     // Linux：wireless extensions ioctl（SSID/BSSID/频段）+ sysfs bitrate + /proc 信号；
     // macOS：CoreWLAN 专用 .mm 助手。
     struct ifaddrs* ifa = nullptr;
+#if defined(__linux__) && !defined(PLATFORM_ANDROID)
+    // 无线接口名集合探针级解析一次（逐接口判据见 isWirelessInterface）
+    const QSet<QString> wirelessNames = wirelessInterfaceNames();
+#endif
     if (getifaddrs(&ifa) == 0) {
         QSet<QString> seen;
         for (auto* q = ifa; q; q = q->ifa_next) {
@@ -526,7 +590,7 @@ static DiagnosticResult probeWifi(DiagId id, const QString&, RunContext& ctx) {
             // 5WHY (2026-08-20 用户诉求 "WiFi 信息无数据"): 见
             // isWirelessInterface——内核 6.6+ 无 wext wireless 目录，
             // 旧判据把真实 wlan0 过滤掉 → 恒 Skipped。
-            if (!isWirelessInterface(ifName)) continue;
+            if (!isWirelessInterface(ifName, &wirelessNames)) continue;
 #endif
             seen.insert(ifName);
             QString ssid = QStringLiteral("-"), bssid = QStringLiteral("-");
@@ -844,14 +908,9 @@ static DiagnosticResult probeDhcp(DiagId id, const QString&, RunContext& ctx) {
     //      ip_address/routers/subnet_mask/host name），桌面 Linux 标准。
     //   2. /proc/net/route 网关回退（v0.0.3 语义：有网关的接口 DHCP 高概率）。
     if (leaseCount == 0 && !ctx.cancelled.load()) {
-        const QString nmcli = QStandardPaths::findExecutable(QStringLiteral("nmcli"));
-        if (!nmcli.isEmpty()) {
-            const ToolOutput nm = runTool(nmcli, QStringList() << QStringLiteral("-t")
-                << QStringLiteral("-m") << QStringLiteral("multiline")
-                << QStringLiteral("-f")
-                << QStringLiteral("GENERAL.DEVICE,GENERAL.TYPE,IP4.ADDRESS,IP4.GATEWAY,DHCP4.OPTION")
-                << QStringLiteral("device") << QStringLiteral("show"), 4000);
-            const QString text = nm.text;
+        // nmcliDeviceShow：每轮快照共享（与 probeIpConfig 同一次输出）
+        const QString text = nmcliDeviceShow(ctx);
+        if (!text.isEmpty()) {
             QString dev, devType, ipAddr, gateway, server, leaseTime, optIp, subnetMask, hostName;
             qulonglong leaseExpiry = 0;
             // 5WHY (复核 2026-08-20 状态重置收敛): 8 个捕获可变字符串曾以
@@ -1061,18 +1120,13 @@ static DiagnosticResult probeIpConfig(DiagId id, const QString&, RunContext& ctx
     // 5WHY (2026-08-20 systemd-resolved stub): resolv.conf 常只有
     // 127.0.0.53（stub 解析器）——真实上游 DNS 经 NetworkManager D-Bus
     // 暴露（IP4.DNS）。nmcli 可用时取真实上游；不可用回退 resolv.conf。
-    const QString nmcli = QStandardPaths::findExecutable(QStringLiteral("nmcli"));
-    if (!nmcli.isEmpty()) {
-        const ToolOutput nm = runTool(nmcli, QStringList() << QStringLiteral("-t")
-            << QStringLiteral("-m") << QStringLiteral("multiline")
-            << QStringLiteral("-f") << QStringLiteral("GENERAL.DEVICE,IP4.DNS")
-            << QStringLiteral("device") << QStringLiteral("show"), 4000);
-        for (const QString& line : nm.text.split(QLatin1Char('\n'))) {
-            const QString t = line.trimmed();
-            if (t.startsWith(QLatin1String("IP4.DNS"))) {
-                const QString v = t.section(QLatin1Char(':'), 1).trimmed();
-                if (!v.isEmpty() && !dnsServers.contains(v)) dnsServers.append(v);
-            }
+    // nmcliDeviceShow：每轮快照共享（与 probeDhcp 同一次输出）
+    const QString nmText = nmcliDeviceShow(ctx);
+    for (const QString& line : nmText.split(QLatin1Char('\n'))) {
+        const QString t = line.trimmed();
+        if (t.startsWith(QLatin1String("IP4.DNS"))) {
+            const QString v = t.section(QLatin1Char(':'), 1).trimmed();
+            if (!v.isEmpty() && !dnsServers.contains(v)) dnsServers.append(v);
         }
     }
     // 5WHY (复核 2026-08-20 数据源收窄): resolv.conf 曾以 isEmpty() 门控
@@ -1338,14 +1392,54 @@ static DiagnosticResult probeCellular(DiagId id, const QString&, RunContext& ctx
         const ToolOutput list = runTool(mmcli, QStringList() << QStringLiteral("-L"), 3000);
         const QString listOut = list.text;
         static const QRegularExpression kModemRe(QStringLiteral("Modem/(\\d+)"));
+        // 5WHY (复核 2026-08-20 串行等待): 曾逐 modem 串行
+        // waitForFinished(3000)——M 个 modem 累计 M×3s 启动延迟（modem
+        // 间互不依赖，天然可并行）。先全部并发启动，再统一等待收割
+        // （任一等待点取消即杀净仍在运行的进程，R5-1 析构安全）。
+        QStringList nums;
         auto it = kModemRe.globalMatch(listOut);
         while (it.hasNext()) {
-            if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
             const QRegularExpressionMatch m = it.next();
-            const QString num = m.captured(1);
-            const ToolOutput detail = runTool(mmcli, QStringList() << QStringLiteral("-m") << num, 3000);
-            if (!detail.ok) continue;
-            const QString text = detail.text;
+            nums.append(m.captured(1));
+        }
+        struct ModemOutput { QString num; QString text; bool ok = false; };
+        QVector<ModemOutput> outs;
+        outs.reserve(nums.size());
+        // std::vector 而非 QVector：unique_ptr 为 move-only（QVector 通用
+        // 追加走拷贝构造编译失败），std::vector 原生支持。
+        std::vector<std::unique_ptr<QProcess>> procs;
+        procs.reserve(nums.size());
+        for (const QString& num : nums) {
+            auto p = std::make_unique<QProcess>();
+            p->start(mmcli, QStringList() << QStringLiteral("-m") << num);
+            procs.push_back(std::move(p));
+        }
+        const auto killAll = [&procs]() {
+            for (auto& p : procs) {
+                if (p && p->state() != QProcess::NotRunning) {
+                    p->kill();
+                    p->waitForFinished(2000);   // R5-1：析构前必须已终止
+                }
+            }
+        };
+        for (std::size_t i = 0; i < procs.size(); ++i) {
+            if (ctx.cancelled.load()) { killAll(); return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled")); }
+            ModemOutput mo;
+            mo.num = nums[i];
+            if (procs[i]->waitForFinished(3000)) {
+                mo.ok = true;
+                mo.text = QString::fromLocal8Bit(procs[i]->readAllStandardOutput());
+            } else {
+                procs[i]->kill();
+                procs[i]->waitForFinished(2000);   // R5-1
+            }
+            outs.append(std::move(mo));
+        }
+        for (const auto& mo : outs) {
+            if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
+            const QString num = mo.num;
+            if (!mo.ok) continue;
+            const QString text = mo.text;
             // 5WHY (复核 2026-08-20 mmcli 格式): 真实 mmcli -m N 每行形如
             // "  3GPP   | operator name: 'AT&T'"（左侧节名 + '|' 分隔）——
             // 曾以整行 indexOf(':') 前部作 key 精确比较，"3GPP | operator

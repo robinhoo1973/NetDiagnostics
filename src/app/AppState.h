@@ -21,6 +21,7 @@
 
 #include "Common/Model/DiagId.h"
 #include "Common/Model/DiagnosticResult.h"
+#include "Common/Services/MonotonicClock.h"
 
 class DiagnosticSuite;
 class ConfigurationController;
@@ -55,6 +56,7 @@ public:
     bool    isPremiumPlatform() const { return m_isPremiumPlatform; }
     bool    cellularWarnVisible() const { return m_cellularWarnVisible; }
     bool    hasData() const { return !m_results.isEmpty(); }
+    qint64  monotonicNowMs() const { return monotonicMsSinceAppStart(); }
     QStringList langItems() const;
 
     Q_PROPERTY(int runStatus READ runStatus NOTIFY runStatusChanged)
@@ -75,6 +77,10 @@ public:
     Q_PROPERTY(int themeMode READ themeMode NOTIFY themeModeChanged)
     Q_PROPERTY(bool isPremiumPlatform READ isPremiumPlatform CONSTANT)
     Q_PROPERTY(bool cellularWarnVisible READ cellularWarnVisible NOTIFY cellularWarnVisibleChanged)
+    // 5WHY (复核 2026-08-20 墙钟步进): 进程级单调毫秒（MonotonicClock 基准，
+    // 无 NOTIFY——QML 以每秒 _elapsed tick 为依赖钩读取现值；NTP/手动校时
+    // 步进不影响计时圆点与颜色阈值）。
+    Q_PROPERTY(qint64 monotonicNowMs READ monotonicNowMs)
     Q_PROPERTY(bool hasData READ hasData NOTIFY progressChanged)
 
     Q_INVOKABLE void runDiagnostics();

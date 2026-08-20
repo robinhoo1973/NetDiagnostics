@@ -25,6 +25,22 @@ var tokens = {
     geoRadarPeriod: 900,     // 定位雷达波单圈扩散时长（GeoLocateAnimation）
     geoRadarStagger: 300,    // 三圈雷达波有序启动间隔
 
+    // ── v6 (2026-08-20): 动画锚点几何（母版 SVG 图形事实，归一化到
+    // 图标框宽度）。曾双份存于 C++ AppState 硬编码 + 各动画 QML 默认值
+    // ——同值双份靠注释"两处同改"维系，改一处即静默错位。收敛为本文件
+    // 单一来源：QML 默认值直接读 tokens，C++ 经 QQmlJSEngine 解析同文件
+    // （AppState::diagAnimationAnchor），母版再生成位移仅改此处一处。
+    // ── GeoIP 定位针头中心 + 到最近边缘的半径（QSvgRenderer 逐通道
+    // 实测 viewBox ≈(0.71, 0.30)；右缘距 0.29 为约束紧侧）──
+    geoRadarAnchorCx: 0.71,
+    geoRadarAnchorCy: 0.30,
+    geoRadarAnchorMaxR: 0.29,
+    // ── internet 母版右下三道信号弧（350 系 y≈216/236/243 弧组）
+    // 焦点≈(296,244)、外弧半径≈52/350 → 归一化 (0.85, 0.70)、0.155 ──
+    wifiWaveAnchorCx: 0.85,
+    wifiWaveAnchorCy: 0.70,
+    wifiWaveAnchorMaxR: 0.155,
+
     // 5WHY (复核 2026-08-19 单一来源): 详情页有界回放窗口曾是 DiagAnimator
     // 硬编码 2400——与各循环周期的手算关系写在注释里（wifiWave 1920、
     // geoRadar 900+2×300=1500、jiggle 540）。窗口与周期同为动画时序事实，收敛进
