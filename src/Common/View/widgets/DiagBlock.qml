@@ -36,7 +36,8 @@ Item {
     readonly property color _statusColor: isDone ? (ThemeEngine.statusColors[_status] || ThemeEngine.colors.skip) : "transparent"
     // 5WHY (复核 2026-08-19 效率): 无可见性门控的无限动画在离屏瓦片上持续
     // tick——StackView 隐藏整屏时运行中瓦片的 DiagAnimator（GeoLocate 3 路
-    // 无限 SequentialAnimation、Meter 60fps 定时器）在低功耗 ARM 板上空耗
+    // 无限 SequentialAnimation、WifiWave 3 路无限 SequentialAnimation）在低功耗
+    // ARM 板上空耗
     // CPU。screenVisible（屏幕注入）+ root.visible（局部）+ _inViewport
     // （滚动视口）三级门控：隐藏页/显式隐藏/滚出视口即停。
     readonly property bool _inViewport: {

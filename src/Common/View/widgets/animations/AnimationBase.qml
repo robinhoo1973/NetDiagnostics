@@ -21,7 +21,7 @@ Item {
     // 裸 "#60C8F8" 回退字面量（Palette.js 外复制即漂移）。个别动画以
     // 视觉决策覆盖（Converge 白箭头等）。
     property color accentColor: T.ThemeEngine.colors.primary
-    // 停止清理钩子：子类覆盖（如 Jiggle 复位旋转、Meter 复位针态）。
+    // 停止清理钩子：子类覆盖（如 Jiggle 复位旋转、WifiWave 复位弧 opacity）。
     function resetVisuals() {}
     onRunningChanged: if (!running) resetVisuals()
 }

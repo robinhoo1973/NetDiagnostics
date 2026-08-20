@@ -75,7 +75,7 @@ PageSection {
             // 计时/邮件等 8 项）门控 `running && targetItem !== null`
             // 恒不启动，重放特性对其静默失效。补与瓦片同款 iconWell。
             // 5WHY (复核 2026-08-19 锚点空间): 动画几何按图标框计量
-            // （GeoLocate 针头锚点 / Meter 中心），但垫 56px > 图标 40px
+            // （GeoLocate 针头锚点 / WifiWave 弧组焦点），但垫 56px > 图标 40px
             // ——直接填垫把锚点画错位（针头偏移 ~3px、环溢出垫外）。动画
             // 层与 AppIcon 同框：DiagAnimator 自身承载几何（居中 + iconSize
             // 正方形），不另设匿名包装层。

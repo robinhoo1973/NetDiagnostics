@@ -12,6 +12,6 @@ TypeAnimation 1.0 TypeAnimation.qml
 PathAnimation 1.0 PathAnimation.qml
 LockAnimation 1.0 LockAnimation.qml
 CheckAnimation 1.0 CheckAnimation.qml
-MeterAnimation 1.0 MeterAnimation.qml
+WifiWaveAnimation 1.0 WifiWaveAnimation.qml
 ConvergeAnimation 1.0 ConvergeAnimation.qml
 GeoLocateAnimation 1.0 GeoLocateAnimation.qml

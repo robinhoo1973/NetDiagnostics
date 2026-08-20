@@ -72,15 +72,15 @@ static const DiagnosticMeta kDiagMeta[] = {
     // 注册仅 PF_Desktop（Android 注销：SELinux 恒假阴性）——meta 声明与
     // 注册不符使 verifyAllDiagIds 按派生白名单在 Android 调试构建 qFatal。
     // 声明收敛为实际注册集。
-    { DiagId::G3NetskopeStatus,    "Security Proxy Status", "nd-diag-g2-proxy", PF_Desktop,  DiagAnimType::Check, DiagTemplateType::System, sys(),              60000 },
+    { DiagId::G3NetskopeStatus,    "Security Proxy Status", "nd-diag-g2-proxy", PF_Desktop,  DiagAnimType::Tick, DiagTemplateType::System, sys(),              60000 },
     { DiagId::G3DnsServers,        "DNS Servers",        "nd-diag-g3-dns-servers",   PF_All,                       DiagAnimType::Pulse,  DiagTemplateType::System, sys("serverCount","servers",0), 60000 },
     { DiagId::G3DnsCache,          "DNS Cache",          "nd-diag-g3-dns-cache",    PF_Desktop|PF_Android,        DiagAnimType::Jiggle, DiagTemplateType::System, sys("cacheEntries","entries",0), 60000 },
-    { DiagId::G3DnsIntegrity,      "DNS Integrity",      "nd-diag-g3-dns-integrity",   PF_All,                       DiagAnimType::Check,  DiagTemplateType::Handshake, metricOnly("overallScorePercent","%",0,DP::Gauge), 120000 },
+    { DiagId::G3DnsIntegrity,      "DNS Integrity",      "nd-diag-g3-dns-integrity",   PF_All,                       DiagAnimType::Tick,  DiagTemplateType::Handshake, metricOnly("overallScorePercent","%",0,DP::Gauge), 120000 },
     // 5WHY (2026-08-19 用户诉求 "IP 动画不知道在干什么"): Bounce 是通用
     // 往返小球，地球+定位针图形上无语义锚点——改用 GeoRadar（针头雷达波
     // 扩散，语义即"正在定位"）。
     { DiagId::G3GeoIPLoc,          "IP Geolocation",     "nd-diag-g3-geoip", PF_All,                       DiagAnimType::GeoRadar, DiagTemplateType::System, sys(),              150000 },
-    { DiagId::G3InternetConnectivity, "Internet Connectivity & Speed", "nd-diag-g3-internet", PF_All,        DiagAnimType::Meter,   DiagTemplateType::Handshake, metricOnly("downloadMbpsBest","Mbps",1,DP::Gauge), 180000 },
+    { DiagId::G3InternetConnectivity, "Internet Connectivity & Speed", "nd-diag-g3-internet", PF_All,        DiagAnimType::WifiWave,   DiagTemplateType::Handshake, metricOnly("downloadMbpsBest","Mbps",1,DP::Gauge), 180000 },
 
     // ── G4  Remote Host (all platforms — NEW-1) ─────────────────────────────
     { DiagId::G4DnsResolution,     "DNS Resolution",     "nd-diag-g4-dns-resolution",  PF_All,                       DiagAnimType::Path, DiagTemplateType::System, sys("queryTimeMs","ms",0), 60000 },

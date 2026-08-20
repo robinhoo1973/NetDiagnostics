@@ -981,8 +981,8 @@ QString AppState::diagAnimationUrl(int diagIdInt) const {
         case DiagAnimType::Pulse:  return QStringLiteral("qrc:/qt/qml/widgets/animations/PulseAnimation.qml");
         case DiagAnimType::Type:   return QStringLiteral("qrc:/qt/qml/widgets/animations/TypeAnimation.qml");
         case DiagAnimType::Lock:   return QStringLiteral("qrc:/qt/qml/widgets/animations/LockAnimation.qml");
-        case DiagAnimType::Check:  return QStringLiteral("qrc:/qt/qml/widgets/animations/CheckAnimation.qml");
-        case DiagAnimType::Meter:  return QStringLiteral("qrc:/qt/qml/widgets/animations/MeterAnimation.qml");
+        case DiagAnimType::Tick:  return QStringLiteral("qrc:/qt/qml/widgets/animations/CheckAnimation.qml");
+        case DiagAnimType::WifiWave: return QStringLiteral("qrc:/qt/qml/widgets/animations/WifiWaveAnimation.qml");
         case DiagAnimType::Converge: return QStringLiteral("qrc:/qt/qml/widgets/animations/ConvergeAnimation.qml");
         case DiagAnimType::GeoRadar: return QStringLiteral("qrc:/qt/qml/widgets/animations/GeoLocateAnimation.qml");
         default:                   return QStringLiteral("qrc:/qt/qml/widgets/animations/JiggleAnimation.qml");
@@ -992,7 +992,7 @@ QString AppState::diagAnimationUrl(int diagIdInt) const {
 QVariantMap AppState::diagAnimationAnchor(int diagIdInt) const {
     // 5WHY (复核 2026-08-19 锚点元数据): 动画锚点是母版 SVG 图形的几何事实
     // （GeoIP 定位针头位置/扩散半径），此前硬编码在动画 QML 内——母版再生成
-    // 位移时静默错位（Meter 曾因错误假设整体重做）。与 animType→URL 同库
+    // 位移时静默错位（WifiWave 曾以 Meter 表针形式因错误假设整体重做）。与 animType→URL 同库
     // 同层收进 C++：DiagAnimator 装载时下发给动画（动画保留同值默认供
     // 直接实例化回退）。
     const DiagId id = static_cast<DiagId>(diagIdInt);
@@ -1003,15 +1003,14 @@ QVariantMap AppState::diagAnimationAnchor(int diagIdInt) const {
         a[QStringLiteral("cx")] = 0.71;
         a[QStringLiteral("cy")] = 0.30;
         a[QStringLiteral("maxR")] = 0.29;
-    } else if (diagnosticMeta(id).animType == DiagAnimType::Meter) {
-        // 5WHY (复核 2026-08-19 单源补全): internet 母版无 gauge 表盘——
-        // 针轴=图标圆心（白地球中心），针长覆盖地球半径 ≈0.42×宽（恰达
-        // 轨道弧）。曾硬编码于 MeterAnimation——与 GeoRadar 同机制收敛进
-        // 本表：母版再生成位移时仅改此一处（MeterAnimation 保留同值默认
-        // 供直接实例化回退）。
-        a[QStringLiteral("cx")] = 0.5;
-        a[QStringLiteral("cy")] = 0.5;
-        a[QStringLiteral("maxR")] = 0.42;
+    } else if (diagnosticMeta(id).animType == DiagAnimType::WifiWave) {
+        // 5WHY (2026-08-20 用户诉求 "右下角 wifi 信号弧逐条明灭"): internet
+        // 母版右下侧三道红色信号弧（350 系 y≈216/236/243 弧组）焦点≈(296,244)、
+        // 外弧半径≈52/350——按 viewBox 归一化为焦点 (0.85,0.70)、外半径 0.155。
+        // WifiWaveAnimation 保留同值默认，母版再生成位移时仅改此一处。
+        a[QStringLiteral("cx")] = 0.85;
+        a[QStringLiteral("cy")] = 0.70;
+        a[QStringLiteral("maxR")] = 0.155;
     }
     return a;
 }
