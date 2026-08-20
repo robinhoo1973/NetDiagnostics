@@ -318,9 +318,16 @@ void AppState::runNextGroup() {
     // 5WHY (复核 2026-08-20 去重): runDiagnostics 主路径的广播已含
     // currentRunningGroupChanged——待发时跳过自有发射（曾同帧双发、
     // 面板双载）；组推进路径（onSuiteFinished）无广播待发，正常发射。
-    if (!m_broadcastPending)
-        QMetaObject::invokeMethod(this, [this] { emit currentRunningGroupChanged(); },
-                              Qt::QueuedConnection);
+    if (!m_broadcastPending) {
+        // 5WHY (复核 2026-08-20 陈旧守卫): 送达时组指针已变（取消/新轮
+        // 抢在 lambda 前推进）即陈旧——捕获排队时的组号比对，避免对新
+        // 当前组触发无谓全量重载。
+        const int expectedGroup = gi;
+        QMetaObject::invokeMethod(this, [this, expectedGroup] {
+            if (m_currentGroup != expectedGroup) return;
+            emit currentRunningGroupChanged();
+        }, Qt::QueuedConnection);
+    }
 
     // H3：每次建 suite 递增 generation，迟到信号按 generation 丢弃
     const qint64 gen = ++m_runGeneration;
@@ -941,11 +948,17 @@ void AppState::copyDetailToClipboard(int diagIdInt) {
     QStringList lines;
     lines.append(QStringLiteral("[%1] %2").arg(statusToken(it->status), it->displayName));
     if (!it->summary.isEmpty()) lines.append(it->summary);
+    // 5WHY (复核 2026-08-20 剪贴板双份): G1 的属性派生转储（propsDump）与
+    // 属性循环输出逐字相同——曾双双追加，粘贴的票据每条属性出现两次。
+    // 转储存在时以其为准、跳过属性循环；否则照旧逐属性输出。
+    const bool isDump = it->data.value(QStringLiteral("propsDump")).toBool();
     if (!it->details.isEmpty()) lines.append(it->details);
-    for (const auto& p : it->properties) {
-        lines.append(QStringLiteral("%1: %2").arg(p.label, p.value));
-        for (const auto& c : p.children)
-            lines.append(QStringLiteral("  %1: %2").arg(c.label, c.value));
+    if (!isDump) {
+        for (const auto& p : it->properties) {
+            lines.append(QStringLiteral("%1: %2").arg(p.label, p.value));
+            for (const auto& c : p.children)
+                lines.append(QStringLiteral("  %1: %2").arg(c.label, c.value));
+        }
     }
     QGuiApplication::clipboard()->setText(lines.join(QLatin1Char('\n')));
 }

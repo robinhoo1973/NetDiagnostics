@@ -1266,8 +1266,11 @@ void registerG3Adapters() {
         {PF_IOS,     "iOS",     {}, g3::probeInternetConnectivity},
         {PF_Android, "Android", {}, g3::probeInternetConnectivity},
     });
+    // 5WHY (复核 2026-08-20 Android 恒假阴性): Android 的 SELinux/hidepid
+    // 屏蔽他进程 /proc/<pid>/comm——探测只能读到自己，真实客户端在跑也
+    // 恒报"未检出"。撤销 Android 注册（不运行比恒错结果诚实）；桌面三
+    // 平台（Windows 快照/macOS ps/Linux /proc）保留。
     AdapterRegistry::registerAdapters(DiagId::G3NetskopeStatus, {
         {PF_Desktop, "Desktop", {}, g3::probeNetskopeStatus},
-        {PF_Android, "Android", {}, g3::probeNetskopeStatus},
     });
 }

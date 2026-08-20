@@ -726,16 +726,19 @@ static DiagnosticResult probeIpConfig(DiagId id, const QString&, RunContext& ctx
             if (!e.netmask().isNull())
                 p.children.append({QStringLiteral("netmask"), e.netmask().toString()});
 #if defined(__linux__) || defined(__ANDROID__)
-            if (!gateways.isEmpty())
-                p.children.append({QStringLiteral("gateway"), gateways.join(QStringLiteral(", "))});
-            if (!dnsServers.isEmpty())
-                p.children.append({QStringLiteral("dns"), dnsServers.join(QStringLiteral(", "))});
+            // 5WHY (复核 2026-08-20 重复子属性): 网关/DNS 曾随每地址条目
+            // 追加——双栈接口每行重复同值（转储再复一份）。与 MAC 同规则：
+            // 首条目携带。
+            if (!macAttached) {
+                if (!gateways.isEmpty())
+                    p.children.append({QStringLiteral("gateway"), gateways.join(QStringLiteral(", "))});
+                if (!dnsServers.isEmpty())
+                    p.children.append({QStringLiteral("dns"), dnsServers.join(QStringLiteral(", "))});
+            }
 #endif
             props.append(p);
         }
     }
-    // 5WHY (复核 2026-08-19 v0.0.3 对等): 主机名曾随 ipconfig 转储呈现
-    // （G1IpConfiguration.cpp: Host Name）——现丢失，前置一条补回。
     // 5WHY (复核 2026-08-19 v0.0.3 对等): 主机名曾随 ipconfig 转储呈现
     // （G1IpConfiguration.cpp: Host Name）——现丢失，前置一条补回。
     // 5WHY (复核 2026-08-19 探针线程安全): QHostInfo::localHostName() 在
@@ -750,7 +753,10 @@ static DiagnosticResult probeIpConfig(DiagId id, const QString&, RunContext& ctx
         return makeResult(id, DiagStatus::Info, QStringLiteral("No IP configuration found"), {}, {});
     char hostBuf[256] = {};
     gethostname(hostBuf, sizeof(hostBuf) - 1);
-    props.prepend({QStringLiteral("Host Name"), QString::fromLocal8Bit(hostBuf)});
+    // 5WHY (复核 2026-08-20 空行守卫): gethostname 失败（受限命名空间/
+    // Android）时缓冲为空——曾仍前置 "Host Name: " 空值行。非空才前置。
+    if (hostBuf[0])
+        props.prepend({QStringLiteral("Host Name"), QString::fromLocal8Bit(hostBuf)});
     return makeResult(id, DiagStatus::Pass, QStringLiteral("IP configuration"), props, {});
 }
 

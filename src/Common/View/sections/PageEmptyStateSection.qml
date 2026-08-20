@@ -63,9 +63,16 @@ PageSection {
             Layout.alignment: Qt.AlignHCenter
             Layout.maximumWidth: 320
             visible: root.errorState || root.hintText !== ""
+            // 5WHY (复核 2026-08-20 误导提示): includeTerminalEmpty 放宽的
+            // 零结果终态（2/3）仍渲染注入的 "runFromDiag"——刚跑完的用户被
+            // 提示"去运行诊断"。终态零结果改呈"暂无数据"（noData），
+            // 引导文案仅保留给 Idle 态。
             text: root.errorState
                 ? (AppState.errorMessage !== "" ? T.trMsg(AppState.errorMessage) : T.tr("errorRecoveryHint"))
-                : root.hintText
+                : (root.includeTerminalEmpty
+                   && (AppState.runStatus === 2 || AppState.runStatus === 3)
+                   ? T.tr("noData")
+                   : root.hintText)
             color: ThemeEngine.colors.onSurfaceVariant
             font.family: ThemeEngine.fontUi
             font.pixelSize: ThemeEngine.fontSize.caption
