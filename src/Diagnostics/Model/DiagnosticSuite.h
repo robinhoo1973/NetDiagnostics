@@ -42,10 +42,11 @@ public:
     bool isRunning() const { return m_running; }
     const Stats& stats() const { return m_stats; }
 
-    // 5WHY (复核 2026-08-18 计时连续性): 暴露运行中探针的墙钟起点——UI 委托
-    // 重建后从模型恢复真实计时，而非委托诞生时刻重新起算。
-    QHash<DiagId, qint64> runningStartTimes() const;
-    // 5WHY (复核 2026-08-20 墙钟步进): 单调起点表（同 MonotonicClock 基准）
+    // 5WHY (复核 2026-08-18 计时连续性): 暴露运行中探针的单调起点——UI
+    // 委托重建后从模型恢复真实计时，而非委托诞生时刻重新起算。
+    // 5WHY (复核 2026-08-20 墙钟死链): 曾墙钟/单调双表并存——UI 改读单调
+    // 后墙钟表零消费方仍每次重建双份扫描（~45 项 × 每次结果落地）。
+    // 删墙钟表，仅留单调（同 MonotonicClock 基准）。
     QHash<DiagId, qint64> runningStartTimesMono() const;
 
     // Run the suite.  Non-runnable (platform/scheme/device) tests are reported

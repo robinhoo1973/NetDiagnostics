@@ -29,10 +29,13 @@ public:
 
     // ── dig-style DNS ────────────────────────────────────────
     // flags 行与各 SECTION 计数按响应头真实值呈现（dig 1:1）：
-    // flags="qr rd ra"（aa/tc 命中时并入）；msgSize≥0 时输出 MSG SIZE 行。
+    // 5WHY (复核 2026-08-20 去伪造默认): flags 默认参数曾硬编码 "qr rd ra"
+    // ——不传 flags 的调用方（Android 无响应头数据）静默打印伪造标志位。
+    // 默认改为空串，呈现为 "(unparsed)"（诚实标记）；msgSize≥0 时输出
+    // MSG SIZE 行。
     static QStringList formatDnsHeader(const QString& host, const QString& rcode,
                                         uint16_t id, int anCount,
-                                        const QString& flags = QStringLiteral("qr rd ra"),
+                                        const QString& flags = QString(),
                                         int nsCount = 0, int arCount = 0);
     static QString formatDnsQuestion(const QString& host, const QString& type = "A");
     static QString formatDnsRecord(const QString& owner, int ttl,

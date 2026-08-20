@@ -40,6 +40,12 @@ var tokens = {
     wifiWaveAnchorCx: 0.85,
     wifiWaveAnchorCy: 0.70,
     wifiWaveAnchorMaxR: 0.155,
+    // 5WHY (复核 2026-08-20 几何双份残留): 弧角跨度与半径收缩系数同为母版
+    // 图形事实——曾与焦点/半径分家留在动画 QML 字面量（"改一处"承诺
+    // 落空）。全部收敛于此，母版再生成时只改本文件。
+    wifiWaveArcA0: -78,              // 起角（右上，度）
+    wifiWaveArcA1: -168,             // 终角（左侧，度）
+    wifiWaveArcRadii: [1.0, 0.74, 0.48],   // 外→内三道弧半径收缩系数
 
     // 5WHY (复核 2026-08-19 单一来源): 详情页有界回放窗口曾是 DiagAnimator
     // 硬编码 2400——与各循环周期的手算关系写在注释里（wifiWave 1920、

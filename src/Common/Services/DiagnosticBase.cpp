@@ -57,9 +57,8 @@ void DiagnosticBase::start() {
     connect(m_watcher, &QFutureWatcher<DiagnosticResult>::finished,
             this, &DiagnosticBase::onFutureFinished);
 
-    // 8-16：探针墙钟起点（结果未自带时长时由 onFutureFinished 补齐）
+    // 8-16：探针时长计时（结果未自带时长时由 onFutureFinished 补齐）
     m_elapsed.start();
-    m_startedAtMs = QDateTime::currentMSecsSinceEpoch();
     // 单调起点（同 MonotonicClock 基准，UI 计时防墙钟步进）
     m_startedAtMonoMs = monotonicMsSinceAppStart();
 

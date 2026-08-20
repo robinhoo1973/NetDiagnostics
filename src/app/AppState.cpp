@@ -23,7 +23,6 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
-#include <QJSEngine>
 #include <QSettings>
 #include <QStandardPaths>
 #include <QUrl>
@@ -466,17 +465,14 @@ QVariantMap AppState::itemFor(DiagId id) const {
         m[QStringLiteral("isDone")] = false;
         m[QStringLiteral("isDisabled")] = false;
         m[QStringLiteral("durationMs")] = 0;
-        // 5WHY (复核 2026-08-18 计时连续性): 运行中探针注入墙钟起点——并行
+        // 5WHY (复核 2026-08-18 计时连续性): 运行中探针注入单调起点——并行
         // Suite 下兄弟结果落地触发网格重建，委托本地计时归零；UI 以
-        // startedAtMs 反推真实已运行时长，重建不再重置显示。
-        m[QStringLiteral("startedAtMs")] = 0;
-        // 5WHY (复核 2026-08-20 墙钟步进): 单调起点（MonotonicClock 同源
-        // 基准）——UI 计时以单调毫秒相减，NTP/手动校时步进不再跳变。
+        // startedAtMonoMs 反推真实已运行时长，重建不再重置显示。
+        // 5WHY (复核 2026-08-20 墙钟死链): 曾墙钟/单调双表并存且每次重建
+        // 双份扫描（~45 项 × 每次结果落地）——删墙钟，仅留单调表一次
+        // 扫描（同 MonotonicClock 基准，NTP/手动校时步进免疫）。
         m[QStringLiteral("startedAtMonoMs")] = 0;
         if (m_suite && m_suite->isRunning()) {
-            const auto starts = m_suite->runningStartTimes();
-            if (const auto sit = starts.constFind(id); sit != starts.constEnd())
-                m[QStringLiteral("startedAtMs")] = sit.value();
             const auto startsMono = m_suite->runningStartTimesMono();
             if (const auto sitMono = startsMono.constFind(id); sitMono != startsMono.constEnd())
                 m[QStringLiteral("startedAtMonoMs")] = sitMono.value();
@@ -488,7 +484,6 @@ QVariantMap AppState::itemFor(DiagId id) const {
         m[QStringLiteral("isDone")] = true;
         m[QStringLiteral("isDisabled")] = false;
         m[QStringLiteral("durationMs")] = it->durationMs;
-        m[QStringLiteral("startedAtMs")] = 0;   // 已完成项无运行计时
         m[QStringLiteral("summary")] = it->summary;
     }
     return m;
@@ -999,56 +994,12 @@ QString AppState::diagAnimationUrl(int diagIdInt) const {
     }
 }
 
-// AnimationTokens.js 惰性解析（Meyer's singleton，SIOF 安全）。
-// 5WHY (复核 2026-08-20 锚点双份漂移): 动画锚点几何曾双份存于 C++ 硬编码
-// 与各动画 QML 默认值——同值双份靠注释"两处同改"维系，母版图标再生成
-// 位移时改一处即静默错位（WifiWave 曾以 Meter 表针形式因错误假设整体
-// 重做）。QML 默认已改读 tokens；C++ 侧以 QQmlJSEngine 解析同一 qrc
-// 文件——运行时与 QML 同源。解析失败返回空表：DiagAnimator 跳过下发，
-// 由 QML 默认（同文件）兜底，不再回退到第二份硬编码（单一来源的失败
-// 模式是"一处坏、一处修"，而非双份漂移）。
-static QVariantMap animationTokensMap() {
-    static const QVariantMap kTokens = [] {
-        QFile f(QStringLiteral(":/qt/qml/theme/AnimationTokens.js"));
-        if (!f.open(QIODevice::ReadOnly)) return QVariantMap();
-        QString src = QString::fromUtf8(f.readAll());
-        // .pragma library 是 QML 导入指令，按纯 JS evaluate 会语法错误——
-        // 剥掉该行后作为普通脚本求值（var tokens = {...} 落 global）。
-        src.replace(QLatin1String(".pragma library"), QLatin1String("// pragma"));
-        QJSEngine eng;   // 纯 JS 求值（对象字面量），无需 QML 引擎扩展
-        const QJSValue v = eng.evaluate(src);
-        if (v.isError()) return QVariantMap();
-        return eng.globalObject().property(QStringLiteral("tokens")).toVariant().toMap();
-    }();
-    return kTokens;
-}
-
-QVariantMap AppState::diagAnimationAnchor(int diagIdInt) const {
-    // 5WHY (复核 2026-08-19 锚点元数据): 动画锚点是母版 SVG 图形的几何事实
-    // （GeoIP 定位针头位置/扩散半径），此前硬编码在动画 QML 内——母版再生成
-    // 位移时静默错位。与 animType→URL 同层收进 C++ 下发；几何值本身以
-    // AnimationTokens.js 为单一来源（见 animationTokensMap）。
-    const DiagId id = static_cast<DiagId>(diagIdInt);
-    const QVariantMap tokens = animationTokensMap();
-    QVariantMap a;
-    if (diagnosticMeta(id).animType == DiagAnimType::GeoRadar) {
-        // geoip 母版定位针头中心 + 到最近边缘的半径（QSvgRenderer 逐通道
-        // 实测 viewBox ≈(0.71, 0.30)；右缘距 0.29 为约束紧侧）
-        if (!tokens.contains(QStringLiteral("geoRadarAnchorCx"))) return a;
-        a[QStringLiteral("cx")] = tokens.value(QStringLiteral("geoRadarAnchorCx"));
-        a[QStringLiteral("cy")] = tokens.value(QStringLiteral("geoRadarAnchorCy"));
-        a[QStringLiteral("maxR")] = tokens.value(QStringLiteral("geoRadarAnchorMaxR"));
-    } else if (diagnosticMeta(id).animType == DiagAnimType::WifiWave) {
-        // 5WHY (2026-08-20 用户诉求 "右下角 wifi 信号弧逐条明灭"): internet
-        // 母版右下侧三道红色信号弧（350 系 y≈216/236/243 弧组）焦点≈(296,244)、
-        // 外弧半径≈52/350——按 viewBox 归一化为焦点 (0.85,0.70)、外半径 0.155。
-        if (!tokens.contains(QStringLiteral("wifiWaveAnchorCx"))) return a;
-        a[QStringLiteral("cx")] = tokens.value(QStringLiteral("wifiWaveAnchorCx"));
-        a[QStringLiteral("cy")] = tokens.value(QStringLiteral("wifiWaveAnchorCy"));
-        a[QStringLiteral("maxR")] = tokens.value(QStringLiteral("wifiWaveAnchorMaxR"));
-    }
-    return a;
-}
+// 5WHY (复核 2026-08-20 锚点管道删除): 动画锚点几何的 C++ 下发链
+// （diagAnimationAnchor/DiagAnimator 注入）曾与 QML 默认值同读
+// AnimationTokens.js——运行时以 QJSEngine 解析同一文件再把相同值下发
+// 回去，纯传递冗余（同语言边界两侧各解析一次）。单一来源 = QML 默认
+// 直接读 tokens（各动画文件自带本类型锚点，无需按 diagId 分派）；母版
+// 再生成位移仅改 tokens 一处。本函数删除，DiagAnimator 不再注入。
 
 // 快照构建（ReportEngine 零耦合当前可变状态）
 QString AppState::previewReportHtml() const {

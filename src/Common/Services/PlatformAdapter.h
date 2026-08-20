@@ -14,21 +14,22 @@
 #include "Common/Model/DiagnosticResult.h"
 #include <QString>
 #include <QStringList>
+#include <QHash>
 #include <QMutex>
 #include <functional>
 #include <initializer_list>
 #include <memory>
 
-// ── RunSnapshot (5WHY 2026-08-20 nmcli 双 spawn) ───────────────────────────
-// 每轮套件运行共享的系统状态快照：probeDhcp/probeIpConfig 字段重叠
-// （DHCP4.OPTION 与 IP4.DNS 出自同一次 `nmcli device show` 输出）——池线程
-// 并行执行时曾每轮 spawn 两次 nmcli（各带 4s 超时）。惰性填充 + 互斥：
-// 一轮只 spawn 一次，其余探针复用文本。探针不得假设内容完整（空 = 命令
-// 缺失或失败，自行回退到其它数据源）。
+// ── RunSnapshot (5WHY 2026-08-20 每轮工具缓存) ────────────────────────────
+// 每轮套件运行共享的工具输出缓存（通用，非平台专属）：probeDhcp/probeIpConfig
+// 字段重叠（DHCP4.OPTION 与 IP4.DNS 出自同一次 `nmcli device show` 输出）——
+// 池线程并行执行时曾每轮 spawn 两次 nmcli（各带 4s 超时）。键 = exe +
+// args（SystemDiagnostics::cachedRunTool 生成），互斥惰性填充：同一命令
+// 一轮只跑一次，其余探针复用文本。探针不得假设内容完整（空 = 命令缺失
+// 或失败，自行回退到其它数据源）。
 struct RunSnapshot {
     QMutex mutex;
-    bool    nmcliTried = false;
-    QString nmcliText;   // `nmcli -t -m multiline device show`（字段并集）
+    QHash<QString, QString> toolOutputs;
 };
 
 // ── RunContext (DIAG-3 + NEW-5) ────────────────────────────────────────────

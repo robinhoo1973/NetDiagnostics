@@ -98,14 +98,10 @@ Item {
             if (item) {
                 item.running = Qt.binding(function() { return root.running })
                 item.targetItem = Qt.binding(function() { return root.targetItem })
-                // 5WHY (复核 2026-08-19 锚点元数据): C++ 单一来源下发母版
-                // 几何锚点（动画保留同值默认，直接实例化不受影响）。
-                var a = AppState.diagAnimationAnchor(root.diagId)
-                if (a && a.cx !== undefined && "anchorCx" in item) {
-                    item.anchorCx = a.cx
-                    item.anchorCy = a.cy
-                    item.anchorMaxR = a.maxR
-                }
+                // 5WHY (复核 2026-08-20 锚点管道删除): 锚点几何单一来源为
+                // AnimationTokens.js（各动画 QML 默认直读本类型锚点）——
+                // C++ 下发链（AppState.diagAnimationAnchor）曾是运行时
+                // 再解析同文件后把相同值传回来（纯传递冗余），已删。
             }
         }
         // 5WHY: onLoaded one-frame race — item.running is set AFTER

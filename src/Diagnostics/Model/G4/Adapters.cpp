@@ -608,7 +608,10 @@ static DiagnosticResult probeDnsResolution(DiagId id, const QString& target, Run
     if (ans.flags & 0x0100) flags += QStringLiteral("rd ");
     if (ans.flags & 0x0080) flags += QStringLiteral("ra ");
     flags = flags.trimmed();
-    if (flags.isEmpty()) flags = QStringLiteral("qr rd");
+    // 5WHY (复核 2026-08-20 flags 去伪造): 曾 flags 空时回填 "qr rd"——
+    // 响应头无任何标志位（QR 位清零 = 非真实 DNS 应答，如劫持网关代答）
+    // 被渲染成正常应答，协议异常不可见。空即空，formatter 呈现
+    // "(unparsed)"（诚实标记而非伪造）。
     out.append(DiagnosticFormatter::formatDnsHeader(host, rcodeText(rcode),
         ans.id, ans.anCount, flags, ans.nsCount, ans.arCount));
     out.append(QStringLiteral(";; QUESTION SECTION:"));
@@ -626,6 +629,13 @@ static DiagnosticResult probeDnsResolution(DiagId id, const QString& target, Run
                 out.append(DiagnosticFormatter::formatDnsRecord(host, rec.ttl, QStringLiteral("CNAME"), rec.value));
             }
         }
+        // 5WHY (复核 2026-08-20 计数一致): 头部 ANSWER 用真实头计数
+        // （ans.anCount），节内只渲染已解析类型（A/AAAA/CNAME）——响应含
+        // MX/TXT/OPT 等未解析类型时两处计数不一致（dig 渲染全部类型，
+        // 本解析器不渲染未知 RR）。差异以注释行显式声明，不做静默截断。
+        if (int(ans.anCount) > ans.records.size())
+            out.append(QStringLiteral(";; (%1 additional record(s) of other types not shown)")
+                .arg(int(ans.anCount) - ans.records.size()));
         out.append(QString());
     }
     out.append(DiagnosticFormatter::formatDnsFooter(ms, server, ans.msgSize));
@@ -1020,10 +1030,14 @@ static DiagnosticResult probePathPing(DiagId id, const QString& target, RunConte
         QVariantMap h;
         h[QStringLiteral("ttl")] = ttlNum;
         h[QStringLiteral("ip")] = ip;
+        // 5WHY (复核 2026-08-20 数据契约诚实): 中间跳从未被 ping——曾以
+        // sent=0/loss=100/avg=0 落数据契约，把"未探测"伪装成"0 发包
+        // 100% 丢包 0ms"（机器可读的伪造）。中间跳丢包/均值用 -1 哨兵
+        // （未知），sent/received=0 语义为"未探测"（非 0 交付）。
         h[QStringLiteral("sent")] = isFinal ? hs.sent : 0;
         h[QStringLiteral("received")] = isFinal ? hs.rcvd : 0;
-        h[QStringLiteral("lossPercent")] = isFinal ? hs.loss : 100.0;
-        h[QStringLiteral("avgMs")] = isFinal ? hs.avgMs : 0;
+        h[QStringLiteral("lossPercent")] = isFinal ? hs.loss : -1.0;
+        h[QStringLiteral("avgMs")] = isFinal ? hs.avgMs : -1;
         // C5：契约键 hops[].rttMs（kPathContract BarChart）——最终跳用 ping 均值，
         // 中间跳用 traceroute 探测 RTT
         h[QStringLiteral("rttMs")] = isFinal ? hs.avgMs : entries.value(i + 1).rttMs;

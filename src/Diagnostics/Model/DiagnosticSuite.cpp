@@ -142,13 +142,6 @@ void DiagnosticSuite::emitProgress() {
     emit progressChanged((m_completedCount * 100) / total, QString());
 }
 
-QHash<DiagId, qint64> DiagnosticSuite::runningStartTimes() const {
-    QHash<DiagId, qint64> out;
-    for (const auto* p : m_probes)
-        out.insert(p->diagId(), p->startedAtMs());
-    return out;
-}
-
 QHash<DiagId, qint64> DiagnosticSuite::runningStartTimesMono() const {
     QHash<DiagId, qint64> out;
     for (const auto* p : m_probes)

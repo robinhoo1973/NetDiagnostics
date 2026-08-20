@@ -62,22 +62,17 @@ AnimationBase {
 
             // 5WHY (复核 2026-08-19): 不用声明式 running 绑定——Qt 的
             // stop() 保留 currentTime，重新 start() 会从中途续播（相位
-            // 错乱）。委托级 Connections 命令式 restart()/stop()，每次
-            // 启动都从 0 相位开始；停止时各圈自复位（根级循环会硬编码
-            // 圈数 3——加第 4 圈即漏复位）。
-            // 5WHY (复核 2026-08-19 创建即真): 属性变更处理器不响应创建期
-            // 初值——以 running:true 直接实例化（文件 Usage 注释的用法）
-            // 时 restart 永不触发。onCompleted 兜底补一次启动判定。
-            Component.onCompleted: if (root.running) seq.restart()
-            Connections {
-                target: root
-                function onRunningChanged() {
-                    if (root.running) seq.restart()
-                    else {
-                        seq.stop()
-                        ring.opacity = 0
-                        ring.scale = 0.15
-                    }
+            // 错乱）。命令式 restart()/stop()，每次启动都从 0 相位开始；
+            // 停止时各圈自复位（根级循环会硬编码圈数 3——加第 4 圈即漏
+            // 复位）。5WHY (复核 2026-08-20 复用): 该契约曾与 WifiWave
+            // 各复制一份（照抄时 onStopped 挂错宿主致组件编译失败）——
+            // 收敛为 RestartController 共享组件。
+            RestartController {
+                running: root.running
+                target: seq
+                onStopped: {
+                    ring.opacity = 0
+                    ring.scale = 0.15
                 }
             }
             SequentialAnimation {

@@ -2,6 +2,7 @@
 // + 图标井 + 无障碍 NEW-22 + settle 弹跳 + 五动画）
 import QtQuick
 import QtQuick.Controls
+import NetDiagnostics.App 1.0
 import theme
 import widgets
 
@@ -144,23 +145,23 @@ Item {
         onRunningChanged: {
             // 5WHY (复核 2026-08-19 离屏续计): 离屏门控（screenVisible/visible）
             // 暂停计时器时同样触发本处理器——切页往返把运行中瓦片计时归零
-            // （与 startedAtMs 真实起点设计相悖）。仅当运行语义真正结束
+            // （与 startedAtMonoMs 真实起点设计相悖）。仅当运行语义真正结束
             // （testRunning 归假）才清零；离屏暂停保留进度，回屏续计。
             if (!root.testRunning) root._elapsed = 0
         }
     }
     // 5WHY (复核 2026-08-19 冻结徽标): 瓦片离屏（视口/切页）期间运行语义
     // 结束（取消/异常无结果）时，计时器本已暂停——running 无翻转，上述
-    // 处理器不触发，_elapsed 冻结值 + startedAtMs>0 令计时圆点永久残留
+    // 处理器不触发，_elapsed 冻结值 + startedAtMonoMs>0 令计时圆点永久残留
     // （"中断/异常未落结果…冻结计数不再残留"契约落空）。补 testRunning
     // 归假路径直接清零（离屏暂停不改变 testRunning，续计不受影响）。
     onTestRunningChanged: {
         if (!root.testRunning) root._elapsed = 0
     }
     // 5WHY (复核 2026-08-18): 委托重建（reloadModel 换模型身份）会把 _elapsed
-    // 清零。真实起点经模型注入 startedAtMs（C++ DiagnosticBase 墙钟）——重建
-    // 后计时从真实起点反推，并行 Suite 兄弟结果落地不再重置显示；无起点
-    // （模型未注入时）回退本地计数。
+    // 清零。真实起点经模型注入 startedAtMonoMs（C++ DiagnosticBase 单调时钟）
+    // ——重建后计时从真实起点反推，并行 Suite 兄弟结果落地不再重置显示；
+    // 无起点（模型未注入时）回退本地计数。
     Component.onCompleted: {
         var ms = root.itemData.durationMs
         if (ms !== undefined && ms > 0) root._elapsed = Math.round(ms / 1000)
@@ -172,11 +173,15 @@ Item {
     // 瞬时跳变、颜色阈值随错误时长重估。改为单调毫秒相减：起点
     // startedAtMonoMs 与现在 AppState.monotonicNowMs 同 MonotonicClock
     // 基准（CLOCK_MONOTONIC），墙钟步进免疫。
-    // 5WHY (复核 2026-08-20 依赖钩): 两者均不参与 QML 依赖追踪——显式读
-    // _elapsed 作依赖钩（每秒 tick 触发重估，与 _inViewport 同习语）。
+    // 5WHY (复核 2026-08-20 模块导入): AppState 是模块单例（
+    // qmlRegisterSingletonInstance，无上下文属性）——曾未导入
+    // NetDiagnostics.App，typeof AppState 恒 undefined、单调分支整体
+    // 死代码且 _elapsed 回退使网格重建后计时归零（回归）。导入即激活。
+    // 5WHY (复核 2026-08-20 依赖钩): 单调属性无 NOTIFY——显式读 _elapsed
+    // 作依赖钩（每秒 tick 触发重估，与 _inViewport 同习语）。
     readonly property int _timerSecs: {
         var tick = root._elapsed   // 依赖读取：每秒重估
-        if (root._startedAtMonoMs > 0 && typeof AppState !== "undefined" && AppState)
+        if (root._startedAtMonoMs > 0)
             return Math.max(1, Math.floor((AppState.monotonicNowMs - root._startedAtMonoMs) / 1000))
         return Math.max(1, tick)
     }

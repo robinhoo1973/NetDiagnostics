@@ -40,6 +40,8 @@
 #include <net/if.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+
+#include "Diagnostics/Model/GHelpers.h"   // wifiChannelFromFreqMhz / cellularNoServiceNarrative
 #include "Common/Model/DiagnosticResult.h"
 #include "Common/Model/DiagId.h"
 #include "Diagnostics/View/DiagnosticFormatter.h"
@@ -195,11 +197,12 @@ static int wifiSignalLevel(int rssi) {
     return (rssi - kMinRssi) * 4 / (kMaxRssi - kMinRssi);
 }
 // Channel number from center frequency (2.4 GHz → 1-14, 5 GHz → 36-165).
+// 5WHY (复核 2026-08-20 双份漂移): 曾与 G1 各持一份频段表且边界不一致
+// （5885 MHz 在 Linux 判 5 GHz、Android 判 6 GHz；5160 MHz 在 Android
+// 判 0）——收敛 SystemDiagnostics::wifiChannelFromFreqMhz（nl80211 定义 +
+// 带内钳制，含 6 GHz 信道 1-233）。本包装仅为旧调用点保留签名。
 static int wifiChannelFromFrequency(int freqMhz) {
-    if (freqMhz <= 0) return 0;
-    if (freqMhz >= 2412 && freqMhz <= 2484) return (freqMhz - 2412) / 5 + 1;
-    if (freqMhz >= 5170 && freqMhz <= 5825) return (freqMhz - 5000) / 5;
-    return 0;
+    return SystemDiagnostics::wifiChannelFromFreqMhz(freqMhz);
 }
 
 // ── Cellular carrier / network via TelephonyManager ────────────────────
@@ -752,8 +755,9 @@ DiagnosticResult androidCellularDiag(DiagId id) {
         out.append(QStringLiteral("  No cellular service available"));
         r.status = DiagStatus::Info;
         r.summary = QStringLiteral("No cellular service");
-        r.narrative = QStringLiteral("No cellular service is currently available on this device "
-            "(no SIM registered with a usable data plan, or the modem is offline).");
+        // 5WHY (复核 2026-08-20 文案三份): 同一句叙述曾逐字复制于 iOS/
+        // Android——共享 GHelpers 单一来源。
+        r.narrative = SystemDiagnostics::cellularNoServiceNarrative();
     }
 
     r.rawOutput = out.join('\n');

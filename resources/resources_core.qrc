@@ -44,6 +44,7 @@
              校验） -->
         <file alias="widgets/animations/qmldir">../src/Common/View/widgets/animations/qmldir</file>
         <file alias="widgets/animations/AnimationBase.qml">../src/Common/View/widgets/animations/AnimationBase.qml</file>
+        <file alias="widgets/animations/RestartController.qml">../src/Common/View/widgets/animations/RestartController.qml</file>
         <file alias="widgets/animations/PulseAnimation.qml">../src/Common/View/widgets/animations/PulseAnimation.qml</file>
         <file alias="widgets/animations/JiggleAnimation.qml">../src/Common/View/widgets/animations/JiggleAnimation.qml</file>
         <file alias="widgets/animations/BounceAnimation.qml">../src/Common/View/widgets/animations/BounceAnimation.qml</file>

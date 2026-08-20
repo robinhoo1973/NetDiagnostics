@@ -53,11 +53,11 @@ public:
     void cancel();         // set cancellation flag, stop watchdog
     bool isCancelled() const { return m_state->cancelled.load(std::memory_order_acquire); }
     void setTimeoutMs(int ms) { m_timeoutMs = ms > 0 ? ms : 60000; }
-    // 5WHY (复核 2026-08-18 计时连续性): 墙钟起点（ms 时间戳）——QML 委托被
+    // 5WHY (复核 2026-08-18 计时连续性): 真实起点（单调 ms）——QML 委托被
     // 重建时本地计时归零，UI 需从模型恢复真实起点而非委托诞生时刻。
-    qint64 startedAtMs() const { return m_startedAtMs; }
-    // 5WHY (复核 2026-08-20 墙钟步进): 单调起点（MonotonicClock 同源基准）——
-    // UI 计时以单调毫秒相减，NTP/手动校时步进不再跳变。
+    // 5WHY (复核 2026-08-20 墙钟步进 + 死链删除): 曾墙钟/单调双链并存，
+    // UI 改读单调后墙钟链（startedAtMs）零消费方仍逐项计算——删墙钟，
+    // 仅留单调（MonotonicClock 同源基准，NTP/手动校时步进免疫）。
     qint64 startedAtMonoMs() const { return m_startedAtMonoMs; }
 
 signals:
@@ -87,7 +87,6 @@ private:
     QThreadPool* m_pool;
     int        m_timeoutMs;
     bool       m_started = false;
-    qint64     m_startedAtMs = 0;
     qint64     m_startedAtMonoMs = 0;
     // 8-16：探针级墙钟——集中补 durationMs（诊断函数大多不自填时长，
     // 导致 Dashboard 分层计时全 0 与详情页时长缺失）

@@ -5,6 +5,7 @@
 # 动画的 Loader 文档编译会解析不到基类，全部动画静默缺失（a7e9d9c6 同类）。
 # 显式登记全部类型，消除对目录扫描的依赖。
 AnimationBase 1.0 AnimationBase.qml
+RestartController 1.0 RestartController.qml
 PulseAnimation 1.0 PulseAnimation.qml
 JiggleAnimation 1.0 JiggleAnimation.qml
 BounceAnimation 1.0 BounceAnimation.qml

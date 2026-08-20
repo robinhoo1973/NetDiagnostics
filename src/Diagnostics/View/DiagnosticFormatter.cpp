@@ -135,7 +135,8 @@ QStringList DiagnosticFormatter::formatDnsHeader(const QString& host,
         QStringLiteral(";; ->>HEADER<<- opcode: QUERY, status: %1, id: %2")
             .arg(rcode).arg(id),
         QStringLiteral(";; flags: %1; QUERY: 1, ANSWER: %2, AUTHORITY: %3, ADDITIONAL: %4")
-            .arg(flags).arg(anCount).arg(nsCount).arg(arCount),
+            .arg(flags.isEmpty() ? QStringLiteral("(unparsed)") : flags)
+            .arg(anCount).arg(nsCount).arg(arCount),
         QString(),
     };
 }

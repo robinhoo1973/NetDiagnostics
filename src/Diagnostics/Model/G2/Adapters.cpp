@@ -25,6 +25,7 @@
 #include "Common/Services/PlatformAdapter.h"
 #include "Common/Model/DiagnosticMeta.h"
 #include "Common/Model/DiagNames.h"
+#include "Diagnostics/Model/GHelpers.h"   // readProcLines（procfs atEnd 陷阱共享）
 
 #if defined(PLATFORM_ANDROID)
 #include "Diagnostics/Model/G5/Platform/Android/NetworkDiagnostics.h"
@@ -333,73 +334,63 @@ static DiagnosticResult probeDefaultGateway(DiagId id, const QString&, RunContex
     }
 #else
     // Linux / Android
-    QFile routeFile(QStringLiteral("/proc/net/route"));
-    if (routeFile.open(QIODevice::ReadOnly)) {
-        QTextStream ts(&routeFile);
-        // 5WHY (复核 2026-08-20 procfs atEnd 陷阱): 曾 readLine() 表头 +
-        // while(!atEnd())——/proc size 恒 0，atEnd 在首行缓冲前恒真，此
-        // "侥幸"模式换无表头文件即零行（v6 循环即因此从未上报，见下）。
-        // 与 v6 循环同用 readLineInto 驱动，与文件大小无关。
-        QString line;
-        int header = 0;
-        while (ts.readLineInto(&line)) {
-            if (header < 1) { ++header; continue; }
-            if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
-            const QString t = line.trimmed();
-            if (t.isEmpty()) continue;
-            const QStringList cols = t.split(QLatin1Char('\t'));
-            if (cols.size() >= 8) {
-                bool ok = false;
-                const uint32_t dest = cols[1].toUInt(&ok, 16);
-                const uint32_t gw   = cols[2].toUInt(&ok, 16);
-                if (dest == 0 && gw != 0) {
-                    // 5WHY (2026-08-20 用户诉求 "Default Gateway 无属性卡"):
-                    // 曾丢失 metric（cols[6]）且只查 IPv4——路由选择依赖
-                    // metric，双栈网络默认走 IPv6 时属性卡为空。补 metric
-                    // 与 IPv6 默认路由（/proc/net/ipv6_route）。
-                    // 5WHY (复核 2026-08-20 进制): /proc/net/route 仅
-                    // Destination/Gateway/Mask 为十六进制——Metric 列是
-                    // 十进制（600 = 600，非 0x600=1536）。曾以基 16 解析
-                    // 虚报 metric。
-                    const uint32_t metric = cols.size() >= 7 ? cols[6].toUInt(nullptr, 10) : 0;
-                    props.append({ipToStr(gw),
-                        QStringLiteral("via %1, metric %2").arg(cols[0]).arg(metric)});
-                    found.append(QStringLiteral("%1 (via %2, metric %3)")
-                        .arg(ipToStr(gw), cols[0]).arg(metric));
-                }
+    // 5WHY (复核 2026-08-20 procfs atEnd 陷阱): /proc size 恒 0，atEnd()
+    // 首行缓冲前恒真——"readLine 表头 + while(!atEnd())" 换无表头文件即
+    // 零行（v6 循环即因此从未上报）。共享 SystemDiagnostics::readProcLines
+    // 驱动（曾 v4/v6 各写一份 readLineInto 惯用法）。
+    for (const QString& raw : SystemDiagnostics::readProcLines(QStringLiteral("/proc/net/route"), 1)) {
+        if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
+        const QString t = raw.trimmed();
+        if (t.isEmpty()) continue;
+        const QStringList cols = t.split(QLatin1Char('\t'));
+        if (cols.size() >= 8) {
+            bool ok = false;
+            const uint32_t dest = cols[1].toUInt(&ok, 16);
+            const uint32_t gw   = cols[2].toUInt(&ok, 16);
+            if (dest == 0 && gw != 0) {
+                // 5WHY (2026-08-20 用户诉求 "Default Gateway 无属性卡"):
+                // 曾丢失 metric（cols[6]）且只查 IPv4——路由选择依赖
+                // metric，双栈网络默认走 IPv6 时属性卡为空。补 metric
+                // 与 IPv6 默认路由（/proc/net/ipv6_route）。
+                // 5WHY (复核 2026-08-20 进制): /proc/net/route 仅
+                // Destination/Gateway/Mask 为十六进制——Metric 列是
+                // 十进制（600 = 600，非 0x600=1536）。曾以基 16 解析
+                // 虚报 metric。
+                // 5WHY (复核 2026-08-20 重复换算): ipToStr(gw) 曾在两行
+                // 各算一次——局部一次复用。
+                const uint32_t metric = cols.size() >= 7 ? cols[6].toUInt(nullptr, 10) : 0;
+                const QString gwStr = ipToStr(gw);
+                props.append({gwStr,
+                    QStringLiteral("via %1, metric %2").arg(cols[0]).arg(metric)});
+                found.append(QStringLiteral("%1 (via %2, metric %3)")
+                    .arg(gwStr, cols[0]).arg(metric));
             }
         }
     }
-    QFile v6File(QStringLiteral("/proc/net/ipv6_route"));
-    if (v6File.open(QIODevice::ReadOnly)) {
-        QTextStream ts(&v6File);
-        // 5WHY (复核 2026-08-20 procfs atEnd 陷阱): /proc 文件 size 恒为 0
-        // ——QTextStream::atEnd() 在首行读入缓冲前恒真。本文件无表头，
-        // while(!atEnd()) 空转零行（IPv6 网关从未上报）。v4/v6 循环均
-        // 以 readLineInto 驱动，与文件大小无关。
-        QString line;
-        while (ts.readLineInto(&line)) {
-            if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
-            line = line.trimmed();
-            if (line.isEmpty()) continue;
-            const QStringList cols = line.split(QRegularExpression(QStringLiteral("\\s+")));
-            if (cols.size() >= 10) {
-                bool ok = false;
-                const int prefix = cols[1].toInt(&ok, 16);
-                if (!ok || prefix != 0) continue;   // 仅默认路由
-                const QByteArray gwBytes = QByteArray::fromHex(cols[4].toLatin1());
-                if (gwBytes.size() != 16) continue;
-                bool allZero = true;
-                for (const char b : gwBytes) { if (b != 0) { allZero = false; break; } }
-                if (allZero) continue;
-                QHostAddress gw6;
-                gw6.setAddress(reinterpret_cast<const quint8*>(gwBytes.constData()));
-                const quint32 metric = cols[5].toUInt(nullptr, 16);
-                props.append({gw6.toString(),
-                    QStringLiteral("via %1, metric %2 (IPv6)").arg(cols[9]).arg(metric)});
-                found.append(QStringLiteral("%1 (via %2, metric %3, IPv6)")
-                    .arg(gw6.toString(), cols[9]).arg(metric));
-            }
+    static const QRegularExpression kWsRe(QStringLiteral("\\s+"));
+    for (const QString& raw : SystemDiagnostics::readProcLines(QStringLiteral("/proc/net/ipv6_route"))) {
+        if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
+        const QString line = raw.trimmed();
+        if (line.isEmpty()) continue;
+        // 5WHY (复核 2026-08-20 正则提升): 曾逐行构造 QRegularExpression
+        // （PCRE2 编译每行一次）——函数局部 static 一次编译复用。
+        const QStringList cols = line.split(kWsRe);
+        if (cols.size() >= 10) {
+            bool ok = false;
+            const int prefix = cols[1].toInt(&ok, 16);
+            if (!ok || prefix != 0) continue;   // 仅默认路由
+            const QByteArray gwBytes = QByteArray::fromHex(cols[4].toLatin1());
+            if (gwBytes.size() != 16) continue;
+            bool allZero = true;
+            for (const char b : gwBytes) { if (b != 0) { allZero = false; break; } }
+            if (allZero) continue;
+            QHostAddress gw6;
+            gw6.setAddress(reinterpret_cast<const quint8*>(gwBytes.constData()));
+            const quint32 metric = cols[5].toUInt(nullptr, 16);
+            props.append({gw6.toString(),
+                QStringLiteral("via %1, metric %2 (IPv6)").arg(cols[9]).arg(metric)});
+            found.append(QStringLiteral("%1 (via %2, metric %3, IPv6)")
+                .arg(gw6.toString(), cols[9]).arg(metric));
         }
     }
 #endif
