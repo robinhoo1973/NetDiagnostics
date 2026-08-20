@@ -653,6 +653,11 @@ static DiagnosticResult probeDhcp(DiagId id, const QString&, RunContext& ctx) {
 #endif
 #endif
 #endif
+    // 5WHY (复核 2026-08-20 取消语义): 租约解析循环内取消仅早停（部分数据
+    // 落盘）——曾直接落 Pass。与 ActiveConnections/Netskope 同规则：解析后
+    // 统一复查，取消整项计 Cancelled。
+    if (ctx.cancelled.load())
+        return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
 
     if (leaseCount > 0) {
         DiagnosticResult r = makeResult(id, DiagStatus::Pass,
