@@ -103,12 +103,36 @@ static QString ip4ToStr(const struct in_addr& a) { return QString::fromLatin1(in
 static DiagnosticResult probeRoutingTable(DiagId id, const QString&, RunContext& ctx) {
     QVector<ResultProperty> props;
     QStringList out;
-    // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): 头块统一由 Linux 分支按
-    // v0.0.3 顺序输出（分隔线 → IPv4 Route Table → 分隔线 → Active
-    // Routes: → 表）——曾于函数头预置 "Active Routes:" 致复刻块前重复两行。
     int routeCount = 0;
 
+    // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): v0.0.3 全平台无条件骨架——
+    // 空行 + 分隔线 + "Interface List" + 分隔线（零路由亦然；首版曾把
+    // 头块整体藏在 Linux 分支且 gate 于 routeCount>0，Windows/macOS
+    // 头部尽失）。
+    out.append(QString());
+    out.append(QStringLiteral("==========================================================================="));
+    out.append(QStringLiteral("Interface List"));
+    out.append(QStringLiteral("==========================================================================="));
+
 #if defined(_WIN32)
+    // v0.0.3 Windows 接口清单行（"  %1...%2 ......%3"）
+    {
+        ULONG bufLen = 15000;
+        QByteArray buf(bufLen, '\0');
+        PIP_ADAPTER_ADDRESSES adapters = (PIP_ADAPTER_ADDRESSES)buf.data();
+        if (GetAdaptersAddresses(AF_UNSPEC, 0, nullptr, adapters, &bufLen) != NO_ERROR) {
+            buf.resize(bufLen);
+            adapters = (PIP_ADAPTER_ADDRESSES)buf.data();
+            GetAdaptersAddresses(AF_UNSPEC, 0, nullptr, adapters, &bufLen);
+        }
+        for (auto* a = adapters; a; a = a->Next)
+            out.append(QStringLiteral("  %1...%2 ......%3")
+                .arg(a->Ipv6IfIndex, 4)
+                .arg(macToStr(reinterpret_cast<const unsigned char*>(a->PhysicalAddress),
+                              a->PhysicalAddressLength))
+                .arg(QString::fromWCharArray(a->FriendlyName)));
+    }
+
     PMIB_IPFORWARD_TABLE2 ft = nullptr;
     if (GetIpForwardTable2(AF_INET, &ft) == NO_ERROR && ft) {
         for (ULONG i = 0; i < ft->NumEntries; ++i) {
@@ -123,9 +147,15 @@ static DiagnosticResult probeRoutingTable(DiagId id, const QString&, RunContext&
             ifRow.dwIndex = row.InterfaceIndex;
             QString ifName = QString::number(row.InterfaceIndex);
             if (GetIfEntry(&ifRow) == NO_ERROR) ifName = QString::fromWCharArray(ifRow.wszName);
-            props.append({ip4ToStr(dest), QStringLiteral("gw=%1 if=%2 metric=%3")
-                          .arg(ip4ToStr(gw), ifName).arg(row.Metric)});
-            out.append(QStringLiteral("  %1 → %2 (%3)").arg(ip4ToStr(dest), ip4ToStr(gw), ifName));
+            // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): 补列子行（共享表
+            // 重建所需；v0.0.3 Windows 网关直印 ip4ToStr，0.0.0.0 = on-link）。
+            ResultProperty rp(ip4ToStr(dest), QStringLiteral("gw=%1 if=%2 metric=%3")
+                              .arg(ip4ToStr(gw), ifName).arg(row.Metric));
+            rp.children.append({QStringLiteral("netmask"), ip4ToStr(mask)});
+            rp.children.append({QStringLiteral("gateway"), ip4ToStr(gw)});
+            rp.children.append({QStringLiteral("interface"), ifName});
+            rp.children.append({QStringLiteral("metric"), QString::number(row.Metric)});
+            props.append(rp);
             ++routeCount;
         }
         HeapFree(GetProcessHeap(), 0, ft);
@@ -143,16 +173,36 @@ static DiagnosticResult probeRoutingTable(DiagId id, const QString&, RunContext&
                 auto* rtm = (struct rt_msghdr*)ptr;
                 if (rtm->rtm_version != RTM_VERSION || rtm->rtm_msglen == 0) break;
                 if (rtm->rtm_type == RTM_GET && rtm->rtm_addrs & RTA_DST) {
+                    // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): 曾只解析
+                    // DST/GATEWAY——共享表 Netmask/Interface 列缺数据。
+                    // 补 RTAX_NETMASK/RTAX_IFP（v0.0.3 同源；无网关 "-"）。
+                    QString dst, gw, mask, ifName;
                     auto* sa = (struct sockaddr*)(rtm + 1);
-                    if (sa->sa_family == AF_INET) {
-                        auto* dst = &((struct sockaddr_in*)sa)->sin_addr;
-                        auto* gwsa = (struct sockaddr*)((char*)sa + sa->sa_len);
-                        QString gw = (rtm->rtm_addrs & RTA_GATEWAY && gwsa->sa_family == AF_INET)
-                                   ? ip4ToStr(((struct sockaddr_in*)gwsa)->sin_addr) : QStringLiteral("On-link");
-                        props.append({ip4ToStr(*dst), QStringLiteral("gw=%1").arg(gw)});
-                        out.append(QStringLiteral("  %1 → %2").arg(ip4ToStr(*dst), gw));
-                        ++routeCount;
+                    for (int i = 0; i < RTAX_MAX && sa->sa_len > 0; ++i) {
+                        if (rtm->rtm_addrs & (1 << i)) {
+                            if (i == RTAX_DST && sa->sa_family == AF_INET)
+                                dst = ip4ToStr(((struct sockaddr_in*)sa)->sin_addr);
+                            else if (i == RTAX_GATEWAY && sa->sa_family == AF_INET)
+                                gw = ip4ToStr(((struct sockaddr_in*)sa)->sin_addr);
+                            else if (i == RTAX_NETMASK && sa->sa_family == AF_INET)
+                                mask = ip4ToStr(((struct sockaddr_in*)sa)->sin_addr);
+                            else if (i == RTAX_IFP && sa->sa_family == AF_LINK) {
+                                auto* sdl = (struct sockaddr_dl*)sa;
+                                if (sdl->sdl_nlen > 0)
+                                    ifName = QString::fromLatin1(sdl->sdl_data, sdl->sdl_nlen);
+                            }
+                            sa = (struct sockaddr*)((char*)sa + sa->sa_len);
+                        }
                     }
+                    if (dst.isEmpty()) { ptr += rtm->rtm_msglen; continue; }
+                    const QString gwStr = gw.isEmpty() ? QStringLiteral("-") : gw;
+                    ResultProperty rp(dst, QStringLiteral("gw=%1").arg(gwStr));
+                    rp.children.append({QStringLiteral("netmask"), mask.isEmpty() ? QStringLiteral("-") : mask});
+                    rp.children.append({QStringLiteral("gateway"), gwStr});
+                    rp.children.append({QStringLiteral("interface"), ifName.isEmpty() ? QStringLiteral("-") : ifName});
+                    rp.children.append({QStringLiteral("metric"), QString::number(rtm->rtm_index)});
+                    props.append(rp);
+                    ++routeCount;
                 }
                 ptr += rtm->rtm_msglen;
             }
@@ -189,12 +239,20 @@ static DiagnosticResult probeRoutingTable(DiagId id, const QString&, RunContext&
             ++routeCount;
         }
     }
+#endif
+#endif
+
+    // v0.0.3 第二段（各平台共用）：分隔线 → 空行 → "IPv4 Route Table" →
+    // 分隔线 → "Active Routes:" → [表，零行时省略] → 尾部分隔线
+    out.append(QStringLiteral("==========================================================================="));
+    out.append(QString());
+    out.append(QStringLiteral("IPv4 Route Table"));
+    out.append(QStringLiteral("==========================================================================="));
+    out.append(QStringLiteral("Active Routes:"));
+#if defined(PLATFORM_IOS)
+    out.append(QStringLiteral("  [iOS] Routing table: unavailable (restricted by Apple)"));
+#endif
     if (routeCount > 0) {
-        out.append(QStringLiteral("==========================================================================="));
-        out.append(QString());
-        out.append(QStringLiteral("IPv4 Route Table"));
-        out.append(QStringLiteral("==========================================================================="));
-        out.append(QStringLiteral("Active Routes:"));
         static const QVector<DiagnosticFormatter::ColSpec> kRouteCols = {
             {"Network Destination", 22, false},
             {"Netmask",             16, false},
@@ -208,13 +266,12 @@ static DiagnosticResult probeRoutingTable(DiagId id, const QString&, RunContext&
                 << p.label
                 << SystemDiagnostics::childVal(p, QStringLiteral("netmask"))
                 << SystemDiagnostics::childVal(p, QStringLiteral("gateway"))
-                << SystemDiagnostics::childVal(p, QStringLiteral("interface"))
+                << SystemDiagnostics::childVal(p, QStringLiteral("interface")).left(9)   // v0.0.3 ifName.left(9)
                 << SystemDiagnostics::childVal(p, QStringLiteral("metric")));
         }
         out.append(DiagnosticFormatter::formatTable(kRouteCols, routeRows));
     }
-#endif
-#endif
+    out.append(QStringLiteral("==========================================================================="));
 
     if (routeCount == 0)
         return makeResult(id, DiagStatus::Warning, QStringLiteral("No route entries found"), props, out.join('\n'));
@@ -228,6 +285,9 @@ static DiagnosticResult probeRoutingTable(DiagId id, const QString&, RunContext&
 static DiagnosticResult probeArpTable(DiagId id, const QString&, RunContext& ctx) {
     QVector<ResultProperty> props;
     QStringList out;
+    // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): v0.0.3 out 首行恒空行
+    // （各平台）——首版 Linux 分支直接从 "Interface: (all)" 起。
+    out.append(QString());
     int entryCount = 0;
 
 #if defined(_WIN32)
@@ -284,23 +344,32 @@ static DiagnosticResult probeArpTable(DiagId id, const QString&, RunContext& ctx
     // 读取 + 函数局部 static 一次编译（同 probeDefaultGateway 修正）。
     // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): v0.0.3 为 "Interface: (all)"
     // + 列对齐表 [Internet Address/Physical Address/Type]（两空格缩进），
-    // Type 由 flags 列 0x2 判 static/dynamic。曾 "  ip  mac" 无类型列。
-    static const QRegularExpression kWsRe(QStringLiteral("\\s+"));
-    for (const QString& raw : SystemDiagnostics::readProcLines(QStringLiteral("/proc/net/arp"), 1)) {
-        if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
-        const QString line = raw.trimmed();
-        if (line.isEmpty()) continue;
-        const QStringList cols = line.split(kWsRe);
-        if (cols.size() >= 4 && cols[3] != QStringLiteral("00:00:00:00:00:00")) {
-            const QString type = (cols.size() >= 3 && cols[2] == QLatin1String("0x2"))
-                ? QStringLiteral("static") : QStringLiteral("dynamic");
-            ResultProperty ap(cols[0], cols[3]);
-            ap.children.append({QStringLiteral("type"), type});
-            props.append(ap);
-            ++entryCount;
+    // Type 由 flags 列 0x2 判 static/dynamic。曾 "  ip  mac" 无类型列、
+    // 且滤掉 00:00:00:00:00:00 行（v0.0.3 全行入表）与文件不可读时
+    // 无 "  (ARP table not available)" 恒文。
+    const bool arpReadable = [&]() {
+        QFile f(QStringLiteral("/proc/net/arp"));
+        return f.open(QIODevice::ReadOnly);
+    }();
+    if (!arpReadable) {
+        out.append(QStringLiteral("  (ARP table not available)"));
+    } else {
+        static const QRegularExpression kWsRe(QStringLiteral("\\s+"));
+        for (const QString& raw : SystemDiagnostics::readProcLines(QStringLiteral("/proc/net/arp"), 1)) {
+            if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
+            const QString line = raw.trimmed();
+            if (line.isEmpty()) continue;
+            const QStringList cols = line.split(kWsRe);
+            // v0.0.3: cols.size() >= 5、不滤零 MAC 行（含 incomplete 条目）
+            if (cols.size() >= 5) {
+                const QString type = (cols.size() >= 3 && cols[2] == QLatin1String("0x2"))
+                    ? QStringLiteral("static") : QStringLiteral("dynamic");
+                ResultProperty ap(cols[0], cols[3]);
+                ap.children.append({QStringLiteral("type"), type});
+                props.append(ap);
+                ++entryCount;
+            }
         }
-    }
-    if (entryCount > 0) {
         out.append(QStringLiteral("Interface: (all)"));
         static const QVector<DiagnosticFormatter::ColSpec> kArpCols = {
             {"Internet Address",  24, false},
@@ -311,7 +380,8 @@ static DiagnosticResult probeArpTable(DiagId id, const QString&, RunContext& ctx
         for (const auto& p : props)
             arpRows.append(QStringList() << p.label << p.value
                 << SystemDiagnostics::childVal(p, QStringLiteral("type")));
-        // v0.0.3 样式：表整体两空格缩进（逐行前缀）
+        // v0.0.3 样式：表整体两空格缩进（逐行前缀）；零行时 formatTable
+        // 仍出表头/分隔线（v0.0.3 同）
         out.append(QStringLiteral("  ") + DiagnosticFormatter::formatTable(kArpCols, arpRows)
             .join(QStringLiteral("\n  ")));
     }
@@ -478,6 +548,9 @@ static DiagnosticResult probeNetworkProfile(DiagId id, const QString&, RunContex
     QStringList out;
     out.append(QString());
     out.append(QStringLiteral("Network Profile Information:"));
+    // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): v0.0.3 头行后空行——
+    // 首版只补了头前空行，Hostname 行紧贴头行。
+    out.append(QString());
 
     const QString hostname = QHostInfo::localHostName();
     props.append({QStringLiteral("hostname"), hostname});
@@ -575,9 +648,7 @@ static DiagnosticResult probeTcpSettings(DiagId id, const QString&, RunContext& 
         RegCloseKey(hKey);
     }
 #else // Linux / Android
-    // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): 曾 "  basename = val"——
-    // v0.0.3 为 readSys(path, label) → "  Label: val"（标签语义化，
-    // KeepAlive 系列带 ms 单位）。文件与标签对同 v0.0.3。
+    // 属性卡：9 项 sysctl（与首版一致，含 KeepAlive 系列/DefaultTTL 等）
     const struct { const char* path; const char* label; } kTcpSys[] = {
         { "/proc/sys/net/ipv4/tcp_keepalive_time",  "KeepAliveTime" },
         { "/proc/sys/net/ipv4/tcp_keepalive_intvl", "KeepAliveInterval" },
@@ -592,12 +663,34 @@ static DiagnosticResult probeTcpSettings(DiagId id, const QString&, RunContext& 
     for (const auto& e : kTcpSys) {
         if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
         QFile file(QLatin1String(e.path));
-        if (file.open(QIODevice::ReadOnly)) {
-            const QString val = QString::fromLatin1(file.readAll().trimmed());
-            props.append({QLatin1String(e.label), val});
-            out.append(QStringLiteral("  %1: %2").arg(QLatin1String(e.label), val));
-        }
+        if (file.open(QIODevice::ReadOnly))
+            props.append({QLatin1String(e.label), QString::fromLatin1(file.readAll().trimmed())});
     }
+    // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): v0.0.3 Linux 终端为
+    // formatTable {Setting 20/Value 0} 五行 readSys（文件不可读 → "-"，
+    // 恒五行）。首版曾仿 Windows 注册表标签集输出 "  Label: val" 九行
+    // ——行式/表式与行集均非 v0.0.3（"ms" 单位属 v0.0.3 Windows 分支，
+    // Linux readSys 无单位）。
+    const struct { const char* path; const char* label; } kTcpTable[] = {
+        { "/proc/sys/net/ipv4/tcp_congestion_control", "Congestion Control" },
+        { "/proc/sys/net/ipv4/tcp_window_scaling",      "Window Scaling" },
+        { "/proc/sys/net/ipv4/tcp_timestamps",          "Timestamps" },
+        { "/proc/sys/net/ipv4/tcp_sack",                "Selective ACK" },
+        { "/proc/sys/net/ipv4/tcp_fastopen",            "TCP Fast Open" },
+    };
+    static const QVector<DiagnosticFormatter::ColSpec> kTcpCols = {
+        {"Setting", 20, false},
+        {"Value",    0, false},
+    };
+    QList<QStringList> tcpRows;
+    for (const auto& e : kTcpTable) {
+        if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
+        QFile file(QLatin1String(e.path));
+        const QString val = file.open(QIODevice::ReadOnly)
+            ? QString::fromLatin1(file.readAll().trimmed()) : QStringLiteral("-");
+        tcpRows.append({ QLatin1String(e.label), val });
+    }
+    out.append(DiagnosticFormatter::formatTable(kTcpCols, tcpRows));
 #endif
 
     if (props.isEmpty())
@@ -633,10 +726,12 @@ static DiagnosticResult probeProxySettings(DiagId id, const QString&, RunContext
         }
     }
 #else
-    // Unix 环境变量（http_proxy/https_proxy/no_proxy）
-    const QStringList vars = { QStringLiteral("http_proxy"), QStringLiteral("https_proxy"),
-                               QStringLiteral("HTTP_PROXY"), QStringLiteral("HTTPS_PROXY"),
-                               QStringLiteral("no_proxy"), QStringLiteral("NO_PROXY") };
+    // Unix 环境变量——v0.0.3 七变量与顺序（HTTP_PROXY/HTTPS_PROXY/FTP_PROXY/
+    // NO_PROXY 大写在前；首版曾缺 FTP_PROXY 且顺序相反，表格行序不符）。
+    const QStringList vars = { QStringLiteral("HTTP_PROXY"), QStringLiteral("HTTPS_PROXY"),
+                               QStringLiteral("FTP_PROXY"), QStringLiteral("NO_PROXY"),
+                               QStringLiteral("http_proxy"), QStringLiteral("https_proxy"),
+                               QStringLiteral("no_proxy") };
     for (const QString& v : vars) {
         if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
         const QString val = qEnvironmentVariable(v.toLatin1().constData());
@@ -657,7 +752,10 @@ static DiagnosticResult probeProxySettings(DiagId id, const QString&, RunContext
     out.append(QString());
     if (!anyProxy) {
         out.append(QStringLiteral("  No proxy configured"));
-        return makeResult(id, DiagStatus::Info, QStringLiteral("No proxy configured"), {}, out.join('\n'));
+        // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): v0.0.3 恒 Info +
+        // "Proxy Settings Collected"（无论是否配置）——曾 Pass/"Proxy
+        // configured"（状态徽章与摘要卡与 v0.0.3 不符）。
+        return makeResult(id, DiagStatus::Info, QStringLiteral("Proxy Settings Collected"), {}, out.join('\n'));
     }
     static const QVector<DiagnosticFormatter::ColSpec> kProxyCols = {
         {"Variable", 16, false},
@@ -667,7 +765,7 @@ static DiagnosticResult probeProxySettings(DiagId id, const QString&, RunContext
     for (const auto& p : props)
         proxyRows.append({ p.label, p.value });
     out.append(DiagnosticFormatter::formatTable(kProxyCols, proxyRows));
-    return makeResult(id, DiagStatus::Pass, QStringLiteral("Proxy configured"), props, out.join('\n'));
+    return makeResult(id, DiagStatus::Info, QStringLiteral("Proxy Settings Collected"), props, out.join('\n'));
 }
 
 } // namespace g2

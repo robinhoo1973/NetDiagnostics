@@ -629,10 +629,18 @@ QVariantMap AppState::resultFor(int diagIdInt) const {
     // 平铺——改为 v030TerminalLines（v0.0.3 逐探针 ipconfig 风格头 +
     // 列对齐表，数据由结构化 props 重建）；无复刻层的 id 回退平铺。
     QString details = it->details;
-    if (details.isEmpty() && it->rawOutput.isEmpty()) {
-        const QStringList v030 = SystemDiagnostics::v030TerminalLines(it->id, it->properties, it->data);
-        if (!v030.isEmpty()) details = v030.join(QLatin1Char('\n'));
-        if (details.isEmpty()) details = SystemDiagnostics::propsDumpText(it->properties);
+    if (details.isEmpty()) {
+        // 5WHY (复核 2026-08-21 屏幕/剪贴板同源): rawOutput 有值而 details
+        // 空时曾落 summary——QML 端 details||rawOutput 取到 summary、剪贴板
+        // 追加 rawOutput，两者背离。rawOutput 优先于派生（避免派生转储
+        // 遮蔽真实原始输出）。
+        if (!it->rawOutput.isEmpty()) {
+            details = it->rawOutput;
+        } else {
+            const QStringList v030 = SystemDiagnostics::v030TerminalLines(it->id, it->properties, it->data);
+            if (!v030.isEmpty()) details = v030.join(QLatin1Char('\n'));
+            if (details.isEmpty()) details = SystemDiagnostics::propsDumpText(it->properties);
+        }
     }
     if (details.isEmpty())
         details = it->summary;

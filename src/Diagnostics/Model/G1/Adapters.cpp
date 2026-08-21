@@ -18,6 +18,7 @@
 #endif
 
 #include "Common/Services/PlatformAdapter.h"
+#include "Diagnostics/View/DiagnosticFormatter.h"   // v0.0.3 复刻 details（DHCP Apple 桩表）
 #include "Common/Model/DiagnosticMeta.h"
 #include "Common/Model/DiagNames.h"
 
@@ -292,12 +293,15 @@ static DiagnosticResult probeNetworkAdapters(DiagId id, const QString&, RunConte
 #if defined(__linux__)
         // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): v0.0.3 适配器表含
         // MTU/Status 列（/sys/class/net 读取）——属性卡曾无此二字段，
-        // 复刻层无法重建。补 MTU + status（operstate 大写，v0.0.3 语义）。
+        // 复刻层无法重建。补 MTU + status（operstate 大写，v0.0.3 语义；
+        // 缺省 DOWN，loopback 恒 UP——v0.0.3 同）。
         p.children.append({QStringLiteral("MTU"), QString::number(i.maximumTransmissionUnit())});
+        QString st = QStringLiteral("DOWN");
         QFile opFile(QStringLiteral("/sys/class/net/%1/operstate").arg(i.name()));
         if (opFile.open(QIODevice::ReadOnly))
-            p.children.append({QStringLiteral("status"),
-                QString::fromLatin1(opFile.readAll().trimmed()).toUpper()});
+            st = QString::fromLatin1(opFile.readAll().trimmed()).toUpper();
+        if (type == QLatin1String("loopback")) st = QStringLiteral("UP");
+        p.children.append({QStringLiteral("status"), st});
 #endif
         // 5WHY (2026-08-20 用户诉求 "属性卡一团混乱"): 地址子行曾一律标
         // "address"——v4/v6 混排无法区分协议。按协议标注 IPv4/IPv6，
@@ -376,10 +380,12 @@ static DiagnosticResult probeNicAdvanced(DiagId id, const QString&, RunContext& 
         if (i.flags().testFlag(QNetworkInterface::IsLoopBack)) continue;
         const QString base = QStringLiteral("/sys/class/net/%1/").arg(i.name());
         quint64 bps = 0;
+        QString rawSpeed;
         QFile sf(base + QStringLiteral("speed"));
         if (sf.open(QIODevice::ReadOnly)) {
+            rawSpeed = QString::fromLatin1(sf.readAll().trimmed());
             bool ok = false;
-            const quint64 mbps = QString::fromLatin1(sf.readAll().trimmed()).toULongLong(&ok);
+            const quint64 mbps = rawSpeed.toULongLong(&ok);
             if (ok && mbps > 0) bps = mbps * 1000000ULL;
         }
         QString duplex;
@@ -389,6 +395,11 @@ static DiagnosticResult probeNicAdvanced(DiagId id, const QString&, RunContext& 
         const QString speed = formatLinkSpeed(bps);
         ResultProperty p(i.name(), speed);
         if (bps > 0) { knownSpeeds.append(i.name() + QLatin1Char('=') + speed); ++speedKnown; }
+        // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): 复刻层 Speed 列需
+        // sysfs 裸 Mbps（v0.0.3 rd("speed") 原值——"10000" 非 "10.0 Gbps"）
+        // ——主值存格式化串（属性卡），补 "speed" 子属性存原值。
+        if (!rawSpeed.isEmpty())
+            p.children.append({QStringLiteral("speed"), rawSpeed});
         p.children.append({QStringLiteral("MTU"), QString::number(i.maximumTransmissionUnit())});
         p.children.append({QStringLiteral("duplex"), duplex.isEmpty() ? QStringLiteral("unknown") : duplex});
         p.children.append({QStringLiteral("MAC"), i.hardwareAddress()});
@@ -670,10 +681,29 @@ static DiagnosticResult probeWifi(DiagId id, const QString&, RunContext& ctx) {
 
 // ── G1WiredDiagnostics ────────────────────────────────────────────────────
 static DiagnosticResult probeWired(DiagId id, const QString&, RunContext& ctx) {
+#if defined(PLATFORM_IOS)
+    // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): v0.0.3 iOS 有线探针为
+    // Skipped 恒文（"Wired Information:" 头——非 table mode——+ 说明行）。
+    // 曾走通用名匹配把 en0（WiFi）误归有线。恢复 v0.0.3 恒文与 Skipped。
+    const QStringList iosOut = {
+        QString(),
+        QStringLiteral("Wired Information:"),
+        QString(),
+        QStringLiteral("  [iOS] No wired Ethernet interface — not applicable on iOS devices."),
+    };
+    return makeResult(id, DiagStatus::Skipped,
+        QStringLiteral("Not applicable on iOS (no wired NIC)"), {}, iosOut.join(QLatin1Char('\n')));
+#else
     QVector<ResultProperty> props;
     const auto ifaces = runningInterfaces();
     for (const auto& i : ifaces) {
         if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
+#if defined(__APPLE__)
+        // v0.0.3 macOS：en*/pdp_ip 为无线/蜂窝，排除出有线表
+        if (i.name().startsWith(QLatin1String("en"))
+            || i.name().startsWith(QLatin1String("pdp_ip")))
+            continue;
+#endif
         if (i.name().contains(QLatin1String("eth"), Qt::CaseInsensitive)
             || i.name().contains(QLatin1String("en"), Qt::CaseInsensitive)
             || i.name().contains(QLatin1String("ethernet"), Qt::CaseInsensitive)) {
@@ -689,10 +719,16 @@ static DiagnosticResult probeWired(DiagId id, const QString&, RunContext& ctx) {
             }
             QFile df(QStringLiteral("/sys/class/net/%1/duplex").arg(i.name()));
             if (df.open(QIODevice::ReadOnly)) {
+                // v0.0.3 rd("duplex") 原样（含字面 "unknown"；文件缺失才 "-"）
                 const QString d = QString::fromLatin1(df.readAll().trimmed());
-                if (!d.isEmpty() && d != QLatin1String("unknown"))
+                if (!d.isEmpty())
                     p.children.append({QStringLiteral("duplex"), d});
             }
+            // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): v0.0.3 Link 列 =
+            // /sys/class/net/<if>/carrier 原值（"0"/"1"）——补子行。
+            QFile cf(QStringLiteral("/sys/class/net/%1/carrier").arg(i.name()));
+            if (cf.open(QIODevice::ReadOnly))
+                p.children.append({QStringLiteral("carrier"), QString::fromLatin1(cf.readAll().trimmed())});
             QFile of(QStringLiteral("/sys/class/net/%1/operstate").arg(i.name()));
             if (of.open(QIODevice::ReadOnly))
                 p.children.append({QStringLiteral("state"), QString::fromLatin1(of.readAll().trimmed())});
@@ -710,6 +746,7 @@ static DiagnosticResult probeWired(DiagId id, const QString&, RunContext& ctx) {
     r.narrative = QStringLiteral("Detected %1 wired interface(s). MTU/link speed/duplex/state are listed per interface below.")
         .arg(props.size());
     return r;
+#endif   // PLATFORM_IOS 分支（iOS 恒文在上方提前返回）
 }
 
 // ── G1DhcpStatus ──────────────────────────────────────────────────────────
@@ -717,6 +754,10 @@ static DiagnosticResult probeDhcp(DiagId id, const QString&, RunContext& ctx) {
     QVector<ResultProperty> props;
     QStringList leases;
     int likelyCount = 0;   // 路由表网关推断的 "Likely" 行数（非确认租约）
+    // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): Apple 分支恒文（v0.0.3 桩表
+    // + 说明行）——曾把 macOS 服务器地址当客户端 IP 入通用表。桩表逐字节
+    // 对齐 v0.0.3 G1DhcpStatus.cpp。
+    QStringList v030Details;
 
 #if defined(_WIN32)
     // 真实租约：GetAdaptersInfo（旧 API，MinGW 可用）带 DhcpEnabled、
@@ -759,6 +800,21 @@ static DiagnosticResult probeDhcp(DiagId id, const QString&, RunContext& ctx) {
     p.children.append({QStringLiteral("DHCP"), QStringLiteral("Yes")});
     p.children.append({QStringLiteral("lease"), QStringLiteral("not exposed to third-party apps")});
     props.append(p);
+    // v0.0.3 iOS 恒文：桩表行 + 两行说明
+    {
+        static const QVector<DiagnosticFormatter::ColSpec> kDhcpColsV030 = {
+            {"Interface", 18, false}, {"DHCP", 6, false},
+            {"IP Address", 18, false}, {"Server", 0, false},
+        };
+        QList<QStringList> stubRows;
+        stubRows.append({QStringLiteral("(system-managed)"), QStringLiteral("Yes"),
+            QStringLiteral("(not exposed)"), QStringLiteral("(not exposed)")});
+        v030Details = { QString(), QStringLiteral("DHCP Client Status"), QString() };
+        v030Details.append(DiagnosticFormatter::formatTable(kDhcpColsV030, stubRows));
+        v030Details.append(QString());
+        v030Details.append(QStringLiteral("  iOS manages DHCP at the system level —"));
+        v030Details.append(QStringLiteral("  lease details are not accessible to third-party apps."));
+    }
 #else
 #if defined(__APPLE__)
     // macOS：ipconfig getpacket <iface>（系统 DHCP 客户端真实报文数据）。
@@ -789,6 +845,22 @@ static DiagnosticResult probeDhcp(DiagId id, const QString&, RunContext& ctx) {
         props.append(p);
         leases.append(i.name() + QLatin1Char('=') + server);
     }
+    // v0.0.3 macOS 恒文：桩表行 + 三行说明
+    {
+        static const QVector<DiagnosticFormatter::ColSpec> kDhcpColsV030 = {
+            {"Interface", 18, false}, {"DHCP", 6, false},
+            {"IP Address", 18, false}, {"Server", 0, false},
+        };
+        QList<QStringList> stubRows;
+        stubRows.append({QStringLiteral("(system-managed)"), QStringLiteral("Yes"),
+            QStringLiteral("(use ifconfig)"), QStringLiteral("(not exposed)")});
+        v030Details = { QString(), QStringLiteral("DHCP Client Status"), QString() };
+        v030Details.append(DiagnosticFormatter::formatTable(kDhcpColsV030, stubRows));
+        v030Details.append(QString());
+        v030Details.append(QStringLiteral("  macOS manages DHCP via the SystemConfiguration framework —"));
+        v030Details.append(QStringLiteral("  lease details are not directly accessible. Use `ipconfig getpacket <iface>`"));
+        v030Details.append(QStringLiteral("  in Terminal for per-interface DHCP lease information."));
+    }
 #else
     // Linux/Android：systemd-networkd → dhclient → NetworkManager 租约文件（真实解析）。
     auto addLeaseFile = [&](const QString& path) {
@@ -813,7 +885,7 @@ static DiagnosticResult probeDhcp(DiagId id, const QString&, RunContext& ctx) {
             const QNetworkInterface ni = QNetworkInterface::interfaceFromIndex(ifIdx);
             if (ni.isValid()) ifName = ni.name();
         }
-        QString ipStr, serverStr, expire;
+        QString ipStr, serverStr, expire, renew;
         QTextStream ts(&f);
         while (!ts.atEnd()) {
             // 5WHY (复核 2026-08-19 取消语义): 租约文件解析微秒级——取消窗口
@@ -830,6 +902,11 @@ static DiagnosticResult probeDhcp(DiagId id, const QString&, RunContext& ctx) {
             else if (line.startsWith(QLatin1String("fixed-address "))) ipStr = line.mid(14).remove(QLatin1Char(' ')).remove(QLatin1Char(';'));
             else if (line.contains(QLatin1String("dhcp-server-identifier")))
                 serverStr = line.section(QLatin1Char(' '), -1).remove(QLatin1Char(';'));
+            // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): v0.0.3 附注行
+            // "Lease Renew"/"Lease Expires" 出自 dhclient 租约 renew/expire
+            // 行——renew 曾未捕获（附注层无法重建，v0.0.3 行静默丢失）。
+            else if (line.startsWith(QLatin1String("renew ")))
+                renew = line.section(QLatin1Char(' '), 2, 3).remove(QLatin1Char(';'));
             else if (line.startsWith(QLatin1String("expire ")))
                 expire = line.section(QLatin1Char(' '), 2, 3).remove(QLatin1Char(';'));
         }
@@ -837,6 +914,7 @@ static DiagnosticResult probeDhcp(DiagId id, const QString&, RunContext& ctx) {
         ResultProperty p(ifName, ipStr);
         p.children.append({QStringLiteral("DHCP"), QStringLiteral("Yes")});
         if (!serverStr.isEmpty()) p.children.append({QStringLiteral("server"), serverStr});
+        if (!renew.isEmpty()) p.children.append({QStringLiteral("renew"), renew});
         if (!expire.isEmpty()) p.children.append({QStringLiteral("expire"), expire});
         props.append(p);
         leases.append(ifName + QLatin1Char('=') + ipStr);
@@ -1002,7 +1080,7 @@ static DiagnosticResult probeDhcp(DiagId id, const QString&, RunContext& ctx) {
     if (!leases.isEmpty()) {
         DiagnosticResult r = makeResult(id, DiagStatus::Pass,
             QStringLiteral("%1 DHCP lease(s): %2").arg(leases.size()).arg(leases.join(QStringLiteral(", "))),
-            props, {});
+            props, v030Details.isEmpty() ? QString() : v030Details.join(QLatin1Char('\n')));
         r.data[QStringLiteral("leaseCount")] = leases.size();
         r.data[QStringLiteral("leases")] = leases;
         r.narrative = QStringLiteral("Found %1 active DHCP lease(s). "
@@ -1023,7 +1101,7 @@ static DiagnosticResult probeDhcp(DiagId id, const QString&, RunContext& ctx) {
             ? QStringLiteral("DHCP not confirmed — %1 gateway-derived 'likely' interface(s)").arg(likelyCount)
             : (props.isEmpty() ? QStringLiteral("No DHCP information found")
                                : QStringLiteral("No DHCP lease found (static IP or managed externally)")),
-        props, {});
+        props, v030Details.isEmpty() ? QString() : v030Details.join(QLatin1Char('\n')));
     // 5WHY (复核 2026-08-21 指标诚实): 曾 leaseCount = leases.size() +
     // likelyCount——"Leases" 指标卡（metricLeases 标签）把未确认的
     // gateway-derived "Likely" 行计入租约数（0 张确认租约却显示 1），
@@ -1128,6 +1206,17 @@ static DiagnosticResult probeIpConfig(DiagId id, const QString&, RunContext& ctx
         if (!i.hardwareAddress().isEmpty()
             && i.hardwareAddress() != QLatin1String("00:00:00:00:00:00"))
             p.children.append({QStringLiteral("MAC"), i.hardwareAddress()});
+#if defined(__linux__)
+        // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): v0.0.3 ipconfig 逐适配器
+        // 块含 Link Speed（sysfs 裸 Mbps，"%1 Mbps"）/MTU 行——补子行。
+        p.children.append({QStringLiteral("MTU"), QString::number(i.maximumTransmissionUnit())});
+        QFile spdFile(QStringLiteral("/sys/class/net/%1/speed").arg(i.name()));
+        if (spdFile.open(QIODevice::ReadOnly)) {
+            const QString s = QString::fromLatin1(spdFile.readAll().trimmed());
+            if (!s.isEmpty() && s != QLatin1String("-1"))
+                p.children.append({QStringLiteral("link speed"), s});
+        }
+#endif
         for (const auto& e : entries) {
             const bool isV6 = e.ip().protocol() == QAbstractSocket::IPv6Protocol;
             QString value = e.ip().toString();
@@ -1225,7 +1314,9 @@ static DiagnosticResult probeActiveConnections(DiagId id, const QString&, RunCon
     // TIME_WAIT 等——"established" 摘要若沿用 count 会虚报（Windows/macOS
     // 仍只计 ESTABLISHED）。单独累计 ESTABLISHED；tcpCount 保持总数语义。
     int established = 0;
+    int udpCount = 0;   // v0.0.3 表含 UDP/UDP6 行（State "*:*"）
     QVector<ResultProperty> props;
+    QStringList v030Out;   // iOS v0.0.3 恒文（通用尾部分支以外）
 #if defined(__linux__) || defined(__ANDROID__)
     // 5WHY (复核 2026-08-19 v0.0.3 对等): v0.0.3 以 Proto/Local/Foreign/State
     // 表格呈现全部连接——曾只抓 ESTABLISHED 的本地端点 hex 串。恢复全状态
@@ -1233,7 +1324,7 @@ static DiagnosticResult probeActiveConnections(DiagId id, const QString&, RunCon
     static const char* kStateNames[12] = {"", "ESTABLISHED", "SYN_SENT",
         "SYN_RECV", "FIN_WAIT1", "FIN_WAIT2", "TIME_WAIT", "CLOSE",
         "CLOSE_WAIT", "LAST_ACK", "LISTEN", "CLOSING"};
-    const auto parseSockets = [&](const QString& path, const char* proto) {
+    const auto parseSockets = [&](const QString& path, const char* proto, bool isUdp) {
         // 5WHY (复核 2026-08-21 procfs 收敛): /proc size 0 的 atEnd 陷阱
         // ——共享 SystemDiagnostics::readProcLines（readLineInto 驱动），
         // 与 G2/G5 同源（曾为本文件唯一遗留的手写 /proc 读取）。
@@ -1268,8 +1359,12 @@ static DiagnosticResult probeActiveConnections(DiagId id, const QString&, RunCon
             };
             bool ok = false;
             const int state = fields[3].toInt(&ok, 16);
-            const QString stateName = (ok && state >= 1 && state <= 11)
-                ? QString::fromLatin1(kStateNames[state]) : QStringLiteral("UNKNOWN");
+            // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): v0.0.3 UDP 行 State
+            // 恒 "*:*"（UDP 无状态机）。
+            const QString stateName = isUdp
+                ? QStringLiteral("*:*")
+                : ((ok && state >= 1 && state <= 11)
+                    ? QString::fromLatin1(kStateNames[state]) : QStringLiteral("UNKNOWN"));
             // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): v0.0.3 连接表列
             // Proto/Local/Remote/State——曾单串 value 内嵌全部字段，
             // 复刻层无法反解。补结构化子属性（属性卡呈现不变）。
@@ -1282,12 +1377,15 @@ static DiagnosticResult probeActiveConnections(DiagId id, const QString&, RunCon
             cp.children.append({QStringLiteral("remote"), decodeEp(fields[2])});
             cp.children.append({QStringLiteral("state"), stateName});
             props.append(cp);
-            ++count;
-            if (state == 0x01) ++established;
+            if (isUdp) ++udpCount;   // UDP 行入表但不计入 TCP 计数/established
+            else { ++count; if (state == 0x01) ++established; }
         }
     };
-    parseSockets(QStringLiteral("/proc/net/tcp"), "tcp");
-    parseSockets(QStringLiteral("/proc/net/tcp6"), "tcp6");
+    // v0.0.3: TCP/TCP6/UDP/UDP6 全表（Proto 大写同 v0.0.3）
+    parseSockets(QStringLiteral("/proc/net/tcp"), "TCP", false);
+    parseSockets(QStringLiteral("/proc/net/tcp6"), "TCP6", false);
+    parseSockets(QStringLiteral("/proc/net/udp"), "UDP", true);
+    parseSockets(QStringLiteral("/proc/net/udp6"), "UDP6", true);
     // 5WHY (复核 2026-08-19 取消语义): 解析循环内取消仅早停（部分数据落盘
     // 是 v0.0.3 行为）——解析后统一复查：取消整项计 Cancelled，不落 Pass/Info。
     if (ctx.cancelled.load())
@@ -1342,8 +1440,15 @@ static DiagnosticResult probeActiveConnections(DiagId id, const QString&, RunCon
             if (!line.contains(QLatin1String("ESTABLISHED"))) continue;
             const QStringList f = line.simplified().split(QLatin1Char(' '));
             if (f.size() >= 4) {   // tcp4  local.addr.port  remote.addr.port  ESTABLISHED
-                props.append({QStringLiteral("connection"),
-                    QStringLiteral("%1 -> %2").arg(f[1], f[2])});
+                // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): 曾无子属性——
+                // 复刻层表格四列全空。补 proto/local/remote/state 子行。
+                ResultProperty cp(QStringLiteral("connection"),
+                    QStringLiteral("%1 -> %2").arg(f[1], f[2]));
+                cp.children.append({QStringLiteral("proto"), QStringLiteral("TCP")});
+                cp.children.append({QStringLiteral("local"), f[1]});
+                cp.children.append({QStringLiteral("remote"), f[2]});
+                cp.children.append({QStringLiteral("state"), QStringLiteral("ESTABLISHED")});
+                props.append(cp);
                 ++count;
             }
         }
@@ -1354,6 +1459,12 @@ static DiagnosticResult probeActiveConnections(DiagId id, const QString&, RunCon
 #else
     // iOS：沙箱不暴露连接表（netstat 不存在）——诚实说明。
     props.append({QStringLiteral("iOS"), QStringLiteral("connection table not exposed to third-party apps")});
+    // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): v0.0.3 iOS 恒文两行。
+    v030Out.append(QString());
+    v030Out.append(QStringLiteral("Active Connections (netstat -an style)"));
+    v030Out.append(QString());
+    v030Out.append(QStringLiteral("  [iOS] Active connections: unavailable (restricted by Apple)"));
+    v030Out.append(QStringLiteral("  iOS sandbox prevents reading /proc/net/tcp — use Xcode network monitor"));
 #endif
 #endif
 #endif
@@ -1361,8 +1472,10 @@ static DiagnosticResult probeActiveConnections(DiagId id, const QString&, RunCon
     established = count;   // Windows/macOS 仅枚举 ESTABLISHED（Linux 在解析内累计）
 #endif
     DiagnosticResult r = makeResult(id, count > 0 ? DiagStatus::Pass : DiagStatus::Info,
-        QStringLiteral("%1 TCP connection(s), %2 established").arg(count).arg(established), props, {});
+        QStringLiteral("%1 TCP connection(s), %2 established").arg(count).arg(established), props,
+        v030Out.isEmpty() ? QString() : v030Out.join(QLatin1Char('\n')));
     r.data[QStringLiteral("tcpCount")] = count;
+    r.data[QStringLiteral("udpCount")] = udpCount;
     r.data[QStringLiteral("establishedCount")] = established;
     r.narrative = QStringLiteral("%1 TCP connection(s) enumerated, of which %2 established. "
         "Local/remote endpoints are listed in the property card below.").arg(count).arg(established);
@@ -1373,7 +1486,9 @@ static DiagnosticResult probeActiveConnections(DiagId id, const QString&, RunCon
 static DiagnosticResult probeCellular(DiagId id, const QString&, RunContext& ctx) {
     QVector<ResultProperty> props;
     QStringList out;
-    out.append(QStringLiteral("Cellular Information"));
+    // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): 头行曾缺冒号——v0.0.3 为
+    // "Cellular Information:"（iOS 恒文同款头）。
+    out.append(QStringLiteral("Cellular Information:"));
     out.append(QString());
     // 5WHY (复核 2026-08-20 计数锁步): 曾 found bool 与 foundNames 逐处同
     // 置——漏一处即摘要与 Skipped 分支矛盾（同 DHCP leaseCount 类缺陷）。
@@ -1566,7 +1681,18 @@ static DiagnosticResult probeCellular(DiagId id, const QString&, RunContext& ctx
                 "Raw output is preserved in the terminal section.").arg(mmcliListed).arg(mmcliFailed);
             return wr;
         }
-        return makeResult(id, DiagStatus::Skipped, QStringLiteral("No cellular modem present"), {}, {});
+        // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): v0.0.3 非 iOS 平台无
+        // modem 时恒文 "  [Skipped] Cellular info requires iOS — not
+        // applicable on this platform"——曾空 details 落 props 转储。
+        const QStringList skipOut = {
+            QString(),
+            QStringLiteral("Cellular Information:"),
+            QString(),
+            QStringLiteral("  [Skipped] Cellular info requires iOS — not applicable on this platform"),
+            QString(),
+        };
+        return makeResult(id, DiagStatus::Skipped, QStringLiteral("No cellular modem present"), {},
+            skipOut.join(QLatin1Char('\n')));
     }
 
     // details 显式给 Raw 转储——终端区块呈现原始数据（用户诉求
@@ -1595,21 +1721,56 @@ DiagnosticResult iosWifiProbe(DiagId id, const QString&, RunContext&) {
     auto add = [&props](const char* label, const QString& v) {
         if (!v.isEmpty()) props.append({QLatin1String(label), v});
     };
-    add("SSID", info.value(QStringLiteral("ssid")).toString());
-    add("BSSID", info.value(QStringLiteral("bssid")).toString());
+    const QString ssid = info.value(QStringLiteral("ssid")).toString();
+    const QString bssid = info.value(QStringLiteral("bssid")).toString();
+    add("SSID", ssid);
+    add("BSSID", bssid);
     add("signal dBm", info.value(QStringLiteral("rssi")).toString());
     add("channel", info.value(QStringLiteral("channel")).toString());
     add("security", info.value(QStringLiteral("security")).toString());
-    // 5WHY (2026-08-20 用户诉求 "WiFi 信息无数据"): 曾手搭结果、无
-    // narrative——摘要卡缺失且 details 为空（终端区块隐藏）。统一走
-    // g1::makeResult（属性派生转储 + 摘要叙述同源）。
+    // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): 曾空 details 落复刻层——
+    // 平铺 props 被误当逐接口行（表头列名当接口名）。重建 v0.0.3 iOS
+    // 终端：表行（en0 + SSID/BSSID，Channel/Signal/Bitrate "-"）+
+    // IP/Gateway + "unavailable" 行 + SSID 缺失时的说明块。
+    QStringList vOut;
+    vOut.append(QString());
+    vOut.append(QStringLiteral("Wireless LAN information:"));
+    vOut.append(QString());
+    {
+        static const QVector<DiagnosticFormatter::ColSpec> kWifiCols = {
+            {"Interface", 12, false}, {"SSID", 20, false}, {"BSSID", 17, false},
+            {"Channel", 8, true}, {"Signal", 7, true}, {"Bitrate", 0, true},
+        };
+        QList<QStringList> rows;
+        rows.append({QStringLiteral("en0"),
+            ssid.isEmpty() ? QStringLiteral("-") : ssid,
+            bssid.isEmpty() ? QStringLiteral("-") : bssid,
+            QStringLiteral("-"), QStringLiteral("-"), QStringLiteral("-")});
+        vOut.append(DiagnosticFormatter::formatTable(kWifiCols, rows));
+    }
+    const QString wifiIp = iosInterfaceIPv4(QStringLiteral("en0"));
+    const QString wifiGw = iosGatewayForInterface(QStringLiteral("en0"));
+    vOut.append(QString());
+    vOut.append(QStringLiteral("  IP Address: %1").arg(wifiIp.isEmpty() ? QStringLiteral("(not connected)") : wifiIp));
+    if (!wifiGw.isEmpty())
+        vOut.append(QStringLiteral("  Gateway: %1").arg(wifiGw));
+    vOut.append(QStringLiteral("  Channel/Signal/Bitrate: unavailable on iOS (no public API)"));
+    if (ssid.isEmpty()) {
+        vOut.append(QString());
+        const QString diag = info.value(QStringLiteral("wifiDiagnostics")).toString();
+        if (!diag.isEmpty())
+            vOut.append(QStringLiteral("  %1").arg(diag));
+        else {
+            vOut.append(QStringLiteral("  Note: SSID/BSSID need the \"Access WiFi Information\" entitlement,"));
+            vOut.append(QStringLiteral("        Location permission, and an active WiFi connection."));
+        }
+    }
     DiagnosticResult r = g1::makeResult(id, DiagStatus::Pass,
-        QStringLiteral("WiFi: %1").arg(info.value(QStringLiteral("ssid")).toString()),
-        props, {});
+        QStringLiteral("WiFi: %1").arg(ssid),
+        props, vOut.join(QLatin1Char('\n')));
     r.narrative = QStringLiteral("Wi-Fi is connected to %1 (BSSID %2). "
         "Signal, channel and security are listed in the property cards below.")
-        .arg(info.value(QStringLiteral("ssid")).toString(),
-             info.value(QStringLiteral("bssid")).toString());
+        .arg(ssid, bssid);
     return r;
 }
 
@@ -1619,14 +1780,20 @@ DiagnosticResult iosCellularProbe(DiagId id) {
     // 是 Info 态（G1CellularInfo.cpp）——曾返回 skipped 丢失该呈现。
     // iOS 设备恒有调制解调器：空图即"无服务"而非"无硬件"。
     if (info.isEmpty()) {
-        // 5WHY (复核 2026-08-19 simplify): 曾手搭 DiagnosticResult（10 行
-        // 样板）——makeResult 的空 details 分支自动生成同文本转储并打
-        // propsDump 标记（剪贴板去重用；终端区块 2026-08-21 起无条件
-        // 呈现该转储），一行等价且随归一化契约演进（时间戳/转储规则
-        // 不再旁路）。
+        // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): 空服务恒文（v0.0.3 iOS
+        // "  No cellular service available" + 可选 IP/Gateway/Signal 行 +
+        // 尾部空行）——曾空 details 落复刻层误判。
+        const QStringList vOut = {
+            QString(),
+            QStringLiteral("Cellular Information:"),
+            QString(),
+            QStringLiteral("  No cellular service available"),
+            QString(),
+        };
         DiagnosticResult nr = g1::makeResult(id, DiagStatus::Info,
             QStringLiteral("No cellular service"),
-            {{QStringLiteral("cellular"), QStringLiteral("No cellular service available")}}, {});
+            {{QStringLiteral("cellular"), QStringLiteral("No cellular service available")}},
+            vOut.join(QLatin1Char('\n')));
         // 5WHY (复核 2026-08-20 文案三份): 同一句叙述曾逐字复制于 iOS/
         // Android——措辞修正需逐文件改。共享 GHelpers 单一来源。
         nr.narrative = SystemDiagnostics::cellularNoServiceNarrative();
@@ -1657,10 +1824,44 @@ DiagnosticResult iosCellularProbe(DiagId id) {
             QStringLiteral("%1 / %2").arg(sim.value(QStringLiteral("carrier")).toString(),
                                           sim.value(QStringLiteral("rat")).toString())});
     }
+    // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): v0.0.3 iOS 蜂窝逐行恒文——
+    // 多卡 "  N SIM / eSIM lines active:" + 逐卡 "  SIM n:"/缩进 Carrier/
+    // Radio Access（空值 "(hidden by iOS 16+)"/"(not available)"）+
+    // Data IP/Gateway/Signal + 尾部空行。
+    QStringList vOut;
+    vOut.append(QString());
+    vOut.append(QStringLiteral("Cellular Information:"));
+    vOut.append(QString());
+    const bool multiSim = simSlotList.size() > 1;
+    if (multiSim)
+        vOut.append(QStringLiteral("  %1 SIM / eSIM lines active:").arg(simSlotList.size()));
+    for (const QVariant& s : simSlotList) {
+        const QVariantMap sim = s.toMap();
+        const QString pad = multiSim ? QStringLiteral("    ") : QStringLiteral("  ");
+        if (multiSim)
+            vOut.append(QStringLiteral("  SIM %1:").arg(sim.value(QStringLiteral("slot")).toString()));
+        const QString carrier = sim.value(QStringLiteral("carrier")).toString();
+        vOut.append(QStringLiteral("%1Carrier: %2").arg(pad,
+            carrier.isEmpty() ? QStringLiteral("(hidden by iOS 16+)") : carrier));
+        const QString rat = sim.value(QStringLiteral("rat")).toString();
+        vOut.append(QStringLiteral("%1Radio Access: %2").arg(pad,
+            rat.isEmpty() ? QStringLiteral("(not available)") : rat));
+    }
+    const QString dataIp = info.value(QStringLiteral("dataIp")).toString();
+    vOut.append(QStringLiteral("  %1: %2")
+        .arg(multiSim ? QStringLiteral("Data IP (active line)") : QStringLiteral("IP Address"),
+             dataIp.isEmpty() ? QStringLiteral("(not assigned)") : dataIp));
+    const QString gw = info.value(QStringLiteral("gateway")).toString();
+    if (!gw.isEmpty())
+        vOut.append(QStringLiteral("  Gateway: %1").arg(gw));
+    const QString sig = info.value(QStringLiteral("signalStrength")).toString();
+    if (!sig.isEmpty())
+        vOut.append(QStringLiteral("  Signal: %1").arg(sig));
+    vOut.append(QString());
     // 5WHY (复核 2026-08-20 复用): "Carrier: X" 字符串曾各平台各写一份
     // ——共享 GHelpers::cellularSummary（carrier+radio 组合回退逻辑）。
     DiagnosticResult r = g1::makeResult(id, DiagStatus::Pass,
-        SystemDiagnostics::cellularSummary(info), props, {});
+        SystemDiagnostics::cellularSummary(info), props, vOut.join(QLatin1Char('\n')));
     // 摘要卡叙述（与桌面/Android 同构）：运营商 → 制式 → 信号 → 承载
     r.narrative = QStringLiteral("Carrier %1 on %2 (MCC %3, MNC %4). "
         "Signal, data IP, gateway and SIM slots are listed in the property cards below.")

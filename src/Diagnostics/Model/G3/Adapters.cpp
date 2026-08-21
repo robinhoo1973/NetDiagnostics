@@ -273,9 +273,16 @@ static DiagnosticResult probeDnsServers(DiagId id, const QString&, RunContext& c
         const QString line = raw.trimmed();
         if (line.startsWith(QLatin1String("nameserver ")))
             appendServer(QStringLiteral("resolv.conf"), line.mid(11));
+        // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): v0.0.3 表含
+        // "search domains" 行（整行并入单行）——首版缺失。
+        else if (line.startsWith(QLatin1String("search ")))
+            props.append({QStringLiteral("search domains"), line.mid(7)});
     }
+    // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): v0.0.3 桩行只入表不入
+    // dnsList（摘要只列真实 IP）——曾经 appendServer 把 "(stub resolver
+    // active)" 混进 summary "DNS: 127.0.0.53, (stub resolver active)"。
     if (QFile::exists(QStringLiteral("/run/systemd/resolve/resolv.conf")))
-        appendServer(QStringLiteral("systemd-resolved"), QStringLiteral("(stub resolver active)"));
+        props.append({QStringLiteral("systemd-resolved"), QStringLiteral("(stub resolver active)")});
 #endif
 #endif
 
@@ -295,9 +302,9 @@ static DiagnosticResult probeDnsServers(DiagId id, const QString&, RunContext& c
         for (const auto& p : props)
             dnsRows.append({ p.label, p.value });
         out.append(DiagnosticFormatter::formatTable(kDnsCols, dnsRows));
-    } else {
-        out.append(QStringLiteral("  No DNS servers found"));
     }
+    // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): v0.0.3 空态只出头块
+    // （头 + 空行），无 "  No DNS servers found" 行——首版发明该行。
     DiagnosticResult r = makeResult(id, dnsList.isEmpty() ? DiagStatus::Warning : DiagStatus::Pass,
         dnsList.isEmpty() ? QStringLiteral("No DNS servers found")
                           : QStringLiteral("DNS: %1").arg(dnsList.join(QStringLiteral(", "))),

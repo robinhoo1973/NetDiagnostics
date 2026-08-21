@@ -5,6 +5,7 @@
 #include "Common/Utils/AppColors.h"   // 报告状态色（与 Palette.js 同步）
 #include "Common/Services/Logger.h"
 #include "Diagnostics/Model/GHelpers.h"   // propsDumpText（报告体派生与终端同源）
+#include "Diagnostics/View/V030TerminalFormat.h"   // v030TerminalLines（报告/屏幕/剪贴板同链）
 
 #include <QDateTime>
 #include <QDir>
@@ -31,6 +32,18 @@ namespace {
 
 QString normalizeReportPath(const QString& p) {
     return p.startsWith(QStringLiteral("file:")) ? QUrl(p).toLocalFile() : p;
+}
+
+// 5WHY (复核 2026-08-21 三份同源): 报告体/详情页终端/剪贴板共用派生链
+// details → rawOutput → v030TerminalLines → propsDumpText（AppState 同序）。
+// G1 探针 details 恒空后曾只落 propsDumpText 平铺——导出报告与屏幕
+// v0.0.3 表格背离。
+static QString reportBody(const DiagnosticResult& r) {
+    if (!r.details.isEmpty()) return r.details;
+    if (!r.rawOutput.isEmpty()) return r.rawOutput;
+    const QStringList v030 = SystemDiagnostics::v030TerminalLines(r.id, r.properties, r.data);
+    if (!v030.isEmpty()) return v030.join(QLatin1Char('\n'));
+    return SystemDiagnostics::propsDumpText(r.properties);
 }
 
 // 5WHY: The original code had 4 structurally identical switch blocks (dark/light
@@ -493,9 +506,7 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail, bool da
                     // details 派生 props 转储（propsDumpText），报告引擎曾
                     // 仍读原始 details——纯属性结果（如 TCP Connect）在导出
                     // 报告中空体，与屏幕终端不一致。同源派生补齐。
-                    const QString body = !r.details.isEmpty() ? r.details
-                        : (!r.rawOutput.isEmpty() ? r.rawOutput
-                        : SystemDiagnostics::propsDumpText(r.properties));
+                    const QString body = reportBody(r);
                     if (!body.trimmed().isEmpty()) {
                         const QStringList lines = body.split(QStringLiteral("\n"));
                         h += QStringLiteral(
@@ -797,9 +808,7 @@ QString ReportEngine::buildRichDocument(const ReportData& data, bool darkBackgro
                     h += QStringLiteral("<div class=\"analysis\">%1</div>").arg(r.summary.toHtmlEscaped());
                 // 5WHY (复核 2026-08-21 报告缺口): 与表格体同源——空 details
                 // 时派生 props 转储，报告与屏幕终端一致。
-                const QString body = !r.details.isEmpty() ? r.details
-                    : (!r.rawOutput.isEmpty() ? r.rawOutput
-                    : SystemDiagnostics::propsDumpText(r.properties));
+                const QString body = reportBody(r);
                 if (!body.trimmed().isEmpty())
                     h += QStringLiteral("<div class=\"raw\">%1</div>").arg(body.toHtmlEscaped());
                 h += QStringLiteral("</div></details>\n");
