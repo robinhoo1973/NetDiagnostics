@@ -26,7 +26,7 @@
 #include "Common/Model/DiagnosticMeta.h"
 #include "Common/Model/DiagNames.h"
 #include "Diagnostics/Model/GHelpers.h"   // readProcLines（procfs atEnd 陷阱共享）
-#include "Diagnostics/View/V030TerminalFormat.h"   // childVal（v0.0.3 复刻层共用取值）
+#include "Diagnostics/View/LegacyTerminalFormat.h"   // childVal（v0.0.3 复刻层共用取值）
 
 #if defined(PLATFORM_ANDROID)
 #include "Diagnostics/Model/G5/Platform/Android/NetworkDiagnostics.h"

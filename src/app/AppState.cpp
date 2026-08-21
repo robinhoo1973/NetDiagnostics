@@ -12,7 +12,7 @@
 #include "Configuration/Controller/ConfigurationController.h"
 #include "Diagnostics/Model/DiagnosticSuite.h"
 #include "Diagnostics/Model/GHelpers.h"   // propsDumpText（终端兜底派生单一来源）
-#include "Diagnostics/View/V030TerminalFormat.h"   // v0.0.3 逐字复刻层
+#include "Diagnostics/View/LegacyTerminalFormat.h"   // v0.0.3 逐字复刻层
 #include "Report/Model/ReportEngine.h"
 #include "Settings/Model/PremiumStore.h"
 
@@ -626,7 +626,7 @@ QVariantMap AppState::resultFor(int diagIdInt) const {
     // 4) summary（Skipped/"No proxy configured" 等无 props 结果——
     //    v0.0.3 skipped 工厂即输出解释文本，无条件呈现契约兜底）。
     // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): 第 3 步曾为 propsDumpText
-    // 平铺——改为 v030TerminalLines（v0.0.3 逐探针 ipconfig 风格头 +
+    // 平铺——改为 legacyTerminalLines（v0.0.3 逐探针 ipconfig 风格头 +
     // 列对齐表，数据由结构化 props 重建）；无复刻层的 id 回退平铺。
     QString details = it->details;
     if (details.isEmpty()) {
@@ -637,8 +637,8 @@ QVariantMap AppState::resultFor(int diagIdInt) const {
         if (!it->rawOutput.isEmpty()) {
             details = it->rawOutput;
         } else {
-            const QStringList v030 = SystemDiagnostics::v030TerminalLines(it->id, it->properties, it->data);
-            if (!v030.isEmpty()) details = v030.join(QLatin1Char('\n'));
+            const QStringList legacy = SystemDiagnostics::legacyTerminalLines(it->id, it->properties, it->data);
+            if (!legacy.isEmpty()) details = legacy.join(QLatin1Char('\n'));
             if (details.isEmpty()) details = SystemDiagnostics::propsDumpText(it->properties);
         }
     }
@@ -1015,13 +1015,13 @@ void AppState::copyDetailToClipboard(int diagIdInt) {
     // 5WHY (复核 2026-08-20 剪贴板双份): G1 的属性派生转储与属性循环输出
     // 逐字相同——曾双双追加，粘贴的票据每条属性出现两次。
     // 5WHY (复核 2026-08-21 呈现层同源): details 为空时与 resultFor 同链
-    // 派生（v030TerminalLines → propsDumpText），剪贴板与屏幕终端逐字一致。
+    // 派生（legacyTerminalLines → propsDumpText），剪贴板与屏幕终端逐字一致。
     if (!it->details.isEmpty()) lines.append(it->details);
     else if (!it->rawOutput.isEmpty()) lines.append(it->rawOutput);
     else {
         QString derived;
-        const QStringList v030 = SystemDiagnostics::v030TerminalLines(it->id, it->properties, it->data);
-        if (!v030.isEmpty()) derived = v030.join(QLatin1Char('\n'));
+        const QStringList legacy = SystemDiagnostics::legacyTerminalLines(it->id, it->properties, it->data);
+        if (!legacy.isEmpty()) derived = legacy.join(QLatin1Char('\n'));
         if (derived.isEmpty()) derived = SystemDiagnostics::propsDumpText(it->properties);
         if (!derived.isEmpty()) lines.append(derived);
     }

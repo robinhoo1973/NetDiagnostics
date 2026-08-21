@@ -164,7 +164,7 @@ static DiagnosticResult makeResult(DiagId id, DiagStatus status,
     // 派生 details（propsDump 标记）——"label: value" 平铺与 v0.0.3 逐
     // 探针格式化文本（ipconfig 风格头 + 列对齐表）不符，且与呈现层派生
     // 构成双路径。派生统一收敛到呈现层：resultFor 对空 details 以
-    // V030TerminalFormat 逐字复刻；本层原样透传（propsDump 标记删除，
+    // LegacyTerminalFormat 逐字复刻；本层原样透传（propsDump 标记删除，
     // 剪贴板与终端共用呈现层同源派生）。
     r.details = details;
     r.rawOutput = details;
@@ -757,7 +757,7 @@ static DiagnosticResult probeDhcp(DiagId id, const QString&, RunContext& ctx) {
     // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): Apple 分支恒文（v0.0.3 桩表
     // + 说明行）——曾把 macOS 服务器地址当客户端 IP 入通用表。桩表逐字节
     // 对齐 v0.0.3 G1DhcpStatus.cpp。
-    QStringList v030Details;
+    QStringList legacyDetails;
 
 #if defined(_WIN32)
     // 真实租约：GetAdaptersInfo（旧 API，MinGW 可用）带 DhcpEnabled、
@@ -802,18 +802,18 @@ static DiagnosticResult probeDhcp(DiagId id, const QString&, RunContext& ctx) {
     props.append(p);
     // v0.0.3 iOS 恒文：桩表行 + 两行说明
     {
-        static const QVector<DiagnosticFormatter::ColSpec> kDhcpColsV030 = {
+        static const QVector<DiagnosticFormatter::ColSpec> kDhcpColsLegacy = {
             {"Interface", 18, false}, {"DHCP", 6, false},
             {"IP Address", 18, false}, {"Server", 0, false},
         };
         QList<QStringList> stubRows;
         stubRows.append({QStringLiteral("(system-managed)"), QStringLiteral("Yes"),
             QStringLiteral("(not exposed)"), QStringLiteral("(not exposed)")});
-        v030Details = { QString(), QStringLiteral("DHCP Client Status"), QString() };
-        v030Details.append(DiagnosticFormatter::formatTable(kDhcpColsV030, stubRows));
-        v030Details.append(QString());
-        v030Details.append(QStringLiteral("  iOS manages DHCP at the system level —"));
-        v030Details.append(QStringLiteral("  lease details are not accessible to third-party apps."));
+        legacyDetails = { QString(), QStringLiteral("DHCP Client Status"), QString() };
+        legacyDetails.append(DiagnosticFormatter::formatTable(kDhcpColsLegacy, stubRows));
+        legacyDetails.append(QString());
+        legacyDetails.append(QStringLiteral("  iOS manages DHCP at the system level —"));
+        legacyDetails.append(QStringLiteral("  lease details are not accessible to third-party apps."));
     }
 #else
 #if defined(__APPLE__)
@@ -847,19 +847,19 @@ static DiagnosticResult probeDhcp(DiagId id, const QString&, RunContext& ctx) {
     }
     // v0.0.3 macOS 恒文：桩表行 + 三行说明
     {
-        static const QVector<DiagnosticFormatter::ColSpec> kDhcpColsV030 = {
+        static const QVector<DiagnosticFormatter::ColSpec> kDhcpColsLegacy = {
             {"Interface", 18, false}, {"DHCP", 6, false},
             {"IP Address", 18, false}, {"Server", 0, false},
         };
         QList<QStringList> stubRows;
         stubRows.append({QStringLiteral("(system-managed)"), QStringLiteral("Yes"),
             QStringLiteral("(use ifconfig)"), QStringLiteral("(not exposed)")});
-        v030Details = { QString(), QStringLiteral("DHCP Client Status"), QString() };
-        v030Details.append(DiagnosticFormatter::formatTable(kDhcpColsV030, stubRows));
-        v030Details.append(QString());
-        v030Details.append(QStringLiteral("  macOS manages DHCP via the SystemConfiguration framework —"));
-        v030Details.append(QStringLiteral("  lease details are not directly accessible. Use `ipconfig getpacket <iface>`"));
-        v030Details.append(QStringLiteral("  in Terminal for per-interface DHCP lease information."));
+        legacyDetails = { QString(), QStringLiteral("DHCP Client Status"), QString() };
+        legacyDetails.append(DiagnosticFormatter::formatTable(kDhcpColsLegacy, stubRows));
+        legacyDetails.append(QString());
+        legacyDetails.append(QStringLiteral("  macOS manages DHCP via the SystemConfiguration framework —"));
+        legacyDetails.append(QStringLiteral("  lease details are not directly accessible. Use `ipconfig getpacket <iface>`"));
+        legacyDetails.append(QStringLiteral("  in Terminal for per-interface DHCP lease information."));
     }
 #else
     // Linux/Android：systemd-networkd → dhclient → NetworkManager 租约文件（真实解析）。
@@ -1080,7 +1080,7 @@ static DiagnosticResult probeDhcp(DiagId id, const QString&, RunContext& ctx) {
     if (!leases.isEmpty()) {
         DiagnosticResult r = makeResult(id, DiagStatus::Pass,
             QStringLiteral("%1 DHCP lease(s): %2").arg(leases.size()).arg(leases.join(QStringLiteral(", "))),
-            props, v030Details.isEmpty() ? QString() : v030Details.join(QLatin1Char('\n')));
+            props, legacyDetails.isEmpty() ? QString() : legacyDetails.join(QLatin1Char('\n')));
         r.data[QStringLiteral("leaseCount")] = leases.size();
         r.data[QStringLiteral("leases")] = leases;
         r.narrative = QStringLiteral("Found %1 active DHCP lease(s). "
@@ -1101,7 +1101,7 @@ static DiagnosticResult probeDhcp(DiagId id, const QString&, RunContext& ctx) {
             ? QStringLiteral("DHCP not confirmed — %1 gateway-derived 'likely' interface(s)").arg(likelyCount)
             : (props.isEmpty() ? QStringLiteral("No DHCP information found")
                                : QStringLiteral("No DHCP lease found (static IP or managed externally)")),
-        props, v030Details.isEmpty() ? QString() : v030Details.join(QLatin1Char('\n')));
+        props, legacyDetails.isEmpty() ? QString() : legacyDetails.join(QLatin1Char('\n')));
     // 5WHY (复核 2026-08-21 指标诚实): 曾 leaseCount = leases.size() +
     // likelyCount——"Leases" 指标卡（metricLeases 标签）把未确认的
     // gateway-derived "Likely" 行计入租约数（0 张确认租约却显示 1），
@@ -1316,7 +1316,7 @@ static DiagnosticResult probeActiveConnections(DiagId id, const QString&, RunCon
     int established = 0;
     int udpCount = 0;   // v0.0.3 表含 UDP/UDP6 行（State "*:*"）
     QVector<ResultProperty> props;
-    QStringList v030Out;   // iOS v0.0.3 恒文（通用尾部分支以外）
+    QStringList legacyOut;   // iOS v0.0.3 恒文（通用尾部分支以外）
 #if defined(__linux__) || defined(__ANDROID__)
     // 5WHY (复核 2026-08-19 v0.0.3 对等): v0.0.3 以 Proto/Local/Foreign/State
     // 表格呈现全部连接——曾只抓 ESTABLISHED 的本地端点 hex 串。恢复全状态
@@ -1460,11 +1460,11 @@ static DiagnosticResult probeActiveConnections(DiagId id, const QString&, RunCon
     // iOS：沙箱不暴露连接表（netstat 不存在）——诚实说明。
     props.append({QStringLiteral("iOS"), QStringLiteral("connection table not exposed to third-party apps")});
     // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): v0.0.3 iOS 恒文两行。
-    v030Out.append(QString());
-    v030Out.append(QStringLiteral("Active Connections (netstat -an style)"));
-    v030Out.append(QString());
-    v030Out.append(QStringLiteral("  [iOS] Active connections: unavailable (restricted by Apple)"));
-    v030Out.append(QStringLiteral("  iOS sandbox prevents reading /proc/net/tcp — use Xcode network monitor"));
+    legacyOut.append(QString());
+    legacyOut.append(QStringLiteral("Active Connections (netstat -an style)"));
+    legacyOut.append(QString());
+    legacyOut.append(QStringLiteral("  [iOS] Active connections: unavailable (restricted by Apple)"));
+    legacyOut.append(QStringLiteral("  iOS sandbox prevents reading /proc/net/tcp — use Xcode network monitor"));
 #endif
 #endif
 #endif
@@ -1473,7 +1473,7 @@ static DiagnosticResult probeActiveConnections(DiagId id, const QString&, RunCon
 #endif
     DiagnosticResult r = makeResult(id, count > 0 ? DiagStatus::Pass : DiagStatus::Info,
         QStringLiteral("%1 TCP connection(s), %2 established").arg(count).arg(established), props,
-        v030Out.isEmpty() ? QString() : v030Out.join(QLatin1Char('\n')));
+        legacyOut.isEmpty() ? QString() : legacyOut.join(QLatin1Char('\n')));
     r.data[QStringLiteral("tcpCount")] = count;
     r.data[QStringLiteral("udpCount")] = udpCount;
     r.data[QStringLiteral("establishedCount")] = established;

@@ -1,5 +1,5 @@
 // =============================================================================
-// V030TerminalFormat.h — v0.0.3 终端文本逐字复刻层（G1 家族）
+// LegacyTerminalFormat.h — 历史版本终端文本逐字复刻层（G1 家族）
 //
 // 5WHY (2026-08-21 用户诉求 "逐字复刻 v0.0.3 终端格式"): 属性派生转储
 // （"label: value" 两空格缩进）与历史版本逐探针格式化文本（ipconfig
@@ -49,7 +49,7 @@ inline QString maskFromPrefix(int prefix) {
 }
 
 // ── 逐 DiagId 复刻（返回空列表 = 无该 id 的复刻层，调用方回退 props 转储）──
-inline QStringList v030TerminalLines(DiagId id,
+inline QStringList legacyTerminalLines(DiagId id,
                                      const QVector<ResultProperty>& props,
                                      const QVariantMap& data) {
     QStringList out;

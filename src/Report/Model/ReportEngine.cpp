@@ -5,7 +5,7 @@
 #include "Common/Utils/AppColors.h"   // 报告状态色（与 Palette.js 同步）
 #include "Common/Services/Logger.h"
 #include "Diagnostics/Model/GHelpers.h"   // propsDumpText（报告体派生与终端同源）
-#include "Diagnostics/View/V030TerminalFormat.h"   // v030TerminalLines（报告/屏幕/剪贴板同链）
+#include "Diagnostics/View/LegacyTerminalFormat.h"   // legacyTerminalLines（报告/屏幕/剪贴板同链）
 
 #include <QDateTime>
 #include <QDir>
@@ -35,14 +35,14 @@ QString normalizeReportPath(const QString& p) {
 }
 
 // 5WHY (复核 2026-08-21 三份同源): 报告体/详情页终端/剪贴板共用派生链
-// details → rawOutput → v030TerminalLines → propsDumpText（AppState 同序）。
+// details → rawOutput → legacyTerminalLines → propsDumpText（AppState 同序）。
 // G1 探针 details 恒空后曾只落 propsDumpText 平铺——导出报告与屏幕
 // v0.0.3 表格背离。
 static QString reportBody(const DiagnosticResult& r) {
     if (!r.details.isEmpty()) return r.details;
     if (!r.rawOutput.isEmpty()) return r.rawOutput;
-    const QStringList v030 = SystemDiagnostics::v030TerminalLines(r.id, r.properties, r.data);
-    if (!v030.isEmpty()) return v030.join(QLatin1Char('\n'));
+    const QStringList legacy = SystemDiagnostics::legacyTerminalLines(r.id, r.properties, r.data);
+    if (!legacy.isEmpty()) return legacy.join(QLatin1Char('\n'));
     return SystemDiagnostics::propsDumpText(r.properties);
 }
 
