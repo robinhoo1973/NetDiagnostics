@@ -51,6 +51,7 @@ runs:
               libqt6quickcontrols2-6 \
               qt6-tools-dev \
               qt6-tools-dev-tools \
+              qt6-svg-dev \
               libcurl4-openssl-dev \
               libgl1-mesa-dev libglu1-mesa-dev \
               libxkbcommon-dev libxcb-cursor-dev; then break; fi
@@ -66,6 +67,7 @@ runs:
             libqt6quickcontrols2-6 \
             qt6-tools-dev \
             qt6-tools-dev-tools \
+            qt6-svg-dev \
             libcurl4-openssl-dev \
             libgl1-mesa-dev libglu1-mesa-dev \
             libxkbcommon-dev libxcb-cursor-dev \
