@@ -68,9 +68,6 @@ static const DiagnosticMeta kDiagMeta[] = {
     { DiagId::G2ProxySettings,     "Proxy Settings",     "nd-diag-g2-proxy",        PF_Desktop|PF_Android,        DiagAnimType::Path,   DiagTemplateType::System, sys(),              60000 },
 
     // ── G3  Internet & DNS ───────────────────────────────────────────────────
-    // 5WHY (复核 2026-08-21 用户诉求 "彻底删除 Netskope"): 本组首行原为
-    // Netskope Status 安全代理检测——已全平台删除（meta 行/探针/注册/
-    // DiagId/translations 索引同步移除）。
     { DiagId::G3DnsServers,        "DNS Servers",        "nd-diag-g3-dns-servers",   PF_All,                       DiagAnimType::Pulse,  DiagTemplateType::System, sys("serverCount","servers",0), 60000 },
     { DiagId::G3DnsCache,          "DNS Cache",          "nd-diag-g3-dns-cache",    PF_Desktop|PF_Android,        DiagAnimType::Jiggle, DiagTemplateType::System, sys("cacheEntries","entries",0), 60000 },
     { DiagId::G3DnsIntegrity,      "DNS Integrity",      "nd-diag-g3-dns-integrity",   PF_All,                       DiagAnimType::Tick,  DiagTemplateType::Handshake, metricOnly("overallScorePercent","%",0,DP::Gauge), 120000 },

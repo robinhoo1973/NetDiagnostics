@@ -65,7 +65,6 @@ bool AdapterRegistry::verifyAllDiagIds() {
         if (!isSchedulable(id)) continue;                 // deprecated slot
         if (!anyRunnable(id)) {
             // 5WHY (复核 2026-08-20 白名单派生): 曾手维护 per-id 白名单
-            // switch（Netskope 恢复时漏加即 iOS qFatal、Android 注销后同样
             // 漏同步即 Android qFatal）——平台缺席的合法性应由 meta 平台
             // 声明派生：本平台不在声明内即合法缺席，声明含本平台却无
             // 适配器才是注册缺口。手写 switch 删除，缺口自动封死。

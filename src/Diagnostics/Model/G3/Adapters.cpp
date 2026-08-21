@@ -40,7 +40,6 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
-#include <QSslSocket>
 #include <QSslCertificate>
 #include <QTcpSocket>
 #include <QHostInfo>
@@ -1225,7 +1224,4 @@ void registerG3Adapters() {
         {PF_IOS,     "iOS",     {}, g3::probeInternetConnectivity},
         {PF_Android, "Android", {}, g3::probeInternetConnectivity},
     });
-    // 5WHY (复核 2026-08-21 用户诉求 "彻底删除 Netskope"): Netskope 安全
-    // 代理检测（进程扫描）已全平台删除——探针与注册一并移除（注册块
-    // 原位删除；DiagId/translations 索引同步重排）。
 }

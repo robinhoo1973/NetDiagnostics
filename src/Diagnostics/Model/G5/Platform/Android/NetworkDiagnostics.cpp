@@ -13,7 +13,6 @@
 //     validated, private-DNS, link bandwidth
 //   · WifiManager/WifiInfo                     → SSID/BSSID/RSSI/channel/speed
 //   · TelephonyManager                         → carrier/MCC/MNC/network type
-//   · PackageManager                           → security-agent detection
 //   · getifaddrs + /sys/class/net              → interface list + MTU/state
 //   · InetAddress                              → DNS resolution (A + AAAA)
 //   · HttpURLConnection/HttpsURLConnection     → HTTP + TLS diagnostics
@@ -937,7 +936,6 @@ DiagnosticResult androidProxyDiag(DiagId id) {
     return r;
 }
 
-// ── G2 TCP Settings ───────────────────────────────────────────────────
 // /proc/sys/net is restricted on Android.  The equivalent network policy
 // state (metered/validated/private-DNS/bandwidth/MTU) is public via
 // NetworkCapabilities + LinkProperties.

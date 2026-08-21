@@ -2,8 +2,7 @@
 // DiagId.h — Diagnostic test identifiers, groups, statuses (contract layer)
 //
 // Refactored per review/refactor/diag/diag-execution-architecture-guide.md.
-// Single source of truth for the 46-test identity space (45 schedulable +
-// 1 deprecated slot, per NEW-24).
+// Single source of truth for the 44-test identity space (all schedulable).
 // =============================================================================
 #pragma once
 
@@ -77,9 +76,6 @@ inline QString diagStatusIcon(DiagStatus s) {
 }
 
 // ── Test ID (44 values; 全槽位可调度) ─────────────────────────────────────
-// 5WHY (复核 2026-08-21 删除 TCP Settings/Netskope): 曾 46 值（45 可调度 +
-// 1 弃用槽）。用户要求彻底删除该二检测项——枚举成员移除后为 44 值；
-// translations.json 的 diagName/diagDesc 索引同步重排（QML 按 ""+id 查询）。
 enum class DiagId {
     // G1 — System & Adapters (8)
     G1NetworkAdapters,
@@ -92,10 +88,6 @@ enum class DiagId {
     G1CellularInfo,
 
     // G2 — Connectivity & Security (5)
-    // 5WHY (复核 2026-08-21 用户诉求 "彻底删除 TCP Settings"): TCP 参数
-    // 检测（/proc/sys 一组 sysctl 键值）信息价值低且跨平台数据源不一
-    // （Windows 注册表/Linux sysfs 字段集不同）——用户明确要求全平台
-    // 彻底删除，枚举成员移除（translations.json 索引同步重排）。
     G2NetworkProfile,
     G2DefaultGateway,
     G2RoutingTable,
@@ -103,9 +95,6 @@ enum class DiagId {
     G2ProxySettings,
 
     // G3 — Internet & DNS
-    // 5WHY (复核 2026-08-21 用户诉求 "彻底删除 Netskope"): Netskope 安全
-    // 代理检测（ps 进程扫描）已按用户要求全平台彻底删除——枚举成员移除
-    // （translations.json 索引同步重排）。
     G3DnsServers,
     G3DnsCache,
     G3DnsIntegrity,
@@ -165,8 +154,7 @@ inline const QVector<DiagId>& allDiagIds() {
     return ids;
 }
 
-// 5WHY (复核 2026-08-19): 弃用槽曾恢复为 Netskope；2026-08-21 用户要求
-// 彻底删除该检测项——现在全部槽位均为正式可调度项。
+// 全部槽位均为正式可调度项。
 // 函数形状保留（调用方契约；未来新增保留槽时在此排除）。
 inline bool isSchedulable(DiagId id) { Q_UNUSED(id); return true; }
 
