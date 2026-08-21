@@ -159,23 +159,14 @@ static DiagnosticResult makeResult(DiagId id, DiagStatus status,
     r.status = status;
     r.summary = summary;
     r.properties = props;
-    // 5WHY (复核 2026-08-19 v0.0.3 对等): 8 个 G1 探针全部传空 details——
-    // 详情页终端区块（details||rawOutput 门控）对 G1 恒隐藏，而 v0.0.3
-    // 各探针都输出格式化多行转储。空 details 时由 props 生成转储文本，
-    // 终端区块恢复呈现（子属性缩进，与剪贴板格式一致）。
-    if (details.isEmpty() && !props.isEmpty()) {
-        // 5WHY (复核 2026-08-21 三份同构): 转储格式单一来源
-        // SystemDiagnostics::propsDumpText（剪贴板/resultFor 同源消费）。
-        r.details = SystemDiagnostics::propsDumpText(props);
-        r.rawOutput = r.details;
-        // 5WHY (2026-08-19 用户诉求 "不单独列出 During 区块"): 该转储与
-        // 属性卡逐字重复——详情页曾并列呈现两份相同数据。标记为属性派生
-        // 转储（剪贴板去重用；终端区块 2026-08-21 起无条件呈现该转储）。
-        r.data[QStringLiteral("propsDump")] = true;
-    } else {
-        r.details = details;
-        r.rawOutput = details;
-    }
+    // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): 曾于探针层以 propsDumpText
+    // 派生 details（propsDump 标记）——"label: value" 平铺与 v0.0.3 逐
+    // 探针格式化文本（ipconfig 风格头 + 列对齐表）不符，且与呈现层派生
+    // 构成双路径。派生统一收敛到呈现层：resultFor 对空 details 以
+    // V030TerminalFormat 逐字复刻；本层原样透传（propsDump 标记删除，
+    // 剪贴板与终端共用呈现层同源派生）。
+    r.details = details;
+    r.rawOutput = details;
     r.timestamp = QDateTime::currentDateTime();
     return r;
 }
@@ -298,6 +289,16 @@ static DiagnosticResult probeNetworkAdapters(DiagId id, const QString&, RunConte
         if (isWirelessInterface(i.name(), &wirelessLevelsMap)) type = QStringLiteral("wireless");
 #endif
         p.children.append({QStringLiteral("type"), type});
+#if defined(__linux__)
+        // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): v0.0.3 适配器表含
+        // MTU/Status 列（/sys/class/net 读取）——属性卡曾无此二字段，
+        // 复刻层无法重建。补 MTU + status（operstate 大写，v0.0.3 语义）。
+        p.children.append({QStringLiteral("MTU"), QString::number(i.maximumTransmissionUnit())});
+        QFile opFile(QStringLiteral("/sys/class/net/%1/operstate").arg(i.name()));
+        if (opFile.open(QIODevice::ReadOnly))
+            p.children.append({QStringLiteral("status"),
+                QString::fromLatin1(opFile.readAll().trimmed()).toUpper()});
+#endif
         // 5WHY (2026-08-20 用户诉求 "属性卡一团混乱"): 地址子行曾一律标
         // "address"——v4/v6 混排无法区分协议。按协议标注 IPv4/IPv6，
         // 与 IP Configuration 卡一致（业界惯例：CIDR 或协议标注地址）。
@@ -391,6 +392,16 @@ static DiagnosticResult probeNicAdvanced(DiagId id, const QString&, RunContext& 
         p.children.append({QStringLiteral("MTU"), QString::number(i.maximumTransmissionUnit())});
         p.children.append({QStringLiteral("duplex"), duplex.isEmpty() ? QStringLiteral("unknown") : duplex});
         p.children.append({QStringLiteral("MAC"), i.hardwareAddress()});
+        // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): v0.0.3 高级属性表含
+        // Carrier/State 列（/sys carrier/operstate）——补子行。
+        QFile cf(base + QStringLiteral("carrier"));
+        if (cf.open(QIODevice::ReadOnly))
+            p.children.append({QStringLiteral("carrier"),
+                QString::fromLatin1(cf.readAll().trimmed()) == QLatin1String("1")
+                    ? QStringLiteral("1") : QStringLiteral("0")});
+        QFile of(base + QStringLiteral("operstate"));
+        if (of.open(QIODevice::ReadOnly))
+            p.children.append({QStringLiteral("state"), QString::fromLatin1(of.readAll().trimmed())});
         props.append(p);
     }
 #else
@@ -685,6 +696,10 @@ static DiagnosticResult probeWired(DiagId id, const QString&, RunContext& ctx) {
             QFile of(QStringLiteral("/sys/class/net/%1/operstate").arg(i.name()));
             if (of.open(QIODevice::ReadOnly))
                 p.children.append({QStringLiteral("state"), QString::fromLatin1(of.readAll().trimmed())});
+            // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): v0.0.3 有线表含
+            // MAC Address 列——补 MAC 子行（表格重建所需）。
+            if (!i.hardwareAddress().isEmpty())
+                p.children.append({QStringLiteral("MAC"), i.hardwareAddress()});
 #endif
             props.append(p);
         }
@@ -1095,6 +1110,21 @@ static DiagnosticResult probeIpConfig(DiagId id, const QString&, RunContext& ctx
         if (entries.isEmpty()) continue;   // 无地址接口（空 down 口）不入卡
         const QString firstIp = entries.first().ip().toString();
         ResultProperty p(i.name(), firstIp);
+        // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): 复刻层需逐适配器块
+        // （"Wireless LAN adapter wlan0:" 等）——type/DHCP 曾缺。
+        // type 复用无线判据；DHCP 按 v0.0.3 语义（租约文件存在即 Yes）。
+        {
+            QString type = i.flags().testFlag(QNetworkInterface::IsLoopBack)
+                ? QStringLiteral("loopback") : QStringLiteral("ethernet");
+#if defined(__linux__)
+            if (isWirelessInterface(i.name())) type = QStringLiteral("wireless");
+            const bool dhcpEnabled =
+                QFile::exists(QStringLiteral("/run/systemd/netif/leases/%1").arg(i.name()))
+                || QFile::exists(QStringLiteral("/var/lib/dhcp/dhclient.%1.leases").arg(i.name()));
+            p.children.append({QStringLiteral("DHCP"), dhcpEnabled ? QStringLiteral("Yes") : QStringLiteral("No")});
+#endif
+            p.children.append({QStringLiteral("type"), type});
+        }
         if (!i.hardwareAddress().isEmpty()
             && i.hardwareAddress() != QLatin1String("00:00:00:00:00:00"))
             p.children.append({QStringLiteral("MAC"), i.hardwareAddress()});
@@ -1172,6 +1202,14 @@ static DiagnosticResult probeIpConfig(DiagId id, const QString&, RunContext& ctx
         QStringLiteral("IP configuration: %1 interface(s), %2 address(es)")
             .arg(interfaceCount).arg(addressCount), props, {});
     r.data[QStringLiteral("addressCount")] = addressCount;
+#if defined(__linux__) || defined(__ANDROID__)
+    // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): "IP Routing Enabled" 行数据
+    // 曾缺——读 /proc/sys/net/ipv4/ip_forward（v0.0.3 同源）。
+    QFile fwdFile(QStringLiteral("/proc/sys/net/ipv4/ip_forward"));
+    if (fwdFile.open(QIODevice::ReadOnly))
+        r.data[QStringLiteral("routingEnabled")] =
+            QString::fromLatin1(fwdFile.readAll().trimmed()) == QLatin1String("1");
+#endif
     r.narrative = QStringLiteral("Host %1 has %2 configured interface(s) with %3 address entr(ies). "
         "Each adapter is one group below: MAC, IPv4/IPv6 addresses (CIDR), plus default gateway "
         "and DNS servers on Linux.")
@@ -1232,10 +1270,18 @@ static DiagnosticResult probeActiveConnections(DiagId id, const QString&, RunCon
             const int state = fields[3].toInt(&ok, 16);
             const QString stateName = (ok && state >= 1 && state <= 11)
                 ? QString::fromLatin1(kStateNames[state]) : QStringLiteral("UNKNOWN");
-            props.append({QStringLiteral("connection"),
+            // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): v0.0.3 连接表列
+            // Proto/Local/Remote/State——曾单串 value 内嵌全部字段，
+            // 复刻层无法反解。补结构化子属性（属性卡呈现不变）。
+            ResultProperty cp(QStringLiteral("connection"),
                 QStringLiteral("%1 %2 -> %3 [%4]")
                     .arg(QLatin1String(proto), decodeEp(fields[1]),
-                         decodeEp(fields[2]), stateName)});
+                         decodeEp(fields[2]), stateName));
+            cp.children.append({QStringLiteral("proto"), QLatin1String(proto)});
+            cp.children.append({QStringLiteral("local"), decodeEp(fields[1])});
+            cp.children.append({QStringLiteral("remote"), decodeEp(fields[2])});
+            cp.children.append({QStringLiteral("state"), stateName});
+            props.append(cp);
             ++count;
             if (state == 0x01) ++established;
         }
@@ -1262,13 +1308,24 @@ static DiagnosticResult probeActiveConnections(DiagId id, const QString&, RunCon
                 in_addr la, ra;
                 la.S_un.S_addr = row.dwLocalAddr;   // 网络字节序 → inet_ntoa 直接可用
                 ra.S_un.S_addr = row.dwRemoteAddr;
-                props.append({QStringLiteral("connection"),
+                // 结构化子属性（v0.0.3 复刻层表格列，见 Linux 分支同款 5WHY）
+                ResultProperty cp(QStringLiteral("connection"),
                     QStringLiteral("%1:%2 -> %3:%4 (pid %5)")
                         .arg(QString::fromLatin1(inet_ntoa(la)))
                         .arg(ntohs((u_short)row.dwLocalPort))
                         .arg(QString::fromLatin1(inet_ntoa(ra)))
                         .arg(ntohs((u_short)row.dwRemotePort))
-                        .arg(row.dwOwningPid)});
+                        .arg(row.dwOwningPid));
+                cp.children.append({QStringLiteral("proto"), QStringLiteral("TCP")});
+                cp.children.append({QStringLiteral("local"),
+                    QStringLiteral("%1:%2").arg(QString::fromLatin1(inet_ntoa(la)))
+                        .arg(ntohs((u_short)row.dwLocalPort))});
+                cp.children.append({QStringLiteral("remote"),
+                    QStringLiteral("%1:%2").arg(QString::fromLatin1(inet_ntoa(ra)))
+                        .arg(ntohs((u_short)row.dwRemotePort))});
+                cp.children.append({QStringLiteral("state"),
+                    QString::fromLatin1(SystemDiagnostics::tcpStateName(row.dwState))});
+                props.append(cp);
                 ++count;
             }
         }

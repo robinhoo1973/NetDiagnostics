@@ -26,6 +26,7 @@
 #include "Common/Model/DiagnosticMeta.h"
 #include "Common/Model/DiagNames.h"
 #include "Diagnostics/Model/GHelpers.h"   // readProcLines（procfs atEnd 陷阱共享）
+#include "Diagnostics/View/V030TerminalFormat.h"   // childVal（v0.0.3 复刻层共用取值）
 
 #if defined(PLATFORM_ANDROID)
 #include "Diagnostics/Model/G5/Platform/Android/NetworkDiagnostics.h"
@@ -102,7 +103,9 @@ static QString ip4ToStr(const struct in_addr& a) { return QString::fromLatin1(in
 static DiagnosticResult probeRoutingTable(DiagId id, const QString&, RunContext& ctx) {
     QVector<ResultProperty> props;
     QStringList out;
-    out.append(QStringLiteral("Active Routes:"));
+    // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): 头块统一由 Linux 分支按
+    // v0.0.3 顺序输出（分隔线 → IPv4 Route Table → 分隔线 → Active
+    // Routes: → 表）——曾于函数头预置 "Active Routes:" 致复刻块前重复两行。
     int routeCount = 0;
 
 #if defined(_WIN32)
@@ -159,6 +162,10 @@ static DiagnosticResult probeRoutingTable(DiagId id, const QString&, RunContext&
     // 5WHY (复核 2026-08-21 procfs atEnd 陷阱): 曾 readLine+while(!atEnd())
     // ——/proc size 恒 0，表头后零行风险同 G2 IPv6 网关事故。共享
     // SystemDiagnostics::readProcLines（readLineInto 驱动）。
+    // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): 曾 "  dest → gw (if)" 单行——
+    // v0.0.3 为 route print 风格（"IPv4 Route Table" + 分隔线 + "Active
+    // Routes:" + 列对齐表 [Network Destination/Netmask/Gateway/Interface/
+    // Metric]）。补 metric（十进制，G2 网关同规则）与结构化子属性。
     for (const QString& raw : SystemDiagnostics::readProcLines(QStringLiteral("/proc/net/route"), 1)) {
         if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
         const QString line = raw.trimmed();
@@ -170,12 +177,41 @@ static DiagnosticResult probeRoutingTable(DiagId id, const QString&, RunContext&
             const uint32_t dest   = cols[1].toUInt(&ok, 16);
             const uint32_t gw     = cols[2].toUInt(&ok, 16);
             const uint32_t mask   = cols[7].toUInt(&ok, 16);
+            const uint32_t metric = cols[6].toUInt(&ok, 10);
             const QString gwStr = gw ? SystemDiagnostics::ipToStr(gw) : QStringLiteral("On-link");
-            props.append({SystemDiagnostics::ipToStr(dest),
-                QStringLiteral("netmask=%1 gw=%2 if=%3").arg(SystemDiagnostics::ipToStr(mask), gwStr, ifName)});
-            out.append(QStringLiteral("  %1 → %2 (%3)").arg(SystemDiagnostics::ipToStr(dest), gwStr, ifName));
+            ResultProperty rp(SystemDiagnostics::ipToStr(dest),
+                QStringLiteral("netmask=%1 gw=%2 if=%3").arg(SystemDiagnostics::ipToStr(mask), gwStr, ifName));
+            rp.children.append({QStringLiteral("netmask"), SystemDiagnostics::ipToStr(mask)});
+            rp.children.append({QStringLiteral("gateway"), gwStr});
+            rp.children.append({QStringLiteral("interface"), ifName});
+            rp.children.append({QStringLiteral("metric"), QString::number(metric)});
+            props.append(rp);
             ++routeCount;
         }
+    }
+    if (routeCount > 0) {
+        out.append(QStringLiteral("==========================================================================="));
+        out.append(QString());
+        out.append(QStringLiteral("IPv4 Route Table"));
+        out.append(QStringLiteral("==========================================================================="));
+        out.append(QStringLiteral("Active Routes:"));
+        static const QVector<DiagnosticFormatter::ColSpec> kRouteCols = {
+            {"Network Destination", 22, false},
+            {"Netmask",             16, false},
+            {"Gateway",             16, false},
+            {"Interface",           10, false},
+            {"Metric",               6, true},
+        };
+        QList<QStringList> routeRows;
+        for (const auto& p : props) {
+            routeRows.append(QStringList()
+                << p.label
+                << SystemDiagnostics::childVal(p, QStringLiteral("netmask"))
+                << SystemDiagnostics::childVal(p, QStringLiteral("gateway"))
+                << SystemDiagnostics::childVal(p, QStringLiteral("interface"))
+                << SystemDiagnostics::childVal(p, QStringLiteral("metric")));
+        }
+        out.append(DiagnosticFormatter::formatTable(kRouteCols, routeRows));
     }
 #endif
 #endif
@@ -246,6 +282,9 @@ static DiagnosticResult probeArpTable(DiagId id, const QString&, RunContext& ctx
     // 5WHY (复核 2026-08-21 procfs atEnd + 逐行正则): 曾 readLine+while
     // (!atEnd()) 且每行编译一次 QRegularExpression——共享 readProcLines
     // 读取 + 函数局部 static 一次编译（同 probeDefaultGateway 修正）。
+    // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): v0.0.3 为 "Interface: (all)"
+    // + 列对齐表 [Internet Address/Physical Address/Type]（两空格缩进），
+    // Type 由 flags 列 0x2 判 static/dynamic。曾 "  ip  mac" 无类型列。
     static const QRegularExpression kWsRe(QStringLiteral("\\s+"));
     for (const QString& raw : SystemDiagnostics::readProcLines(QStringLiteral("/proc/net/arp"), 1)) {
         if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
@@ -253,10 +292,28 @@ static DiagnosticResult probeArpTable(DiagId id, const QString&, RunContext& ctx
         if (line.isEmpty()) continue;
         const QStringList cols = line.split(kWsRe);
         if (cols.size() >= 4 && cols[3] != QStringLiteral("00:00:00:00:00:00")) {
-            props.append({cols[0], cols[3]});
-            out.append(QStringLiteral("  %1  %2").arg(cols[0], -16).arg(cols[3]));
+            const QString type = (cols.size() >= 3 && cols[2] == QLatin1String("0x2"))
+                ? QStringLiteral("static") : QStringLiteral("dynamic");
+            ResultProperty ap(cols[0], cols[3]);
+            ap.children.append({QStringLiteral("type"), type});
+            props.append(ap);
             ++entryCount;
         }
+    }
+    if (entryCount > 0) {
+        out.append(QStringLiteral("Interface: (all)"));
+        static const QVector<DiagnosticFormatter::ColSpec> kArpCols = {
+            {"Internet Address",  24, false},
+            {"Physical Address",  23, false},
+            {"Type",               0, false},
+        };
+        QList<QStringList> arpRows;
+        for (const auto& p : props)
+            arpRows.append(QStringList() << p.label << p.value
+                << SystemDiagnostics::childVal(p, QStringLiteral("type")));
+        // v0.0.3 样式：表整体两空格缩进（逐行前缀）
+        out.append(QStringLiteral("  ") + DiagnosticFormatter::formatTable(kArpCols, arpRows)
+            .join(QStringLiteral("\n  ")));
     }
 #endif
 #endif
@@ -419,6 +476,7 @@ static DiagnosticResult probeDefaultGateway(DiagId id, const QString&, RunContex
 static DiagnosticResult probeNetworkProfile(DiagId id, const QString&, RunContext& ctx) {
     QVector<ResultProperty> props;
     QStringList out;
+    out.append(QString());
     out.append(QStringLiteral("Network Profile Information:"));
 
     const QString hostname = QHostInfo::localHostName();
@@ -493,7 +551,11 @@ static DiagnosticResult probeNetworkProfile(DiagId id, const QString&, RunContex
 static DiagnosticResult probeTcpSettings(DiagId id, const QString&, RunContext& ctx) {
     QVector<ResultProperty> props;
     QStringList out;
-    out.append(QStringLiteral("TCP Settings:"));
+    // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): 头行曾 "TCP Settings:"——
+    // v0.0.3 为 "\nTCP/IP Settings (table mode):\n"。
+    out.append(QString());
+    out.append(QStringLiteral("TCP/IP Settings (table mode):"));
+    out.append(QString());
 
 #if defined(_WIN32)
     const QStringList keys = { QStringLiteral("MaxUserPort"), QStringLiteral("TcpTimedWaitDelay"),
@@ -513,18 +575,27 @@ static DiagnosticResult probeTcpSettings(DiagId id, const QString&, RunContext& 
         RegCloseKey(hKey);
     }
 #else // Linux / Android
-    const QStringList files = { QStringLiteral("/proc/sys/net/ipv4/tcp_fin_timeout"),
-                                QStringLiteral("/proc/sys/net/ipv4/tcp_keepalive_time"),
-                                QStringLiteral("/proc/sys/net/ipv4/tcp_max_syn_backlog"),
-                                QStringLiteral("/proc/sys/net/ipv4/ip_default_ttl") };
-    for (const QString& f : files) {
+    // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): 曾 "  basename = val"——
+    // v0.0.3 为 readSys(path, label) → "  Label: val"（标签语义化，
+    // KeepAlive 系列带 ms 单位）。文件与标签对同 v0.0.3。
+    const struct { const char* path; const char* label; } kTcpSys[] = {
+        { "/proc/sys/net/ipv4/tcp_keepalive_time",  "KeepAliveTime" },
+        { "/proc/sys/net/ipv4/tcp_keepalive_intvl", "KeepAliveInterval" },
+        { "/proc/sys/net/ipv4/ip_default_ttl",      "DefaultTTL" },
+        { "/proc/sys/net/ipv4/tcp_congestion_control", "Congestion Control" },
+        { "/proc/sys/net/ipv4/tcp_window_scaling",  "Window Scaling" },
+        { "/proc/sys/net/ipv4/tcp_timestamps",      "Timestamps" },
+        { "/proc/sys/net/ipv4/tcp_sack",            "Selective ACK" },
+        { "/proc/sys/net/ipv4/tcp_fastopen",        "TCP Fast Open" },
+        { "/proc/sys/net/ipv4/tcp_max_syn_backlog", "Max SYN Backlog" },
+    };
+    for (const auto& e : kTcpSys) {
         if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
-        QFile file(f);
+        QFile file(QLatin1String(e.path));
         if (file.open(QIODevice::ReadOnly)) {
             const QString val = QString::fromLatin1(file.readAll().trimmed());
-            const QString key = f.section(QLatin1Char('/'), -1);
-            props.append({key, val});
-            out.append(QStringLiteral("  %1 = %2").arg(key, val));
+            props.append({QLatin1String(e.label), val});
+            out.append(QStringLiteral("  %1: %2").arg(QLatin1String(e.label), val));
         }
     }
 #endif
@@ -577,8 +648,25 @@ static DiagnosticResult probeProxySettings(DiagId id, const QString&, RunContext
     }
 #endif
 
-    if (!anyProxy)
-        return makeResult(id, DiagStatus::Info, QStringLiteral("No proxy configured"), {}, {});
+    // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): v0.0.3 为 "Proxy Configuration
+    // (table mode):" 头 + 列对齐表 [Variable 16/Value 0]；未配置时表下
+    // 印 "  No proxy configured"（恒有终端文本，满足无条件转储诉求）。
+    out.clear();
+    out.append(QString());
+    out.append(QStringLiteral("Proxy Configuration (table mode):"));
+    out.append(QString());
+    if (!anyProxy) {
+        out.append(QStringLiteral("  No proxy configured"));
+        return makeResult(id, DiagStatus::Info, QStringLiteral("No proxy configured"), {}, out.join('\n'));
+    }
+    static const QVector<DiagnosticFormatter::ColSpec> kProxyCols = {
+        {"Variable", 16, false},
+        {"Value",     0, false},
+    };
+    QList<QStringList> proxyRows;
+    for (const auto& p : props)
+        proxyRows.append({ p.label, p.value });
+    out.append(DiagnosticFormatter::formatTable(kProxyCols, proxyRows));
     return makeResult(id, DiagStatus::Pass, QStringLiteral("Proxy configured"), props, out.join('\n'));
 }
 

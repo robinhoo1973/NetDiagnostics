@@ -279,10 +279,29 @@ static DiagnosticResult probeDnsServers(DiagId id, const QString&, RunContext& c
 #endif
 #endif
 
+    // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): details 曾 "DNS servers: …"
+    // 平串——v0.0.3 为 "\nDNS Server Configuration (table mode):\n\n" +
+    // 列对齐表 [Source 20/DNS Server 0]。
+    QStringList out;
+    out.append(QString());
+    out.append(QStringLiteral("DNS Server Configuration (table mode):"));
+    out.append(QString());
+    if (!props.isEmpty()) {
+        static const QVector<DiagnosticFormatter::ColSpec> kDnsCols = {
+            {"Source",   20, false},
+            {"DNS Server", 0, false},
+        };
+        QList<QStringList> dnsRows;
+        for (const auto& p : props)
+            dnsRows.append({ p.label, p.value });
+        out.append(DiagnosticFormatter::formatTable(kDnsCols, dnsRows));
+    } else {
+        out.append(QStringLiteral("  No DNS servers found"));
+    }
     DiagnosticResult r = makeResult(id, dnsList.isEmpty() ? DiagStatus::Warning : DiagStatus::Pass,
         dnsList.isEmpty() ? QStringLiteral("No DNS servers found")
                           : QStringLiteral("DNS: %1").arg(dnsList.join(QStringLiteral(", "))),
-        props, QStringLiteral("DNS servers: %1").arg(dnsList.join(QStringLiteral(", "))));
+        props, out.join(QLatin1Char('\n')));
     r.data[QStringLiteral("servers")] = serverList;
     r.data[QStringLiteral("serverCount")] = dnsList.size();
     return r;

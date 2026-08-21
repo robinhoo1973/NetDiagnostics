@@ -12,6 +12,7 @@
 #include "Configuration/Controller/ConfigurationController.h"
 #include "Diagnostics/Model/DiagnosticSuite.h"
 #include "Diagnostics/Model/GHelpers.h"   // propsDumpText（终端兜底派生单一来源）
+#include "Diagnostics/View/V030TerminalFormat.h"   // v0.0.3 逐字复刻层
 #include "Report/Model/ReportEngine.h"
 #include "Settings/Model/PremiumStore.h"
 
@@ -624,9 +625,15 @@ QVariantMap AppState::resultFor(int diagIdInt) const {
     // 3) props 派生转储（propsDumpText 单一来源，与剪贴板/G1 同格式）；
     // 4) summary（Skipped/"No proxy configured" 等无 props 结果——
     //    v0.0.3 skipped 工厂即输出解释文本，无条件呈现契约兜底）。
+    // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): 第 3 步曾为 propsDumpText
+    // 平铺——改为 v030TerminalLines（v0.0.3 逐探针 ipconfig 风格头 +
+    // 列对齐表，数据由结构化 props 重建）；无复刻层的 id 回退平铺。
     QString details = it->details;
-    if (details.isEmpty() && it->rawOutput.isEmpty())
-        details = SystemDiagnostics::propsDumpText(it->properties);
+    if (details.isEmpty() && it->rawOutput.isEmpty()) {
+        const QStringList v030 = SystemDiagnostics::v030TerminalLines(it->id, it->properties, it->data);
+        if (!v030.isEmpty()) details = v030.join(QLatin1Char('\n'));
+        if (details.isEmpty()) details = SystemDiagnostics::propsDumpText(it->properties);
+    }
     if (details.isEmpty())
         details = it->summary;
     m[QStringLiteral("details")] = details;
@@ -997,16 +1004,18 @@ void AppState::copyDetailToClipboard(int diagIdInt) {
     if (!it->summary.isEmpty()) lines.append(it->summary);
     // 摘要卡叙述（结论 + 依据）——摘要与明细之间，剪贴板与详情页一致
     if (!it->narrative.isEmpty()) lines.append(it->narrative);
-    // 5WHY (复核 2026-08-20 剪贴板双份): G1 的属性派生转储（propsDump）与
-    // 属性循环输出逐字相同——曾双双追加，粘贴的票据每条属性出现两次。
-    // 转储存在时以其为准、跳过属性循环；否则照旧逐属性输出。
-    // 5WHY (复核 2026-08-21 三份同构): 属性循环格式单一来源
-    // SystemDiagnostics::propsDumpText（resultFor/G1 makeResult 同源）。
-    const bool isDump = it->data.value(QStringLiteral("propsDump")).toBool();
+    // 5WHY (复核 2026-08-20 剪贴板双份): G1 的属性派生转储与属性循环输出
+    // 逐字相同——曾双双追加，粘贴的票据每条属性出现两次。
+    // 5WHY (复核 2026-08-21 呈现层同源): details 为空时与 resultFor 同链
+    // 派生（v030TerminalLines → propsDumpText），剪贴板与屏幕终端逐字一致。
     if (!it->details.isEmpty()) lines.append(it->details);
-    if (!isDump) {
-        const QString dump = SystemDiagnostics::propsDumpText(it->properties);
-        if (!dump.isEmpty()) lines.append(dump);
+    else if (!it->rawOutput.isEmpty()) lines.append(it->rawOutput);
+    else {
+        QString derived;
+        const QStringList v030 = SystemDiagnostics::v030TerminalLines(it->id, it->properties, it->data);
+        if (!v030.isEmpty()) derived = v030.join(QLatin1Char('\n'));
+        if (derived.isEmpty()) derived = SystemDiagnostics::propsDumpText(it->properties);
+        if (!derived.isEmpty()) lines.append(derived);
     }
     QGuiApplication::clipboard()->setText(lines.join(QLatin1Char('\n')));
 }
