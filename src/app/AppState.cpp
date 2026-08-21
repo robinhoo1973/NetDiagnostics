@@ -1053,6 +1053,7 @@ QString AppState::diagAnimationUrl(int diagIdInt) const {
         case DiagAnimType::Lock:   return QStringLiteral("qrc:/qt/qml/widgets/animations/LockAnimation.qml");
         case DiagAnimType::Tick:  return QStringLiteral("qrc:/qt/qml/widgets/animations/CheckAnimation.qml");
         case DiagAnimType::WifiWave: return QStringLiteral("qrc:/qt/qml/widgets/animations/WifiWaveAnimation.qml");
+        case DiagAnimType::BarsCycle: return QStringLiteral("qrc:/qt/qml/widgets/animations/BarsCycleAnimation.qml");
         case DiagAnimType::Converge: return QStringLiteral("qrc:/qt/qml/widgets/animations/ConvergeAnimation.qml");
         case DiagAnimType::GeoRadar: return QStringLiteral("qrc:/qt/qml/widgets/animations/GeoLocateAnimation.qml");
         default:                   return QStringLiteral("qrc:/qt/qml/widgets/animations/JiggleAnimation.qml");

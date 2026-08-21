@@ -58,6 +58,7 @@
              构建产物中静默缺失。已删除死 qrc，与六动画同列登记。 -->
         <file alias="widgets/animations/CheckAnimation.qml">../src/Common/View/widgets/animations/CheckAnimation.qml</file>
         <file alias="widgets/animations/WifiWaveAnimation.qml">../src/Common/View/widgets/animations/WifiWaveAnimation.qml</file>
+        <file alias="widgets/animations/BarsCycleAnimation.qml">../src/Common/View/widgets/animations/BarsCycleAnimation.qml</file>
         <file alias="widgets/animations/ConvergeAnimation.qml">../src/Common/View/widgets/animations/ConvergeAnimation.qml</file>
         <file alias="widgets/animations/GeoLocateAnimation.qml">../src/Common/View/widgets/animations/GeoLocateAnimation.qml</file>
         <file alias="theme/AnimationTokens.js">../src/Common/View/theme/AnimationTokens.js</file>

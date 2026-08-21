@@ -55,7 +55,7 @@ static const DiagnosticMeta kDiagMeta[] = {
     { DiagId::G1DhcpStatus,        "DHCP Status",        "nd-diag-g1-dhcp",        PF_All,                       DiagAnimType::Bounce, DiagTemplateType::System, sysGrouped("leaseCount","leases",0), 60000 },
     { DiagId::G1IpConfiguration,   "IP Configuration",   "nd-diag-g1-ip-config",    PF_All,                       DiagAnimType::Jiggle, DiagTemplateType::System, sysGrouped(),              60000 },
     { DiagId::G1ActiveConnections, "Active Connections", "nd-diag-g1-active-connections",  PF_Desktop|PF_Android,        DiagAnimType::Path,   DiagTemplateType::System, sys("tcpCount","connections",0), 60000 },
-    { DiagId::G1CellularInfo,      "Cellular Information","nd-diag-g1-cellular",    PF_All,                       DiagAnimType::Pulse,  DiagTemplateType::System, sys(),              60000 },
+    { DiagId::G1CellularInfo,      "Cellular Information","nd-diag-g1-cellular",    PF_All,                       DiagAnimType::BarsCycle,  DiagTemplateType::System, sys(),              60000 },
 
     // ── G2  Connectivity & Security ──────────────────────────────────────────
     { DiagId::G2NetworkProfile,    "Network Profile",    "nd-diag-g2-network-profile", PF_All,                    DiagAnimType::Jiggle, DiagTemplateType::System, sys(),              60000 },

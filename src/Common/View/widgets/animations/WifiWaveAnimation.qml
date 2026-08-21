@@ -33,6 +33,7 @@ AnimationBase {
     property int arcFade: Tokens.tokens.wifiWaveFade
     property int arcHold: Tokens.tokens.wifiWaveHold
     property int arcGap:  Tokens.tokens.wifiWaveGap
+    property int colorStep: Tokens.tokens.wifiWaveColorStep
 
     // 图标名（AnimationBase 统一声明，DiagAnimator 装载时绑定下发）→
     // 每图标锚点集。WiFi 信息图标（nd-diag-g1-wifi-info）的三弧几何
@@ -116,13 +117,32 @@ AnimationBase {
             property real segW: arcItem.segCount <= 1
                 ? 2 * arcItem.radius * Math.sin(Math.abs(arcItem._a1 - arcItem._a0) * Math.PI / 360)
                 : arcLen / segCount * 0.5
-            // 5WHY (复核 2026-08-21 用户诉求 "弧线用不同的高亮颜色呈现"):
-            // 曾三弧同色（root.accentColor）——外→内三弧各取主题强调色
-            // （primary/tertiary/warning），双主题经 ThemeEngine 角色解析
-            // 随主题即时切换；明灭次序动画（本 commit）提供"不停变化"。
-            readonly property color _arcColor: [T.ThemeEngine.colors.primary,
-                T.ThemeEngine.colors.tertiary, T.ThemeEngine.colors.warning][index]
+            // 5WHY (复核 2026-08-22 用户诉求 "弧线用不同的高亮颜色呈现，
+            // 并不停的变化"): 上轮实现只做到静态分色（三弧各固定一色，
+            // 仅透明度明灭）——"颜色不断变化"的时间轮换维度缺失。改为
+            // 每弧沿 4 色高亮盘（primary/tertiary/warning/success）连续
+            // 轮换，步长 colorStep=500ms；三弧起色按 index 错位——任一
+            // 时刻三弧各持不同颜色且各自流动（业界"分色流光"惯例）。
+            // ColorAnimation 序列与明灭序列独立循环（颜色流动不因弧
+            // 熄灭暂停）；RestartController 重启时 from/to 重读主题色。
+            readonly property var _palette: [T.ThemeEngine.colors.primary,
+                T.ThemeEngine.colors.tertiary, T.ThemeEngine.colors.warning,
+                T.ThemeEngine.colors.success]
+            property color _arcColor: arcItem._palette[index % 4]
             opacity: 0
+            SequentialAnimation on _arcColor {
+                id: colorSeq
+                loops: Animation.Infinite
+                ColorAnimation { from: arcItem._palette[(index + 0) % 4]; to: arcItem._palette[(index + 1) % 4]; duration: root.colorStep }
+                ColorAnimation { from: arcItem._palette[(index + 1) % 4]; to: arcItem._palette[(index + 2) % 4]; duration: root.colorStep }
+                ColorAnimation { from: arcItem._palette[(index + 2) % 4]; to: arcItem._palette[(index + 3) % 4]; duration: root.colorStep }
+                ColorAnimation { from: arcItem._palette[(index + 3) % 4]; to: arcItem._palette[(index + 0) % 4]; duration: root.colorStep }
+            }
+            RestartController {
+                running: root.running
+                target: colorSeq
+                onStopped: arcItem._arcColor = arcItem._palette[index % 4]
+            }
 
             Repeater {
                 model: arcItem.segCount
