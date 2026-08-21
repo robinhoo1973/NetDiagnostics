@@ -15,6 +15,9 @@
 #include "Common/Utils/StartupLog.h"
 #include "Settings/Model/PremiumStore.h"
 #include "Common/Services/IconProvider.h"   // 图标管线 v4：image://icon 运行时着色
+#if defined(PLATFORM_IOS)
+#include "Diagnostics/Model/G1/Platform/IOS/GatewayDhcpRouting.h"   // iosRequestWiFiAuthorization
+#endif
 #if defined(PLATFORM_IOS) || defined(Q_OS_MACOS)
 #include "Common/Platform/NativePdfDocument.h"
 #endif
@@ -229,6 +232,14 @@ int main(int argc, char* argv[]) {
     // PremiumStore（Premium 后端恢复）：由 AppState 持有生命周期
     qmlRegisterSingletonInstance("NetDiagnostics.App", 1, 0, "PremiumStore",
                                  appState.premiumStore());
+#if defined(PLATFORM_IOS)
+    // 5WHY (复核 2026-08-21 用户 "iOS 提示 Location Permission"): v0.0.3
+    // main.cpp 启动时请求 CLLocationManager WhenInUse 授权（iosRequestWiFi
+    // Authorization）——重构后该调用丢失，授权状态恒 NotDetermined，
+    // NEHotspotNetwork 返回空 SSID，WiFi 检测提示 Location Permission。
+    // 恢复启动序请求（提示仅出现一次，后续调用为 no-op）。
+    iosRequestWiFiAuthorization();
+#endif
 #if defined(PLATFORM_IOS) || defined(Q_OS_MACOS)
     // 5WHY (review 2026-08-17): NativePdfDocument 从未注册到 QML 引擎——
     // NativePdfPageView.qml 的 typeof 守卫恒为 false，iOS/macOS 原生 PDF

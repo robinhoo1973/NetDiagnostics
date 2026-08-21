@@ -1236,37 +1236,17 @@ static DiagnosticResult probeInternetConnectivity(DiagId id, const QString&, Run
         return r;
     }
 
-    // ── Phase 3: Best server ──
-    const ServerResult& best = result.servers[0];
-    const QString bestKey = best.host + QLatin1Char(':') + QString::number(best.port);
-    auto bestMeta = metaByKey.constFind(bestKey);
-    const QString bestIp = resolveIp(best.host);
-
-    out.append(QStringLiteral("── Phase 3: Best Server ──"));
-    out.append(QStringLiteral("  Name:    %1").arg(bestMeta != metaByKey.cend() ? bestMeta->name : best.host));
-    if (bestMeta != metaByKey.cend() && !bestMeta->sponsor.isEmpty())
-        out.append(QStringLiteral("  Sponsor: %1").arg(bestMeta->sponsor));
-    out.append(QStringLiteral("  Host:    %1:%2").arg(best.host).arg(best.port));
-    out.append(QStringLiteral("  IP:      %1").arg(bestIp.isEmpty() ? QStringLiteral("(Unresolved)") : bestIp));
-    out.append(QStringLiteral("  Country: %1").arg(SystemDiagnostics::countryFullName(best.country)));
-    out.append(QStringLiteral("  TTFB:    %1ms (95% CI ±%2ms, %3 rounds)")
-        .arg(best.ttfbMs, 0, 'f', 1).arg(best.ciHalf, 0, 'f', 1).arg(best.rounds));
-    out.append(QString());
-
-    // ── Phase 4: Speed Test ──
-    out.append(QStringLiteral("── Phase 4: Speed Test ──"));
-    out.append(QStringLiteral("Server: %1:%2").arg(best.host).arg(best.port));
-    if (bestIp.isEmpty())
-        out.append(QStringLiteral("  DNS:     ✗ Failed — Hostname Not Resolved"));
-    else
-        out.append(QStringLiteral("  DNS:     ✓ %1").arg(bestIp));
-    const int pingMs = SystemDiagnostics::tcpPingMs(best.host, best.port);
-    if (pingMs < 0)
-        out.append(QStringLiteral("  Ping:    ✗ TCP Connect Failed"));
-    else
-        out.append(QStringLiteral("  Ping:    ✓ %1ms TCP Connect").arg(pingMs));
-    out.append(QString());
-
+    // ── Phase 3+4: 服务器 failover 循环（主备各跑一遍分档测速）──
+    // 5WHY (复核 2026-08-21 用户 "下载测试出错"): GeoProbe 选优只看 TTFB
+    // （连接+首字节），不测吞吐——首字节快但吞吐慢/停滞的服务器会当选，
+    // 分档测速全部失败仍只报一个服务器的结果。业界惯例（Ookla 等）：
+    // 主服务器测速失败时切换下一候选（failover ≤ 2）。
+    bool anyDlOk = false, anyUlOk = false;
+    double bestDlMbps = 0, bestUlMbps = 0;
+    double chosenTtfb = 0;
+    QString chosenName;
+    int pingMs = -1;
+    const int kCandidates = qMin(2, result.servers.size());
     struct Tier { int bytes; const char* label; };
     const Tier kDlTiers[] = { { 64000, "64 KB" }, { 256000, "256 KB" }, { 1000000, "1 MB" } };
     const Tier kUlTiers[] = { { 64000, "64 KB" }, { 256000, "256 KB" }, { 1000000, "1 MB" } };
@@ -1277,106 +1257,143 @@ static DiagnosticResult probeInternetConnectivity(DiagId id, const QString&, Run
         {"Bytes",    8,  true},
         {"Status",  18, false},
     };
+    for (int cand = 0; cand < kCandidates; ++cand) {
+        const ServerResult& best = result.servers[cand];
+        const QString bestKey = best.host + QLatin1Char(':') + QString::number(best.port);
+        auto bestMeta = metaByKey.constFind(bestKey);
+        const QString bestIp = resolveIp(best.host);
+        chosenTtfb = best.ttfbMs;
+        chosenName = bestMeta != metaByKey.cend() ? bestMeta->name : best.host;
 
-    bool anyDlOk = false, anyUlOk = false;
-    double bestDlMbps = 0, bestUlMbps = 0;
-    QStringList dlOut, ulOut;
-    // 5WHY (v0.0.3): 网络抖动可能让全部档位首轮失败——单次重试后再报失败。
-    for (int pass = 0; pass < 2; ++pass) {
-        if (pass == 1) {
-            out.append(QStringLiteral("  (Retry after all tiers failed)"));
+        out.append(QStringLiteral("── Phase 3: Best Server ──"));
+        out.append(QStringLiteral("  Name:    %1").arg(chosenName));
+        if (bestMeta != metaByKey.cend() && !bestMeta->sponsor.isEmpty())
+            out.append(QStringLiteral("  Sponsor: %1").arg(bestMeta->sponsor));
+        out.append(QStringLiteral("  Host:    %1:%2").arg(best.host).arg(best.port));
+        out.append(QStringLiteral("  IP:      %1").arg(bestIp.isEmpty() ? QStringLiteral("(Unresolved)") : bestIp));
+        out.append(QStringLiteral("  Country: %1").arg(SystemDiagnostics::countryFullName(best.country)));
+        out.append(QStringLiteral("  TTFB:    %1ms (95% CI ±%2ms, %3 rounds)")
+            .arg(best.ttfbMs, 0, 'f', 1).arg(best.ciHalf, 0, 'f', 1).arg(best.rounds));
+        out.append(QString());
+
+        // ── Phase 4: Speed Test ──
+        out.append(QStringLiteral("── Phase 4: Speed Test ──"));
+        out.append(QStringLiteral("Server: %1:%2").arg(best.host).arg(best.port));
+        if (bestIp.isEmpty())
+            out.append(QStringLiteral("  DNS:     ✗ Failed — Hostname Not Resolved"));
+        else
+            out.append(QStringLiteral("  DNS:     ✓ %1").arg(bestIp));
+        pingMs = SystemDiagnostics::tcpPingMs(best.host, best.port);
+        if (pingMs < 0)
+            out.append(QStringLiteral("  Ping:    ✗ TCP Connect Failed"));
+        else
+            out.append(QStringLiteral("  Ping:    ✓ %1ms TCP Connect").arg(pingMs));
+        out.append(QString());
+
+        QStringList dlOut, ulOut;
+        // 5WHY (v0.0.3): 网络抖动可能让全部档位首轮失败——单次重试后再报失败。
+        for (int pass = 0; pass < 2; ++pass) {
+            if (pass == 1) {
+                out.append(QStringLiteral("  (Retry after all tiers failed)"));
+                out.append(QString());
+            }
+            anyDlOk = false; anyUlOk = false;
+            bestDlMbps = 0; bestUlMbps = 0;
+            dlOut.clear(); ulOut.clear();
+
+            dlOut.append(QStringLiteral("  Download:"));
+            dlOut.append(QString());
+            {
+                QList<QStringList> dlRows;
+                for (const auto& tier : kDlTiers) {
+                    if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
+                    const QString dlUrl = QStringLiteral("http://%1:%2/download?size=%3")
+                        .arg(best.host).arg(best.port).arg(tier.bytes);
+                    const SystemDiagnostics::SpeedResult dl = SystemDiagnostics::httpDownload(dlUrl, tier.bytes, 15000);
+                    if (dl.ok && dl.mbps > 0.01) {
+                        dlRows.append({ QString::fromLatin1(tier.label),
+                            QStringLiteral("%1 Mbps").arg(dl.mbps, 0, 'f', 1),
+                            QStringLiteral("%1ms").arg(dl.durationMs),
+                            QString::number(dl.bytes), QStringLiteral("✓") });
+                        anyDlOk = true;
+                        if (dl.mbps > bestDlMbps) bestDlMbps = dl.mbps;
+                    } else {
+                        const QString err = dl.error.isEmpty() ? QStringLiteral("Unknown Error") : dl.error;
+                        dlRows.append({ QString::fromLatin1(tier.label), QStringLiteral("—"),
+                            QStringLiteral("—"), QStringLiteral("—"), err });
+                    }
+                }
+                dlOut.append(DiagnosticFormatter::formatTable(kSpeedCols, dlRows));
+            }
+            dlOut.append(QString());
+
+            ulOut.append(QStringLiteral("  Upload:"));
+            ulOut.append(QString());
+            {
+                QList<QStringList> ulRows;
+                for (const auto& tier : kUlTiers) {
+                    if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
+                    const QString ulUrl = QStringLiteral("http://%1:%2/upload").arg(best.host).arg(best.port);
+                    const SystemDiagnostics::SpeedResult ul = SystemDiagnostics::httpUpload(ulUrl, tier.bytes, 15000);
+                    if (ul.ok && ul.mbps > 0.01) {
+                        ulRows.append({ QString::fromLatin1(tier.label),
+                            QStringLiteral("%1 Mbps").arg(ul.mbps, 0, 'f', 1),
+                            QStringLiteral("%1ms").arg(ul.durationMs),
+                            QString::number(ul.bytes), QStringLiteral("✓") });
+                        anyUlOk = true;
+                        if (ul.mbps > bestUlMbps) bestUlMbps = ul.mbps;
+                    } else {
+                        const QString err = ul.error.isEmpty() ? QStringLiteral("Unknown Error") : ul.error;
+                        ulRows.append({ QString::fromLatin1(tier.label), QStringLiteral("—"),
+                            QStringLiteral("—"), QStringLiteral("—"), err });
+                    }
+                }
+                ulOut.append(DiagnosticFormatter::formatTable(kSpeedCols, ulRows));
+            }
+            ulOut.append(QString());
+
+            if (anyDlOk || anyUlOk) break;
+        }
+        out.append(dlOut);
+        out.append(ulOut);
+        if (anyDlOk || anyUlOk) break;
+        if (cand + 1 < kCandidates) {
+            out.append(QString());
+            out.append(QStringLiteral("  (Speed test failed — trying next server candidate)"));
             out.append(QString());
         }
-        anyDlOk = false; anyUlOk = false;
-        bestDlMbps = 0; bestUlMbps = 0;
-        dlOut.clear(); ulOut.clear();
-
-        dlOut.append(QStringLiteral("  Download:"));
-        dlOut.append(QString());
-        {
-            QList<QStringList> dlRows;
-            for (const auto& tier : kDlTiers) {
-                if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
-                const QString dlUrl = QStringLiteral("http://%1:%2/download?size=%3")
-                    .arg(best.host).arg(best.port).arg(tier.bytes);
-                const SystemDiagnostics::SpeedResult dl = SystemDiagnostics::httpDownload(dlUrl, tier.bytes, 15000);
-                if (dl.ok && dl.mbps > 0.01) {
-                    dlRows.append({ QString::fromLatin1(tier.label),
-                        QStringLiteral("%1 Mbps").arg(dl.mbps, 0, 'f', 1),
-                        QStringLiteral("%1ms").arg(dl.durationMs),
-                        QString::number(dl.bytes), QStringLiteral("✓") });
-                    anyDlOk = true;
-                    if (dl.mbps > bestDlMbps) bestDlMbps = dl.mbps;
-                } else {
-                    const QString err = dl.error.isEmpty() ? QStringLiteral("Unknown Error") : dl.error;
-                    dlRows.append({ QString::fromLatin1(tier.label), QStringLiteral("—"),
-                        QStringLiteral("—"), QStringLiteral("—"), err });
-                }
-            }
-            dlOut.append(DiagnosticFormatter::formatTable(kSpeedCols, dlRows));
-        }
-        dlOut.append(QString());
-
-        ulOut.append(QStringLiteral("  Upload:"));
-        ulOut.append(QString());
-        {
-            QList<QStringList> ulRows;
-            for (const auto& tier : kUlTiers) {
-                if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
-                const QString ulUrl = QStringLiteral("http://%1:%2/upload").arg(best.host).arg(best.port);
-                const SystemDiagnostics::SpeedResult ul = SystemDiagnostics::httpUpload(ulUrl, tier.bytes, 15000);
-                if (ul.ok && ul.mbps > 0.01) {
-                    ulRows.append({ QString::fromLatin1(tier.label),
-                        QStringLiteral("%1 Mbps").arg(ul.mbps, 0, 'f', 1),
-                        QStringLiteral("%1ms").arg(ul.durationMs),
-                        QString::number(ul.bytes), QStringLiteral("✓") });
-                    anyUlOk = true;
-                    if (ul.mbps > bestUlMbps) bestUlMbps = ul.mbps;
-                } else {
-                    const QString err = ul.error.isEmpty() ? QStringLiteral("Unknown Error") : ul.error;
-                    ulRows.append({ QString::fromLatin1(tier.label), QStringLiteral("—"),
-                        QStringLiteral("—"), QStringLiteral("—"), err });
-                }
-            }
-            ulOut.append(DiagnosticFormatter::formatTable(kSpeedCols, ulRows));
-        }
-        ulOut.append(QString());
-
-        if (anyDlOk || anyUlOk) break;
     }
-    out.append(dlOut);
-    out.append(ulOut);
 
     // ── Summary（v0.0.3 语式）──
     DiagStatus status;
     QString summary;
     if (anyDlOk && anyUlOk) {
         summary = QStringLiteral("Connected — %1 (%2ms, ↓%3/↑%4 Mbps)")
-            .arg(SystemDiagnostics::countryFullName(result.physicalCountry)).arg(best.ttfbMs, 0, 'f', 0)
+            .arg(SystemDiagnostics::countryFullName(result.physicalCountry)).arg(chosenTtfb, 0, 'f', 0)
             .arg(bestDlMbps, 0, 'f', 1).arg(bestUlMbps, 0, 'f', 1);
         status = DiagStatus::Pass;
     } else if (anyDlOk) {
         summary = QStringLiteral("Connected — %1 (%2ms, ↓%3 Mbps, Upload N/A)")
-            .arg(SystemDiagnostics::countryFullName(result.physicalCountry)).arg(best.ttfbMs, 0, 'f', 0)
+            .arg(SystemDiagnostics::countryFullName(result.physicalCountry)).arg(chosenTtfb, 0, 'f', 0)
             .arg(bestDlMbps, 0, 'f', 1);
         status = DiagStatus::Warning;
     } else if (anyUlOk) {
         summary = QStringLiteral("Connected — %1 (%2ms, Download N/A, ↑%3 Mbps)")
-            .arg(SystemDiagnostics::countryFullName(result.physicalCountry)).arg(best.ttfbMs, 0, 'f', 0)
+            .arg(SystemDiagnostics::countryFullName(result.physicalCountry)).arg(chosenTtfb, 0, 'f', 0)
             .arg(bestUlMbps, 0, 'f', 1);
         status = DiagStatus::Warning;
     } else {
         summary = QStringLiteral("Connected — %1 (%2ms, Speed Test Failed)")
-            .arg(SystemDiagnostics::countryFullName(result.physicalCountry)).arg(best.ttfbMs, 0, 'f', 0);
+            .arg(SystemDiagnostics::countryFullName(result.physicalCountry)).arg(chosenTtfb, 0, 'f', 0);
         status = DiagStatus::Warning;
     }
 
     DiagnosticResult r = makeResult(id, status, summary, {}, out.join(QLatin1Char('\n')));
     r.data[QStringLiteral("connected")] = true;
     r.data[QStringLiteral("reachableEndpoints")] = result.servers.size();
-    r.data[QStringLiteral("bestTtfbMs")] = best.ttfbMs;
+    r.data[QStringLiteral("bestTtfbMs")] = chosenTtfb;
     r.data[QStringLiteral("edgeRttMs")] = pingMs;
-    r.data[QStringLiteral("latencyMs")] = best.ttfbMs;
+    r.data[QStringLiteral("latencyMs")] = chosenTtfb;
     r.data[QStringLiteral("downloadMbps")] = bestDlMbps;
     r.data[QStringLiteral("uploadMbps")] = bestUlMbps;
     r.data[QStringLiteral("downloadMbpsBest")] = bestDlMbps;
@@ -1385,8 +1402,8 @@ static DiagnosticResult probeInternetConnectivity(DiagId id, const QString&, Run
     r.narrative = QStringLiteral("Physical location %1; %2/%3 servers reachable. Best server %4 (TTFB %5ms). ")
         .arg(SystemDiagnostics::countryFullName(result.physicalCountry))
         .arg(result.servers.size()).arg(GeoProbe::allServers().size())
-        .arg(bestMeta != metaByKey.cend() ? bestMeta->name : best.host)
-        .arg(best.ttfbMs, 0, 'f', 0)
+        .arg(chosenName)
+        .arg(chosenTtfb, 0, 'f', 0)
         + ((anyDlOk && anyUlOk)
             ? QStringLiteral("Speed test: download %1 Mbps, upload %2 Mbps.").arg(bestDlMbps, 0, 'f', 1).arg(bestUlMbps, 0, 'f', 1)
             : anyDlOk

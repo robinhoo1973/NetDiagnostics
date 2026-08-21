@@ -169,6 +169,17 @@ SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs) 
         r.bytes = static_cast<int>(body.size());
     }
     bool usable = (httpOk || r.bytes > 1000) && r.bytes > 0 && r.durationMs > 0;
+    // 5WHY (复核 2026-08-21 用户 "下载测试出错"): 慢速/停滞服务器在超时
+    // 前只送达请求字节的一小部分（独立测试实测 81KB/256KB、151KB/1MB），
+    // 旧逻辑仍标 ok → 界面出现 "OK 0.0 Mbps" 伪成功。业界测速惯例：
+    // 完成度 < 50% 判失败——把服务器问题与用户带宽分离。
+    if (usable && targetBytes > 0
+        && (double)r.bytes / (double)targetBytes < 0.5) {
+        r.ok = false;
+        r.error = QStringLiteral("Incomplete Download: %1/%2 bytes (slow server)")
+            .arg(r.bytes).arg(targetBytes);
+        return r;
+    }
     if (usable) {
         double bits = r.bytes * 8.0;
         double secs = r.durationMs / 1000.0;

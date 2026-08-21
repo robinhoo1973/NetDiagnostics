@@ -166,6 +166,44 @@ QString iosInterfaceIPv4(const QString& iface) {
     return ip;
 }
 
+// 5WHY (复核 2026-08-21 用户 "Cellular 无法找到 IP"): 曾硬编码 pdp_ip0——
+// iOS 26 部分设备蜂窝接口改名（ap1 等）时 IPv4 恒取不到。候选名依次尝试，
+// 最后按排除法扫描：第一个 AF_INET 且非 WiFi/隧道/回环的接口即蜂窝数据接口
+// （返回实际接口名供网关路由查询，避免网关仍按 pdp_ip0 查而落空）。
+QString iosCellularIPv4(QString* ifaceOut) {
+    static const QStringList kCandidates = {
+        QStringLiteral("pdp_ip0"), QStringLiteral("pdp_ip1"),
+        QStringLiteral("ap1"), QStringLiteral("ipsec0"),
+    };
+    for (const QString& c : kCandidates) {
+        const QString ip = iosInterfaceIPv4(c);
+        if (!ip.isEmpty()) {
+            if (ifaceOut) *ifaceOut = c;
+            return ip;
+        }
+    }
+    struct ifaddrs* ifa = nullptr;
+    if (getifaddrs(&ifa) != 0) return QString();
+    QString ip;
+    for (auto* p = ifa; p; p = p->ifa_next) {
+        if (!p->ifa_addr || p->ifa_addr->sa_family != AF_INET) continue;
+        const QString name = QString::fromLatin1(p->ifa_name);
+        if (name.startsWith(QLatin1String("en")) || name.startsWith(QLatin1String("lo"))
+            || name.startsWith(QLatin1String("utun")) || name.startsWith(QLatin1String("bridge"))
+            || name.startsWith(QLatin1String("awdl")) || name.startsWith(QLatin1String("llw"))
+            || name.startsWith(QLatin1String("gif")) || name.startsWith(QLatin1String("stf")))
+            continue;
+        char buf[INET_ADDRSTRLEN] = {0};
+        auto* sin = (struct sockaddr_in*)p->ifa_addr;
+        inet_ntop(AF_INET, &sin->sin_addr, buf, sizeof(buf));
+        ip = QString::fromLatin1(buf);
+        if (ifaceOut) *ifaceOut = name;
+        break;
+    }
+    freeifaddrs(ifa);
+    return ip;
+}
+
 QString iosGatewayForInterface(const QString& iface) {
     QString fallback;
     for (const auto& rt : iosReadRoutes()) {
