@@ -201,6 +201,13 @@ inline QString cachedRunTool(RunContext& ctx, const QString& exe,
         const int attempts = ctx.snapshot->toolAttempts.value(key, 0) + 1;
         ctx.snapshot->toolAttempts.insert(key, attempts);
         cacheIt = attempts >= 2;
+    } else {
+        // 5WHY (复核 2026-08-21 失败计数残留): 失败计数曾在成功后清零
+        // 失败——fail(1)→success(缓存好值)→fail(2)→第 3 次失败把 ""
+        // 覆写好缓存（毒化本轮）。成功即重置计数，好值一旦入缓存不再
+        // 被后续失败覆盖。
+        QMutexLocker lock(&ctx.snapshot->mutex);
+        ctx.snapshot->toolAttempts.remove(key);
     }
     if (cacheIt) {
         QMutexLocker lock(&ctx.snapshot->mutex);

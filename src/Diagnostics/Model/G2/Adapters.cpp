@@ -116,21 +116,29 @@ static DiagnosticResult probeRoutingTable(DiagId id, const QString&, RunContext&
 
 #if defined(_WIN32)
     // v0.0.3 Windows 接口清单行（"  %1...%2 ......%3"）
+    // 5WHY (复核 2026-08-21 失败路径越界): 曾首次调用非 NO_ERROR 即无
+    // 条件重试并遍历——ERROR_NO_DATA（无适配器）时 MSDN 置 bufLen=0，
+    // resize(0) 后对空缓冲解引用 a->Next/PhysicalAddress（UB/垃圾行）。
+    // 收敛为 G3 probeDnsServers 同款正确形态：仅 ERROR_BUFFER_OVERFLOW
+    // 重试（该错误才回填所需尺寸），且仅 rc==NO_ERROR 才遍历。
     {
         ULONG bufLen = 15000;
         QByteArray buf(bufLen, '\0');
         PIP_ADAPTER_ADDRESSES adapters = (PIP_ADAPTER_ADDRESSES)buf.data();
-        if (GetAdaptersAddresses(AF_UNSPEC, 0, nullptr, adapters, &bufLen) != NO_ERROR) {
+        ULONG rc = GetAdaptersAddresses(AF_UNSPEC, 0, nullptr, adapters, &bufLen);
+        if (rc == ERROR_BUFFER_OVERFLOW) {
             buf.resize(bufLen);
             adapters = (PIP_ADAPTER_ADDRESSES)buf.data();
-            GetAdaptersAddresses(AF_UNSPEC, 0, nullptr, adapters, &bufLen);
+            rc = GetAdaptersAddresses(AF_UNSPEC, 0, nullptr, adapters, &bufLen);
         }
-        for (auto* a = adapters; a; a = a->Next)
-            out.append(QStringLiteral("  %1...%2 ......%3")
-                .arg(a->Ipv6IfIndex, 4)
-                .arg(macToStr(reinterpret_cast<const unsigned char*>(a->PhysicalAddress),
-                              a->PhysicalAddressLength))
-                .arg(QString::fromWCharArray(a->FriendlyName)));
+        if (rc == NO_ERROR) {
+            for (auto* a = adapters; a; a = a->Next)
+                out.append(QStringLiteral("  %1...%2 ......%3")
+                    .arg(a->Ipv6IfIndex, 4)
+                    .arg(macToStr(reinterpret_cast<const unsigned char*>(a->PhysicalAddress),
+                                  a->PhysicalAddressLength))
+                    .arg(QString::fromWCharArray(a->FriendlyName)));
+        }
     }
 
     PMIB_IPFORWARD_TABLE2 ft = nullptr;
@@ -200,7 +208,10 @@ static DiagnosticResult probeRoutingTable(DiagId id, const QString&, RunContext&
                     rp.children.append({QStringLiteral("netmask"), mask.isEmpty() ? QStringLiteral("-") : mask});
                     rp.children.append({QStringLiteral("gateway"), gwStr});
                     rp.children.append({QStringLiteral("interface"), ifName.isEmpty() ? QStringLiteral("-") : ifName});
-                    rp.children.append({QStringLiteral("metric"), QString::number(rtm->rtm_index)});
+                    // 5WHY (复核 2026-08-21 语义伪造): 曾把 rtm_index（路由
+                    // 表 id，默认表恒 0）塞进 metric 列——macOS rt_msghdr
+                    // 无路由 metric 数据源，诚实 "-"（不伪造表索引为度量值）。
+                    rp.children.append({QStringLiteral("metric"), QStringLiteral("-")});
                     props.append(rp);
                     ++routeCount;
                 }
@@ -228,6 +239,11 @@ static DiagnosticResult probeRoutingTable(DiagId id, const QString&, RunContext&
             const uint32_t gw     = cols[2].toUInt(&ok, 16);
             const uint32_t mask   = cols[7].toUInt(&ok, 16);
             const uint32_t metric = cols[6].toUInt(&ok, 10);
+            // 5WHY (复核 2026-08-21 解析无校验): 四个 toUInt 共用一个 ok 且
+            // 从未检查——任一字段解析失败即静默渲染 "0.0.0.0"/metric 0
+            // （probeDefaultGateway 同级解析有 ok 校验跳行）。链尾统一
+            // 校验，失败行跳过（内核字段形完好，防御纵深）。
+            if (!ok) continue;
             const QString gwStr = gw ? SystemDiagnostics::ipToStr(gw) : QStringLiteral("On-link");
             ResultProperty rp(SystemDiagnostics::ipToStr(dest),
                 QStringLiteral("netmask=%1 gw=%2 if=%3").arg(SystemDiagnostics::ipToStr(mask), gwStr, ifName));
@@ -347,15 +363,16 @@ static DiagnosticResult probeArpTable(DiagId id, const QString&, RunContext& ctx
     // Type 由 flags 列 0x2 判 static/dynamic。曾 "  ip  mac" 无类型列、
     // 且滤掉 00:00:00:00:00:00 行（v0.0.3 全行入表）与文件不可读时
     // 无 "  (ARP table not available)" 恒文。
-    const bool arpReadable = [&]() {
-        QFile f(QStringLiteral("/proc/net/arp"));
-        return f.open(QIODevice::ReadOnly);
-    }();
-    if (!arpReadable) {
-        out.append(QStringLiteral("  (ARP table not available)"));
-    } else {
+    // 5WHY (复核 2026-08-21 双开消除): 曾先开文件测可读性再经
+    // readProcLines 重开读取（TOCTOU 双开）——readProcLines 不可读时
+    // 已返回空列表，读一次分支 isEmpty() 即可。
+    {
         static const QRegularExpression kWsRe(QStringLiteral("\\s+"));
-        for (const QString& raw : SystemDiagnostics::readProcLines(QStringLiteral("/proc/net/arp"), 1)) {
+        const QStringList arpLines = SystemDiagnostics::readProcLines(QStringLiteral("/proc/net/arp"), 1);
+        if (arpLines.isEmpty()) {
+            out.append(QStringLiteral("  (ARP table not available)"));
+        } else {
+            for (const QString& raw : arpLines) {
             if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
             const QString line = raw.trimmed();
             if (line.isEmpty()) continue;
@@ -384,6 +401,7 @@ static DiagnosticResult probeArpTable(DiagId id, const QString&, RunContext& ctx
         // 仍出表头/分隔线（v0.0.3 同）
         out.append(QStringLiteral("  ") + DiagnosticFormatter::formatTable(kArpCols, arpRows)
             .join(QStringLiteral("\n  ")));
+        }
     }
 #endif
 #endif
@@ -648,8 +666,10 @@ static DiagnosticResult probeTcpSettings(DiagId id, const QString&, RunContext& 
         RegCloseKey(hKey);
     }
 #else // Linux / Android
-    // 属性卡：9 项 sysctl（与首版一致，含 KeepAlive 系列/DefaultTTL 等）
+    // 属性卡：10 项 sysctl（友好标签集；曾误注 "与首版一致"——首版
+    // 列表含 tcp_fin_timeout，本表漏收即属性卡静默丢一项数据，补回）。
     const struct { const char* path; const char* label; } kTcpSys[] = {
+        { "/proc/sys/net/ipv4/tcp_fin_timeout",     "FIN Timeout" },
         { "/proc/sys/net/ipv4/tcp_keepalive_time",  "KeepAliveTime" },
         { "/proc/sys/net/ipv4/tcp_keepalive_intvl", "KeepAliveInterval" },
         { "/proc/sys/net/ipv4/ip_default_ttl",      "DefaultTTL" },
@@ -660,11 +680,18 @@ static DiagnosticResult probeTcpSettings(DiagId id, const QString&, RunContext& 
         { "/proc/sys/net/ipv4/tcp_fastopen",        "TCP Fast Open" },
         { "/proc/sys/net/ipv4/tcp_max_syn_backlog", "Max SYN Backlog" },
     };
+    // 5WHY (复核 2026-08-21 双读消除): 表循环曾重开读取与首循环相同的
+    // 5 个 sysctl（每探针 5 次冗余 open+read）——首循环值入哈希，表行
+    // 复用（v0.0.3 表行集 ⊂ 属性行集）。
+    QHash<QString, QString> sysVals;
     for (const auto& e : kTcpSys) {
         if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
         QFile file(QLatin1String(e.path));
-        if (file.open(QIODevice::ReadOnly))
-            props.append({QLatin1String(e.label), QString::fromLatin1(file.readAll().trimmed())});
+        if (file.open(QIODevice::ReadOnly)) {
+            const QString val = QString::fromLatin1(file.readAll().trimmed());
+            props.append({QLatin1String(e.label), val});
+            sysVals.insert(QLatin1String(e.path), val);
+        }
     }
     // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): v0.0.3 Linux 终端为
     // formatTable {Setting 20/Value 0} 五行 readSys（文件不可读 → "-"，
@@ -684,10 +711,7 @@ static DiagnosticResult probeTcpSettings(DiagId id, const QString&, RunContext& 
     };
     QList<QStringList> tcpRows;
     for (const auto& e : kTcpTable) {
-        if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
-        QFile file(QLatin1String(e.path));
-        const QString val = file.open(QIODevice::ReadOnly)
-            ? QString::fromLatin1(file.readAll().trimmed()) : QStringLiteral("-");
+        const QString val = sysVals.value(QLatin1String(e.path), QStringLiteral("-"));
         tcpRows.append({ QLatin1String(e.label), val });
     }
     out.append(DiagnosticFormatter::formatTable(kTcpCols, tcpRows));

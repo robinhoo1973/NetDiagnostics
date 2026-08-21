@@ -59,6 +59,12 @@ public:
     // UI 改读单调后墙钟链（startedAtMs）零消费方仍逐项计算——删墙钟，
     // 仅留单调（MonotonicClock 同源基准，NTP/手动校时步进免疫）。
     qint64 startedAtMonoMs() const { return m_startedAtMonoMs; }
+    // 5WHY (复核 2026-08-21 哨兵显式化): UI 以 hasStartedAt 标记区分
+    // "有起点"与"未注入"——但 suite 建表时未 start 的探针（m_started
+    // false）startedAtMonoMs 仍为 0，仅凭值 0 无法与首毫秒真实起点
+    // 区分。runningStartTimesMono 只收录已 start 的探针，标记语义
+    // 与真实启动状态对齐。
+    bool isStarted() const { return m_started; }
 
 signals:
     void finished(const DiagnosticResult& result);

@@ -290,19 +290,25 @@ static DiagnosticResult probeNetworkAdapters(DiagId id, const QString&, RunConte
         if (isWirelessInterface(i.name(), &wirelessLevelsMap)) type = QStringLiteral("wireless");
 #endif
         p.children.append({QStringLiteral("type"), type});
-#if defined(__linux__)
         // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): v0.0.3 适配器表含
-        // MTU/Status 列（/sys/class/net 读取）——属性卡曾无此二字段，
-        // 复刻层无法重建。补 MTU + status（operstate 大写，v0.0.3 语义；
-        // 缺省 DOWN，loopback 恒 UP——v0.0.3 同）。
+        // MTU/Status 列——属性卡曾无此二字段，复刻层无法重建。
+        // 5WHY (复核 2026-08-21 跨平台伪 DOWN): 曾 Linux-only——macOS/
+        // Windows 复刻表恒 "DOWN"/"-"（活动 en0 亦 DOWN，v0.0.3 macOS
+        // 经 ioctl SIOCGIFMTU/SIOCGIFFLAGS 报真实 MTU/UP）。MTU 改用
+        // Qt 便携 maximumTransmissionUnit；Status：Linux 读 /sys operstate
+        // （大写，v0.0.3 语义），其余平台以 IsUp 标志判 UP/DOWN；
+        // 缺省 DOWN，loopback 恒 UP——v0.0.3 同。
         p.children.append({QStringLiteral("MTU"), QString::number(i.maximumTransmissionUnit())});
         QString st = QStringLiteral("DOWN");
+#if defined(__linux__)
         QFile opFile(QStringLiteral("/sys/class/net/%1/operstate").arg(i.name()));
         if (opFile.open(QIODevice::ReadOnly))
             st = QString::fromLatin1(opFile.readAll().trimmed()).toUpper();
+#else
+        if (i.flags().testFlag(QNetworkInterface::IsUp)) st = QStringLiteral("UP");
+#endif
         if (type == QLatin1String("loopback")) st = QStringLiteral("UP");
         p.children.append({QStringLiteral("status"), st});
-#endif
         // 5WHY (2026-08-20 用户诉求 "属性卡一团混乱"): 地址子行曾一律标
         // "address"——v4/v6 混排无法区分协议。按协议标注 IPv4/IPv6，
         // 与 IP Configuration 卡一致（业界惯例：CIDR 或协议标注地址）。
@@ -699,9 +705,14 @@ static DiagnosticResult probeWired(DiagId id, const QString&, RunContext& ctx) {
     for (const auto& i : ifaces) {
         if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
 #if defined(__APPLE__)
-        // v0.0.3 macOS：en*/pdp_ip 为无线/蜂窝，排除出有线表
-        if (i.name().startsWith(QLatin1String("en"))
-            || i.name().startsWith(QLatin1String("pdp_ip")))
+        // 5WHY (复核 2026-08-21 误排除回归): 曾排除 en*/pdp_ip——但 Apple
+        // 命名下内置/Thunderbolt/USB 有线网卡同为 en*（en0 常是 WiFi，
+        // 有线适配器亦挂 en1/en2 等），整族排除使真实有线网卡恒报
+        // Skipped "No wired interface present"（硬假阴性）。仅排除
+        // pdp_ip（蜂窝）/utun（隧道）；en* 保留（Apple 命名固有的
+        // WiFi/有线歧义无法以名区分，宁列勿失）。
+        if (i.name().startsWith(QLatin1String("pdp_ip"))
+            || i.name().startsWith(QLatin1String("utun")))
             continue;
 #endif
         if (i.name().contains(QLatin1String("eth"), Qt::CaseInsensitive)
@@ -886,6 +897,7 @@ static DiagnosticResult probeDhcp(DiagId id, const QString&, RunContext& ctx) {
             if (ni.isValid()) ifName = ni.name();
         }
         QString ipStr, serverStr, expire, renew;
+        bool hasExtras = false, hasRenew = false, hasExpire = false;
         QTextStream ts(&f);
         while (!ts.atEnd()) {
             // 5WHY (复核 2026-08-19 取消语义): 租约文件解析微秒级——取消窗口
@@ -900,22 +912,36 @@ static DiagnosticResult probeDhcp(DiagId id, const QString&, RunContext& ctx) {
                 if (!in.isEmpty()) ifName = in;
             }
             else if (line.startsWith(QLatin1String("fixed-address "))) ipStr = line.mid(14).remove(QLatin1Char(' ')).remove(QLatin1Char(';'));
-            else if (line.contains(QLatin1String("dhcp-server-identifier")))
+            else if (line.contains(QLatin1String("dhcp-server-identifier"))) {
                 serverStr = line.section(QLatin1Char(' '), -1).remove(QLatin1Char(';'));
+                hasExtras = true;
+            }
             // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): v0.0.3 附注行
             // "Lease Renew"/"Lease Expires" 出自 dhclient 租约 renew/expire
             // 行——renew 曾未捕获（附注层无法重建，v0.0.3 行静默丢失）。
-            else if (line.startsWith(QLatin1String("renew ")))
+            // 5WHY (复核 2026-08-21 空值行保留): v0.0.3 行存在即印附注
+            // （"expire never;" 无限租约打印空值行）——曾仅非空值才落子
+            // 属性，空值附注行静默丢失。
+            else if (line.startsWith(QLatin1String("renew "))) {
                 renew = line.section(QLatin1Char(' '), 2, 3).remove(QLatin1Char(';'));
-            else if (line.startsWith(QLatin1String("expire ")))
+                hasExtras = true;
+                hasRenew = true;
+            }
+            else if (line.startsWith(QLatin1String("expire "))) {
                 expire = line.section(QLatin1Char(' '), 2, 3).remove(QLatin1Char(';'));
+                hasExtras = true;
+                hasExpire = true;
+            }
         }
         if (ipStr.isEmpty()) return;
         ResultProperty p(ifName, ipStr);
         p.children.append({QStringLiteral("DHCP"), QStringLiteral("Yes")});
         if (!serverStr.isEmpty()) p.children.append({QStringLiteral("server"), serverStr});
-        if (!renew.isEmpty()) p.children.append({QStringLiteral("renew"), renew});
-        if (!expire.isEmpty()) p.children.append({QStringLiteral("expire"), expire});
+        // source 标记：dhclient 租约专属（附注层按此行集重建 v0.0.3 附注，
+        // 与 systemd/nmcli 行区分——后两者 v0.0.3 无附注）。
+        if (hasExtras) p.children.append({QStringLiteral("source"), QStringLiteral("dhclient")});
+        if (hasRenew) p.children.append({QStringLiteral("renew"), renew});
+        if (hasExpire) p.children.append({QStringLiteral("expire"), expire});
         props.append(p);
         leases.append(ifName + QLatin1Char('=') + ipStr);
     };
@@ -1196,8 +1222,13 @@ static DiagnosticResult probeIpConfig(DiagId id, const QString&, RunContext& ctx
                 ? QStringLiteral("loopback") : QStringLiteral("ethernet");
 #if defined(__linux__)
             if (isWirelessInterface(i.name())) type = QStringLiteral("wireless");
+            // 5WHY (复核 2026-08-21 租约索引): systemd-networkd 租约文件名是
+            // 接口索引（如 "3"）而非接口名（probeDhcp 同名 5WHY 有载）——
+            // 曾只查名字路径，networkd 管理的接口恒误报 "DHCP Enabled: No"。
+            // 名字与索引两路并查；dhclient 名字路径不变。
             const bool dhcpEnabled =
                 QFile::exists(QStringLiteral("/run/systemd/netif/leases/%1").arg(i.name()))
+                || QFile::exists(QStringLiteral("/run/systemd/netif/leases/%1").arg(i.index()))
                 || QFile::exists(QStringLiteral("/var/lib/dhcp/dhclient.%1.leases").arg(i.name()));
             p.children.append({QStringLiteral("DHCP"), dhcpEnabled ? QStringLiteral("Yes") : QStringLiteral("No")});
 #endif
@@ -1255,6 +1286,11 @@ static DiagnosticResult probeIpConfig(DiagId id, const QString&, RunContext& ctx
             // 下 propsDumpText 渲染 "ppp0: " 悬空行、分组卡标题空值格。
             // 主值 = 网关串（该接口的全部可得数据），子行标签语义不变。
             ResultProperty gp(it.key(), it.value().join(QStringLiteral(", ")));
+            // 5WHY (复核 2026-08-21 幻影适配器块): 复刻层按 type 子行判定
+            // 适配器块——孤儿行无 type 曾被标成 "Ethernet adapter ppp0:"
+            // 且伪造 DHCP/Autoconfiguration 行。标 "unknown"（v0.0.3 的
+            // "Unknown adapter %1:" 语义），复刻层如实呈现。
+            gp.children.append({QStringLiteral("type"), QStringLiteral("unknown")});
             gp.children.append({QStringLiteral("gateway"), it.value().join(QStringLiteral(", "))});
             props.append(gp);
             ++interfaceCount;
@@ -1291,9 +1327,13 @@ static DiagnosticResult probeIpConfig(DiagId id, const QString&, RunContext& ctx
         QStringLiteral("IP configuration: %1 interface(s), %2 address(es)")
             .arg(interfaceCount).arg(addressCount), props, {});
     r.data[QStringLiteral("addressCount")] = addressCount;
-#if defined(__linux__) || defined(__ANDROID__)
+#if defined(__linux__) && !defined(PLATFORM_ANDROID)
     // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): "IP Routing Enabled" 行数据
     // 曾缺——读 /proc/sys/net/ipv4/ip_forward（v0.0.3 同源）。
+    // 5WHY (复核 2026-08-21 Android 恒文偏差): v0.0.3 守卫为
+    // !__APPLE__ && !PLATFORM_ANDROID——Android 恒印 "Unknown"；曾把
+    // Android 并入读取分支，可读文件时印 Yes/No（逐字节对齐落空）。
+    // 守卫与 v0.0.3 同宽：Android 数据键缺席，复刻层落 "Unknown"。
     QFile fwdFile(QStringLiteral("/proc/sys/net/ipv4/ip_forward"));
     if (fwdFile.open(QIODevice::ReadOnly))
         r.data[QStringLiteral("routingEnabled")] =
@@ -1368,13 +1408,16 @@ static DiagnosticResult probeActiveConnections(DiagId id, const QString&, RunCon
             // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): v0.0.3 连接表列
             // Proto/Local/Remote/State——曾单串 value 内嵌全部字段，
             // 复刻层无法反解。补结构化子属性（属性卡呈现不变）。
+            // 5WHY (复核 2026-08-21 双解消除): 曾同一端点 decodeEp 两遍
+            // （value 一遍 + 子属性一遍）——局部一次，两处复用。
+            const QString lEp = decodeEp(fields[1]);
+            const QString rEp = decodeEp(fields[2]);
             ResultProperty cp(QStringLiteral("connection"),
                 QStringLiteral("%1 %2 -> %3 [%4]")
-                    .arg(QLatin1String(proto), decodeEp(fields[1]),
-                         decodeEp(fields[2]), stateName));
+                    .arg(QLatin1String(proto), lEp, rEp, stateName));
             cp.children.append({QStringLiteral("proto"), QLatin1String(proto)});
-            cp.children.append({QStringLiteral("local"), decodeEp(fields[1])});
-            cp.children.append({QStringLiteral("remote"), decodeEp(fields[2])});
+            cp.children.append({QStringLiteral("local"), lEp});
+            cp.children.append({QStringLiteral("remote"), rEp});
             cp.children.append({QStringLiteral("state"), stateName});
             props.append(cp);
             if (isUdp) ++udpCount;   // UDP 行入表但不计入 TCP 计数/established
@@ -1439,14 +1482,26 @@ static DiagnosticResult probeActiveConnections(DiagId id, const QString&, RunCon
             if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
             if (!line.contains(QLatin1String("ESTABLISHED"))) continue;
             const QStringList f = line.simplified().split(QLatin1Char(' '));
-            if (f.size() >= 4) {   // tcp4  local.addr.port  remote.addr.port  ESTABLISHED
+            // 5WHY (复核 2026-08-21 列索引错误): 真实 netstat -an -p tcp 行为
+            // "tcp4  0  0  local  remote  ESTABLISHED"——f[1]/f[2] 是
+            // Recv-Q/Send-Q（恒 "0"），曾把队列长度当端点（"0 -> 0"）。
+            // 端点取 f[3]/f[4]；macOS 端点为点号形 "ip.port"——归一化
+            // 末段 '.' 为 ':'（复刻层按 ':' 拆 ip:port）。
+            if (f.size() >= 6) {
+                const auto normalizeEp = [](const QString& ep) {
+                    const int dot = ep.lastIndexOf(QLatin1Char('.'));
+                    if (dot < 0) return ep;
+                    return ep.left(dot) + QLatin1Char(':') + ep.mid(dot + 1);
+                };
+                const QString lEp = normalizeEp(f[3]);
+                const QString rEp = normalizeEp(f[4]);
                 // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): 曾无子属性——
                 // 复刻层表格四列全空。补 proto/local/remote/state 子行。
                 ResultProperty cp(QStringLiteral("connection"),
-                    QStringLiteral("%1 -> %2").arg(f[1], f[2]));
+                    QStringLiteral("%1 -> %2").arg(lEp, rEp));
                 cp.children.append({QStringLiteral("proto"), QStringLiteral("TCP")});
-                cp.children.append({QStringLiteral("local"), f[1]});
-                cp.children.append({QStringLiteral("remote"), f[2]});
+                cp.children.append({QStringLiteral("local"), lEp});
+                cp.children.append({QStringLiteral("remote"), rEp});
                 cp.children.append({QStringLiteral("state"), QStringLiteral("ESTABLISHED")});
                 props.append(cp);
                 ++count;

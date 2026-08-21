@@ -20,7 +20,8 @@ Item {
     // 5WHY (复核 2026-08-21 用户诉求 "WiFi 信息动画同款弧线"): 动画锚点
     // 几何是母版图标事实——同一动画类型（WifiWave）用于不同图标（internet
     // 右下弧组 / wifi-info 同心弧）时需按图标分派。消费方（DiagBlock/hero）
-    // 传入 iconName，装载时下发给动画（无该属性的动画类型跳过）。
+    // 传入 iconName，装载时下发给动画（AnimationBase 统一声明该属性，
+    // 无条件绑定——曾以 `"iconName" in item` 探测，已删）。
     property string iconName: ""
     // 5WHY (复核 2026-08-19 详情页重放): 有界播放属于动画层——消费方曾自带
     // Timer+硬编码 2400ms 窗口（与 AnimationTokens 周期脱钩、每消费方复制

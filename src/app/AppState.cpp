@@ -634,9 +634,15 @@ QVariantMap AppState::resultFor(int diagIdInt) const {
         // 空时曾落 summary——QML 端 details||rawOutput 取到 summary、剪贴板
         // 追加 rawOutput，两者背离。rawOutput 优先于派生（避免派生转储
         // 遮蔽真实原始输出）。
+        // 5WHY (复核 2026-08-21 取消/异常误妆): Cancelled/Error 结果
+        // details/rawOutput/properties 皆空——曾仍派生 v0.0.3 空态恒文
+        // （如 "Active Connections … (no active connections)"），把"已取消"
+        // 妆成"扫描完成且零连接"；且本链设计意图的 summary 兜底被复刻层
+        // 拦截成死代码。取消/异常直接落 summary（"Cancelled"/错误文案），
+        // 不派生任何 v0.0.3 空态文本（剪贴板/报告体同门）。
         if (!it->rawOutput.isEmpty()) {
             details = it->rawOutput;
-        } else {
+        } else if (it->status != DiagStatus::Cancelled && it->status != DiagStatus::Error) {
             const QStringList legacy = SystemDiagnostics::legacyTerminalLines(it->id, it->properties, it->data);
             if (!legacy.isEmpty()) details = legacy.join(QLatin1Char('\n'));
             if (details.isEmpty()) details = SystemDiagnostics::propsDumpText(it->properties);
@@ -684,8 +690,9 @@ QVariantMap AppState::resultFor(int diagIdInt) const {
     // 5WHY (复核 2026-08-21 用户诉求 "terminal output 无条件复制历史版本
     // 输出"): 曾以 propsDump 门控关闭 G1 属性派生转储的终端区块——用户
     // 要求所有检测项详情页无条件下发终端输出（v0.0.3 行为）。属性卡与
-    // 终端区块并存呈现；propsDump 标记保留供剪贴板去重（copyDetailToClipboard
-    // 仍以转储为准跳过属性循环）。
+    // 终端区块并存呈现。派生统一收敛到呈现层（resultFor/剪贴板/报告体
+    // 同链，见 resultFor 派生链注释）——propsDump 标记已随 G1 makeResult
+    // 透传化整体删除，无残留消费方。
     m[QStringLiteral("showTerminal")] = dp.showTerminal;
     // 属性布局（Kv 扁平 / Grouped 分组卡）——PagePropertiesSection 渲染模式。
     // 5WHY (复核 2026-08-20 跨语言契约): 曾把枚举序值 int 直传 QML（5 处
@@ -1018,7 +1025,10 @@ void AppState::copyDetailToClipboard(int diagIdInt) {
     // 派生（legacyTerminalLines → propsDumpText），剪贴板与屏幕终端逐字一致。
     if (!it->details.isEmpty()) lines.append(it->details);
     else if (!it->rawOutput.isEmpty()) lines.append(it->rawOutput);
-    else {
+    // 5WHY (复核 2026-08-21 取消/异常误妆): Cancelled/Error 结果不派生
+    // v0.0.3 空态恒文（与 resultFor 同门）——摘要行已含 "Cancelled"，
+    // 剪贴板不再附误导性的空态表文。
+    else if (it->status != DiagStatus::Cancelled && it->status != DiagStatus::Error) {
         QString derived;
         const QStringList legacy = SystemDiagnostics::legacyTerminalLines(it->id, it->properties, it->data);
         if (!legacy.isEmpty()) derived = legacy.join(QLatin1Char('\n'));

@@ -144,7 +144,13 @@ void DiagnosticSuite::emitProgress() {
 
 QHash<DiagId, qint64> DiagnosticSuite::runningStartTimesMono() const {
     QHash<DiagId, qint64> out;
+    // 5WHY (复核 2026-08-21 哨兵显式化): 曾收录全部 m_probes——建表时
+    // 尚未 start() 的探针 startedAtMonoMs 仍为 0，UI 的 hasStartedAt
+    // （键存在即真）把未启动瓦片误判"有起点"（计时圆点显示应用启动
+    // 时长，正是旧 0 值哨兵防的那类伪值）。仅收录已 start 的探针：
+    // 键缺席 = 未注入，与显式标记语义对齐。
     for (const auto* p : m_probes)
-        out.insert(p->diagId(), p->startedAtMonoMs());
+        if (p->isStarted())
+            out.insert(p->diagId(), p->startedAtMonoMs());
     return out;
 }

@@ -35,15 +35,23 @@ QString normalizeReportPath(const QString& p) {
 }
 
 // 5WHY (复核 2026-08-21 三份同源): 报告体/详情页终端/剪贴板共用派生链
-// details → rawOutput → legacyTerminalLines → propsDumpText（AppState 同序）。
+// details → rawOutput → legacyTerminalLines → propsDumpText → summary
+// （AppState::resultFor 同序，含最终 summary 兜底）。
 // G1 探针 details 恒空后曾只落 propsDumpText 平铺——导出报告与屏幕
 // v0.0.3 表格背离。
+// 5WHY (复核 2026-08-21 取消/异常误妆): Cancelled/Error 结果不派生
+// v0.0.3 空态恒文（"已取消"被妆成"零连接"）——直接落 summary，与
+// resultFor/clipboard 同门，报告与屏幕逐字一致。
 static QString reportBody(const DiagnosticResult& r) {
     if (!r.details.isEmpty()) return r.details;
     if (!r.rawOutput.isEmpty()) return r.rawOutput;
-    const QStringList legacy = SystemDiagnostics::legacyTerminalLines(r.id, r.properties, r.data);
-    if (!legacy.isEmpty()) return legacy.join(QLatin1Char('\n'));
-    return SystemDiagnostics::propsDumpText(r.properties);
+    if (r.status != DiagStatus::Cancelled && r.status != DiagStatus::Error) {
+        const QStringList legacy = SystemDiagnostics::legacyTerminalLines(r.id, r.properties, r.data);
+        if (!legacy.isEmpty()) return legacy.join(QLatin1Char('\n'));
+        const QString dump = SystemDiagnostics::propsDumpText(r.properties);
+        if (!dump.isEmpty()) return dump;
+    }
+    return r.summary;
 }
 
 // 5WHY: The original code had 4 structurally identical switch blocks (dark/light

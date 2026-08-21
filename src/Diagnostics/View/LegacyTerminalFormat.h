@@ -39,6 +39,13 @@ inline QString childVal(const ResultProperty& p, const QString& key) {
     return QString();
 }
 
+// 子属性键存在性（区分"键缺失"与"键存在但值为空"——v0.0.3 行存在即印）
+inline bool childExists(const ResultProperty& p, const QString& key) {
+    for (const auto& c : p.children)
+        if (c.label == key) return true;
+    return false;
+}
+
 // IPv4 前缀长 → 点分掩码（CIDR 呈现还原 ipconfig 风格 Subnet Mask 行）
 inline QString maskFromPrefix(int prefix) {
     if (prefix < 0 || prefix > 32) return QString();
@@ -270,18 +277,19 @@ inline QStringList legacyTerminalLines(DiagId id,
                 const QString gw = childVal(p, QStringLiteral("gateway"));
                 if (server.isEmpty() && !gw.isEmpty()) server = gw;
             }
-            // v0.0.3 附注仅出自 dhclient 租约文件（renew/expire 行）；
+            // v0.0.3 附注仅出自 dhclient 租约文件（source 标记）；行存在
+            // 即印（空值行保留——"expire never;" 无限租约 v0.0.3 也印空值）。
             // systemd/nmcli/Windows 行只入表（v0.0.3 同）。
-            const QString renew = childVal(p, QStringLiteral("renew"));
-            const QString expire = childVal(p, QStringLiteral("expire"));
-            if (!renew.isEmpty() || !expire.isEmpty()) {
+            if (childVal(p, QStringLiteral("source")) == QLatin1String("dhclient")) {
+                const QString renew = childVal(p, QStringLiteral("renew"));
+                const QString expire = childVal(p, QStringLiteral("expire"));
                 if (!server.isEmpty())
                     extras.append(QStringLiteral("   [%1] DHCP Server . . . . . . . . . . . : %2")
                         .arg(p.label, server));
-                if (!renew.isEmpty())
+                if (childExists(p, QStringLiteral("renew")))
                     extras.append(QStringLiteral("   [%1] Lease Renew . . . . . . . . . . . : %2")
                         .arg(p.label, renew));
-                if (!expire.isEmpty())
+                if (childExists(p, QStringLiteral("expire")))
                     extras.append(QStringLiteral("   [%1] Lease Expires . . . . . . . . . . : %2")
                         .arg(p.label, expire));
             }
@@ -340,12 +348,18 @@ inline QStringList legacyTerminalLines(DiagId id,
 #endif
         const auto adapterLabel = [](const ResultProperty& p) -> QString {
             const QString type = childVal(p, QStringLiteral("type"));
-            if (type == QLatin1String("loopback"))
-                return QStringLiteral("Unknown adapter %1:").arg(p.label);   // v0.0.3
+            if (type == QLatin1String("loopback") || type == QLatin1String("unknown"))
+                return QStringLiteral("Unknown adapter %1:").arg(p.label);   // v0.0.3（loopback/孤儿网关行）
 #if defined(__APPLE__)
             // v0.0.3 Apple：en* 前缀判无线（无 /sys wireless 文件）
             if (type != QLatin1String("wireless") && p.label.startsWith(QLatin1String("en")))
                 return QStringLiteral("Wireless LAN adapter %1:").arg(p.label);
+#if defined(PLATFORM_IOS)
+            // v0.0.3 iOS：pdp_ip* = 蜂窝承载（曾落 "Ethernet adapter"
+            // ——逐字节对齐落空）
+            if (type != QLatin1String("wireless") && p.label.startsWith(QLatin1String("pdp_ip")))
+                return QStringLiteral("Cellular adapter %1:").arg(p.label);
+#endif
 #endif
             return type == QLatin1String("wireless")
                 ? QStringLiteral("Wireless LAN adapter %1:").arg(p.label)
@@ -463,46 +477,13 @@ inline QStringList legacyTerminalLines(DiagId id,
     }
 
     // ── G1CellularInfo — "Cellular Information:" + 逐行 ──
-    // v0.0.3：iOS 有 SIM 线（Carrier/Radio Access/IP/Gateway/Signal）；
-    // 非 iOS 恒 "  [Skipped] Cellular info requires iOS — not applicable
-    // on this platform"（Linux 探针 mmcli 有数据时 details 非空，本层仅
-    // 兜底 Skipped/空态，语义与 v0.0.3 逐字对齐）。
-    case DiagId::G1CellularInfo: {
-        out.append(QString());
-        out.append(QStringLiteral("Cellular Information:"));
-        out.append(QString());
-#if !defined(PLATFORM_IOS)
-        out.append(QStringLiteral("  [Skipped] Cellular info requires iOS — not applicable on this platform"));
-        out.append(QString());
-        return out;
-#else
-        bool any = false;
-        for (const auto& p : props) {
-            const QString carrier = childVal(p, QStringLiteral("carrier"));
-            const QString rat = childVal(p, QStringLiteral("radio access"));
-            const QString sig = childVal(p, QStringLiteral("signal"));
-            const QStringList ips4 = [&]() {
-                QStringList v;
-                for (const auto& c : p.children)
-                    if (c.label == QLatin1String("IPv4")) v.append(c.value);
-                return v;
-            }();
-            if (carrier.isEmpty() && rat.isEmpty() && sig.isEmpty()
-                && ips4.isEmpty() && !p.label.contains(QLatin1String("modem"), Qt::CaseInsensitive))
-                continue;
-            any = true;
-            out.append(QStringLiteral("  %1:").arg(p.label));
-            if (!carrier.isEmpty()) out.append(QStringLiteral("  Carrier: %1").arg(carrier));
-            if (!rat.isEmpty()) out.append(QStringLiteral("  Radio Access: %1").arg(rat));
-            if (!ips4.isEmpty()) out.append(QStringLiteral("  IP Address: %1").arg(ips4.join(QStringLiteral(", "))));
-            if (!sig.isEmpty()) out.append(QStringLiteral("  Signal: %1").arg(sig));
-            out.append(QString());
-        }
-        if (!any)
-            out.append(QStringLiteral("  No cellular service available"));
-        return out;
-#endif
-    }
+    // 5WHY (复核 2026-08-21 死分支删除): G1CellularInfo 三个平台适配器
+    // （probeCellular/iosCellularProbe/androidCellularDiag）恒返回非空
+    // details——本层仅在 details 为空时运行，此 case 除取消结果外不可达
+    // （取消已由 resultFor 状态门拦截，不进入派生链）。曾于取消时误印
+    // "[Skipped] Cellular info requires iOS"（取消被妆成平台跳过）。
+    // 删除 case：回退 propsDumpText 平铺（不可达路径，零行为变化）。
+    // （iOS/Android 各自的 v0.0.3 恒文已由探针层 details 承载。）
 
     // ── G1WiredDiagnostics — "Wired Information (table mode):" + 表 ──
     // v0.0.3 Linux：Speed 裸 Mbps、Link = /sys carrier（"0"/"1"）、
