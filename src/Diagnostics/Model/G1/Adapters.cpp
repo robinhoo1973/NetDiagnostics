@@ -1642,7 +1642,7 @@ static DiagnosticResult probeCellular(DiagId id, const QString&, RunContext& ctx
     // cellularInfo iOS 分支（iosCellularInfo/pdp_ip0 网关）。
     {
         QVariantMap cell = iosCellularInfo();
-        const bool hasCellIdentity = hasCellularIdentity(cell);
+        const bool hasCellIdentity = SystemDiagnostics::hasCellularIdentity(cell);
         const QString cellIp = iosInterfaceIPv4(QStringLiteral("pdp_ip0"));
         const QString cellGw = iosGatewayForInterface(QStringLiteral("pdp_ip0"));
         const QVariantList sims = cell.value(QStringLiteral("sims")).toList();
@@ -1673,7 +1673,7 @@ static DiagnosticResult probeCellular(DiagId id, const QString&, RunContext& ctx
                      cellIp.isEmpty() ? QStringLiteral("(not assigned)") : cellIp));
             if (!cellGw.isEmpty())
                 out.append(QStringLiteral("  Gateway: %1").arg(cellGw));
-            if (hasNonEmptyValue(cell, "signalNotice"))
+            if (SystemDiagnostics::hasNonEmptyValue(cell, "signalNotice"))
                 out.append(QStringLiteral("  Signal: %1").arg(cell["signalNotice"].toString()));
             out.append(QString());
             status = DiagStatus::Pass;
@@ -1685,7 +1685,7 @@ static DiagnosticResult probeCellular(DiagId id, const QString&, RunContext& ctx
                 }
                 summary = QStringLiteral("%1 SIMs (%2)").arg(sims.size()).arg(rats.join(QStringLiteral(", ")));
             } else {
-                summary = cellularSummary(cell);
+                summary = SystemDiagnostics::cellularSummary(cell);
             }
         } else {
             out.append(QStringLiteral("  No cellular service available"));
@@ -1693,7 +1693,7 @@ static DiagnosticResult probeCellular(DiagId id, const QString&, RunContext& ctx
                 out.append(QStringLiteral("  IP Address: %1").arg(cellIp));
             if (!cellGw.isEmpty())
                 out.append(QStringLiteral("  Gateway: %1").arg(cellGw));
-            if (hasNonEmptyValue(cell, "signalNotice"))
+            if (SystemDiagnostics::hasNonEmptyValue(cell, "signalNotice"))
                 out.append(QStringLiteral("  Signal: %1").arg(cell["signalNotice"].toString()));
             summary = QStringLiteral("No cellular service");
         }
