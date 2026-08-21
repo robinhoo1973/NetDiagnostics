@@ -1,5 +1,5 @@
 // =============================================================================
-// DiagnosticMeta.cpp — 46-entry metadata table (contract layer)
+// DiagnosticMeta.cpp — 44-entry metadata table (contract layer)
 //
 // platforms values are the NEW-1 code-verified matrix:
 //   DiagCapability.h manifest + TaskFactory.cpp #if + g5DiagMatchesScheme.
@@ -59,7 +59,6 @@ static const DiagnosticMeta kDiagMeta[] = {
 
     // ── G2  Connectivity & Security ──────────────────────────────────────────
     { DiagId::G2NetworkProfile,    "Network Profile",    "nd-diag-g2-network-profile", PF_All,                    DiagAnimType::Jiggle, DiagTemplateType::System, sys(),              60000 },
-    { DiagId::G2TcpSettings,       "TCP Settings",       "nd-diag-g2-tcp-settings", PF_Desktop|PF_Android,        DiagAnimType::Jiggle, DiagTemplateType::System, sys(),              60000 },
     // 5WHY (复核 2026-08-20): Gateway 行曾随 grouped 改造误改 animType
     // （Converge→Jiggle）且改为 sysGrouped——但其 props 是扁平
     // gateway→interface 对（无 children），Kv 呈现才是原设计。两者还原。
@@ -69,19 +68,9 @@ static const DiagnosticMeta kDiagMeta[] = {
     { DiagId::G2ProxySettings,     "Proxy Settings",     "nd-diag-g2-proxy",        PF_Desktop|PF_Android,        DiagAnimType::Path,   DiagTemplateType::System, sys(),              60000 },
 
     // ── G3  Internet & DNS ───────────────────────────────────────────────────
-    // 5WHY (2026-08-19 用户诉求 "逐一审查详情页"): 曾复用 nd-diag-g3-dns-integrity
-    // ——同组 G3DnsIntegrity 瓦片与安全代理共用同一图标（相邻双胞胎）。安全
-    // 代理语义对齐 nd-diag-g2-proxy（代理图形），与 G2 组跨组不构成相邻重复。
-    // 5WHY (复核 2026-08-20 平台声明对齐): 曾声明 PF_Desktop|PF_Android 而
-    // 注册仅 PF_Desktop（Android 注销：SELinux 恒假阴性）——meta 声明与
-    // 注册不符使 verifyAllDiagIds 按派生白名单在 Android 调试构建 qFatal。
-    // 声明收敛为实际注册集。
-    // 5WHY (复核 2026-08-21 图标语义错配): 曾 DiagAnimType::Tick——Tick 动画
-    // 的勾形与盖片几何硬编码于盾牌打勾图标（nd-diag-g3-dns-integrity），本
-    // 瓦片图标是代理地球（nd-diag-g2-proxy，母版无勾形）——运行中永久绿勾
-    // 压在球心、盖片周期性遮没球心区域。回退通用 Pulse（呼吸环，无语义锚点
-    // 假设）。
-    { DiagId::G3NetskopeStatus,    "Security Proxy Status", "nd-diag-g2-proxy", PF_Desktop,  DiagAnimType::Pulse, DiagTemplateType::System, sys(),              60000 },
+    // 5WHY (复核 2026-08-21 用户诉求 "彻底删除 Netskope"): 本组首行原为
+    // Netskope Status 安全代理检测——已全平台删除（meta 行/探针/注册/
+    // DiagId/translations 索引同步移除）。
     { DiagId::G3DnsServers,        "DNS Servers",        "nd-diag-g3-dns-servers",   PF_All,                       DiagAnimType::Pulse,  DiagTemplateType::System, sys("serverCount","servers",0), 60000 },
     { DiagId::G3DnsCache,          "DNS Cache",          "nd-diag-g3-dns-cache",    PF_Desktop|PF_Android,        DiagAnimType::Jiggle, DiagTemplateType::System, sys("cacheEntries","entries",0), 60000 },
     { DiagId::G3DnsIntegrity,      "DNS Integrity",      "nd-diag-g3-dns-integrity",   PF_All,                       DiagAnimType::Tick,  DiagTemplateType::Handshake, metricOnly("overallScorePercent","%",0,DP::Gauge), 120000 },
@@ -121,7 +110,7 @@ static const DiagnosticMeta kDiagMeta[] = {
     { DiagId::G5Ldap,              "LDAP",               "nd-diag-g5-ldap",         PF_Desktop,                 DiagAnimType::Pulse,   DiagTemplateType::Query,  metricOnly("latencyMs","ms",0,DP::Gauge), 60000 },
     { DiagId::G5Mqtt,              "MQTT",               "nd-diag-g5-mqtt",         PF_Desktop,                 DiagAnimType::Bounce, DiagTemplateType::Query,  metricOnly("latencyMs","ms",0,DP::Gauge), 60000 },
 };
-static_assert(std::size(kDiagMeta) == 46, "kDiagMeta must cover all 46 DiagId values");
+static_assert(std::size(kDiagMeta) == 44, "kDiagMeta must cover all 44 DiagId values");
 
 const DiagnosticMeta& diagnosticMeta(DiagId id) {
     const int idx = static_cast<int>(id);

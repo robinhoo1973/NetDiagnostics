@@ -941,40 +941,6 @@ DiagnosticResult androidProxyDiag(DiagId id) {
 // /proc/sys/net is restricted on Android.  The equivalent network policy
 // state (metered/validated/private-DNS/bandwidth/MTU) is public via
 // NetworkCapabilities + LinkProperties.
-DiagnosticResult androidTcpSettingsDiag(DiagId id) {
-    DiagnosticResult r; r.id = id; r.group = DiagGroup::G2;
-    r.timestamp = QDateTime::currentDateTime();
-    QStringList out;
-    out.append(QString());
-    out.append(QStringLiteral("TCP / Network Settings (Android)"));
-    out.append(QString());
-    out.append(QStringLiteral("  /proc/sys/net is restricted on Android; the equivalent"));
-    out.append(QStringLiteral("  network policy state comes from NetworkCapabilities:"));
-    out.append(QString());
-
-    AndroidCaps caps = androidCapabilities();
-    if (!caps.available) {
-        out.append(QStringLiteral("  No active network"));
-        r.summary = QStringLiteral("No active network");
-        r.status = DiagStatus::Warning;
-    } else {
-        out.append(QStringLiteral("  Internet capability: %1").arg(caps.internet ? "Yes" : "No"));
-        out.append(QStringLiteral("  Validated (full connectivity): %1").arg(caps.validated ? "Yes" : "No"));
-        out.append(QStringLiteral("  Metered: %1").arg(caps.notMetered ? "No" : "Yes"));
-        out.append(QStringLiteral("  Restricted: %1").arg(caps.notRestricted ? "No" : "Yes"));
-        out.append(QStringLiteral("  Private DNS (DoT): %1").arg(caps.privateDns ? "Active" : "Off"));
-        if (caps.downKbps > 0)
-            out.append(QStringLiteral("  Link bandwidth: ↓%1 kbps / ↑%2 kbps").arg(caps.downKbps).arg(caps.upKbps));
-        int mtu = androidLinkMtu();
-        if (mtu > 0)
-            out.append(QStringLiteral("  Interface MTU: %1").arg(mtu));
-        r.summary = QStringLiteral("Network policy state collected");
-        r.status = DiagStatus::Pass;
-    }
-    r.rawOutput = out.join('\n');
-    r.details = r.rawOutput;
-    return r;
-}
 
 // ── G2 ARP Table ──────────────────────────────────────────────────────
 // /proc/net/arp is blocked by Android 10+ SELinux on most devices, but

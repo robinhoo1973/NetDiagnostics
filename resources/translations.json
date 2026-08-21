@@ -4529,23 +4529,6 @@
       "ملف تعريف الشبكة"
     ],
     "9": [
-      "TCP设置",
-      "TCP設定",
-      "TCP設定",
-      "TCP 설정",
-      "TCP सेटिंग्स",
-      "Cài đặt TCP",
-      "TCP Ayarları",
-      "TCP Settings",
-      "Paramètres TCP",
-      "TCP-Einstellungen",
-      "Настройки TCP",
-      "Impostazioni TCP",
-      "Configuración TCP",
-      "Configurações TCP",
-      "إعدادات TCP"
-    ],
-    "10": [
       "默认网关",
       "默認閘道",
       "デフォルトゲートウェイ",
@@ -4562,7 +4545,7 @@
       "Gateway padrão",
       "البوابة الافتراضية"
     ],
-    "11": [
+    "10": [
       "路由表",
       "路由表",
       "ルーティングテーブル",
@@ -4579,7 +4562,7 @@
       "Tabela de roteamento",
       "جدول التوجيه"
     ],
-    "12": [
+    "11": [
       "ARP表",
       "ARP表",
       "ARPテーブル",
@@ -4596,7 +4579,7 @@
       "Tabela ARP",
       "جدول ARP"
     ],
-    "13": [
+    "12": [
       "代理设置",
       "代理設定",
       "プロキシ設定",
@@ -4613,24 +4596,7 @@
       "Configurações de proxy",
       "إعدادات البروكسي"
     ],
-    "14": [
-      "Netskope状态",
-      "Netskope狀態",
-      "Netskope ステータス",
-      "Netskope 상태",
-      "Netskope स्थिति",
-      "Trạng thái Netskope",
-      "Netskope Durumu",
-      "Netskope Status",
-      "Statut Netskope",
-      "Netskope-Status",
-      "Статус Netskope",
-      "Stato Netskope",
-      "Estado de Netskope",
-      "Estado do Netskope",
-      "حالة Netskope"
-    ],
-    "15": [
+    "13": [
       "DNS服务器",
       "DNS伺服器",
       "DNSサーバー",
@@ -4647,7 +4613,7 @@
       "Servidores DNS",
       "خوادم DNS"
     ],
-    "16": [
+    "14": [
       "DNS缓存",
       "DNS快取",
       "DNSキャッシュ",
@@ -4664,7 +4630,7 @@
       "Cache DNS",
       "ذاكرة DNS المؤقتة"
     ],
-    "17": [
+    "15": [
       "DNS完整性",
       "DNS完整性",
       "DNS整合性",
@@ -4681,7 +4647,7 @@
       "Integridade DNS",
       "سلامة DNS"
     ],
-    "18": [
+    "16": [
       "IP地理定位",
       "IP地理定位",
       "IP位置情報",
@@ -4698,7 +4664,7 @@
       "Geolocalização IP",
       "تحديد الموقع الجغرافي عبر IP"
     ],
-    "19": [
+    "17": [
       "互联网连接与速度",
       "網際網路連線與速度",
       "インターネット接続と速度",
@@ -4715,7 +4681,7 @@
       "Conectividade e velocidade da Internet",
       "الاتصال بالإنترنت وسرعته"
     ],
-    "20": [
+    "18": [
       "DNS解析",
       "DNS解析",
       "DNS名前解決",
@@ -4732,7 +4698,7 @@
       "Resolução DNS",
       "تحليل DNS"
     ],
-    "21": [
+    "19": [
       "Ping",
       "Ping",
       "Ping",
@@ -4749,7 +4715,7 @@
       "Ping",
       "Ping"
     ],
-    "22": [
+    "20": [
       "路由追踪",
       "路由追蹤",
       "Traceroute",
@@ -4766,7 +4732,7 @@
       "Traceroute",
       "Traceroute"
     ],
-    "23": [
+    "21": [
       "路径Ping",
       "路徑Ping",
       "PathPing",
@@ -4783,7 +4749,7 @@
       "PathPing",
       "PathPing"
     ],
-    "24": [
+    "22": [
       "MTU发现",
       "MTU發現",
       "MTU探索",
@@ -4800,7 +4766,7 @@
       "Descoberta de MTU",
       "اكتشاف MTU"
     ],
-    "25": [
+    "23": [
       "IPv6连接",
       "IPv6連線",
       "IPv6接続",
@@ -4817,7 +4783,7 @@
       "Conectividade IPv6",
       "اتصال IPv6"
     ],
-    "26": [
+    "24": [
       "URL解析",
       "URL解析",
       "URL解析",
@@ -4834,7 +4800,7 @@
       "Análise de URL",
       "تحليل URL"
     ],
-    "27": [
+    "25": [
       "TCP连接",
       "TCP連接",
       "TCP接続",
@@ -4851,7 +4817,7 @@
       "Conexão TCP",
       "اتصال TCP"
     ],
-    "28": [
+    "26": [
       "服务标识",
       "服務標識",
       "サービスのバナー",
@@ -4868,7 +4834,7 @@
       "Banner de serviço",
       "لافتة الخدمة"
     ],
-    "29": [
+    "27": [
       "HTTP请求",
       "HTTP請求",
       "HTTPリクエスト",
@@ -4885,7 +4851,7 @@
       "Requisição HTTP",
       "طلب HTTP"
     ],
-    "30": [
+    "28": [
       "HTTP头",
       "HTTP標頭",
       "HTTPヘッダー",
@@ -4902,7 +4868,7 @@
       "Cabeçalhos HTTP",
       "رؤوس HTTP"
     ],
-    "31": [
+    "29": [
       "安全头",
       "安全標頭",
       "セキュリティヘッダー",
@@ -4919,7 +4885,7 @@
       "Cabeçalhos de segurança",
       "رؤوس الأمان"
     ],
-    "32": [
+    "30": [
       "SSL证书",
       "SSL憑證",
       "SSL証明書",
@@ -4936,7 +4902,7 @@
       "Certificado SSL",
       "شهادة SSL"
     ],
-    "33": [
+    "31": [
       "HTTP重定向",
       "HTTP重定向",
       "HTTPリダイレクト",
@@ -4953,7 +4919,7 @@
       "Redirecionamento HTTP",
       "إعادة توجيه HTTP"
     ],
-    "34": [
+    "32": [
       "HTTP压缩",
       "HTTP壓縮",
       "HTTP圧縮",
@@ -4970,7 +4936,7 @@
       "Compressão HTTP",
       "ضغط HTTP"
     ],
-    "35": [
+    "33": [
       "HTTP计时",
       "HTTP計時",
       "HTTPタイミング",
@@ -4987,7 +4953,7 @@
       "Tempos HTTP",
       "توقيت HTTP"
     ],
-    "36": [
+    "34": [
       "FTP诊断",
       "FTP診斷",
       "FTP診断",
@@ -5004,7 +4970,7 @@
       "Diagnóstico FTP",
       "تشخيص FTP"
     ],
-    "37": [
+    "35": [
       "SSH诊断",
       "SSH診斷",
       "SSH診断",
@@ -5021,7 +4987,7 @@
       "Diagnóstico SSH",
       "تشخيص SSH"
     ],
-    "38": [
+    "36": [
       "电子邮件诊断",
       "電子郵件診斷",
       "メール診断",
@@ -5038,7 +5004,7 @@
       "Diagnóstico de e-mail",
       "تشخيص البريد الإلكتروني"
     ],
-    "39": [
+    "37": [
       "Telnet",
       "Telnet",
       "Telnet",
@@ -5055,7 +5021,7 @@
       "Telnet",
       "Telnet"
     ],
-    "40": [
+    "38": [
       "MySQL",
       "MySQL",
       "MySQL",
@@ -5072,7 +5038,7 @@
       "MySQL",
       "MySQL"
     ],
-    "41": [
+    "39": [
       "PostgreSQL",
       "PostgreSQL",
       "PostgreSQL",
@@ -5089,7 +5055,7 @@
       "PostgreSQL",
       "PostgreSQL"
     ],
-    "42": [
+    "40": [
       "Redis",
       "Redis",
       "Redis",
@@ -5106,7 +5072,7 @@
       "Redis",
       "Redis"
     ],
-    "43": [
+    "41": [
       "MongoDB",
       "MongoDB",
       "MongoDB",
@@ -5123,7 +5089,7 @@
       "MongoDB",
       "MongoDB"
     ],
-    "44": [
+    "42": [
       "LDAP",
       "LDAP",
       "LDAP",
@@ -5140,7 +5106,7 @@
       "LDAP",
       "LDAP"
     ],
-    "45": [
+    "43": [
       "MQTT",
       "MQTT",
       "MQTT",
@@ -5313,23 +5279,6 @@
       "نوع ملف تعريف الشبكة النشط (مجال/خاص/عام)"
     ],
     "9": [
-      "TCP/IP堆栈参数和配置",
-      "TCP/IP堆疊參數和組態",
-      "TCP/IPスタックパラメータと設定",
-      "TCP/IP 스택 매개변수 및 구성",
-      "TCP/IP स्टैक पैरामीटर और कॉन्फ़िगरेशन",
-      "Tham số và cấu hình ngăn xếp TCP/IP",
-      "TCP/IP yığını parametreleri ve yapılandırması",
-      "TCP/IP Stack Parameters and Configurations",
-      "Paramètres et configuration de la pile TCP/IP",
-      "TCP/IP-Stack-Parameter und Konfiguration",
-      "Параметры и конфигурация стека TCP/IP",
-      "Parametri e configurazione stack TCP/IP",
-      "Parámetros y configuraciones de la pila TCP/IP",
-      "Parâmetros e configurações da pilha TCP/IP",
-      "معلمات وتكوين مكدس TCP/IP"
-    ],
-    "10": [
       "默认网关可达性和响应时间",
       "預設閘道可達性和回應時間",
       "デフォルトゲートウェイの到達性と応答時間",
@@ -5346,7 +5295,7 @@
       "Acessibilidade e tempo de resposta do gateway padrão",
       "إمكانية الوصول إلى البوابة الافتراضية ووقت الاستجابة"
     ],
-    "11": [
+    "10": [
       "IPv4和IPv6路由表条目",
       "IPv4和IPv6路由表條目",
       "IPv4およびIPv6ルーティングテーブルエントリ",
@@ -5363,7 +5312,7 @@
       "Entradas da tabela de roteamento IPv4 e IPv6",
       "إدخالات جدول التوجيه IPv4 وIPv6"
     ],
-    "12": [
+    "11": [
       "ARP缓存条目用于本地网络发现",
       "ARP快取條目用於本地網路探索",
       "ローカルネットワーク検出のためのARPキャッシュエントリ",
@@ -5380,7 +5329,7 @@
       "Entradas de cache ARP para descoberta da rede local",
       "إدخالات ذاكرة ARP المؤقتة لاكتشاف الشبكة المحلية"
     ],
-    "13": [
+    "12": [
       "系统代理配置和自动检测",
       "系統代理組態和自動偵測",
       "システムプロキシ設定と自動検出",
@@ -5397,24 +5346,7 @@
       "Configuração de proxy do sistema e detecção automática",
       "تكوين البروكسي للنظام والكشف التلقائي"
     ],
-    "14": [
-      "Netskope客户端状态和连接健康",
-      "Netskope用戶端狀態和連線健康",
-      "Netskopeクライアントの状態と接続の健全性",
-      "Netskope 클라이언트 상태 및 연결 상태",
-      "Netskope क्लाइंट स्थिति और कनेक्शन स्वास्थ्य",
-      "Trạng thái và tình trạng kết nối máy khách Netskope",
-      "Netskope istemci durumu ve bağlantı sağlığı",
-      "Netskope Client Status and Connection Health",
-      "Statut du client Netskope et santé de la connexion",
-      "Netskope-Client-Status und Verbindungszustand",
-      "Статус клиента Netskope и состояние соединения",
-      "Stato client Netskope e salute connessione",
-      "Estado del cliente Netskope y salud de la conexión",
-      "Estado do cliente Netskope e integridade da conexão",
-      "حالة عميل Netskope وصحة الاتصال"
-    ],
-    "15": [
+    "13": [
       "配置的DNS服务器及其响应性",
       "設定的DNS伺服器及其回應性",
       "設定されたDNSサーバーとその応答性",
@@ -5431,7 +5363,7 @@
       "Servidores DNS configurados e sua capacidade de resposta",
       "خوادم DNS المكونة واستجابتها"
     ],
-    "16": [
+    "14": [
       "DNS解析器缓存条目和统计",
       "DNS解析器快取條目和統計",
       "DNSリゾルバーキャッシュエントリと統計",
@@ -5448,7 +5380,7 @@
       "Entradas e estatísticas do cache do resolvedor DNS",
       "إدخالات وإحصائيات ذاكرة محلل DNS المؤقتة"
     ],
-    "17": [
+    "15": [
       "检查DNS劫持或欺骗指标",
       "檢查DNS劫持或欺騙指標",
       "DNSハイジャックまたはスプーフィングの兆候をチェック",
@@ -5465,7 +5397,7 @@
       "Verificar indicadores de sequestro ou falsificação de DNS",
       "التحقق من مؤشرات اختطاف أو انتحال DNS"
     ],
-    "18": [
+    "16": [
       "IP地理定位: 通过服务器延迟确定物理位置 + 检测VPN",
       "IP地理定位: 通過伺服器延遲確定物理位置 + 檢測VPN",
       "サーバー遅延による物理的位置の特定 + VPN検出",
@@ -5482,7 +5414,7 @@
       "Geolocalização IP: localização física via latência + detecção VPN",
       "الموقع الفعلي عبر زمن انتقال الخادم + كشف VPN"
     ],
-    "19": [
+    "17": [
       "连接检查+Speedtest.net带宽测试",
       "連線檢查+Speedtest.net頻寬測試",
       "接続チェック + Speedtest.net帯域幅テスト",
@@ -5499,7 +5431,7 @@
       "Verificação de conectividade + teste de largura de banda do Speedtest.net",
       "فحص الاتصال + اختبار نطاق ترددي Speedtest.net"
     ],
-    "20": [
+    "18": [
       "将目标主机名解析为IP地址",
       "將目標主機名稱解析為IP位址",
       "ターゲットホスト名をIPアドレスに解決",
@@ -5516,7 +5448,7 @@
       "Resolver o nome de host alvo para endereço(s) IP",
       "تحليل اسم المضيف المستهدف إلى عنوان IP"
     ],
-    "21": [
+    "19": [
       "Ping往返时间和丢包率统计",
       "Ping往返時間和丟包率統計",
       "Ping往復時間とパケット損失統計",
@@ -5533,7 +5465,7 @@
       "Tempo de ida e volta do ping e estatísticas de perda de pacotes",
       "زمن الرحلة ذهاباً وإياباً وإحصائيات فقدان الحزم"
     ],
-    "22": [
+    "20": [
       "到目标的路由路径和每跳延迟",
       "到目標的路由路徑和每跳延遲",
       "ターゲットへのルートパスとホップごとの遅延",
@@ -5550,7 +5482,7 @@
       "Caminho da rota e latência por salto até o alvo",
       "مسار التوجيه وزمن الانتقال لكل قفزة إلى الهدف"
     ],
-    "23": [
+    "21": [
       "组合路由追踪和ping及每跳丢包",
       "組合路由追蹤和ping及每跳丟包",
       "トレースルートとPingの組み合わせ（ホップごとの損失あり）",
@@ -5567,7 +5499,7 @@
       "Traceroute e ping combinados com perda por salto",
       "Traceroute وPing مدمجان مع فقدان لكل قفزة"
     ],
-    "24": [
+    "22": [
       "到目标主机的路径MTU发现",
       "到目標主機的路徑MTU發現",
       "ターゲットホストへのパスMTU探索",
@@ -5584,7 +5516,7 @@
       "Descoberta de MTU de caminho até o host alvo",
       "اكتشاف MTU للمسار إلى المضيف المستهدف"
     ],
-    "25": [
+    "23": [
       "IPv6 DNS (AAAA)解析和TCP连接",
       "IPv6 DNS (AAAA)解析和TCP連線",
       "IPv6 DNS (AAAA) 解決とTCP接続",
@@ -5601,7 +5533,7 @@
       "Resolução DNS IPv6 (AAAA) e conectividade TCP",
       "تحليل DNS IPv6 (AAAA) واتصال TCP"
     ],
-    "26": [
+    "24": [
       "解析和验证目标URL组件",
       "解析和驗證目標URL元件",
       "ターゲットURLコンポーネントの解析と検証",
@@ -5618,7 +5550,7 @@
       "Analisar e validar os componentes da URL alvo",
       "تحليل والتحقق من مكونات URL المستهدفة"
     ],
-    "27": [
+    "25": [
       "对URL主机的默认端口进行TCP连接检查",
       "對URL主機的預設埠進行TCP連線檢查",
       "デフォルトポートでのURLホストへのTCP接続チェック",
@@ -5635,7 +5567,7 @@
       "Verificação de conectividade TCP ao host da URL na porta padrão",
       "فحص اتصال TCP بمضيف URL على المنفذ الافتراضي"
     ],
-    "28": [
+    "26": [
       "基于文本协议的服务标识检测",
       "基於文字協定的服務標識偵測",
       "テキストベースのプロトコルのサービスのバナー検出",
@@ -5652,7 +5584,7 @@
       "Detecção de banner de serviço para protocolos baseados em texto",
       "كشف لافتة الخدمة للبروتوكولات النصية"
     ],
-    "29": [
+    "27": [
       "HTTP请求/响应头和计时",
       "HTTP請求/回應標頭和計時",
       "HTTPリクエスト/レスポンスヘッダーとタイミング",
@@ -5669,7 +5601,7 @@
       "Cabeçalhos e tempos de requisição/resposta HTTP",
       "رؤوس وتوقيت طلب/استجابة HTTP"
     ],
-    "30": [
+    "28": [
       "来自目标服务器的HTTP响应头",
       "來自目標伺服器的HTTP回應標頭",
       "ターゲットサーバーからのHTTPレスポンスヘッダー",
@@ -5686,7 +5618,7 @@
       "Cabeçalhos de resposta HTTP do servidor alvo",
       "رؤوس استجابة HTTP من الخادم المستهدف"
     ],
-    "31": [
+    "29": [
       "安全相关的HTTP头（HSTS、CSP等）",
       "安全相關的HTTP標頭（HSTS、CSP等）",
       "セキュリティ関連HTTPヘッダー（HSTS、CSPなど）",
@@ -5703,7 +5635,7 @@
       "Cabeçalhos HTTP de segurança (HSTS, CSP, etc.)",
       "رؤوس HTTP المتعلقة بالأمان (HSTS وCSP وغيرها)"
     ],
-    "32": [
+    "30": [
       "SSL/TLS证书链和有效性检查",
       "SSL/TLS憑證鏈和有效性檢查",
       "SSL/TLS証明書チェーンと有効性チェック",
@@ -5720,7 +5652,7 @@
       "Cadeia de certificados SSL/TLS e verificação de validade",
       "سلسلة شهادة SSL/TLS والتحقق من الصلاحية"
     ],
-    "33": [
+    "31": [
       "HTTP重定向链和最终目的地",
       "HTTP重定向鏈和最終目的地",
       "HTTPリダイレクトチェーンと最終宛先",
@@ -5737,7 +5669,7 @@
       "Cadeia de redirecionamento HTTP e destino final",
       "سلسلة إعادة توجيه HTTP والوجهة النهائية"
     ],
-    "34": [
+    "32": [
       "支持的压缩方法和编码",
       "支援的壓縮方法和編碼",
       "サポートされている圧縮方式とエンコーディング",
@@ -5754,7 +5686,7 @@
       "Métodos de compressão e codificação suportados",
       "طرق الضغط والتشفير المدعومة"
     ],
-    "35": [
+    "33": [
       "HTTP请求时间分解（DNS、连接、SSL等）",
       "HTTP請求時間分解（DNS、連線、SSL等）",
       "HTTPリクエストタイミングの内訳（DNS、接続、SSLなど）",
@@ -5771,7 +5703,7 @@
       "Detalhamento dos tempos de requisição HTTP (DNS, conexão, SSL, etc.)",
       "تحليل توقيت طلب HTTP (DNS واتصال وSSL وغيرها)"
     ],
-    "36": [
+    "34": [
       "FTP服务可达性和横幅检测",
       "FTP服務可達性和橫幅偵測",
       "FTPサービスの到達性とバナー検出",
@@ -5788,7 +5720,7 @@
       "Acessibilidade do serviço FTP e detecção de banner",
       "إمكانية الوصول إلى خدمة FTP وكشف اللافتة"
     ],
-    "37": [
+    "35": [
       "SSH版本和密钥交换检测",
       "SSH版本和金鑰交換偵測",
       "SSHバージョンと鍵交換の検出",
@@ -5805,7 +5737,7 @@
       "Detecção de versão SSH e troca de chaves",
       "كشف إصدار SSH وتبادل المفاتيح"
     ],
-    "38": [
+    "36": [
       "SMTP/IMAP/POP3服务检测和横幅",
       "SMTP/IMAP/POP3服務偵測和橫幅",
       "SMTP/IMAP/POP3サービス検出とバナー",
@@ -5822,7 +5754,7 @@
       "Detecção de serviço SMTP/IMAP/POP3 e banner",
       "كشف خدمة SMTP/IMAP/POP3 واللافتة"
     ],
-    "39": [
+    "37": [
       "Telnet服务可达性和登录横幅",
       "Telnet服務可達性和登入橫幅",
       "Telnetサービスの到達性とログインバナー",
@@ -5839,7 +5771,7 @@
       "Acessibilidade do serviço Telnet e banner de login",
       "إمكانية الوصول إلى خدمة Telnet ولافتة تسجيل الدخول"
     ],
-    "40": [
+    "38": [
       "MySQL服务器可达性和版本检测",
       "MySQL伺服器可達性和版本偵測",
       "MySQLサーバーの到達性とバージョン検出",
@@ -5856,7 +5788,7 @@
       "Acessibilidade do servidor MySQL e detecção de versão",
       "إمكانية الوصول إلى خادم MySQL وكشف الإصدار"
     ],
-    "41": [
+    "39": [
       "PostgreSQL服务器可达性和版本检测",
       "PostgreSQL伺服器可達性和版本偵測",
       "PostgreSQLサーバーの到達性とバージョン検出",
@@ -5873,7 +5805,7 @@
       "Acessibilidade do servidor PostgreSQL e detecção de versão",
       "إمكانية الوصول إلى خادم PostgreSQL وكشف الإصدار"
     ],
-    "42": [
+    "40": [
       "Redis服务器可达性和INFO命令",
       "Redis伺服器可達性和INFO命令",
       "Redisサーバーの到達性とINFOコマンド",
@@ -5890,7 +5822,7 @@
       "Acessibilidade do servidor Redis e comando INFO",
       "إمكانية الوصول إلى خادم Redis وأمر INFO"
     ],
-    "43": [
+    "41": [
       "MongoDB服务器可达性和构建信息",
       "MongoDB伺服器可達性和構建資訊",
       "MongoDBサーバーの到達性とビルド情報",
@@ -5907,7 +5839,7 @@
       "Acessibilidade do servidor MongoDB e informações de build",
       "إمكانية الوصول إلى خادم MongoDB ومعلومات البناء"
     ],
-    "44": [
+    "42": [
       "LDAP服务器可达性和根DSE",
       "LDAP伺服器可達性和根DSE",
       "LDAPサーバーの到達性とRoot DSE",
@@ -5924,7 +5856,7 @@
       "Acessibilidade do servidor LDAP e DSE raiz",
       "إمكانية الوصول إلى خادم LDAP وRoot DSE"
     ],
-    "45": [
+    "43": [
       "MQTT代理可达性和CONNECT响应",
       "MQTT代理可達性和CONNECT回應",
       "MQTTブローカーの到達性とCONNECT応答",

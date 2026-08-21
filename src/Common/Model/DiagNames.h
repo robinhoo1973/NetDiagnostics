@@ -28,12 +28,10 @@ inline QString diagDisplayName(DiagId id) {
         case DiagId::G1ActiveConnections: return QStringLiteral("Active Connections");
         case DiagId::G1CellularInfo:     return QStringLiteral("Cellular Information");
         case DiagId::G2NetworkProfile:   return QStringLiteral("Network Profile");
-        case DiagId::G2TcpSettings:      return QStringLiteral("TCP Settings");
         case DiagId::G2DefaultGateway:   return QStringLiteral("Default Gateway");
         case DiagId::G2RoutingTable:     return QStringLiteral("Routing Table");
         case DiagId::G2ArpTable:         return QStringLiteral("ARP Table");
         case DiagId::G2ProxySettings:    return QStringLiteral("Proxy Settings");
-        case DiagId::G3NetskopeStatus: return QStringLiteral("Security Proxy Status");
         case DiagId::G3DnsServers:       return QStringLiteral("DNS Servers");
         case DiagId::G3DnsCache:         return QStringLiteral("DNS Cache");
         case DiagId::G3DnsIntegrity:     return QStringLiteral("DNS Integrity");

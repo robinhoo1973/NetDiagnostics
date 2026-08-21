@@ -27,7 +27,6 @@ DiagnosticResult androidCellularDiag(DiagId id);            // G1CellularInfo
 
 // ── G2: Connectivity & Security ────────────────────────────────────────
 DiagnosticResult androidNetworkProfileDiag(DiagId id);      // G2NetworkProfile
-DiagnosticResult androidTcpSettingsDiag(DiagId id);         // G2TcpSettings
 DiagnosticResult androidGatewayDiag(DiagId id);             // G2DefaultGateway
 DiagnosticResult androidRoutingTableDiag(DiagId id);        // G2RoutingTable
 DiagnosticResult androidArpTableDiag(DiagId id);            // G2ArpTable

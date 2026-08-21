@@ -22,7 +22,6 @@
 #include <netioapi.h>
 #include <wlanapi.h>
 #include <winhttp.h>
-#include <tlhelp32.h>
 #else
 #include <sys/socket.h>
 #include <netinet/in.h>

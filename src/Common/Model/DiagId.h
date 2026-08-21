@@ -76,7 +76,10 @@ inline QString diagStatusIcon(DiagStatus s) {
     return QString::fromLatin1(statusDescriptor(s).iconName);
 }
 
-// ── Test ID (46 values; 45 schedulable + 1 deprecated slot) ────────────────
+// ── Test ID (44 values; 全槽位可调度) ─────────────────────────────────────
+// 5WHY (复核 2026-08-21 删除 TCP Settings/Netskope): 曾 46 值（45 可调度 +
+// 1 弃用槽）。用户要求彻底删除该二检测项——枚举成员移除后为 44 值；
+// translations.json 的 diagName/diagDesc 索引同步重排（QML 按 ""+id 查询）。
 enum class DiagId {
     // G1 — System & Adapters (8)
     G1NetworkAdapters,
@@ -88,19 +91,21 @@ enum class DiagId {
     G1ActiveConnections,
     G1CellularInfo,
 
-    // G2 — Connectivity & Security (6)
+    // G2 — Connectivity & Security (5)
+    // 5WHY (复核 2026-08-21 用户诉求 "彻底删除 TCP Settings"): TCP 参数
+    // 检测（/proc/sys 一组 sysctl 键值）信息价值低且跨平台数据源不一
+    // （Windows 注册表/Linux sysfs 字段集不同）——用户明确要求全平台
+    // 彻底删除，枚举成员移除（translations.json 索引同步重排）。
     G2NetworkProfile,
-    G2TcpSettings,
     G2DefaultGateway,
     G2RoutingTable,
     G2ArpTable,
     G2ProxySettings,
 
     // G3 — Internet & DNS
-    // 5WHY (复核 2026-08-19 v0.0.3 对等恢复): 本槽位原为 Netskope Status
-    // 安全代理检测，重构期弃用为保留槽——用户诉求"历史版本数据全部呈现"，
-    // 恢复为正式检测项（探针移植自 v0.0.3 G3NetskopeStatus.cpp）。
-    G3NetskopeStatus,
+    // 5WHY (复核 2026-08-21 用户诉求 "彻底删除 Netskope"): Netskope 安全
+    // 代理检测（ps 进程扫描）已按用户要求全平台彻底删除——枚举成员移除
+    // （translations.json 索引同步重排）。
     G3DnsServers,
     G3DnsCache,
     G3DnsIntegrity,
@@ -142,12 +147,12 @@ inline DiagGroup diagGroup(DiagId id) {
     const int v = static_cast<int>(id);
     if (v >= static_cast<int>(DiagId::G1NetworkAdapters) && v <= static_cast<int>(DiagId::G1CellularInfo)) return DiagGroup::G1;
     if (v >= static_cast<int>(DiagId::G2NetworkProfile)   && v <= static_cast<int>(DiagId::G2ProxySettings)) return DiagGroup::G2;
-    if (v >= static_cast<int>(DiagId::G3NetskopeStatus) && v <= static_cast<int>(DiagId::G3InternetConnectivity)) return DiagGroup::G3;
+    if (v >= static_cast<int>(DiagId::G3DnsServers) && v <= static_cast<int>(DiagId::G3InternetConnectivity)) return DiagGroup::G3;
     if (v >= static_cast<int>(DiagId::G4DnsResolution)    && v <= static_cast<int>(DiagId::G4IPv6Connectivity)) return DiagGroup::G4;
     return DiagGroup::G5;
 }
 
-// Every DiagId value in declaration order (46 entries).
+// Every DiagId value in declaration order (44 entries).
 // 静态缓存 const& 返回（原 DiagnosticConfig 契约：O(1)，调用方持有引用安全）。
 inline const QVector<DiagId>& allDiagIds() {
     static const QVector<DiagId> ids = [] {
@@ -160,7 +165,8 @@ inline const QVector<DiagId>& allDiagIds() {
     return ids;
 }
 
-// 5WHY (复核 2026-08-19): 弃用槽已恢复为 Netskope——全部槽位可调度。
+// 5WHY (复核 2026-08-19): 弃用槽曾恢复为 Netskope；2026-08-21 用户要求
+// 彻底删除该检测项——现在全部槽位均为正式可调度项。
 // 函数形状保留（调用方契约；未来新增保留槽时在此排除）。
 inline bool isSchedulable(DiagId id) { Q_UNUSED(id); return true; }
 

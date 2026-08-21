@@ -7,7 +7,7 @@
 //   Linux:   /proc/net/{route,arp} + /proc/sys/net
 //   macOS:   sysctl NET_RT_DUMP / RTF_LLINFO
 // Platforms per NEW-1: NetworkProfile/DefaultGateway/RoutingTable=All;
-// TcpSettings/ArpTable/ProxySettings=Desktop|Android（Android 走归档 JNI 路径待迁移）
+// ArpTable/ProxySettings=Desktop|Android（Android 走归档 JNI 路径待迁移）
 // =============================================================================
 #if defined(_WIN32)
 // 必须最先定义（Qt 头会先拉入 windows.h）：
@@ -638,90 +638,6 @@ static DiagnosticResult probeNetworkProfile(DiagId id, const QString&, RunContex
     return makeResult(id, DiagStatus::Pass, QStringLiteral("Network Profile Collected"), props, out.join('\n'));
 }
 
-// ── G2TcpSettings ──────────────────────────────────────────────────────────
-static DiagnosticResult probeTcpSettings(DiagId id, const QString&, RunContext& ctx) {
-    QVector<ResultProperty> props;
-    QStringList out;
-    // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): 头行曾 "TCP Settings:"——
-    // v0.0.3 为 "\nTCP/IP Settings (table mode):\n"。
-    out.append(QString());
-    out.append(QStringLiteral("TCP/IP Settings (table mode):"));
-    out.append(QString());
-
-#if defined(_WIN32)
-    const QStringList keys = { QStringLiteral("MaxUserPort"), QStringLiteral("TcpTimedWaitDelay"),
-                               QStringLiteral("DefaultTTL"), QStringLiteral("KeepAliveTime") };
-    HKEY hKey = nullptr;
-    if (RegOpenKeyExA(HKEY_LOCAL_MACHINE,
-            "SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters",
-            0, KEY_READ, &hKey) == ERROR_SUCCESS) {
-        for (const QString& k : keys) {
-            if (ctx.cancelled.load()) { RegCloseKey(hKey); return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled")); }
-            DWORD val = 0, sz = sizeof(val);
-            if (RegQueryValueExA(hKey, k.toLatin1().constData(), nullptr, nullptr, (LPBYTE)&val, &sz) == ERROR_SUCCESS) {
-                props.append({k, QString::number(val)});
-                out.append(QStringLiteral("  %1 = %2").arg(k).arg(val));
-            }
-        }
-        RegCloseKey(hKey);
-    }
-#else // Linux / Android
-    // 属性卡：10 项 sysctl（友好标签集；曾误注 "与首版一致"——首版
-    // 列表含 tcp_fin_timeout，本表漏收即属性卡静默丢一项数据，补回）。
-    const struct { const char* path; const char* label; } kTcpSys[] = {
-        { "/proc/sys/net/ipv4/tcp_fin_timeout",     "FIN Timeout" },
-        { "/proc/sys/net/ipv4/tcp_keepalive_time",  "KeepAliveTime" },
-        { "/proc/sys/net/ipv4/tcp_keepalive_intvl", "KeepAliveInterval" },
-        { "/proc/sys/net/ipv4/ip_default_ttl",      "DefaultTTL" },
-        { "/proc/sys/net/ipv4/tcp_congestion_control", "Congestion Control" },
-        { "/proc/sys/net/ipv4/tcp_window_scaling",  "Window Scaling" },
-        { "/proc/sys/net/ipv4/tcp_timestamps",      "Timestamps" },
-        { "/proc/sys/net/ipv4/tcp_sack",            "Selective ACK" },
-        { "/proc/sys/net/ipv4/tcp_fastopen",        "TCP Fast Open" },
-        { "/proc/sys/net/ipv4/tcp_max_syn_backlog", "Max SYN Backlog" },
-    };
-    // 5WHY (复核 2026-08-21 双读消除): 表循环曾重开读取与首循环相同的
-    // 5 个 sysctl（每探针 5 次冗余 open+read）——首循环值入哈希，表行
-    // 复用（v0.0.3 表行集 ⊂ 属性行集）。
-    QHash<QString, QString> sysVals;
-    for (const auto& e : kTcpSys) {
-        if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
-        QFile file(QLatin1String(e.path));
-        if (file.open(QIODevice::ReadOnly)) {
-            const QString val = QString::fromLatin1(file.readAll().trimmed());
-            props.append({QLatin1String(e.label), val});
-            sysVals.insert(QLatin1String(e.path), val);
-        }
-    }
-    // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): v0.0.3 Linux 终端为
-    // formatTable {Setting 20/Value 0} 五行 readSys（文件不可读 → "-"，
-    // 恒五行）。首版曾仿 Windows 注册表标签集输出 "  Label: val" 九行
-    // ——行式/表式与行集均非 v0.0.3（"ms" 单位属 v0.0.3 Windows 分支，
-    // Linux readSys 无单位）。
-    const struct { const char* path; const char* label; } kTcpTable[] = {
-        { "/proc/sys/net/ipv4/tcp_congestion_control", "Congestion Control" },
-        { "/proc/sys/net/ipv4/tcp_window_scaling",      "Window Scaling" },
-        { "/proc/sys/net/ipv4/tcp_timestamps",          "Timestamps" },
-        { "/proc/sys/net/ipv4/tcp_sack",                "Selective ACK" },
-        { "/proc/sys/net/ipv4/tcp_fastopen",            "TCP Fast Open" },
-    };
-    static const QVector<DiagnosticFormatter::ColSpec> kTcpCols = {
-        {"Setting", 20, false},
-        {"Value",    0, false},
-    };
-    QList<QStringList> tcpRows;
-    for (const auto& e : kTcpTable) {
-        const QString val = sysVals.value(QLatin1String(e.path), QStringLiteral("-"));
-        tcpRows.append({ QLatin1String(e.label), val });
-    }
-    out.append(DiagnosticFormatter::formatTable(kTcpCols, tcpRows));
-#endif
-
-    if (props.isEmpty())
-        return makeResult(id, DiagStatus::Warning, QStringLiteral("TCP settings not accessible"), {}, out.join('\n'));
-    return makeResult(id, DiagStatus::Pass,
-        QStringLiteral("%1 TCP parameter(s)").arg(props.size()), props, out.join('\n'));
-}
 
 // ── G2ProxySettings ────────────────────────────────────────────────────────
 static DiagnosticResult probeProxySettings(DiagId id, const QString&, RunContext& ctx) {
@@ -798,16 +714,13 @@ static DiagnosticResult probeProxySettings(DiagId id, const QString&, RunContext
 // Called by registerAllAdapters() from main() (DIAG-2/A1 explicit init).
 void registerG2Adapters() {
     using g2::probeRoutingTable; using g2::probeArpTable;
-    using g2::probeNetworkProfile; using g2::probeTcpSettings;
+    using g2::probeNetworkProfile;
     using g2::probeDefaultGateway; using g2::probeProxySettings;
 
 #if defined(PLATFORM_ANDROID)
     // Android：6 项均有 JNI 深探测（NetworkDiagnostics.cpp）
     AdapterRegistry::registerAdapters(DiagId::G2NetworkProfile, {
         { PF_Android, "Android", {}, [](DiagId i, const QString&, RunContext&) { return androidNetworkProfileDiag(i); } },
-    });
-    AdapterRegistry::registerAdapters(DiagId::G2TcpSettings, {
-        { PF_Android, "Android", {}, [](DiagId i, const QString&, RunContext&) { return androidTcpSettingsDiag(i); } },
     });
     AdapterRegistry::registerAdapters(DiagId::G2DefaultGateway, {
         { PF_Android, "Android", {}, [](DiagId i, const QString&, RunContext&) { return androidGatewayDiag(i); } },
@@ -839,9 +752,6 @@ void registerG2Adapters() {
 #if !defined(PLATFORM_ANDROID)
         { PF_IOS,     "iOS",     {}, probeNetworkProfile },
 #endif
-    });
-    AdapterRegistry::registerAdapters(DiagId::G2TcpSettings, {
-        { PF_Desktop, "Desktop", {}, probeTcpSettings },
     });
     AdapterRegistry::registerAdapters(DiagId::G2DefaultGateway, {
         { PF_Desktop, "Desktop", {}, probeDefaultGateway },

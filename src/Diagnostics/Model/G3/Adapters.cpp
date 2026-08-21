@@ -41,12 +41,6 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QSslSocket>
-#if defined(_WIN32)
-// 5WHY (复核 2026-08-19 Windows 编译): probeNetskopeStatus 使用
-// CreateToolhelp32Snapshot/PROCESSENTRY32W——仅 <tlhelp32.h> 声明（GBase.h
-// 不在此 TU 包含链）。漏含在 MSVC 下 C3861/C2065 编译失败（Apple CI 不覆盖）。
-#include <tlhelp32.h>
-#endif
 #include <QSslCertificate>
 #include <QTcpSocket>
 #include <QHostInfo>
@@ -1192,101 +1186,6 @@ static DiagnosticResult probeInternetConnectivity(DiagId id, const QString&, Run
     return r;
 }
 
-// ── G3NetskopeStatus（5WHY 复核 2026-08-19 v0.0.3 对等恢复）─────────────
-// 移植自 v0.0.3 G3NetskopeStatus.cpp：扫描运行进程（Windows 快照 / /proc
-// comm）中的安全代理客户端（nsproxy/zscaler/netskope/zsproxy），
-// 检出=Pass、未检出=Info，终端转储呈现。
-static DiagnosticResult probeNetskopeStatus(DiagId id, const QString&, RunContext& ctx) {
-    QStringList out;
-    out.append(QString());
-    out.append(QStringLiteral("Security Proxy Status:"));
-    out.append(QString());
-    bool found = false;
-#if defined(_WIN32)
-    HANDLE hSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-    if (hSnap != INVALID_HANDLE_VALUE) {
-        PROCESSENTRY32W pe;
-        pe.dwSize = sizeof(pe);
-        if (Process32FirstW(hSnap, &pe)) {
-            do {
-                if (ctx.cancelled.load()) break;
-                const QString name = QString::fromWCharArray(pe.szExeFile);
-                if (name.contains(QStringLiteral("nsproxy"), Qt::CaseInsensitive)
-                    || name.contains(QStringLiteral("zsproxy"), Qt::CaseInsensitive)
-                    || name.contains(QStringLiteral("zscaler"), Qt::CaseInsensitive)
-                    || name.contains(QStringLiteral("netskope"), Qt::CaseInsensitive)) {
-                    out.append(QStringLiteral("  Found: %1 (PID %2)").arg(name).arg(pe.th32ProcessID));
-                    found = true;
-                }
-            } while (Process32NextW(hSnap, &pe));
-        }
-        CloseHandle(hSnap);
-    }
-#else
-#if defined(__APPLE__) && !defined(PLATFORM_IOS)
-    // 5WHY (复核 2026-08-20 macOS 假阴性): PF_Desktop 含 macOS——原 /proc
-    // 分支在 macOS 上恒为空表、"No security proxy detected" 恒假阴性。
-    // macOS 无 /proc：ps 单次快照（与 ActiveConnections 的 macOS 分支
-    // 同模式）。
-    // 5WHY (2026-08-20 CI): 必须排除 PLATFORM_IOS——iOS 也定义 __APPLE__，
-    // 而 QtCore 在 iOS 上定义 QT_NO_PROCESS（无进程模型，QProcess 类未声明），
-    // 裸 __APPLE__ 会让该分支在 iOS 编译并报 "unknown type name 'QProcess'"。
-    // iOS 走下方 /proc 分支（编译安全，空结果 → Info）。
-    QProcess ps;
-    ps.start(QStringLiteral("ps"), QStringList() << QStringLiteral("-e") << QStringLiteral("-o") << QStringLiteral("comm="));
-    if (ps.waitForFinished(3000)) {
-        for (const auto& line : QString::fromLocal8Bit(ps.readAllStandardOutput()).split(QLatin1Char('\n'))) {
-            if (ctx.cancelled.load()) break;
-            const QString comm = line.trimmed();
-            if (comm.isEmpty()) continue;
-            if (comm.contains(QStringLiteral("nsproxy"), Qt::CaseInsensitive)
-                || comm.contains(QStringLiteral("zsproxy"), Qt::CaseInsensitive)
-                || comm.contains(QStringLiteral("zscaler"), Qt::CaseInsensitive)
-                || comm.contains(QStringLiteral("netskope"), Qt::CaseInsensitive)) {
-                out.append(QStringLiteral("  Found: %1").arg(comm));
-                found = true;
-            }
-        }
-    } else {
-        ps.kill();
-        ps.waitForFinished(2000);   // R5-1
-    }
-#else
-    const QDir procDir(QStringLiteral("/proc"));
-    const auto entries = procDir.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot);
-    for (const auto& fi : entries) {
-        if (ctx.cancelled.load()) break;
-        bool ok = false;
-        fi.fileName().toInt(&ok);
-        if (!ok) continue;   // 非 PID 目录
-        QFile cmdLine(fi.absoluteFilePath() + QStringLiteral("/comm"));
-        if (cmdLine.open(QIODevice::ReadOnly)) {
-            const QString comm = QString::fromLatin1(cmdLine.readAll().trimmed());
-            if (comm.contains(QStringLiteral("nsproxy"), Qt::CaseInsensitive)
-                || comm.contains(QStringLiteral("zsproxy"), Qt::CaseInsensitive)
-                || comm.contains(QStringLiteral("zscaler"), Qt::CaseInsensitive)
-                || comm.contains(QStringLiteral("netskope"), Qt::CaseInsensitive)) {
-                out.append(QStringLiteral("  Found: %1 (PID %2)").arg(comm, fi.fileName()));
-                found = true;
-            }
-        }
-    }
-#endif
-#endif   // closes #if defined(__APPLE__)
-    // 5WHY (复核 2026-08-20 取消语义): 循环内 break 早停后曾直接落
-    // makeResult——取消的扫描计为 Pass/Info 假阴性/假阳性（与
-    // ActiveConnections 的循环后复查同源缺陷）。统一复查返回 Cancelled。
-    if (ctx.cancelled.load())
-        return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
-    if (!found) out.append(QStringLiteral("  No security proxy process detected"));
-    DiagnosticResult r = makeResult(id,
-        found ? DiagStatus::Pass : DiagStatus::Info,
-        found ? QStringLiteral("Security proxy detected")
-              : QStringLiteral("No security proxy detected"),
-        {}, out.join(QLatin1Char('\n')));
-    r.data[QStringLiteral("detected")] = found;
-    return r;
-}
 
 } // namespace g3
 
@@ -1326,11 +1225,7 @@ void registerG3Adapters() {
         {PF_IOS,     "iOS",     {}, g3::probeInternetConnectivity},
         {PF_Android, "Android", {}, g3::probeInternetConnectivity},
     });
-    // 5WHY (复核 2026-08-20 Android 恒假阴性): Android 的 SELinux/hidepid
-    // 屏蔽他进程 /proc/<pid>/comm——探测只能读到自己，真实客户端在跑也
-    // 恒报"未检出"。撤销 Android 注册（不运行比恒错结果诚实）；桌面三
-    // 平台（Windows 快照/macOS ps/Linux /proc）保留。
-    AdapterRegistry::registerAdapters(DiagId::G3NetskopeStatus, {
-        {PF_Desktop, "Desktop", {}, g3::probeNetskopeStatus},
-    });
+    // 5WHY (复核 2026-08-21 用户诉求 "彻底删除 Netskope"): Netskope 安全
+    // 代理检测（进程扫描）已全平台删除——探针与注册一并移除（注册块
+    // 原位删除；DiagId/translations 索引同步重排）。
 }
