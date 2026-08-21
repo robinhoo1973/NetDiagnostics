@@ -22,6 +22,7 @@
 #include "Common/Model/DiagNames.h"
 #include "Diagnostics/Model/GeoProbe.h"
 #include "Diagnostics/Model/ProbeConfig.h"
+#include "Common/Services/DnsResolver.h"   // v0.0.3 复刻 InternetConnectivity 最佳服务器 IP 解析
 #include "Diagnostics/Model/GHelpers.h"   // readProcLines / cachedRunTool
 
 #if defined(PLATFORM_ANDROID)
@@ -822,15 +823,36 @@ static QString detectCountry(int timeoutMs = 5000) {
     return sCached;
 }
 
-// TCP connect RTT to a host:port. Returns -1 when unreachable.
-static int tcpConnectMs(const QString& host, int port, int timeoutMs = 3000) {
-    QTcpSocket sock;
-    QElapsedTimer t; t.start();
-    sock.connectToHost(host, (quint16)port);
-    if (!sock.waitForConnected(timeoutMs)) return -1;
-    const int ms = (int)t.elapsed();
-    sock.disconnectFromHost();
-    return ms;
+// ── v0.0.3 复刻：Mann-Whitney U 精确置换检验 + Cliff's Delta ─────────
+// 5WHY (复核 2026-08-21 用户 "Geo Location 返回错误数据"): 现版 VPN 判定
+// 是自造的 RTT 中位数比较启发式——VPN 出口同国时把代理延迟当物理延迟，
+// 结论常反。v0.0.3 的科学判据：GeoIP 国家 vs TTFB 最低 HL 物理国家两个
+// 样本组的 Mann-Whitney U 置换检验（p<0.05）+ Cliff's Delta 效应量
+// （|δ|≥0.33），决策矩阵四象限。逐字复刻（含 ranks 修正——曾传原始
+// TTFB 值导致 p 值恒 1.0，VPN 检测成死代码）。
+static double exactPermutationPValue(const QVector<double>& combined,
+                                      int nA, int nB, double obsDev) {
+    int N = nA + nB;
+    double mu = nA * nB / 2.0;
+    int extremeCount = 0, totalPerms = 0;
+    unsigned maxMask = 1u << N;
+    for (unsigned mask = 0; mask < maxMask; mask++) {
+        int count = 0;
+        for (int i = 0; i < N; i++) if (mask & (1u << i)) count++;
+        if (count != nA) continue;
+        totalPerms++;
+        double rankSum = 0;
+        for (int i = 0; i < N; i++)
+            if (mask & (1u << i)) rankSum += combined[i];
+        double U = rankSum - nA * (nA + 1.0) / 2.0;
+        if (std::abs(U - mu) >= obsDev) extremeCount++;
+    }
+    return totalPerms > 0 ? (double)extremeCount / totalPerms : 1.0;
+}
+
+static double cliffDelta(double U, int nA, int nB) {
+    if (nA <= 0 || nB <= 0) return 0;
+    return 1.0 - 2.0 * U / (nA * nB);
 }
 
 static DiagnosticResult probeGeoIPLoc(DiagId id, const QString&, RunContext& ctx) {
@@ -868,112 +890,234 @@ static DiagnosticResult probeGeoIPLoc(DiagId id, const QString&, RunContext& ctx
         out.append(QStringLiteral("  Coordinates: %1, %2").arg(lat, 0, 'f', 4).arg(lon, 0, 'f', 4)); }
     if (!publicIp.isEmpty()){ props.append({QStringLiteral("Public IP"), publicIp}); out.append(QStringLiteral("  Public IP: %1").arg(publicIp)); }
 
-    // ── VPN heuristic（GeoProbe 管线：ProbeDatabase/Scheduler/Executor/Feedback）──
-    // 138 台真实测速服务器库按国家选择 + 外国基线；管线失败回退固定表直连。
-    QHash<QString, QVector<int>> rttByCc;
-    QStringList serverLines;
-    bool pipelineUsed = false;
-    if (!(cc == QLatin1String("XX") || cc.isEmpty())) {
-        ProbeConfig cfg;
-        cfg.scope = ProbeConfig::ByCountry;
-        cfg.scopeValue = cc;
-        cfg.rounds = 2;
-        cfg.topN = 6;
-        cfg.aggregation = ProbeConfig::Aggregation::ByCountry;
-        GeoProbe::instance().probe(cfg);
-        const ProbeResult pr = GeoProbe::instance().getFeedback(cfg);
-        for (const auto& s : pr.servers) {
-            if (!s.ok || s.ttfbMs < 0) continue;
-            const int ms = (int)s.ttfbMs;
-            rttByCc[s.country].append(ms);
-            serverLines.append(QStringLiteral("  [%1] %2:%3 — %4 ms")
-                .arg(s.country, s.host).arg(s.port).arg(ms));
-        }
-        if (!rttByCc.isEmpty()) pipelineUsed = true;
-        // 外国基线（3 台固定，ByServers 管线）
-        ProbeConfig fcfg;
-        fcfg.scope = ProbeConfig::ByServers;
-        fcfg.serverHosts = {QStringLiteral("speedtest.choopa.net:8080"),
-                            QStringLiteral("speedtest.sea01.softlayer.com:8080"),
-                            QStringLiteral("speedtest.fra1.de.leaseweb.net:8080")};
-        fcfg.rounds = 2;
-        fcfg.topN = 3;
-        GeoProbe::instance().probe(fcfg);
-        const ProbeResult fpr = GeoProbe::instance().getFeedback(fcfg);
-        for (const auto& s : fpr.servers) {
-            if (!s.ok || s.ttfbMs < 0) continue;
-            const int ms = (int)s.ttfbMs;
-            rttByCc[s.country].append(ms);
-            serverLines.append(QStringLiteral("  [%1] %2:%3 — %4 ms")
-                .arg(s.country, s.host).arg(s.port).arg(ms));
-        }
-    }
-    if (!pipelineUsed) {
-        // 回退：固定服务器表直连扫描（诚实降级）
-        static const struct { const char* cc; const char* host; int port; } kServers[] = {
-            {"CN", "beijing.unicomtest.com", 8080},
-            {"CN", "speedtest1.online.sh.cn", 8080},
-            {"JP", "gisho.work.prod.hosts.ooklaserver.net", 8080},
-            {"KR", "seoul.speedtest.gslnetworks.com", 8080},
-            {"US", "speedtest.choopa.net", 8080},
-            {"DE", "speedtest.fra1.de.leaseweb.net", 8080},
-        };
-        static const int kServerCount = (int)(sizeof(kServers) / sizeof(kServers[0]));
-        for (int i = 0; i < kServerCount; ++i) {
-            if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
-            const int ms = tcpConnectMs(QLatin1String(kServers[i].host), kServers[i].port, 3000);
-            const QString ccTag = QLatin1String(kServers[i].cc);
-            if (ms < 0) {
-                serverLines.append(QStringLiteral("  [%1] %2 — unreachable").arg(ccTag, QLatin1String(kServers[i].host)));
-            } else {
-                rttByCc[ccTag].append(ms);
-                serverLines.append(QStringLiteral("  [%1] %2 — %3ms").arg(ccTag, QLatin1String(kServers[i].host)).arg(ms));
-            }
-        }
-    }
-
-    int inCountryMedian = -1, bestForeign = INT_MAX;
-    bool vpnSuspected = false, vpnInconclusive = true;
-    for (auto it = rttByCc.cbegin(); it != rttByCc.cend(); ++it) {
-        QVector<int> v = it.value();
-        std::sort(v.begin(), v.end());
-        const int med = v[v.size() / 2];
-        if (it.key() == cc) inCountryMedian = med;
-        else if (med < bestForeign) bestForeign = med;
-    }
-    if (inCountryMedian > 0 && bestForeign < INT_MAX) {
-        vpnInconclusive = false;
-        vpnSuspected = inCountryMedian > bestForeign;
-    } else if (rttByCc.size() >= 2 && !rttByCc.contains(cc)) {
-        // All in-country servers unreachable but foreign servers reachable.
-        vpnInconclusive = false;
-        vpnSuspected = true;
-        inCountryMedian = -1;
-    }
+    // ── v0.0.3 复刻：Phase 2/3/4 — TTFB 物理定位 + Mann-Whitney VPN 判决 ──
+    // 5WHY (复核 2026-08-21 用户 "Geo Location 返回错误数据"): 现版把
+    // GeoIP 提供商的出口国家当"所在地"、再用自造 RTT 中位数启发式判 VPN
+    // ——VPN 出口与物理位置混淆，国家与 VPN 结论都可能是错的。v0.0.3 方法：
+    // GeoIP 国家（countryA）只作参考；物理位置（countryB）由 138 台测速
+    // 服务器库 TTFB 全局探测的最低 Hodges-Lehmann 国家给出；再对两组 TTFB
+    // 样本做 Mann-Whitney U 精确置换检验 + Cliff's Delta 四象限判决。
+    ProbeConfig cfg;
+    cfg.scope = ProbeConfig::Global;
+    cfg.rounds = 1;       // 单轮快速国家探测（与历史一致）
+    cfg.aggregation = ProbeConfig::Aggregation::ByCountry;
+    GeoProbe::instance().probe(cfg);
+    const ProbeResult result = GeoProbe::instance().getFeedback(cfg);
 
     out.append(QString());
-    out.append(QStringLiteral("── VPN Heuristic (TCP RTT by region) ──"));
-    for (const auto& line : serverLines) out.append(line);
-    QString vpnVerdict;
-    if (cc == QLatin1String("XX") || cc.isEmpty()) {
-        vpnVerdict = QStringLiteral("GeoIP providers unreachable — VPN check skipped");
-    } else if (vpnInconclusive) {
-        vpnVerdict = QStringLiteral("Inconclusive — not enough region samples");
-    } else if (vpnSuspected) {
-        vpnVerdict = QStringLiteral("Likely VPN/proxy — in-country RTT %1ms vs best foreign %2ms")
-            .arg(inCountryMedian > 0 ? QString::number(inCountryMedian) : QStringLiteral("unreachable"))
-            .arg(bestForeign);
-    } else {
-        vpnVerdict = QStringLiteral("No VPN signal — in-country RTT %1ms ≤ best foreign %2ms")
-            .arg(inCountryMedian).arg(bestForeign);
-    }
-    out.append(QStringLiteral("  %1").arg(vpnVerdict));
+    out.append(QStringLiteral("[Phase 2/4] TTFB Probe Complete — %1 Reachable, %2 Countries")
+        .arg(result.servers.size()).arg(result.countries.size()));
 
-    const bool geoSucceeded = !cc.isEmpty() && cc != QLatin1String("XX");
-    DiagnosticResult r = makeResult(id, geoSucceeded ? DiagStatus::Pass : DiagStatus::Warning,
-        geoSucceeded ? QStringLiteral("Country: %1 (%2)").arg(cc, city.isEmpty() ? isp : city)
-                     : QStringLiteral("GeoIP lookup failed"),
-        props, out.join(QLatin1Char('\n')));
+    // Step 3：最低 HL 国家 = 物理位置；聚合空时回退多数国家
+    QString countryB = result.physicalCountry;
+    out.append(QStringLiteral("Physical Location (Lowest HL): %1")
+        .arg(SystemDiagnostics::countryFullName(countryB)));
+    if (countryB == QLatin1String("XX") || result.countries.isEmpty()) {
+        if (!result.servers.isEmpty()) {
+            QHash<QString, int> countPerCountry;
+            for (const auto& srv : result.servers)
+                if (srv.ok && srv.ttfbMs > 0) countPerCountry[srv.country]++;
+            int bestN = 0; QString bestCC;
+            for (auto it = countPerCountry.begin(); it != countPerCountry.end(); ++it)
+                if (it.value() > bestN) { bestN = it.value(); bestCC = it.key(); }
+            if (bestN > 0) {
+                countryB = bestCC;
+                out.append(QStringLiteral("Physical Location (Fallback): %1 (%2 Reachable)")
+                    .arg(SystemDiagnostics::countryFullName(countryB)).arg(bestN));
+            }
+        }
+        if (countryB.isEmpty() || countryB == QLatin1String("XX")) {
+            out.append(QStringLiteral("Status: Insufficient Data for VPN Analysis"));
+            DiagnosticResult early = makeResult(id, DiagStatus::Warning,
+                QStringLiteral("GeoIP: %1, Physical: Unknown").arg(SystemDiagnostics::countryFullName(cc)),
+                props, out.join(QLatin1Char('\n')));
+            early.data[QStringLiteral("countryCode")] = cc;
+            early.data[QStringLiteral("city")] = city;
+            early.data[QStringLiteral("isp")] = isp;
+            early.data[QStringLiteral("as")] = asName;
+            early.data[QStringLiteral("publicIp")] = publicIp;
+            early.data[QStringLiteral("vpnSuspected")] = false;
+            early.data[QStringLiteral("vpnVerdict")] = QStringLiteral("Insufficient data for VPN analysis");
+            early.data[QStringLiteral("vpnConfidence")] = 30;
+            early.narrative = QStringLiteral("GeoIP country is %1, but the TTFB probe could not determine "
+                "a physical location — VPN analysis skipped.").arg(SystemDiagnostics::countryFullName(cc));
+            return early;
+        }
+    }
+
+    // Top 5 物理位置表（按 HL 延迟升序）
+    if (!result.countries.isEmpty()) {
+        out.append(QString());
+        out.append(QStringLiteral("Top 5 Physical Locations:"));
+        out.append(QString());
+        const int n = qMin(5, result.countries.size());
+        static const QVector<DiagnosticFormatter::ColSpec> kLocCols = {
+            {"Rank",              4, true},
+            {"Country",          20, false},
+            {"HL Latency (ms)", 15, true},
+            {"Servers",           7, true},
+        };
+        QList<QStringList> rows;
+        rows.reserve(n);
+        for (int i = 0; i < n; ++i) {
+            const auto& cr = result.countries[i];
+            rows.append({
+                QString::number(i + 1),
+                SystemDiagnostics::countryFullName(cr.code),
+                QStringLiteral("%1").arg(cr.hlMs, 0, 'f', 1),
+                QString::number(cr.serverCount),
+            });
+        }
+        out.append(DiagnosticFormatter::formatTable(kLocCols, rows));
+    }
+
+    const QString countryA = cc;
+    if (countryA == QLatin1String("XX") || countryA.isEmpty()) {
+        out.append(QStringLiteral("Status: Location Estimated as %1 (GeoIP Unreachable)")
+            .arg(SystemDiagnostics::countryFullName(countryB)));
+        DiagnosticResult early = makeResult(id, DiagStatus::Warning,
+            QStringLiteral("Physical: %1 (GeoIP Unreachable)").arg(SystemDiagnostics::countryFullName(countryB)),
+            props, out.join(QLatin1Char('\n')));
+        early.data[QStringLiteral("countryCode")] = countryB;
+        early.data[QStringLiteral("city")] = city;
+        early.data[QStringLiteral("isp")] = isp;
+        early.data[QStringLiteral("as")] = asName;
+        early.data[QStringLiteral("publicIp")] = publicIp;
+        early.data[QStringLiteral("vpnSuspected")] = false;
+        early.data[QStringLiteral("vpnVerdict")] = QStringLiteral("GeoIP providers unreachable — physical location only");
+        early.data[QStringLiteral("vpnConfidence")] = -1;
+        early.narrative = QStringLiteral("GeoIP providers were unreachable. The physical location was "
+            "estimated as %1 from the TTFB probe.").arg(SystemDiagnostics::countryFullName(countryB));
+        return early;
+    }
+
+    // Step 4：VPN 检测 — 两组 TTFB 样本的 Mann-Whitney U + Cliff's Delta
+    out.append(QStringLiteral("[Phase 3/4] VPN Detection — Permutation Test..."));
+
+    QVector<double> samplesA, samplesB;
+    for (const auto& cr : result.countries) {
+        for (const auto& srv : cr.servers) {
+            if (srv.country == countryA) samplesA.append(srv.ttfbMs);
+            if (srv.country == countryB) samplesB.append(srv.ttfbMs);
+        }
+    }
+
+    const int nA = samplesA.size(), nB = samplesB.size();
+    if (nA < 3 || nB < 3) {
+        out.append(QStringLiteral("GeoIP Country %1: %2 Samples, Physical Country %3: %4 Samples — Insufficient for VPN Test")
+            .arg(SystemDiagnostics::countryFullName(countryA)).arg(nA)
+            .arg(SystemDiagnostics::countryFullName(countryB)).arg(nB));
+        DiagnosticResult early = makeResult(id, DiagStatus::Info,
+            QStringLiteral("Physical: %1, GeoIP: %2 (Insufficient Data for VPN)")
+                .arg(SystemDiagnostics::countryFullName(countryB), SystemDiagnostics::countryFullName(countryA)),
+            props, out.join(QLatin1Char('\n')));
+        early.data[QStringLiteral("countryCode")] = cc;
+        early.data[QStringLiteral("city")] = city;
+        early.data[QStringLiteral("isp")] = isp;
+        early.data[QStringLiteral("as")] = asName;
+        early.data[QStringLiteral("publicIp")] = publicIp;
+        early.data[QStringLiteral("vpnSuspected")] = false;
+        early.data[QStringLiteral("vpnVerdict")] = QStringLiteral("Insufficient samples for VPN test");
+        early.data[QStringLiteral("vpnConfidence")] = 30;
+        early.narrative = QStringLiteral("GeoIP country %1 (%2 samples) vs physical country %3 (%4 samples) — "
+            "too few TTFB samples for a statistical VPN test.")
+            .arg(SystemDiagnostics::countryFullName(countryA)).arg(nA)
+            .arg(SystemDiagnostics::countryFullName(countryB)).arg(nB);
+        return early;
+    }
+
+    // 组合样本排序 → 平均秩 → 组 A 秩和 → U / p / δ
+    QVector<double> combined = samplesA + samplesB;
+    const int N = nA + nB;
+    QVector<std::pair<double, int>> indexed(N);
+    for (int i = 0; i < N; i++) indexed[i] = {combined[i], i};
+    std::sort(indexed.begin(), indexed.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
+
+    QVector<double> ranks(N);
+    for (int i = 0; i < N; ) {
+        int j = i; while (j < N && indexed[j].first == indexed[i].first) j++;
+        const double avgRank = (i + j - 1) / 2.0 + 1;   // 1-based 平均秩
+        for (int k = i; k < j; k++) ranks[indexed[k].second] = avgRank;
+        i = j;
+    }
+    double rankSumA = 0;
+    for (int i = 0; i < nA; i++) rankSumA += ranks[i];
+    const double U = rankSumA - nA * (nA + 1.0) / 2.0;
+    const double mu = nA * nB / 2.0;
+    const double obsDev = std::abs(U - mu);
+    // 5WHY (v0.0.3 死代码修复): 传 ranks 而非原始 TTFB（原始值使
+    // |U-mu| 对每个置换都成立 → p 恒 1.0 → VPN 检测恒不触发）。
+    const double pValue = (N <= 20) ? exactPermutationPValue(ranks, nA, nB, obsDev) : 1.0;
+    const double delta = cliffDelta(U, nA, nB);
+
+    out.append(QStringLiteral("[Phase 4/4] Statistical Results:"));
+    out.append(QStringLiteral("  GeoIP (%1): %2 Samples, Physical (%3): %4 Samples")
+        .arg(SystemDiagnostics::countryFullName(countryA)).arg(nA)
+        .arg(SystemDiagnostics::countryFullName(countryB)).arg(nB));
+    out.append(QStringLiteral("  Mann-Whitney U = %1, p-value = %2, Cliff's Delta = %3")
+        .arg(U, 0, 'f', 1).arg(pValue, 0, 'f', 4).arg(delta, 0, 'f', 3));
+
+    // ── VPN 决策矩阵（v0.0.3 四象限）──
+    bool vpnSuspected = false;
+    int vpnConfidence = 30;
+    QString vpnVerdict;
+    DiagStatus status;
+    QString summary;
+    auto fmtLoc = [&]() { return QStringLiteral("GeoIP=%1, Physical=%2, p=%3, δ=%4")
+        .arg(SystemDiagnostics::countryFullName(countryA), SystemDiagnostics::countryFullName(countryB))
+        .arg(pValue, 0, 'f', 4).arg(delta, 0, 'f', 3); };
+
+    if (countryA == countryB) {
+        out.append(QStringLiteral("  Status: No VPN — GeoIP and Physical Both %1 (%2)")
+            .arg(SystemDiagnostics::countryFullName(countryA)).arg(fmtLoc()));
+        summary = QStringLiteral("Physical: %1, GeoIP: %2 → No VPN")
+            .arg(SystemDiagnostics::countryFullName(countryB), SystemDiagnostics::countryFullName(countryA));
+        status = DiagStatus::Pass;
+        vpnSuspected = false;
+        vpnConfidence = 10;
+        vpnVerdict = QStringLiteral("No VPN — GeoIP and physical location agree (%1)")
+            .arg(SystemDiagnostics::countryFullName(countryA));
+    } else if (pValue < 0.05 && std::abs(delta) >= 0.33) {
+        out.append(QStringLiteral("  Status: VPN DETECTED — %1").arg(fmtLoc()));
+        summary = QStringLiteral("Physical: %1, GeoIP: %2 → VPN Detected")
+            .arg(SystemDiagnostics::countryFullName(countryB), SystemDiagnostics::countryFullName(countryA));
+        status = DiagStatus::Info;
+        vpnSuspected = true;
+        vpnConfidence = 90;
+        vpnVerdict = QStringLiteral("VPN detected — GeoIP %1 vs physical %2 (p=%3, δ=%4)")
+            .arg(SystemDiagnostics::countryFullName(countryA), SystemDiagnostics::countryFullName(countryB))
+            .arg(pValue, 0, 'f', 4).arg(delta, 0, 'f', 3);
+    } else if (pValue < 0.05 && std::abs(delta) < 0.33) {
+        out.append(QStringLiteral("  Status: VPN Likely — Significant Latency Difference, Small Effect (%1)")
+            .arg(fmtLoc()));
+        summary = QStringLiteral("Physical: %1, GeoIP: %2 → VPN Likely")
+            .arg(SystemDiagnostics::countryFullName(countryB), SystemDiagnostics::countryFullName(countryA));
+        status = DiagStatus::Info;
+        vpnSuspected = true;
+        vpnConfidence = 70;
+        vpnVerdict = QStringLiteral("VPN likely — significant latency difference (p=%1), small effect (δ=%2)")
+            .arg(pValue, 0, 'f', 4).arg(delta, 0, 'f', 3);
+    } else if (std::abs(delta) >= 0.33) {
+        out.append(QStringLiteral("  Status: VPN Possible — Medium Effect, Inconclusive Significance (%1)")
+            .arg(fmtLoc()));
+        summary = QStringLiteral("Physical: %1, GeoIP: %2 → VPN Possible")
+            .arg(SystemDiagnostics::countryFullName(countryB), SystemDiagnostics::countryFullName(countryA));
+        status = DiagStatus::Info;
+        vpnSuspected = true;
+        vpnConfidence = 50;
+        vpnVerdict = QStringLiteral("VPN possible — medium effect (δ=%1), inconclusive significance (p=%2)")
+            .arg(delta, 0, 'f', 3).arg(pValue, 0, 'f', 4);
+    } else {
+        out.append(QStringLiteral("  Status: Inconclusive — %1").arg(fmtLoc()));
+        summary = QStringLiteral("Physical: %1, GeoIP: %2 → Inconclusive")
+            .arg(SystemDiagnostics::countryFullName(countryB), SystemDiagnostics::countryFullName(countryA));
+        status = DiagStatus::Info;
+        vpnSuspected = false;
+        vpnConfidence = 30;
+        vpnVerdict = QStringLiteral("Inconclusive — latency pattern shows no clear VPN signal");
+    }
+
+    DiagnosticResult r = makeResult(id, status, summary, props, out.join(QLatin1Char('\n')));
     r.data[QStringLiteral("countryCode")] = cc;
     r.data[QStringLiteral("city")] = city;
     r.data[QStringLiteral("isp")] = isp;
@@ -985,131 +1129,101 @@ static DiagnosticResult probeGeoIPLoc(DiagId id, const QString&, RunContext& ctx
     }
     r.data[QStringLiteral("vpnSuspected")] = vpnSuspected;
     r.data[QStringLiteral("vpnVerdict")] = vpnVerdict;
-    // M5：vpnConfidence 按触发信号强度给出百分比（-1 = 未检查）
-    int vpnConfidence = -1;
-    if (!(cc == QLatin1String("XX") || cc.isEmpty())) {
-        if (vpnInconclusive) vpnConfidence = 50;
-        else if (vpnSuspected)
-            vpnConfidence = inCountryMedian > 0
-                ? qMin(90, 60 + (inCountryMedian - bestForeign)) : 90;
-        else
-            vpnConfidence = qMax(10, 40 - (bestForeign - inCountryMedian));
-    }
     r.data[QStringLiteral("vpnConfidence")] = vpnConfidence;
-    // 摘要卡推导叙述：出口 IP → 国家码/ASN → RTT 区域启发式 → VPN 结论
-    r.narrative = geoSucceeded
-        ? QStringLiteral("Egress IP %1 is geolocated to %2 (%3), ISP %4, AS %5. ")
-            .arg(publicIp, cc, city.isEmpty() ? QStringLiteral("city unknown") : city, isp.isEmpty() ? QStringLiteral("unknown") : isp, asName.isEmpty() ? QStringLiteral("unknown") : asName)
-          + QStringLiteral("VPN inference compares in-country vs foreign TCP RTT to regional endpoints: %1")
-            .arg(vpnVerdict)
-          + (vpnConfidence >= 0 ? QStringLiteral(" (confidence %1%).").arg(vpnConfidence) : QStringLiteral("."))
-        : QStringLiteral("GeoIP providers were unreachable — country/VPN checks were skipped.");
+    // 摘要卡叙述：GeoIP 出口 vs TTFB 物理定位 → 统计判决
+    r.narrative = QStringLiteral("Egress IP %1 (GeoIP %2, ISP %3). Physical location from the TTFB probe: %4. ")
+        .arg(publicIp.isEmpty() ? QStringLiteral("unknown") : publicIp,
+             SystemDiagnostics::countryFullName(countryA),
+             isp.isEmpty() ? QStringLiteral("unknown") : isp,
+             SystemDiagnostics::countryFullName(countryB))
+        + vpnVerdict
+        + QStringLiteral(" (Mann-Whitney U = %1, p = %2, Cliff's δ = %3).")
+            .arg(U, 0, 'f', 1).arg(pValue, 0, 'f', 4).arg(delta, 0, 'f', 3);
     return r;
 }
 
 // ═════════════════════════════════════════════════════════════════════════
-// G3InternetConnectivity — connectivity check + tiered HTTP speed test
+// G3InternetConnectivity — v0.0.3 复刻：TTFB 全局探测选优服务器 + 分档测速
 // ═════════════════════════════════════════════════════════════════════════
-static int httpStatusSync(const QString& url, int timeoutMs, qint64* ttfbMs = nullptr) {
-    const QUrl u(url);
-    const int port = u.port(u.scheme() == QLatin1String("https") ? 443 : 80);
-    QSslSocket sock;
-    QElapsedTimer t; t.start();
-    sock.setPeerVerifyMode(QSslSocket::VerifyNone);
-    sock.connectToHostEncrypted(u.host(), (quint16)port);
-    if (!sock.waitForEncrypted(timeoutMs)) { if (ttfbMs) *ttfbMs = -1; return 0; }
-    QByteArray req;
-    req += "GET " + u.path(QUrl::FullyEncoded).toUtf8() + " HTTP/1.1\r\n";
-    req += "Host: " + u.host().toUtf8() + "\r\n";
-    req += "User-Agent: NetDiagnostics/1.0\r\n";
-    req += "Connection: close\r\n\r\n";
-    if (sock.write(req) < req.size()) { if (ttfbMs) *ttfbMs = -1; return 0; }
-    QByteArray all;
-    while (t.elapsed() < timeoutMs) {
-        if (!sock.waitForReadyRead(qMin<qint64>(300, timeoutMs - t.elapsed()))) break;
-        all += sock.readAll();
-        if (all.contains("\r\n\r\n")) break;   // headers complete = TTFB
-    }
-    if (ttfbMs) *ttfbMs = t.elapsed();
-    sock.disconnectFromHost();
-    const int hdrEnd = all.indexOf("\r\n\r\n");
-    if (hdrEnd < 0) return 0;
-    const QList<QByteArray> head = all.left(hdrEnd).split('\r');
-    if (head.isEmpty()) return 0;
-    const QList<QByteArray> statusParts = head.first().split(' ');
-    if (statusParts.size() < 2) return 0;
-    return statusParts[1].toInt();
-}
-
-// Measures transfer throughput for a fixed byte count. Returns Mbps or -1.
-static double transferMbps(const QUrl& u, int bytes, bool upload, int timeoutMs) {
-    const int port = u.port(u.scheme() == QLatin1String("https") ? 443 : 80);
-    QSslSocket sock;
-    QElapsedTimer t; t.start();
-    sock.setPeerVerifyMode(QSslSocket::VerifyNone);
-    sock.connectToHostEncrypted(u.host(), (quint16)port);
-    if (!sock.waitForEncrypted(timeoutMs)) return -1;
-    QByteArray req;
-    if (upload) {
-        req += "POST " + u.path(QUrl::FullyEncoded).toUtf8() + " HTTP/1.1\r\n";
-        req += "Host: " + u.host().toUtf8() + "\r\n";
-        req += "Content-Type: application/octet-stream\r\n";
-        req += "Content-Length: " + QByteArray::number(bytes) + "\r\n\r\n";
-        req += QByteArray(bytes, 'x');
-    } else {
-        req += "GET " + u.path(QUrl::FullyEncoded).toUtf8();
-        if (u.hasQuery()) { req += '?'; req += u.query(QUrl::FullyEncoded).toUtf8(); }
-        req += " HTTP/1.1\r\n";
-        req += "Host: " + u.host().toUtf8() + "\r\n";
-        req += "Connection: close\r\n\r\n";
-    }
-    if (sock.write(req) < req.size()) return -1;
-    QByteArray all;
-    while (t.elapsed() < timeoutMs) {
-        if (!sock.waitForReadyRead(qMin<qint64>(300, timeoutMs - t.elapsed()))) break;
-        all += sock.readAll();
-    }
-    sock.disconnectFromHost();
-    const qint64 ms = t.elapsed();
-    const int hdrEnd = all.indexOf("\r\n\r\n");
-    if (hdrEnd < 0 || ms <= 0) return -1;
-    const QList<QByteArray> head = all.left(hdrEnd).split('\r');
-    if (head.isEmpty()) return -1;
-    const QList<QByteArray> statusParts = head.first().split(' ');
-    if (statusParts.size() < 2) return -1;
-    const int status = statusParts[1].toInt();
-    if (status < 200 || status >= 300) return -1;
-    const qint64 body = all.size() - hdrEnd - 4;
-    const qint64 payload = upload ? bytes : body;
-    if (payload <= 0) return -1;
-    return (payload * 8.0 / 1e6) / (ms / 1000.0);   // Mbps
-}
-
 static DiagnosticResult probeInternetConnectivity(DiagId id, const QString&, RunContext& ctx) {
-    QStringList out;
-    out.append(QStringLiteral("Internet Connectivity & Speed"));
+    // 5WHY (复核 2026-08-21 用户 "Internet Connectivity 与历史源码差距大"):
+    // 现版固定打 Cloudflare 三端点 + speed.cloudflare.com 测速，未用 138 台
+    // 测速服务器库与 TTFB 选优，检测方法与输出格式均与 v0.0.3 不同。逐字
+    // 复刻 v0.0.3 流程：GeoProbe 全局 TTFB 探测（3 轮、HL 聚合）→ 物理
+    // 位置 → Top 5 服务器表 → 最佳服务器详情 → DNS/TCP 预检 → 分档
+    // （64KB/256KB/1MB）下载/上传测速表（全败重试一次）→ 结论。
+    GeoProbe& gp = GeoProbe::instance();
+    ProbeConfig cfg;
+    cfg.scope = ProbeConfig::Global;
+    cfg.rounds = 3;
+    cfg.aggregation = ProbeConfig::Aggregation::ByCountry;
+    gp.probe(cfg);
+    const ProbeResult result = gp.getFeedback(cfg);
 
-    // ── Phase 1: connectivity (HTTPS 204 endpoints) ──
-    static const char* kEndpoints[] = {
-        "https://cp.cloudflare.com/",
-        "https://www.gstatic.com/generate_204",
-        "https://www.google.com/generate_204",
-    };
-    int reachable = 0, bestTtfb = INT_MAX;
-    for (const char* ep : kEndpoints) {
-        if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
-        qint64 ttfb = -1;
-        const int status = httpStatusSync(QLatin1String(ep), 8000, &ttfb);
-        if (status >= 200 && status < 400) {
-            ++reachable;
-            if (ttfb >= 0 && ttfb < bestTtfb) bestTtfb = (int)ttfb;
-            out.append(QStringLiteral("  ✓ %1 — HTTP %2 (%3ms)").arg(QLatin1String(ep)).arg(status).arg(ttfb));
-        } else {
-            out.append(QStringLiteral("  ✗ %1 — unreachable").arg(QLatin1String(ep)));
-        }
+    // 服务器元数据查找表（key = host:port）
+    struct Meta { QString name; QString sponsor; };
+    QHash<QString, Meta> metaByKey;
+    for (const auto& srv : GeoProbe::allServers()) {
+        Meta m; m.name = srv.name; m.sponsor = srv.sponsor;
+        metaByKey.insert(srv.host + QLatin1Char(':') + QString::number(srv.port), m);
     }
-    out.append(QStringLiteral("  Connectivity: %1/3 endpoints reachable").arg(reachable));
-    if (reachable == 0) {
+    QHash<QString, QString> ipCache;
+    auto resolveIp = [&](const QString& host) -> QString {
+        auto it = ipCache.find(host);
+        if (it != ipCache.end()) return it.value();
+        const QString ip = DnsResolver::instance().resolve(host, 3000);
+        ipCache[host] = ip;
+        return ip;
+    };
+
+    QStringList out;
+    out.append(QStringLiteral("Internet Connectivity"));
+    out.append(QStringLiteral("Method: TTFB Global Probe → 3-Round → HL Aggregation → Speed Test"));
+    out.append(QString());
+
+    // ── Phase 1: Location ──
+    out.append(QStringLiteral("── Phase 1: Location ──"));
+    out.append(QStringLiteral("Physical Location: %1").arg(SystemDiagnostics::countryFullName(result.physicalCountry)));
+    out.append(QStringLiteral("Probed %1 Servers, %2 Countries Reachable")
+        .arg(result.servers.size()).arg(result.countries.size()));
+    out.append(QString());
+
+    // ── Phase 2: Top 5 servers ──
+    out.append(QStringLiteral("── Phase 2: Top 5 Servers ──"));
+    int shown = 0;
+    QList<QStringList> topRows;
+    for (const auto& sr : result.servers) {
+        if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
+        if (shown >= 5) break;
+        const QString key = sr.host + QLatin1Char(':') + QString::number(sr.port);
+        auto mit = metaByKey.constFind(key);
+        const QString name = (mit != metaByKey.cend()) ? mit->name : sr.host;
+        const QString ip = resolveIp(sr.host);
+        topRows.append({
+            QString::number(shown + 1),
+            name,
+            SystemDiagnostics::countryCode3(sr.country),
+            ip.isEmpty() ? sr.host : ip,
+            QStringLiteral("%1ms").arg(sr.ttfbMs, 0, 'f', 1),
+            QStringLiteral("±%1ms").arg(sr.ciHalf, 0, 'f', 1),
+        });
+        shown++;
+    }
+    if (!topRows.isEmpty()) {
+        static const QVector<DiagnosticFormatter::ColSpec> kTopCols = {
+            {"Rank",    4, true},
+            {"Server", 28, false},
+            {"CC",      3, false},
+            {"IP",     16, false},
+            {"TTFB",    8, true},
+            {"95% CI",  8, true},
+        };
+        out.append(DiagnosticFormatter::formatTable(kTopCols, topRows));
+    }
+    out.append(QString());
+
+    if (result.servers.isEmpty()) {
+        out.append(QStringLiteral("No Reachable Server Found"));
         DiagnosticResult r = makeResult(id, DiagStatus::Fail,
             QStringLiteral("No Internet Connectivity"), {}, out.join(QLatin1Char('\n')));
         r.data[QStringLiteral("connected")] = false;
@@ -1118,70 +1232,168 @@ static DiagnosticResult probeInternetConnectivity(DiagId id, const QString&, Run
         r.data[QStringLiteral("uploadMbps")] = 0.0;
         r.data[QStringLiteral("downloadMbpsBest")] = 0.0;
         r.data[QStringLiteral("uploadMbpsBest")] = 0.0;
-        r.narrative = QStringLiteral("Internet connectivity: 0/3 endpoints reachable — the device has no Internet access. "
-            "Speed test was not run.");
+        r.narrative = QStringLiteral("No speed-test server was reachable — the device appears to have no Internet connectivity.");
         return r;
     }
 
-    // ── Phase 2: latency (TCP connect to edge) ──
-    const int tcpMs = tcpConnectMs(QStringLiteral("cp.cloudflare.com"), 443, 5000);
-    if (tcpMs >= 0) out.append(QStringLiteral("  Edge RTT (TCP connect): %1ms").arg(tcpMs));
+    // ── Phase 3: Best server ──
+    const ServerResult& best = result.servers[0];
+    const QString bestKey = best.host + QLatin1Char(':') + QString::number(best.port);
+    auto bestMeta = metaByKey.constFind(bestKey);
+    const QString bestIp = resolveIp(best.host);
 
-    // ── Phase 3: tiered speed test (Cloudflare edge) ──
-    static const int kTiers[] = { 64000, 256000, 1000000 };
-    static const char* kTierLabels[] = { "64 KB", "256 KB", "1 MB" };
-    double bestDl = 0, bestUl = 0;
-    for (int i = 0; i < 3; ++i) {
-        if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
-        const double dl = transferMbps(QUrl(QStringLiteral("https://speed.cloudflare.com/__down?bytes=%1").arg(kTiers[i])),
-                                       kTiers[i], false, 12000);
-        if (dl > 0) {
-            bestDl = qMax(bestDl, dl);
-            out.append(QStringLiteral("  Download %1: %2 Mbps").arg(QLatin1String(kTierLabels[i])).arg(dl, 0, 'f', 1));
-        } else {
-            out.append(QStringLiteral("  Download %1: failed").arg(QLatin1String(kTierLabels[i])));
+    out.append(QStringLiteral("── Phase 3: Best Server ──"));
+    out.append(QStringLiteral("  Name:    %1").arg(bestMeta != metaByKey.cend() ? bestMeta->name : best.host));
+    if (bestMeta != metaByKey.cend() && !bestMeta->sponsor.isEmpty())
+        out.append(QStringLiteral("  Sponsor: %1").arg(bestMeta->sponsor));
+    out.append(QStringLiteral("  Host:    %1:%2").arg(best.host).arg(best.port));
+    out.append(QStringLiteral("  IP:      %1").arg(bestIp.isEmpty() ? QStringLiteral("(Unresolved)") : bestIp));
+    out.append(QStringLiteral("  Country: %1").arg(SystemDiagnostics::countryFullName(best.country)));
+    out.append(QStringLiteral("  TTFB:    %1ms (95% CI ±%2ms, %3 rounds)")
+        .arg(best.ttfbMs, 0, 'f', 1).arg(best.ciHalf, 0, 'f', 1).arg(best.rounds));
+    out.append(QString());
+
+    // ── Phase 4: Speed Test ──
+    out.append(QStringLiteral("── Phase 4: Speed Test ──"));
+    out.append(QStringLiteral("Server: %1:%2").arg(best.host).arg(best.port));
+    if (bestIp.isEmpty())
+        out.append(QStringLiteral("  DNS:     ✗ Failed — Hostname Not Resolved"));
+    else
+        out.append(QStringLiteral("  DNS:     ✓ %1").arg(bestIp));
+    const int pingMs = SystemDiagnostics::tcpPingMs(best.host, best.port);
+    if (pingMs < 0)
+        out.append(QStringLiteral("  Ping:    ✗ TCP Connect Failed"));
+    else
+        out.append(QStringLiteral("  Ping:    ✓ %1ms TCP Connect").arg(pingMs));
+    out.append(QString());
+
+    struct Tier { int bytes; const char* label; };
+    const Tier kDlTiers[] = { { 64000, "64 KB" }, { 256000, "256 KB" }, { 1000000, "1 MB" } };
+    const Tier kUlTiers[] = { { 64000, "64 KB" }, { 256000, "256 KB" }, { 1000000, "1 MB" } };
+    static const QVector<DiagnosticFormatter::ColSpec> kSpeedCols = {
+        {"Size",     7,  true},
+        {"Speed",   10,  true},
+        {"Time",     6,  true},
+        {"Bytes",    8,  true},
+        {"Status",  18, false},
+    };
+
+    bool anyDlOk = false, anyUlOk = false;
+    double bestDlMbps = 0, bestUlMbps = 0;
+    QStringList dlOut, ulOut;
+    // 5WHY (v0.0.3): 网络抖动可能让全部档位首轮失败——单次重试后再报失败。
+    for (int pass = 0; pass < 2; ++pass) {
+        if (pass == 1) {
+            out.append(QStringLiteral("  (Retry after all tiers failed)"));
+            out.append(QString());
         }
-        const double ul = transferMbps(QUrl(QStringLiteral("https://speed.cloudflare.com/__up")),
-                                       kTiers[i], true, 12000);
-        if (ul > 0) {
-            bestUl = qMax(bestUl, ul);
-            out.append(QStringLiteral("  Upload   %1: %2 Mbps").arg(QLatin1String(kTierLabels[i])).arg(ul, 0, 'f', 1));
-        } else {
-            out.append(QStringLiteral("  Upload   %1: failed").arg(QLatin1String(kTierLabels[i])));
+        anyDlOk = false; anyUlOk = false;
+        bestDlMbps = 0; bestUlMbps = 0;
+        dlOut.clear(); ulOut.clear();
+
+        dlOut.append(QStringLiteral("  Download:"));
+        dlOut.append(QString());
+        {
+            QList<QStringList> dlRows;
+            for (const auto& tier : kDlTiers) {
+                if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
+                const QString dlUrl = QStringLiteral("http://%1:%2/download?size=%3")
+                    .arg(best.host).arg(best.port).arg(tier.bytes);
+                const SystemDiagnostics::SpeedResult dl = SystemDiagnostics::httpDownload(dlUrl, tier.bytes, 15000);
+                if (dl.ok && dl.mbps > 0.01) {
+                    dlRows.append({ QString::fromLatin1(tier.label),
+                        QStringLiteral("%1 Mbps").arg(dl.mbps, 0, 'f', 1),
+                        QStringLiteral("%1ms").arg(dl.durationMs),
+                        QString::number(dl.bytes), QStringLiteral("✓") });
+                    anyDlOk = true;
+                    if (dl.mbps > bestDlMbps) bestDlMbps = dl.mbps;
+                } else {
+                    const QString err = dl.error.isEmpty() ? QStringLiteral("Unknown Error") : dl.error;
+                    dlRows.append({ QString::fromLatin1(tier.label), QStringLiteral("—"),
+                        QStringLiteral("—"), QStringLiteral("—"), err });
+                }
+            }
+            dlOut.append(DiagnosticFormatter::formatTable(kSpeedCols, dlRows));
         }
+        dlOut.append(QString());
+
+        ulOut.append(QStringLiteral("  Upload:"));
+        ulOut.append(QString());
+        {
+            QList<QStringList> ulRows;
+            for (const auto& tier : kUlTiers) {
+                if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
+                const QString ulUrl = QStringLiteral("http://%1:%2/upload").arg(best.host).arg(best.port);
+                const SystemDiagnostics::SpeedResult ul = SystemDiagnostics::httpUpload(ulUrl, tier.bytes, 15000);
+                if (ul.ok && ul.mbps > 0.01) {
+                    ulRows.append({ QString::fromLatin1(tier.label),
+                        QStringLiteral("%1 Mbps").arg(ul.mbps, 0, 'f', 1),
+                        QStringLiteral("%1ms").arg(ul.durationMs),
+                        QString::number(ul.bytes), QStringLiteral("✓") });
+                    anyUlOk = true;
+                    if (ul.mbps > bestUlMbps) bestUlMbps = ul.mbps;
+                } else {
+                    const QString err = ul.error.isEmpty() ? QStringLiteral("Unknown Error") : ul.error;
+                    ulRows.append({ QString::fromLatin1(tier.label), QStringLiteral("—"),
+                        QStringLiteral("—"), QStringLiteral("—"), err });
+                }
+            }
+            ulOut.append(DiagnosticFormatter::formatTable(kSpeedCols, ulRows));
+        }
+        ulOut.append(QString());
+
+        if (anyDlOk || anyUlOk) break;
     }
+    out.append(dlOut);
+    out.append(ulOut);
 
-    DiagStatus status = DiagStatus::Pass;
-    if (bestDl <= 0 && bestUl <= 0) status = DiagStatus::Warning;
-    else if (bestDl > 0 && bestDl < 1.0) status = DiagStatus::Warning;
+    // ── Summary（v0.0.3 语式）──
+    DiagStatus status;
     QString summary;
-    if (bestDl > 0) summary = QStringLiteral("↓ %1 Mbps, ↑ %2 Mbps").arg(bestDl, 0, 'f', 1).arg(bestUl, 0, 'f', 1);
-    else if (bestUl > 0) summary = QStringLiteral("Upload only: %1 Mbps").arg(bestUl, 0, 'f', 1);
-    else summary = QStringLiteral("Speed test failed (connected)");
+    if (anyDlOk && anyUlOk) {
+        summary = QStringLiteral("Connected — %1 (%2ms, ↓%3/↑%4 Mbps)")
+            .arg(SystemDiagnostics::countryFullName(result.physicalCountry)).arg(best.ttfbMs, 0, 'f', 0)
+            .arg(bestDlMbps, 0, 'f', 1).arg(bestUlMbps, 0, 'f', 1);
+        status = DiagStatus::Pass;
+    } else if (anyDlOk) {
+        summary = QStringLiteral("Connected — %1 (%2ms, ↓%3 Mbps, Upload N/A)")
+            .arg(SystemDiagnostics::countryFullName(result.physicalCountry)).arg(best.ttfbMs, 0, 'f', 0)
+            .arg(bestDlMbps, 0, 'f', 1);
+        status = DiagStatus::Warning;
+    } else if (anyUlOk) {
+        summary = QStringLiteral("Connected — %1 (%2ms, Download N/A, ↑%3 Mbps)")
+            .arg(SystemDiagnostics::countryFullName(result.physicalCountry)).arg(best.ttfbMs, 0, 'f', 0)
+            .arg(bestUlMbps, 0, 'f', 1);
+        status = DiagStatus::Warning;
+    } else {
+        summary = QStringLiteral("Connected — %1 (%2ms, Speed Test Failed)")
+            .arg(SystemDiagnostics::countryFullName(result.physicalCountry)).arg(best.ttfbMs, 0, 'f', 0);
+        status = DiagStatus::Warning;
+    }
 
     DiagnosticResult r = makeResult(id, status, summary, {}, out.join(QLatin1Char('\n')));
     r.data[QStringLiteral("connected")] = true;
-    r.data[QStringLiteral("reachableEndpoints")] = reachable;
-    r.data[QStringLiteral("bestTtfbMs")] = bestTtfb < INT_MAX ? bestTtfb : -1;
-    r.data[QStringLiteral("edgeRttMs")] = tcpMs;
-    // M4：diag-g3 §2.5 契约键——latencyMs（TTFB）/ downloadMbps / uploadMbps
-    r.data[QStringLiteral("latencyMs")] = bestTtfb < INT_MAX ? bestTtfb : (tcpMs >= 0 ? tcpMs : -1);
-    r.data[QStringLiteral("downloadMbps")] = bestDl;
-    r.data[QStringLiteral("uploadMbps")] = bestUl;
-    r.data[QStringLiteral("downloadMbpsBest")] = bestDl;
-    r.data[QStringLiteral("uploadMbpsBest")] = bestUl;
-    // 摘要卡叙述：可达性结论 + TTFB/边缘 RTT + 测速结果
-    r.narrative = QStringLiteral("Internet connectivity: %1/3 endpoints reachable. ")
-        .arg(reachable)
-        + (bestTtfb < INT_MAX
-            ? QStringLiteral("Best endpoint TTFB %1ms. ").arg(bestTtfb)
-            : (tcpMs >= 0 ? QStringLiteral("Edge RTT (TCP connect) %1ms. ").arg(tcpMs) : QStringLiteral("")))
-        + (bestDl > 0
-            ? QStringLiteral("Speed test: download %1 Mbps, upload %2 Mbps (best of three tiers).")
-                .arg(bestDl, 0, 'f', 1).arg(bestUl, 0, 'f', 1)
-            : bestUl > 0
-                ? QStringLiteral("Speed test: download failed, upload %1 Mbps.").arg(bestUl, 0, 'f', 1)
-                : QStringLiteral("Speed test failed despite reachable endpoints."));
+    r.data[QStringLiteral("reachableEndpoints")] = result.servers.size();
+    r.data[QStringLiteral("bestTtfbMs")] = best.ttfbMs;
+    r.data[QStringLiteral("edgeRttMs")] = pingMs;
+    r.data[QStringLiteral("latencyMs")] = best.ttfbMs;
+    r.data[QStringLiteral("downloadMbps")] = bestDlMbps;
+    r.data[QStringLiteral("uploadMbps")] = bestUlMbps;
+    r.data[QStringLiteral("downloadMbpsBest")] = bestDlMbps;
+    r.data[QStringLiteral("uploadMbpsBest")] = bestUlMbps;
+    // 摘要卡叙述：可达性 → 最佳服务器 → 分档测速结论
+    r.narrative = QStringLiteral("Physical location %1; %2/%3 servers reachable. Best server %4 (TTFB %5ms). ")
+        .arg(SystemDiagnostics::countryFullName(result.physicalCountry))
+        .arg(result.servers.size()).arg(GeoProbe::allServers().size())
+        .arg(bestMeta != metaByKey.cend() ? bestMeta->name : best.host)
+        .arg(best.ttfbMs, 0, 'f', 0)
+        + ((anyDlOk && anyUlOk)
+            ? QStringLiteral("Speed test: download %1 Mbps, upload %2 Mbps.").arg(bestDlMbps, 0, 'f', 1).arg(bestUlMbps, 0, 'f', 1)
+            : anyDlOk
+                ? QStringLiteral("Speed test: download %1 Mbps, upload failed.").arg(bestDlMbps, 0, 'f', 1)
+                : anyUlOk
+                    ? QStringLiteral("Speed test: download failed, upload %1 Mbps.").arg(bestUlMbps, 0, 'f', 1)
+                    : QStringLiteral("Speed test failed despite a reachable server."));
     return r;
 }
 

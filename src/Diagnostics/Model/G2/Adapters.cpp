@@ -610,6 +610,30 @@ static DiagnosticResult probeNetworkProfile(DiagId id, const QString&, RunContex
             ps.waitForFinished(2000);   // R5-1: 超时后必须回收，否则析构时进程仍在运行
         }
     }
+    // 5WHY (复核 2026-08-21 用户 "Network Profile 与历史差距大"): v0.0.3
+    // 的 Windows 网络类别（Public/Private/Domain）段在重构中丢失——逐字
+    // 复刻 Get-NetConnectionProfile 查询（含 R5-1 kill 回收）。
+    // 网络类别（Public/Private/Domain）
+    {
+        QProcess ps;
+        ps.start(QStringLiteral("powershell"), QStringList()
+            << QStringLiteral("-NoProfile") << QStringLiteral("-Command")
+            << QStringLiteral("Get-NetConnectionProfile | Select Name,NetworkCategory | Format-List"));
+        if (ps.waitForFinished(5000)) {
+            const QString catOut = QString::fromLocal8Bit(ps.readAllStandardOutput()).trimmed();
+            if (!catOut.isEmpty()) {
+                out.append(QString());
+                out.append(QStringLiteral("  Connection Profile:"));
+                for (const auto& line : catOut.split('\n')) {
+                    const QString t = line.trimmed();
+                    if (!t.isEmpty()) out.append(QStringLiteral("    ") + t);
+                }
+            }
+        } else {
+            ps.kill();
+            ps.waitForFinished(2000);   // R5-1: 超时后必须回收，否则析构时进程仍在运行
+        }
+    }
 #else
     QFile fwd(QStringLiteral("/proc/sys/net/ipv4/ip_forward"));
     if (fwd.open(QIODevice::ReadOnly)) {

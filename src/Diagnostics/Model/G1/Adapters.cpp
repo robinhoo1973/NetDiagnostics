@@ -19,6 +19,7 @@
 
 #include "Common/Services/PlatformAdapter.h"
 #include "Diagnostics/View/DiagnosticFormatter.h"   // v0.0.3 复刻 details（DHCP Apple 桩表）
+#include "Diagnostics/Model/GHelpers.h"   // iOS 蜂窝/WiFi 助手（v0.0.3 复刻）
 #include "Common/Model/DiagnosticMeta.h"
 #include "Common/Model/DiagNames.h"
 
@@ -495,6 +496,25 @@ static DiagnosticResult probeNicAdvanced(DiagId id, const QString&, RunContext& 
 static DiagnosticResult probeWifi(DiagId id, const QString&, RunContext& ctx) {
     QVector<ResultProperty> props;
     QStringList ssids;
+    // 5WHY (复核 2026-08-21 用户 "WiFi 没有任何输出"): 曾只填属性卡、
+    // rawOutput 恒空——v0.0.3 的终端表格（Interface/SSID/BSSID/Channel/
+    // Signal/Bitrate 对齐表）在重构中丢失，详情页终端区块空白；且无无线
+    // 接口时曾 Skipped（瓦片隐藏）→ 详情页整体无输出。复刻 v0.0.3：
+    // 表格入 rawOutput；无接口时 Info（可见）+ "(no wireless interfaces
+    // detected)" 文本，永不静默。
+    QStringList out;
+    QList<QStringList> wifiRows;
+#if defined(PLATFORM_IOS)
+    // v0.0.3：iosWiFiInfo 在循环前一次性调用（NEHotspotNetwork 逐接口
+    // 查询可阻塞至 5s，热点模式下 en0/en1/en2 三接口累计 15s）。
+    QString cachedIosSsid, cachedIosBssid, wifiDiagnosticMsg;
+    {
+        QVariantMap wifiData = iosWiFiInfo();
+        cachedIosSsid = wifiData.value(QStringLiteral("ssid"), QString()).toString();
+        cachedIosBssid = wifiData.value(QStringLiteral("bssid"), QString()).toString();
+        wifiDiagnosticMsg = wifiData.value(QStringLiteral("wifiDiagnostics"), QString()).toString();
+    }
+#endif
 #if defined(_WIN32)
     // Windows：WLAN API 深探测（SSID/BSSID/信道/RSSI/认证算法）
     HANDLE hClient = nullptr;
@@ -552,6 +572,8 @@ static DiagnosticResult probeWifi(DiagId id, const QString&, RunContext& ctx) {
                 p.children.append({QStringLiteral("BSSID"), bssid});
                 p.children.append({QStringLiteral("channel"), channel});
                 p.children.append({QStringLiteral("signal"), signal});
+                wifiRows.append({QString::fromWCharArray(wi.strInterfaceDescription),
+                    ssid, bssid, channel, signal, QStringLiteral("-")});
                 props.append(p);
                 if (ssid != QLatin1String("-")) ssids.append(ssid);
             }
@@ -588,12 +610,17 @@ static DiagnosticResult probeWifi(DiagId id, const QString&, RunContext& ctx) {
             seen.insert(ifName);
             QString ssid = QStringLiteral("-"), bssid = QStringLiteral("-");
             QString channel = QStringLiteral("-"), signal = QStringLiteral("-"), bitrate = QStringLiteral("-");
-#if defined(__APPLE__) && !defined(PLATFORM_IOS)
+#if defined(PLATFORM_IOS)
+            // v0.0.3：循环前缓存的 NEHotspot 数据（逐接口查询阻塞风险）
+            ssid = cachedIosSsid.isEmpty() ? QStringLiteral("-") : cachedIosSsid;
+            bssid = cachedIosBssid.isEmpty() ? QStringLiteral("-") : cachedIosBssid;
+#else
+#if defined(__APPLE__)
             const QString s = macosWifiSsid();
             if (!s.isEmpty()) ssid = s;
             const QString b = macosWifiBssid();
             if (!b.isEmpty()) bssid = b;
-#else
+#endif
 #if defined(__linux__) && !defined(PLATFORM_ANDROID)
             int sock = ::socket(AF_INET, SOCK_DGRAM, 0);
             if (sock >= 0) {
@@ -664,23 +691,85 @@ static DiagnosticResult probeWifi(DiagId id, const QString&, RunContext& ctx) {
             p.children.append({QStringLiteral("channel"), channel});
             p.children.append({QStringLiteral("signal"), signal});
             if (bitrate != QLatin1String("-")) p.children.append({QStringLiteral("bitrate"), bitrate});
+            wifiRows.append({ifName, ssid, bssid, channel, signal, bitrate});
             props.append(p);
             if (ssid != QLatin1String("-")) ssids.append(ssid);
         }
         freeifaddrs(ifa);
     }
 #endif
-    if (props.isEmpty())
-        return makeResult(id, DiagStatus::Skipped, QStringLiteral("No WiFi interface present"), {}, {});
+
+    // ── v0.0.3 复刻：终端对齐表（rawOutput）+ 无接口降级文本 ──
+    out.append(QString());
+    out.append(QStringLiteral("Wireless LAN information:"));
+    out.append(QString());
+    static const QVector<DiagnosticFormatter::ColSpec> kWifiCols = {
+        {"Interface", 12, false},
+        {"SSID",      20, false},
+        {"BSSID",     17, false},
+        {"Channel",    8, true},   // numeric
+        {"Signal",     7, true},   // numeric (dBm / %)
+        {"Bitrate",    0, true},   // numeric (Mbps)
+    };
+    out.append(DiagnosticFormatter::formatTable(kWifiCols, wifiRows));
+    if (wifiRows.isEmpty()) out.append(QStringLiteral("  (no wireless interfaces detected)"));
+
+#if defined(PLATFORM_IOS)
+    // v0.0.3：iOS 补 IP/网关段（en* 首个 AF_INET；热点桥接口跳过）
+    {
+        QString wifiIp, wifiGw, wifiIface;
+        struct ifaddrs* ifa2 = nullptr;
+        if (getifaddrs(&ifa2) == 0) {
+            for (auto* q2 = ifa2; q2; q2 = q2->ifa_next) {
+                if (!q2->ifa_addr || q2->ifa_addr->sa_family != AF_INET) continue;
+                QString name = QString::fromLatin1(q2->ifa_name);
+                if (!name.startsWith(QLatin1String("en"))) continue;
+                if (name.contains(QLatin1String("bridge"), Qt::CaseInsensitive)) continue;
+                wifiIface = name;
+                char buf[INET_ADDRSTRLEN] = {0};
+                auto* sin = (struct sockaddr_in*)q2->ifa_addr;
+                inet_ntop(AF_INET, &sin->sin_addr, buf, sizeof(buf));
+                wifiIp = QString::fromLatin1(buf);
+                break;
+            }
+            freeifaddrs(ifa2);
+        }
+        if (!wifiIface.isEmpty())
+            wifiGw = iosGatewayForInterface(wifiIface);
+        out.append(QString());
+        out.append(QStringLiteral("  IP Address: %1").arg(wifiIp.isEmpty() ? QStringLiteral("(not connected)") : wifiIp));
+        if (!wifiGw.isEmpty())
+            out.append(QStringLiteral("  Gateway: %1").arg(wifiGw));
+        out.append(QStringLiteral("  Channel/Signal/Bitrate: unavailable on iOS (no public API)"));
+        if (cachedIosSsid.isEmpty()) {
+            out.append(QString());
+            if (!wifiDiagnosticMsg.isEmpty()) {
+                out.append(QStringLiteral("  %1").arg(wifiDiagnosticMsg));
+            } else {
+                out.append(QStringLiteral("  Note: SSID/BSSID need the \"Access WiFi Information\" entitlement,"));
+                out.append(QStringLiteral("        Location permission, and an active WiFi connection."));
+            }
+        }
+    }
+#endif
+
+    if (props.isEmpty()) {
+        // 5WHY (复核 2026-08-21 无输出根因): 曾 Skipped——瓦片被隐藏，
+        // 详情页零输出。v0.0.3 语义：无无线接口仍以 Info 呈现表格空态文本。
+        DiagnosticResult r = makeResult(id, DiagStatus::Info,
+            QStringLiteral("No WiFi interface present"), {}, out.join(QLatin1Char('\n')));
+        r.narrative = QStringLiteral("No wireless interface was detected on this device.");
+        return r;
+    }
     DiagnosticResult r = makeResult(id, DiagStatus::Pass,
         ssids.isEmpty() ? QStringLiteral("WiFi interface present")
                         : QStringLiteral("WiFi: %1").arg(ssids.join(QStringLiteral(", "))),
-        props, {});
+        props, out.join(QLatin1Char('\n')));
     r.data[QStringLiteral("ssids")] = ssids;
     r.narrative = ssids.isEmpty()
         ? QStringLiteral("A wireless interface is present but not associated with any network (SSID: -). "
             "Check that Wi-Fi is enabled and connected to a network.")
-        : QStringLiteral("Wi-Fi is connected to: %1. SSID/BSSID/channel/signal are listed per interface below.")
+        : QStringLiteral("Wi-Fi is connected to: %1. SSID/BSSID/channel/signal are listed in the table and per interface below.")
             .arg(ssids.join(QStringLiteral(", ")));
     return r;
 }
@@ -1545,6 +1634,78 @@ static DiagnosticResult probeCellular(DiagId id, const QString&, RunContext& ctx
     // "Cellular Information:"（iOS 恒文同款头）。
     out.append(QStringLiteral("Cellular Information:"));
     out.append(QString());
+
+#if defined(PLATFORM_IOS)
+    // 5WHY (复核 2026-08-21 用户 "Cellular 与历史差距大"): v0.0.3 的 iOS
+    // 深探测分支（Carrier/Radio Access/IP/Gateway/Signal/SIM 卡槽）在重构
+    // 中丢失——iOS 上只剩接口名枚举，无任何蜂窝详情。逐字复刻 v0.0.3
+    // cellularInfo iOS 分支（iosCellularInfo/pdp_ip0 网关）。
+    {
+        QVariantMap cell = iosCellularInfo();
+        const bool hasCellIdentity = hasCellularIdentity(cell);
+        const QString cellIp = iosInterfaceIPv4(QStringLiteral("pdp_ip0"));
+        const QString cellGw = iosGatewayForInterface(QStringLiteral("pdp_ip0"));
+        const QVariantList sims = cell.value(QStringLiteral("sims")).toList();
+        const bool multiSim = sims.size() > 1;
+        DiagStatus status = DiagStatus::Info;
+        QString summary;
+        if (hasCellIdentity || !sims.isEmpty()) {
+            if (multiSim)
+                out.append(QStringLiteral("  %1 SIM / eSIM lines active:").arg(sims.size()));
+            for (const QVariant& v : sims) {
+                const QVariantMap sim = v.toMap();
+                const QString pad = multiSim ? QStringLiteral("    ") : QStringLiteral("  ");
+                if (multiSim)
+                    out.append(QStringLiteral("  SIM %1:").arg(sim.value(QStringLiteral("slot")).toInt()));
+                const QString carrier = sim.value(QStringLiteral("carrierName")).toString();
+                out.append(QStringLiteral("%1Carrier: %2").arg(pad,
+                    carrier.isEmpty() ? QStringLiteral("(hidden by iOS 16+)") : carrier));
+                const QString radio = sim.value(QStringLiteral("radioAccess")).toString();
+                out.append(QStringLiteral("%1Radio Access: %2").arg(pad,
+                    radio.isEmpty() ? QStringLiteral("(not available)") : radio));
+                ResultProperty sp(QStringLiteral("SIM %1").arg(sim.value(QStringLiteral("slot")).toInt()),
+                    carrier.isEmpty() ? QStringLiteral("(hidden by iOS 16+)") : carrier);
+                if (!radio.isEmpty()) sp.children.append({QStringLiteral("radio access"), radio});
+                props.append(sp);
+            }
+            out.append(QStringLiteral("  %1: %2")
+                .arg(multiSim ? QStringLiteral("Data IP (active line)") : QStringLiteral("IP Address"),
+                     cellIp.isEmpty() ? QStringLiteral("(not assigned)") : cellIp));
+            if (!cellGw.isEmpty())
+                out.append(QStringLiteral("  Gateway: %1").arg(cellGw));
+            if (hasNonEmptyValue(cell, "signalNotice"))
+                out.append(QStringLiteral("  Signal: %1").arg(cell["signalNotice"].toString()));
+            out.append(QString());
+            status = DiagStatus::Pass;
+            if (multiSim) {
+                QStringList rats;
+                for (const QVariant& v : sims) {
+                    const QString ra = v.toMap().value(QStringLiteral("radioAccess")).toString();
+                    rats.append(ra.isEmpty() ? QStringLiteral("\u2014") : ra);
+                }
+                summary = QStringLiteral("%1 SIMs (%2)").arg(sims.size()).arg(rats.join(QStringLiteral(", ")));
+            } else {
+                summary = cellularSummary(cell);
+            }
+        } else {
+            out.append(QStringLiteral("  No cellular service available"));
+            if (!cellIp.isEmpty())
+                out.append(QStringLiteral("  IP Address: %1").arg(cellIp));
+            if (!cellGw.isEmpty())
+                out.append(QStringLiteral("  Gateway: %1").arg(cellGw));
+            if (hasNonEmptyValue(cell, "signalNotice"))
+                out.append(QStringLiteral("  Signal: %1").arg(cell["signalNotice"].toString()));
+            summary = QStringLiteral("No cellular service");
+        }
+        out.append(QString());
+        DiagnosticResult r = makeResult(id, status, summary, props, out.join(QLatin1Char('\n')));
+        r.narrative = (status == DiagStatus::Pass)
+            ? QStringLiteral("Cellular service is active: %1.").arg(summary)
+            : QStringLiteral("No cellular service available on this device.");
+        return r;
+    }
+#endif
+
     // 5WHY (复核 2026-08-20 计数锁步): 曾 found bool 与 foundNames 逐处同
     // 置——漏一处即摘要与 Skipped 分支矛盾（同 DHCP leaseCount 类缺陷）。
     // found ≡ !foundNames.isEmpty()，删 bool 以列表为单一事实。
