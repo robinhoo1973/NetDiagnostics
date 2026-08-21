@@ -1,4 +1,5 @@
 import QtQuick
+import "../../theme" as T
 import "../../theme/AnimationTokens.js" as Tokens
 
 // ── WifiWaveAnimation.qml — WiFi 信号弧逐条亮起再逐条熄灭 ──────────────
@@ -16,6 +17,9 @@ import "../../theme/AnimationTokens.js" as Tokens
 // 是外弧（最长），先亮的是最长弧，与诉求方向相反。改为 (2−i)×arcFade
 // 起显（最短弧先亮），熄灭相位 i×arcFade（最长弧先灭）；周期保持
 // 6×arcFade+arcHold+arcGap（默认 1920ms，落在 replayWindowMs=2400 内）。
+// 5WHY (复核 2026-08-21 用户诉求 "弧线用不同的高亮颜色呈现"): 曾三弧同色
+// （root.accentColor）——外→内三弧各取主题强调色（primary/tertiary/
+// warning），双主题经 ThemeEngine 角色解析即时切换（见 delegate _arcColor）。
 //
 // 锚点几何单一来源 = AnimationTokens.js（每图标锚点集 wifiWaveAnchorSets
 // 键控于母版图标名；internet 默认平坦令牌为回退）。DiagAnimator 装载时
@@ -30,13 +34,39 @@ AnimationBase {
     property int arcHold: Tokens.tokens.wifiWaveHold
     property int arcGap:  Tokens.tokens.wifiWaveGap
 
-    // 图标名（DiagAnimator 装载时绑定下发）→ 每图标锚点集。WiFi 信息
-    // 图标（nd-diag-g1-wifi-info）的三弧几何（同心弧，焦点=(12,20)/24）
-    // 与 internet 右下角弧组不同——曾只有一套锚点，第二消费方无法复用。
-    property string iconName: ""
+    // 图标名（AnimationBase 统一声明，DiagAnimator 装载时绑定下发）→
+    // 每图标锚点集。WiFi 信息图标（nd-diag-g1-wifi-info）的三弧几何
+    // （同心弧，焦点=(12,20)/24）与 internet 右下角弧组不同——曾只有
+    // 一套锚点，第二消费方无法复用。
     readonly property var _anchorSet: root.iconName !== ""
         ? (Tokens.tokens.wifiWaveAnchorSets[root.iconName] || null)
         : null
+    // 5WHY (复核 2026-08-21 归一化锚点集): 曾 delegate 内四份三元重复测
+    // _anchorSet——root 层解析为恒有定义的数组（缺省 = internet 平坦令牌
+    // 逐弧广播），delegate 直接下标，无逐弧守卫重复。
+    readonly property var _a0s: root._anchorSet && root._anchorSet.a0
+        ? root._anchorSet.a0
+        : [Tokens.tokens.wifiWaveArcA0, Tokens.tokens.wifiWaveArcA0, Tokens.tokens.wifiWaveArcA0]
+    readonly property var _a1s: root._anchorSet && root._anchorSet.a1
+        ? root._anchorSet.a1
+        : [Tokens.tokens.wifiWaveArcA1, Tokens.tokens.wifiWaveArcA1, Tokens.tokens.wifiWaveArcA1]
+    readonly property var _radii: root._anchorSet && root._anchorSet.radii
+        ? root._anchorSet.radii : Tokens.tokens.wifiWaveArcRadii
+    // 片厚占比（缺省 0.025 与旧默认分支同值；delegate 内统一加 0.9px 地板）
+    readonly property var _thW: root._anchorSet && root._anchorSet.dashTh
+        ? root._anchorSet.dashTh : [0.025, 0.025, 0.025]
+    // 徽章排除盘（5WHY 复核 2026-08-21 徽章过绘，见 tokens 注释）：动画层
+    // 高于图标层，wifi-info 徽章 circle-i 被外弧灯亮相位过绘——片中心落入
+    // 排除盘即隐藏，保持母版"徽章压弧线"合成次序。
+    readonly property var _excl: root._anchorSet && root._anchorSet.exclude
+        ? root._anchorSet.exclude : null
+    function excludedAt(px, py) {
+        if (!root._excl) return false
+        const dx = px - root._excl.cx * root.width
+        const dy = py - root._excl.cy * root.height
+        const r = root._excl.r * root.width
+        return dx * dx + dy * dy <= r * r
+    }
     property real anchorCx: root._anchorSet ? root._anchorSet.cx : Tokens.tokens.wifiWaveAnchorCx
     property real anchorCy: root._anchorSet ? root._anchorSet.cy : Tokens.tokens.wifiWaveAnchorCy
     property real anchorMaxR: root._anchorSet ? root._anchorSet.maxR : Tokens.tokens.wifiWaveAnchorMaxR
@@ -50,22 +80,22 @@ AnimationBase {
     // 且片长（1.8px）短于片厚（2.4px），"虚线弧"实际渲染成实心圆角带
     // （设计意图逐条明灭的虚线不可见）。改为按真实弧长推导：片数 =
     // floor(弧长/(3×片厚))（钳 [1,9]，片长恒 ≥1.5×片厚；片数 1 = 整弧
-    // 实心），片长 = 弧长/片数×0.5（占空比 ≈50%）——业界惯例：虚线段
-    // 长不短于线宽，否则视觉上为点而非线。细节见 delegate 注释。
+    // 实心，片宽取弦长 2r·sin(Δθ/2) 而非弧长——弧长直条径向越弧 27%），
+    // 片长 = 弧长/片数×0.5（占空比 ≈50%）——业界惯例：虚线段长不短于
+    // 线宽，否则视觉上为点而非线。细节见 delegate 注释。
 
     Repeater {
         model: 3
         delegate: Item {
             id: arcItem
-            // 每图标锚点集（缺省回退 internet 平坦令牌）；index = 外层
-            // Repeater 序号（0=外弧/最长，2=内弧/最短）
-            property real _a0: (root._anchorSet && root._anchorSet.a0) ? root._anchorSet.a0[index] : Tokens.tokens.wifiWaveArcA0
-            property real _a1: (root._anchorSet && root._anchorSet.a1) ? root._anchorSet.a1[index] : Tokens.tokens.wifiWaveArcA1
-            property real _r: (root._anchorSet && root._anchorSet.radii) ? root._anchorSet.radii[index] : Tokens.tokens.wifiWaveArcRadii[index]
-            // 片厚：母版线宽事实（internet 默认 0.025w；wifi-info 1.6/1.2 线宽 → 占比）
-            property real _dashTh: (root._anchorSet && root._anchorSet.dashTh)
-                ? parent.width * root._anchorSet.dashTh[index]
-                : Math.max(0.9, parent.width * 0.025)
+            // index = 外层 Repeater 序号（0=外弧/最长，2=内弧/最短）
+            property real _a0: root._a0s[index]
+            property real _a1: root._a1s[index]
+            property real _r: root._radii[index]
+            // 片厚：母版线宽事实（wifi-info 1.6/1.2 线宽占比；internet
+            // 默认 0.025w）。0.9px 地板与旧默认分支一致，且防
+            // parent.width==0 时 0 除 → NaN 段计数（装载首帧瞬态）。
+            property real _dashTh: Math.max(0.9, parent.width * root._thW[index])
             // 外→内三道弧半径（相对 anchorMaxR 收缩）
             property real radius: parent.width * root.anchorMaxR * arcItem._r
             // 5WHY (复核 2026-08-20 负弧长): (_a1 - _a0) 恒负——
@@ -77,10 +107,21 @@ AnimationBase {
             // arcLen/th≈4.7 时 3 片 → 片长 0.78×片厚，"片长 ≥ 片厚"的
             // 虚线不变式（本文件自声明的修复目标）在 3 弧中 2 弧不可达，
             // 渲染成点而非线。floor(arcLen/(3×th))（下限 1）：片长恒
-            // ≥1.5×片厚；片数 1 时整弧实心（内弧虚线本就不可辨，实心
-            // 与母版一致）。
+            // ≥1.5×片厚；片数 1 时整弧实心。
             property int segCount: Math.max(1, Math.min(9, Math.floor(arcLen / (3 * arcItem._dashTh))))
-            property real dashLen: arcItem.segCount <= 1 ? arcLen : arcLen / segCount * 0.5
+            // 5WHY (复核 2026-08-21 越弧直条): 曾 segCount==1 时片宽取弧长
+            // ——弧长直条两端径向越出圆弧 27%（internet 内弧恒单段），
+            // "实心与母版一致"落空。单段宽 = 弦长 2r·sin(Δθ/2)：切线
+            // 摆放于中点角时两端恰落弧端点，与母版弧线重合。
+            property real segW: arcItem.segCount <= 1
+                ? 2 * arcItem.radius * Math.sin(Math.abs(arcItem._a1 - arcItem._a0) * Math.PI / 360)
+                : arcLen / segCount * 0.5
+            // 5WHY (复核 2026-08-21 用户诉求 "弧线用不同的高亮颜色呈现"):
+            // 曾三弧同色（root.accentColor）——外→内三弧各取主题强调色
+            // （primary/tertiary/warning），双主题经 ThemeEngine 角色解析
+            // 随主题即时切换；明灭次序动画（本 commit）提供"不停变化"。
+            readonly property color _arcColor: [T.ThemeEngine.colors.primary,
+                T.ThemeEngine.colors.tertiary, T.ThemeEngine.colors.warning][index]
             opacity: 0
 
             Repeater {
@@ -100,10 +141,11 @@ AnimationBase {
                     property real ang: arcItem.segCount <= 1
                         ? (arcItem._a0 + arcItem._a1) / 2
                         : arcItem._a0 + (arcItem._a1 - arcItem._a0) * (index / (arcItem.segCount - 1))
-                    width: arcItem.dashLen
+                    width: arcItem.segW
                     height: arcItem._dashTh
                     radius: height / 2
-                    color: root.accentColor
+                    color: arcItem._arcColor
+                    visible: !root.excludedAt(x + width / 2, y + height / 2)
                     x: root._fx + arcItem.radius * Math.cos(ang * Math.PI / 180) - width / 2
                     y: root._fy + arcItem.radius * Math.sin(ang * Math.PI / 180) - height / 2
                     rotation: ang + 90

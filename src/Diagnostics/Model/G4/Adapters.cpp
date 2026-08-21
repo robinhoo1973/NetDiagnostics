@@ -26,6 +26,7 @@
 #include "Common/Model/DiagnosticMeta.h"
 #include "Common/Model/DiagNames.h"
 #include "Diagnostics/View/DiagnosticFormatter.h"
+#include "Diagnostics/Model/GHelpers.h"   // readProcLines（systemDnsServer 收敛）
 
 #if defined(PLATFORM_IOS)
 #include "Diagnostics/Model/G3/Platform/IOS/DnsResolve.h"
@@ -535,14 +536,13 @@ static int traceHopMac(quint32 ip, int ttl, int& rttMs, QString& hopIp) {
 // ── First available system DNS server (R5-6: wire helpers live in DnsWire.h) ─
 static QString systemDnsServer() {
     QString server;
-    QFile resolv(QStringLiteral("/etc/resolv.conf"));
-    if (resolv.open(QIODevice::ReadOnly)) {
-        QTextStream ts(&resolv);
-        while (!ts.atEnd()) {
-            const QString line = ts.readLine().trimmed();
-            if (line.startsWith(QLatin1String("nameserver ")) && server.isEmpty())
-                server = line.mid(11);
-        }
+    // 5WHY (复核 2026-08-21 procfs 收敛): 共享 readProcLines（与 G1/G2/G3/G5
+    // 同源）——本函数为 G4 各探针提供默认 DNS 服务器，atEnd 陷阱曾使
+    // G4 静默回退 8.8.8.8 测试错误解析器。
+    for (const QString& raw : SystemDiagnostics::readProcLines(QStringLiteral("/etc/resolv.conf"))) {
+        const QString line = raw.trimmed();
+        if (line.startsWith(QLatin1String("nameserver ")) && server.isEmpty())
+            server = line.mid(11);
     }
 #if defined(_WIN32)
     if (server.isEmpty()) server = QStringLiteral("223.5.5.5");

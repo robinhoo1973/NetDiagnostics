@@ -107,12 +107,12 @@ Item {
                 // AnimationTokens.js（各动画 QML 默认直读本类型锚点）——
                 // C++ 下发链（AppState.diagAnimationAnchor）曾是运行时
                 // 再解析同文件后把相同值传回来（纯传递冗余），已删。
-                // 5WHY (复核 2026-08-21): 但同类型多图标仍需图标名分派
+                // 5WHY (复核 2026-08-21): 同类型多图标仍需图标名分派
                 // （WifiWave：internet vs wifi-info 两套锚点）——消费方
-                // 提供 iconName，动画按名从 tokens 选锚点集；无该属性
-                // 的动画类型跳过（属性检测而非类型判断）。
-                if ("iconName" in item)
-                    item.iconName = Qt.binding(function() { return root.iconName })
+                // 提供 iconName，动画按名从 tokens 选锚点集。曾以
+                // `"iconName" in item` 探测（版本敏感）——AnimationBase
+                // 统一声明后无条件绑定，探测删除。
+                item.iconName = Qt.binding(function() { return root.iconName })
             }
         }
         // 5WHY: onLoaded one-frame race — item.running is set AFTER

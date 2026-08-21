@@ -152,7 +152,7 @@ Item {
     }
     // 5WHY (复核 2026-08-19 冻结徽标): 瓦片离屏（视口/切页）期间运行语义
     // 结束（取消/异常无结果）时，计时器本已暂停——running 无翻转，上述
-    // 处理器不触发，_elapsed 冻结值 + startedAtMonoMs>0 令计时圆点永久残留
+    // 处理器不触发，_elapsed 冻结值 + _hasStartedAt 令计时圆点永久残留
     // （"中断/异常未落结果…冻结计数不再残留"契约落空）。补 testRunning
     // 归假路径直接清零（离屏暂停不改变 testRunning，续计不受影响）。
     onTestRunningChanged: {
@@ -162,12 +162,16 @@ Item {
     // 清零。真实起点经模型注入 startedAtMonoMs（C++ DiagnosticBase 单调时钟）
     // ——重建后计时从真实起点反推，并行 Suite 兄弟结果落地不再重置显示；
     // 无起点（模型未注入时）回退本地计数。
+    // 5WHY (复核 2026-08-21 哨兵显式化): 曾以 startedAtMonoMs > 0 作"有起点"
+    // 哨兵——首毫秒起点 0 被误判未注入（曾以 MonotonicClock +1 兜底）。
+    // hasStartedAt 显式标记（itemFor 注入），时钟恢复诚实。
     Component.onCompleted: {
         var ms = root.itemData.durationMs
         if (ms !== undefined && ms > 0) root._elapsed = Math.round(ms / 1000)
     }
     readonly property real _startedAtMonoMs: root.itemData.startedAtMonoMs !== undefined
         ? root.itemData.startedAtMonoMs : 0
+    readonly property bool _hasStartedAt: root.itemData.hasStartedAt === true
     // 5WHY (复核 2026-08-20 墙钟步进): 曾以 Date.now() 与 startedAtMs（均
     // 墙钟）相减——NTP 校时/手动改时在长探针（180s）中段步进，计时圆点
     // 瞬时跳变、颜色阈值随错误时长重估。改为单调毫秒相减：起点
@@ -181,11 +185,11 @@ Item {
     // 作依赖钩（每秒 tick 触发重估，与 _inViewport 同习语）。
     readonly property int _timerSecs: {
         var tick = root._elapsed   // 依赖读取：每秒重估
-        if (root._startedAtMonoMs > 0)
+        if (root._hasStartedAt)
             return Math.max(1, Math.floor((AppState.monotonicNowMs - root._startedAtMonoMs) / 1000))
         return Math.max(1, tick)
     }
-    readonly property bool _timerVisible: !root.isDone && (root._startedAtMonoMs > 0 || root._elapsed > 0)
+    readonly property bool _timerVisible: !root.isDone && (root._hasStartedAt || root._elapsed > 0)
     readonly property string _timerColor: {
         if (_timerSecs > 20) return ThemeEngine.colors.fail
         if (_timerSecs >= 10) return ThemeEngine.colors.warningStrong

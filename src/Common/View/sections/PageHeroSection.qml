@@ -90,8 +90,10 @@ PageSection {
                 diagId: root._diagId
                 bounded: true
                 targetItem: iconWell
-                // 锚点按图标分派（与 DiagBlock 同契约）
-                iconName: detailData.iconName || ""
+                // 锚点按图标分派（与 DiagBlock 同契约）；detailData 空守卫
+                // （同文件 _diagId 等皆守卫 null，此处不例外——避免
+                // TypeError 断绑后锚点静默回退 internet 几何）。
+                iconName: (detailData && detailData.iconName) || ""
             }
         }
 

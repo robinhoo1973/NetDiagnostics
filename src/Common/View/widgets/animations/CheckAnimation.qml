@@ -27,8 +27,8 @@ AnimationBase {
     id: root
     // Check 成功语义：accent 覆盖为 success 令牌
     property color accentColor: T.ThemeEngine.colors.success
-    // 消失渐入时长（勾被遮住）
-    property int hideDuration: 220
+    // 消失渐入时长（勾被遮住）——Tokens 单一来源（同 hold/reveal）
+    property int hideDuration: Tokens.tokens.checkHideDuration
     // 勾保持消失/重现后保持的时长（Tokens 单一来源）
     property int holdDuration: Tokens.tokens.checkHoldDuration
     // 盖片渐出（勾逐渐重现）时长
@@ -87,15 +87,21 @@ AnimationBase {
         }
     }
 
-    // 盖片：遮住勾区（含笔画线宽余量），渐入=消失、渐出=逐渐重现
+    // 盖片：遮住勾区（含笔画端帽/圆角裁切余量），渐入=消失、渐出=逐渐重现。
+    // 5WHY (复核 2026-08-21 盖片不蔽端帽): 曾 [8.2..16.2]×[9.4..15.0]、
+    // radius 2.0——三侧端帽越界（seg2 端帽 (15,10) r≈1.1 顶缘 8.9 越上缘
+    // 0.5），且角部 2.0 圆角裁切圆恰罩住端帽圆心（距 1.6 < 2.0+1.1），
+    // "勾消失"相位下 seg2 端帽 ~78% 面积仍可见。扩界至
+    // [7.7..16.5]×[8.7..15.3]（盾形轮廓内余量 ✓）并降角半径 0.3：
+    // 端帽全蔽（最近角裁切圆距端帽 1.56 ≥ 0.3+1.1）。
     Rectangle {
         id: cover
         z: 2
-        x: 8.2 * root._s
-        y: 9.4 * root._s
-        width: 8.0 * root._s
-        height: 5.6 * root._s
-        radius: 2.0 * root._s
+        x: 7.7 * root._s
+        y: 8.7 * root._s
+        width: 8.8 * root._s
+        height: 6.6 * root._s
+        radius: 0.3 * root._s
         color: root._coverColor
         opacity: 0
     }
@@ -121,10 +127,12 @@ AnimationBase {
         }
         PauseAnimation { duration: root.holdDuration }
     }
+    // 5WHY (复核 2026-08-21 复位双路径): 曾 onStopped 再调 root.resetVisuals()
+    // ——基类 onRunningChanged(!running) 已复位（本动画视觉全在 root 层，
+    // 与 delegate 层动画不同），双路径漂移风险。停止复位单走基类钩子。
     RestartController {
         running: root.running
         target: seq
-        onStopped: root.resetVisuals()
     }
 
     function resetVisuals() {

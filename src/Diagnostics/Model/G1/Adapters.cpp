@@ -1132,7 +1132,10 @@ static DiagnosticResult probeIpConfig(DiagId id, const QString&, RunContext& ctx
             // 5WHY (复核 2026-08-21 主值重复): 曾 value 与子行 gateway 同串——
             // 分组卡标题右端与子行重复呈现同一网关。value 留空（无地址信息
             // 即无主值），网关仅由子行承载。
-            ResultProperty gp(it.key(), QString());
+            // 5WHY (复核 2026-08-21 悬空值行): 曾主值为空——无条件终端转储
+            // 下 propsDumpText 渲染 "ppp0: " 悬空行、分组卡标题空值格。
+            // 主值 = 网关串（该接口的全部可得数据），子行标签语义不变。
+            ResultProperty gp(it.key(), it.value().join(QStringLiteral(", ")));
             gp.children.append({QStringLiteral("gateway"), it.value().join(QStringLiteral(", "))});
             props.append(gp);
             ++interfaceCount;
@@ -1193,13 +1196,11 @@ static DiagnosticResult probeActiveConnections(DiagId id, const QString&, RunCon
         "SYN_RECV", "FIN_WAIT1", "FIN_WAIT2", "TIME_WAIT", "CLOSE",
         "CLOSE_WAIT", "LAST_ACK", "LISTEN", "CLOSING"};
     const auto parseSockets = [&](const QString& path, const char* proto) {
-        QFile f(path);
-        if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) return;
-        QTextStream in(&f);
-        in.readLine(); // header
-        while (!in.atEnd()) {
+        // 5WHY (复核 2026-08-21 procfs 收敛): /proc size 0 的 atEnd 陷阱
+        // ——共享 SystemDiagnostics::readProcLines（readLineInto 驱动），
+        // 与 G2/G5 同源（曾为本文件唯一遗留的手写 /proc 读取）。
+        for (const QString& line : SystemDiagnostics::readProcLines(path, 1)) {
             if (ctx.cancelled.load()) return;
-            const QString line = in.readLine();
             if (line.simplified().isEmpty()) continue;
             const auto fields = line.split(QLatin1Char(' '), Qt::SkipEmptyParts);
             if (fields.size() < 4) continue;
@@ -1473,25 +1474,39 @@ static DiagnosticResult probeCellular(DiagId id, const QString&, RunContext& ctx
         }
     }
 
+    // 取消复查（同 probeDhcp 规则）：取消发生在 mmcli -L 等待期间时
+    // cachedRunTool 返回空 → mmcliListFailed=true——先分离取消语义，
+    // 否则取消被误报为 ModemManager 故障 Warning（5WHY 复核 2026-08-21）。
+    if (ctx.cancelled.load())
+        return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
+    // 5WHY (复核 2026-08-21 失败伪装残留): 曾把 mmcliListFailed 藏在
+    // foundNames.isEmpty() 分支内——wwan/cellular 命名接口已枚举到
+    // （foundNames 非空）时 `mmcli -L` 失败被静默吞掉，结果报干净 Pass
+    // （"Cellular modem detected: wwan0"），正是本 commit 声称消除的
+    // "失败伪装成成功"。枚举失败语义独立于接口枚举：先于一切分支上报
+    // Warning（接口属性卡/原始转储尽力保留）。
+    if (mmcliListFailed) {
+        DiagnosticResult wr = makeResult(id, DiagStatus::Warning,
+            QStringLiteral("ModemManager present but modem enumeration failed — cellular status unknown"),
+            props, out.join(QLatin1Char('\n')));
+        wr.narrative = QStringLiteral("ModemManager is installed, but `mmcli -L` produced no output "
+            "(timeout or daemon failure), so cellular status could not be determined.");
+        return wr;
+    }
     if (foundNames.isEmpty()) {
         // 5WHY (复核 2026-08-20 失败伪装): mmcli 已枚举到 modem 但详情
         // 全部失败（超时/输出格式变化）时，曾报 Skipped "No cellular
         // modem present"——把失败伪装成无硬件，用户被误导。区分两种
         // 语义：无 modem = Skipped；有 modem 但详情不可得 = Warning
         // （Raw 转储尽力保留，故障可见）。
-        if (mmcliListed > 0 || mmcliListFailed) {
+        if (mmcliListed > 0) {
             DiagnosticResult wr = makeResult(id, DiagStatus::Warning,
-                mmcliListFailed
-                    ? QStringLiteral("ModemManager present but modem enumeration failed — cellular status unknown")
-                    : QStringLiteral("Cellular modem(s) present but detail query failed (%1/%2)")
-                        .arg(mmcliFailed).arg(mmcliListed),
+                QStringLiteral("Cellular modem(s) present but detail query failed (%1/%2)")
+                    .arg(mmcliFailed).arg(mmcliListed),
                 {}, out.join(QLatin1Char('\n')));
-            wr.narrative = mmcliListFailed
-                ? QStringLiteral("ModemManager is installed, but `mmcli -L` produced no output "
-                    "(timeout or daemon failure), so cellular status could not be determined.")
-                : QStringLiteral("ModemManager reported %1 modem(s), but the detail query "
-                    "failed for %2 of them (timeout or output format change). "
-                    "Raw output is preserved in the terminal section.").arg(mmcliListed).arg(mmcliFailed);
+            wr.narrative = QStringLiteral("ModemManager reported %1 modem(s), but the detail query "
+                "failed for %2 of them (timeout or output format change). "
+                "Raw output is preserved in the terminal section.").arg(mmcliListed).arg(mmcliFailed);
             return wr;
         }
         return makeResult(id, DiagStatus::Skipped, QStringLiteral("No cellular modem present"), {}, {});

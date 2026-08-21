@@ -22,6 +22,7 @@
 #include "Common/Model/DiagNames.h"
 #include "Diagnostics/Model/GeoProbe.h"
 #include "Diagnostics/Model/ProbeConfig.h"
+#include "Diagnostics/Model/GHelpers.h"   // readProcLines / cachedRunTool
 
 #if defined(PLATFORM_ANDROID)
 #include "Diagnostics/Model/G5/Platform/Android/NetworkDiagnostics.h"
@@ -265,15 +266,13 @@ static DiagnosticResult probeDnsServers(DiagId id, const QString&, RunContext& c
         res_nclose(&res);
     }
 #else
-    QFile resolv(QStringLiteral("/etc/resolv.conf"));
-    if (resolv.open(QIODevice::ReadOnly)) {
-        QTextStream ts(&resolv);
-        while (!ts.atEnd()) {
-            if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
-            const QString line = ts.readLine().trimmed();
-            if (line.startsWith(QLatin1String("nameserver ")))
-                appendServer(QStringLiteral("resolv.conf"), line.mid(11));
-        }
+    // 5WHY (复核 2026-08-21 procfs 收敛): 手写 QTextStream 循环 →
+    // 共享 readProcLines（与 G1/G2/G5 同源）。
+    for (const QString& raw : SystemDiagnostics::readProcLines(QStringLiteral("/etc/resolv.conf"))) {
+        if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
+        const QString line = raw.trimmed();
+        if (line.startsWith(QLatin1String("nameserver ")))
+            appendServer(QStringLiteral("resolv.conf"), line.mid(11));
     }
     if (QFile::exists(QStringLiteral("/run/systemd/resolve/resolv.conf")))
         appendServer(QStringLiteral("systemd-resolved"), QStringLiteral("(stub resolver active)"));
@@ -361,15 +360,11 @@ static DiagnosticResult probeDnsCache(DiagId id, const QString&, RunContext& ctx
             out.append(QStringLiteral("    nscd: active"));
         if (QFile::exists(QStringLiteral("/var/lib/misc/dnsmasq.leases")))
             out.append(QStringLiteral("    dnsmasq: active"));
-        QFile resolv(QStringLiteral("/etc/resolv.conf"));
-        if (resolv.open(QIODevice::ReadOnly)) {
-            QTextStream ts(&resolv);
-            while (!ts.atEnd()) {
-                if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
-                const QString line = ts.readLine().trimmed();
-                if (!line.isEmpty() && !line.startsWith(QLatin1Char('#')))
-                    out.append(QStringLiteral("    %1").arg(line));
-            }
+        for (const QString& raw : SystemDiagnostics::readProcLines(QStringLiteral("/etc/resolv.conf"))) {
+            if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
+            const QString line = raw.trimmed();
+            if (!line.isEmpty() && !line.startsWith(QLatin1Char('#')))
+                out.append(QStringLiteral("    %1").arg(line));
         }
         QFile hosts(QStringLiteral("/etc/hosts"));
         int hostEntries = 0;
@@ -537,14 +532,10 @@ static DiagnosticResult probeDnsIntegrity(DiagId id, const QString&, RunContext&
             }
         }
 #else
-        QFile resolv(QStringLiteral("/etc/resolv.conf"));
-        if (resolv.open(QIODevice::ReadOnly)) {
-            QTextStream ts(&resolv);
-            while (!ts.atEnd()) {
-                const QString line = ts.readLine().trimmed();
-                if (line.startsWith(QLatin1String("nameserver ")) && testServer.isEmpty())
-                    testServer = line.mid(11);
-            }
+        for (const QString& raw : SystemDiagnostics::readProcLines(QStringLiteral("/etc/resolv.conf"))) {
+            const QString line = raw.trimmed();
+            if (line.startsWith(QLatin1String("nameserver ")) && testServer.isEmpty())
+                testServer = line.mid(11);
         }
 #endif
     }

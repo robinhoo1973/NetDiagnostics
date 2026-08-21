@@ -3,8 +3,6 @@
  "icons": {
   "activity": {
    "accent": "#10B981",
-   "accentDark": "#10B981",
-   "accentLight": "#10B981",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -13,8 +11,6 @@
   },
   "badge-check": {
    "accent": "",
-   "accentDark": "",
-   "accentLight": "",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -23,8 +19,6 @@
   },
   "badge-close": {
    "accent": "",
-   "accentDark": "",
-   "accentLight": "",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -33,8 +27,6 @@
   },
   "badge-error": {
    "accent": "",
-   "accentDark": "",
-   "accentLight": "",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -43,8 +35,6 @@
   },
   "badge-info": {
    "accent": "",
-   "accentDark": "",
-   "accentLight": "",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -53,8 +43,6 @@
   },
   "badge-skip": {
    "accent": "",
-   "accentDark": "",
-   "accentLight": "",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -63,8 +51,6 @@
   },
   "badge-warning": {
    "accent": "",
-   "accentDark": "",
-   "accentLight": "",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -73,8 +59,6 @@
   },
   "brightness": {
    "accent": "",
-   "accentDark": "",
-   "accentLight": "",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -83,8 +67,6 @@
   },
   "check": {
    "accent": "",
-   "accentDark": "",
-   "accentLight": "",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -93,8 +75,6 @@
   },
   "chevron-down": {
    "accent": "",
-   "accentDark": "",
-   "accentLight": "",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -103,8 +83,6 @@
   },
   "chevron-right": {
    "accent": "",
-   "accentDark": "",
-   "accentLight": "",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -113,8 +91,6 @@
   },
   "circle": {
    "accent": "",
-   "accentDark": "",
-   "accentLight": "",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -123,8 +99,6 @@
   },
   "clipboard": {
    "accent": "",
-   "accentDark": "",
-   "accentLight": "",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -133,8 +107,6 @@
   },
   "close": {
    "accent": "",
-   "accentDark": "",
-   "accentLight": "",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -143,8 +115,6 @@
   },
   "compass": {
    "accent": "",
-   "accentDark": "",
-   "accentLight": "",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -153,8 +123,6 @@
   },
   "config": {
    "accent": "",
-   "accentDark": "",
-   "accentLight": "",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -163,8 +131,6 @@
   },
   "dashboard": {
    "accent": "",
-   "accentDark": "",
-   "accentLight": "",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -173,8 +139,6 @@
   },
   "database": {
    "accent": "",
-   "accentDark": "",
-   "accentLight": "",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -183,8 +147,6 @@
   },
   "devices": {
    "accent": "#06B6D4",
-   "accentDark": "#06B6D4",
-   "accentLight": "#06B6D4",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -193,8 +155,6 @@
   },
   "diagnostics": {
    "accent": "",
-   "accentDark": "",
-   "accentLight": "",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -203,8 +163,6 @@
   },
   "file-html": {
    "accent": "",
-   "accentDark": "",
-   "accentLight": "",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -213,8 +171,6 @@
   },
   "file-pdf": {
    "accent": "",
-   "accentDark": "",
-   "accentLight": "",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -223,8 +179,6 @@
   },
   "file-transfer": {
    "accent": "",
-   "accentDark": "",
-   "accentLight": "",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -233,8 +187,6 @@
   },
   "gear": {
    "accent": "",
-   "accentDark": "",
-   "accentLight": "",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -243,8 +195,6 @@
   },
   "info": {
    "accent": "",
-   "accentDark": "",
-   "accentLight": "",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -253,8 +203,6 @@
   },
   "internet-globe": {
    "accent": "#0EA5E9",
-   "accentDark": "#0EA5E9",
-   "accentLight": "#0EA5E9",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -263,8 +211,6 @@
   },
   "mail": {
    "accent": "#F59E0B",
-   "accentDark": "#F59E0B",
-   "accentLight": "#F59E0B",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -273,8 +219,6 @@
   },
   "maximize": {
    "accent": "",
-   "accentDark": "",
-   "accentLight": "",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -283,8 +227,6 @@
   },
   "minimize": {
    "accent": "",
-   "accentDark": "",
-   "accentLight": "",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -293,8 +235,6 @@
   },
   "moon": {
    "accent": "",
-   "accentDark": "",
-   "accentLight": "",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -303,8 +243,6 @@
   },
   "nd-diag-g1-active-connections": {
    "accent": "#06B6D4",
-   "accentDark": "#06B6D4",
-   "accentLight": "#06B6D4",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -313,8 +251,6 @@
   },
   "nd-diag-g1-cellular": {
    "accent": "#6366F1",
-   "accentDark": "#6366F1",
-   "accentLight": "#6366F1",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -333,8 +269,6 @@
   },
   "nd-diag-g1-dhcp": {
    "accent": "#EA580C",
-   "accentDark": "#EA580C",
-   "accentLight": "#EA580C",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -349,8 +283,6 @@
   },
   "nd-diag-g1-ip-config": {
    "accent": "#475569",
-   "accentDark": "#475569",
-   "accentLight": "#475569",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -363,8 +295,6 @@
   },
   "nd-diag-g1-network-adapters": {
    "accent": "#06B6D4",
-   "accentDark": "#06B6D4",
-   "accentLight": "#06B6D4",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -373,8 +303,6 @@
   },
   "nd-diag-g1-nic-advanced": {
    "accent": "#475569",
-   "accentDark": "#475569",
-   "accentLight": "#475569",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -383,18 +311,16 @@
   },
   "nd-diag-g1-wifi-info": {
    "accent": "#0EA5E9",
-   "accentDark": "#F59E0B",
-   "accentLight": "#EA580C",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
    "fixedDark": [],
-   "fixedLight": []
+   "fixedLight": [],
+   "accentDark": "#F59E0B",
+   "accentLight": "#C2410C"
   },
   "nd-diag-g1-wired": {
    "accent": "#06B6D4",
-   "accentDark": "#06B6D4",
-   "accentLight": "#06B6D4",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -403,8 +329,6 @@
   },
   "nd-diag-g2-arp-table": {
    "accent": "#475569",
-   "accentDark": "#475569",
-   "accentLight": "#475569",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -413,8 +337,6 @@
   },
   "nd-diag-g2-gateway": {
    "accent": "#0EA5E9",
-   "accentDark": "#0EA5E9",
-   "accentLight": "#0EA5E9",
    "second": "#E03040",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -429,8 +351,6 @@
   },
   "nd-diag-g2-network-profile": {
    "accent": "#0EA5E9",
-   "accentDark": "#0EA5E9",
-   "accentLight": "#0EA5E9",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -445,8 +365,6 @@
   },
   "nd-diag-g2-proxy": {
    "accent": "#6366F1",
-   "accentDark": "#6366F1",
-   "accentLight": "#6366F1",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -461,8 +379,6 @@
   },
   "nd-diag-g2-routing-table": {
    "accent": "#2563EB",
-   "accentDark": "#2563EB",
-   "accentLight": "#2563EB",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -471,8 +387,6 @@
   },
   "nd-diag-g2-tcp-settings": {
    "accent": "#06B6D4",
-   "accentDark": "#06B6D4",
-   "accentLight": "#06B6D4",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -481,8 +395,6 @@
   },
   "nd-diag-g3-dns-cache": {
    "accent": "#EA580C",
-   "accentDark": "#EA580C",
-   "accentLight": "#EA580C",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -491,8 +403,6 @@
   },
   "nd-diag-g3-dns-integrity": {
    "accent": "#06B6D4",
-   "accentDark": "#06B6D4",
-   "accentLight": "#06B6D4",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -501,8 +411,6 @@
   },
   "nd-diag-g3-dns-servers": {
    "accent": "#0EA5E9",
-   "accentDark": "#0EA5E9",
-   "accentLight": "#0EA5E9",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -511,8 +419,6 @@
   },
   "nd-diag-g3-geoip": {
    "accent": "#10B981",
-   "accentDark": "#10B981",
-   "accentLight": "#10B981",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -525,8 +431,6 @@
   },
   "nd-diag-g3-internet": {
    "accent": "#06B6D4",
-   "accentDark": "#06B6D4",
-   "accentLight": "#06B6D4",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -543,8 +447,6 @@
   },
   "nd-diag-g4-dns-resolution": {
    "accent": "#0EA5E9",
-   "accentDark": "#0EA5E9",
-   "accentLight": "#0EA5E9",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -553,8 +455,6 @@
   },
   "nd-diag-g4-ipv6": {
    "accent": "#6366F1",
-   "accentDark": "#6366F1",
-   "accentLight": "#6366F1",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -567,8 +467,6 @@
   },
   "nd-diag-g4-mtu": {
    "accent": "#EA580C",
-   "accentDark": "#EA580C",
-   "accentLight": "#EA580C",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -577,8 +475,6 @@
   },
   "nd-diag-g4-pathping": {
    "accent": "#EA580C",
-   "accentDark": "#EA580C",
-   "accentLight": "#EA580C",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -587,8 +483,6 @@
   },
   "nd-diag-g4-ping": {
    "accent": "#10B981",
-   "accentDark": "#10B981",
-   "accentLight": "#10B981",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -597,8 +491,6 @@
   },
   "nd-diag-g4-traceroute": {
    "accent": "#2563EB",
-   "accentDark": "#2563EB",
-   "accentLight": "#2563EB",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -607,8 +499,6 @@
   },
   "nd-diag-g5-curl-verbose": {
    "accent": "#06B6D4",
-   "accentDark": "#06B6D4",
-   "accentLight": "#06B6D4",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -625,8 +515,6 @@
   },
   "nd-diag-g5-email": {
    "accent": "#6366F1",
-   "accentDark": "#6366F1",
-   "accentLight": "#6366F1",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -635,8 +523,6 @@
   },
   "nd-diag-g5-ftp": {
    "accent": "#EA580C",
-   "accentDark": "#EA580C",
-   "accentLight": "#EA580C",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -657,8 +543,6 @@
   },
   "nd-diag-g5-http-compression": {
    "accent": "#06B6D4",
-   "accentDark": "#06B6D4",
-   "accentLight": "#06B6D4",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -675,8 +559,6 @@
   },
   "nd-diag-g5-http-headers": {
    "accent": "#475569",
-   "accentDark": "#475569",
-   "accentLight": "#475569",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -693,8 +575,6 @@
   },
   "nd-diag-g5-http-redirect": {
    "accent": "#6366F1",
-   "accentDark": "#6366F1",
-   "accentLight": "#6366F1",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -711,8 +591,6 @@
   },
   "nd-diag-g5-http-timing": {
    "accent": "#6366F1",
-   "accentDark": "#6366F1",
-   "accentLight": "#6366F1",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -731,8 +609,6 @@
   },
   "nd-diag-g5-ldap": {
    "accent": "#0EA5E9",
-   "accentDark": "#0EA5E9",
-   "accentLight": "#0EA5E9",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -741,8 +617,6 @@
   },
   "nd-diag-g5-mongodb": {
    "accent": "#10B981",
-   "accentDark": "#10B981",
-   "accentLight": "#10B981",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -765,8 +639,6 @@
   },
   "nd-diag-g5-mqtt": {
    "accent": "#6366F1",
-   "accentDark": "#6366F1",
-   "accentLight": "#6366F1",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -783,8 +655,6 @@
   },
   "nd-diag-g5-mysql": {
    "accent": "#D97706",
-   "accentDark": "#D97706",
-   "accentLight": "#D97706",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -807,8 +677,6 @@
   },
   "nd-diag-g5-postgres": {
    "accent": "#0EA5E9",
-   "accentDark": "#0EA5E9",
-   "accentLight": "#0EA5E9",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -831,8 +699,6 @@
   },
   "nd-diag-g5-redis": {
    "accent": "#DC2626",
-   "accentDark": "#DC2626",
-   "accentLight": "#DC2626",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -855,8 +721,6 @@
   },
   "nd-diag-g5-security-headers": {
    "accent": "#0EA5E9",
-   "accentDark": "#0EA5E9",
-   "accentLight": "#0EA5E9",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -873,8 +737,6 @@
   },
   "nd-diag-g5-service-banner": {
    "accent": "#0EA5E9",
-   "accentDark": "#0EA5E9",
-   "accentLight": "#0EA5E9",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -883,8 +745,6 @@
   },
   "nd-diag-g5-ssh": {
    "accent": "#10B981",
-   "accentDark": "#10B981",
-   "accentLight": "#10B981",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -905,8 +765,6 @@
   },
   "nd-diag-g5-ssl-certificate": {
    "accent": "#06B6D4",
-   "accentDark": "#06B6D4",
-   "accentLight": "#06B6D4",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -927,8 +785,6 @@
   },
   "nd-diag-g5-tcp-connect": {
    "accent": "#06B6D4",
-   "accentDark": "#06B6D4",
-   "accentLight": "#06B6D4",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -937,8 +793,6 @@
   },
   "nd-diag-g5-telnet": {
    "accent": "#0EA5E9",
-   "accentDark": "#0EA5E9",
-   "accentLight": "#0EA5E9",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -959,8 +813,6 @@
   },
   "nd-diag-g5-url-parsing": {
    "accent": "#06B6D4",
-   "accentDark": "#06B6D4",
-   "accentLight": "#06B6D4",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -969,8 +821,6 @@
   },
   "network-card": {
    "accent": "#818CF8",
-   "accentDark": "#818CF8",
-   "accentLight": "#818CF8",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -979,8 +829,6 @@
   },
   "play": {
    "accent": "",
-   "accentDark": "",
-   "accentLight": "",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -989,8 +837,6 @@
   },
   "protocol-stack": {
    "accent": "#6366F1",
-   "accentDark": "#6366F1",
-   "accentLight": "#6366F1",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -999,8 +845,6 @@
   },
   "remote-host": {
    "accent": "#0EA5E9",
-   "accentDark": "#0EA5E9",
-   "accentLight": "#0EA5E9",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -1009,8 +853,6 @@
   },
   "restore": {
    "accent": "",
-   "accentDark": "",
-   "accentLight": "",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -1019,8 +861,6 @@
   },
   "shield-network": {
    "accent": "#10B981",
-   "accentDark": "#10B981",
-   "accentLight": "#10B981",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -1029,8 +869,6 @@
   },
   "translate": {
    "accent": "",
-   "accentDark": "",
-   "accentLight": "",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -1039,8 +877,6 @@
   },
   "user": {
    "accent": "",
-   "accentDark": "",
-   "accentLight": "",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
@@ -1049,8 +885,6 @@
   },
   "zap": {
    "accent": "",
-   "accentDark": "",
-   "accentLight": "",
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",

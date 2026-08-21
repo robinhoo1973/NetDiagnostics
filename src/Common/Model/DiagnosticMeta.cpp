@@ -76,7 +76,12 @@ static const DiagnosticMeta kDiagMeta[] = {
     // 注册仅 PF_Desktop（Android 注销：SELinux 恒假阴性）——meta 声明与
     // 注册不符使 verifyAllDiagIds 按派生白名单在 Android 调试构建 qFatal。
     // 声明收敛为实际注册集。
-    { DiagId::G3NetskopeStatus,    "Security Proxy Status", "nd-diag-g2-proxy", PF_Desktop,  DiagAnimType::Tick, DiagTemplateType::System, sys(),              60000 },
+    // 5WHY (复核 2026-08-21 图标语义错配): 曾 DiagAnimType::Tick——Tick 动画
+    // 的勾形与盖片几何硬编码于盾牌打勾图标（nd-diag-g3-dns-integrity），本
+    // 瓦片图标是代理地球（nd-diag-g2-proxy，母版无勾形）——运行中永久绿勾
+    // 压在球心、盖片周期性遮没球心区域。回退通用 Pulse（呼吸环，无语义锚点
+    // 假设）。
+    { DiagId::G3NetskopeStatus,    "Security Proxy Status", "nd-diag-g2-proxy", PF_Desktop,  DiagAnimType::Pulse, DiagTemplateType::System, sys(),              60000 },
     { DiagId::G3DnsServers,        "DNS Servers",        "nd-diag-g3-dns-servers",   PF_All,                       DiagAnimType::Pulse,  DiagTemplateType::System, sys("serverCount","servers",0), 60000 },
     { DiagId::G3DnsCache,          "DNS Cache",          "nd-diag-g3-dns-cache",    PF_Desktop|PF_Android,        DiagAnimType::Jiggle, DiagTemplateType::System, sys("cacheEntries","entries",0), 60000 },
     { DiagId::G3DnsIntegrity,      "DNS Integrity",      "nd-diag-g3-dns-integrity",   PF_All,                       DiagAnimType::Tick,  DiagTemplateType::Handshake, metricOnly("overallScorePercent","%",0,DP::Gauge), 120000 },

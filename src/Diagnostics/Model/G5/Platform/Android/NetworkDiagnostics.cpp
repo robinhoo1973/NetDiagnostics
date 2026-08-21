@@ -1628,9 +1628,14 @@ DiagnosticResult androidNicAdvancedDiag(DiagId id) {
     } else if (w.valid) {
         if (w.linkSpeedMbps > 0)
             out.append(QStringLiteral("  WiFi Link Speed: %1 Mbps").arg(w.linkSpeedMbps));
-        if (w.frequency > 0)
+        if (w.frequency > 0) {
+            // 5WHY (复核 2026-08-21 信道 0 无回退): 中心校验后非中心频率
+            // 返回 0——曾原样打印 "channel 0"（伪值）。与同文件 wifiDiag
+            // 一致回退 "?"（诚实缺省）。
+            const int ch = wifiChannelFromFrequency(w.frequency);
             out.append(QStringLiteral("  WiFi Frequency: %1 MHz (channel %2)")
-                .arg(w.frequency).arg(wifiChannelFromFrequency(w.frequency)));
+                .arg(w.frequency).arg(ch ? QString::number(ch) : QStringLiteral("?")));
+        }
         if (w.rssi != -127)
             out.append(QStringLiteral("  WiFi RSSI: %1 dBm").arg(w.rssi));
     } else {

@@ -32,10 +32,13 @@ AnimationBase {
         NumberAnimation { target: root.targetItem; property: "rotation"; from: -2.5; to: 2.5;  duration: 180; easing.type: Easing.InOutQuad }
         NumberAnimation { target: root.targetItem; property: "rotation"; from: 2.5;  to: 0;    duration: 90;  easing.type: Easing.InOutQuad }
     }
+    // 5WHY (复核 2026-08-21 复位多路径): 曾 onStopped 再复位旋转——基类
+    // onRunningChanged(!running) 的 resetVisuals 已含旋转+光环复位
+    // （targetItem 置空过渡时 onStopped 复位目标已空，恒 no-op），
+    // 双路径漂移风险。停止复位单走基类钩子。
     RestartController {
         running: root.running && root.targetItem !== null
         target: jiggleSeq
-        onStopped: if (root.targetItem) root.targetItem.rotation = 0
     }
 
     function resetVisuals() {
@@ -66,7 +69,6 @@ AnimationBase {
         RestartController {
             running: root.running
             target: ringSeq
-            onStopped: ring.opacity = 0.0
         }
     }
 }

@@ -106,11 +106,13 @@ DIAG_ACCENT: dict[str, tuple[str, str]] = {
 # write_icon_runtime 曾把 accent 压成单一值（DIAG_ACCENT 浅色端）——同一
 # 颜色用于两主题，dark 下无法给徽章高亮黄（light 下黄色对比度不足）。
 # 本表未列出的图标保持旧行为（accent = DIAG_ACCENT 浅色端，两主题同值）。
-# wifi-info：dark = #F59E0B（Palette Dark.warning，亮黄，深底 ≈9.9:1）；
-# light = #EA580C（Light.warning，琥珀橙，白底 ≈5.1:1 薄线描可读）——
-# M3 惯例：同色相跨主题换调（保持"同一徽章"的认知连续性）。
+# wifi-info：dark = #F59E0B（Dark.warning，亮黄，深底实测 8.31:1）；
+# light = #C2410C（orange-700，白底实测 5.18:1 过 4.5 文本档——曾选
+# Light.warning #EA580C，注释误记 5.1:1，实测仅 3.56:1，贴 3:1 图形底线，
+# 1.3px 薄线描不可读）——M3 惯例：同色相跨主题换调（保持"同一徽章"的
+# 认知连续性）。
 DIAG_ACCENT_THEMED: dict[str, tuple[str, str]] = {
-    "nd-diag-g1-wifi-info": ("Dark.warning", "Light.warning"),
+    "nd-diag-g1-wifi-info": ("Dark.warning", "#C2410C"),
 }
 
 # ── 第二强调色（固定色，逐图标；#101010 sentinel）────────────────────────
@@ -344,18 +346,23 @@ def write_icon_runtime(palettes: dict, json_path: Path = RUNTIME_JSON) -> None:
         if fl is None:
             fl = FIXED_COLORS.get(stem, [])   # 浅色未列出 → 沿用 dark 表（烘焙同规则）
         fixed_light = [_resolve_role_ref(c, palettes) for c in fl]
-        data["icons"][stem] = {
+        themed = DIAG_ACCENT_THEMED.get(stem)
+        # 5WHY (复核 2026-08-21): 双主题强调色分派（DIAG_ACCENT_THEMED）。
+        # 仅列入表的图标发射双主题键（现仅 wifi-info）；其余不发射——
+        # C++ 缺键读空回退 accent（单一回退链，JSON 不再为 166 个未列入
+        # 图标重复 accent 值）。
+        entry = {
             "accent": accent,
-            # 5WHY (复核 2026-08-21): 双主题强调色分派（DIAG_ACCENT_THEMED）。
-            # accent 保留旧键（回退/兼容）；C++ 优先取 accentDark/accentLight。
-            "accentDark": _resolve_role_ref(DIAG_ACCENT_THEMED.get(stem, (accent, accent))[0], palettes),
-            "accentLight": _resolve_role_ref(DIAG_ACCENT_THEMED.get(stem, (accent, accent))[1], palettes),
             "second": second,
             "softDark": dark_soft,
             "softLight": light_soft,
             "fixedDark": fixed_dark,
             "fixedLight": fixed_light,
         }
+        if themed:
+            entry["accentDark"] = _resolve_role_ref(themed[0], palettes)
+            entry["accentLight"] = _resolve_role_ref(themed[1], palettes)
+        data["icons"][stem] = entry
     json_path.write_text(json.dumps(data, indent=1) + "\n",
                          encoding="utf-8", newline="\n")
 

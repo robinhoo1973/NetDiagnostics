@@ -473,15 +473,23 @@ QVariantMap AppState::itemFor(DiagId id, const QHash<DiagId, qint64>* startsMono
         // 双份扫描——删墙钟，仅留单调表（同 MonotonicClock 基准）。
         // 5WHY (复核 2026-08-21 逐项重建): 曾每 itemFor 重建一次全表——
         // 一轮内起点不可变，组循环外建一次经 startsMono 传入；单点调用
-        // （nullptr）回退自行构建。
+        // （nullptr）回退自行构建。5WHY (复核 2026-08-21 哨兵显式化):
+        // UI 曾以 startedAtMonoMs > 0 作"有起点"哨兵（首毫秒起点 0 碰撞，
+        // MonotonicClock +1 偏置曾为此兜底）——hasStartedAt 显式标记，
+        // 时钟恢复诚实（见 MonotonicClock.h）。
         m[QStringLiteral("startedAtMonoMs")] = 0;
-        if (startsMono) {
-            if (const auto sitMono = startsMono->constFind(id); sitMono != startsMono->constEnd())
+        m[QStringLiteral("hasStartedAt")] = false;
+        const QHash<DiagId, qint64>* starts = startsMono;
+        QHash<DiagId, qint64> startsLocal;
+        if (!starts && m_suite && m_suite->isRunning()) {
+            startsLocal = m_suite->runningStartTimesMono();
+            starts = &startsLocal;
+        }
+        if (starts) {
+            if (const auto sitMono = starts->constFind(id); sitMono != starts->constEnd()) {
                 m[QStringLiteral("startedAtMonoMs")] = sitMono.value();
-        } else if (m_suite && m_suite->isRunning()) {
-            const auto startsLocal = m_suite->runningStartTimesMono();
-            if (const auto sitMono = startsLocal.constFind(id); sitMono != startsLocal.constEnd())
-                m[QStringLiteral("startedAtMonoMs")] = sitMono.value();
+                m[QStringLiteral("hasStartedAt")] = true;
+            }
         }
         m[QStringLiteral("summary")] = QString();
     } else {
@@ -610,12 +618,17 @@ QVariantMap AppState::resultFor(int diagIdInt) const {
     m[QStringLiteral("summary")] = it->summary;
     // 5WHY (复核 2026-08-21 用户诉求 "详情页 terminal output 无条件复制
     // 历史版本输出"): 曾 G2/G3/G4/G5 探针 details 为空时终端区块静默隐藏
-    // （v0.0.3 各探针均输出多行转储）。details 为空时由 props 派生转储
-    // （SystemDiagnostics::propsDumpText 单一来源，与剪贴板/G1 同格式），
-    // 保证凡有数据即呈现终端区块。
+    // （v0.0.3 各探针均输出多行转储）。派生链（任一命中即呈现终端区块）：
+    // 1) 真实 details；2) rawOutput（避免派生转储遮蔽真实原始输出——
+    //    终端区块 details||rawOutput 取前者，details 派生须让位）；
+    // 3) props 派生转储（propsDumpText 单一来源，与剪贴板/G1 同格式）；
+    // 4) summary（Skipped/"No proxy configured" 等无 props 结果——
+    //    v0.0.3 skipped 工厂即输出解释文本，无条件呈现契约兜底）。
     QString details = it->details;
-    if (details.isEmpty())
+    if (details.isEmpty() && it->rawOutput.isEmpty())
         details = SystemDiagnostics::propsDumpText(it->properties);
+    if (details.isEmpty())
+        details = it->summary;
     m[QStringLiteral("details")] = details;
     m[QStringLiteral("rawOutput")] = it->rawOutput;
     m[QStringLiteral("narrative")] = it->narrative;
@@ -707,9 +720,12 @@ QStringList AppState::langItems() const {
 QVariantList AppState::allDiagIdsForGroup(int groupInt) const {
     QVariantList out;
     const DiagGroup g = groupForIndex(groupInt);
+    // 5WHY (复核 2026-08-21 效率): toLower 曾逐项重算（同 allDiagsForGroup
+    // 修正）——归一化一次循环外复用。
+    const QString schemeLower = m_targetScheme.toLower();
     for (DiagId id : allDiagIds())
         if (diagGroup(id) == g && isSchedulable(id)
-            && runnableFor(id, m_targetScheme.toLower()))   // NEW-3：Config 可见性同源
+            && runnableFor(id, schemeLower))   // NEW-3：Config 可见性同源
             out.append(static_cast<int>(id));
     return out;
 }
@@ -721,13 +737,17 @@ int AppState::diagCountForGroup(int groupInt) const {
 QVariantList AppState::resultsForGroup(int groupInt) const {
     QVariantList out;
     const DiagGroup g = groupForIndex(groupInt);
+    // 5WHY (复核 2026-08-21 效率): toLower 曾逐项重算（同 allDiagsForGroup
+    // 修正）——归一化一次循环外复用。注：本函数只收录已落结果
+    // （m_results 过滤），itemFor 的起点注入分支不触发，无需建起点表。
+    const QString schemeLower = m_targetScheme.toLower();
     for (DiagId id : allDiagIds()) {
         if (diagGroup(id) != g || !isSchedulable(id)) continue;
         // 5WHY (复核 2026-08-18 瓦片墙/统计同源): 换 scheme 不重跑时统计已按
         // runnableFor 过滤成新集（0/0），Dashboard 完成态瓦片墙却仍显示旧
         // scheme 结果——头部/组头与瓦片可见分叉。补齐与 groupStats/
         // allDiagsForGroup 相同的 scheme 过滤。
-        if (!runnableFor(id, m_targetScheme.toLower())) continue;
+        if (!runnableFor(id, schemeLower)) continue;
         const auto it = m_results.constFind(id);
         if (it != m_results.constEnd())
             out.append(itemFor(id));

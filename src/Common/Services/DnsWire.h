@@ -39,9 +39,10 @@ struct Answer {
     // 丢弃 flags 字与报文长度，dig 风格输出只能硬编码 "qr rd ra"。
     // 捕获真实值供 G4DnsResolution 呈现。
     // 5WHY (复核 2026-08-20 计数半成品): 前次只捕获 flags/msgSize——
-    // 事务 id 仍以字面量 0x1234 传入 formatter（dig 用户逐字段比对时
+    // 事务 id 以字面量 0x1234 传入 formatter（dig 用户逐字段比对时
     // 即见常量假 id），AUTHORITY/ADDITIONAL 参数恒默认 0（API 看似
-    // 上报真实计数实则死参）。id 与各节计数一并从响应头捕获。
+    // 上报真实计数实则死参）。5WHY (复核 2026-08-21): id 现为随机事务
+    // id（udpQuery 生成，应答按 id 匹配），此处捕获真实值。
     quint16 flags    = 0;        // 响应头 flags 字（RFC 1035 §4.1.1 第 2-3 字节）
     // 5WHY (复核 2026-08-20 失败伪造): msgSize 曾默认 0——查询失败
     // （连接失败/超时，parseResponse 从未运行）时调用方拿默认 0 传
@@ -78,12 +79,13 @@ inline QString readName(const QByteArray& msg, int& pos, int depth = 0) {
     return name;
 }
 
-inline QByteArray buildQuery(const QString& domain, int qtype, quint16 id = 0x1234) {
+inline QByteArray buildQuery(const QString& domain, int qtype, quint16 id) {
     QByteArray q;
     // 5WHY (复核 2026-08-21 事务 id 死值): 曾恒以常量 0x1234 作事务 id，
     // 且 udpQuery 只接受 id==0x1234 的应答——新捕获的 Answer.id 因此
     // 恒为 0x1234（"真实事务 id"修复落空，header 仍打印假 id 4660）。
-    // id 参数由 udpQuery 随机生成；应答按 id 匹配（防串扰应答）。
+    // id 参数由 udpQuery 随机生成（必传，无默认死值——漏传即编译错误，
+    // 防新调用方静默重获确定性 id）；应答按 id 匹配（防串扰应答）。
     q.append(char((id >> 8) & 0xFF)); q.append(char(id & 0xFF));   // transaction id
     q.append(char(0x01)); q.append(char(0x00));   // flags: RD
     q.append(char(0x00)); q.append(char(0x01));   // QDCOUNT = 1

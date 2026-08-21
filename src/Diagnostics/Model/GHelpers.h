@@ -13,6 +13,7 @@
 #include <QTextStream>
 #include <QProcess>
 #include <QMutexLocker>
+#include <QtEndian>
 #include <cmath>
 #include <memory>
 
@@ -43,7 +44,12 @@ static QString ip4ToStr(struct in_addr a) {
     return QString::fromLatin1(buf);
 }
 static QString ipToStr(uint32_t ip) {
-    struct in_addr a; a.s_addr = ip;
+    // 5WHY (复核 2026-08-21 大端回归): 曾 s_addr = ip——/proc/net/route 以
+    // 小端十六进制存地址，仅小端主机上其内存序恰合网络序；大端 Linux
+    // （s390x/BE PowerPC）四段倒序打印（被删的 G2 本地副本显式逐字节
+    // 反转故无此病）。qFromLittleEndian 显式按小端语义还原主机序，
+    // 两端一致（小端恒等，行为不变）。
+    struct in_addr a; a.s_addr = qFromLittleEndian<quint32>(ip);
     return ip4ToStr(a);
 }
 
@@ -170,6 +176,9 @@ inline QString cachedRunTool(RunContext& ctx, const QString& exe,
             ctx.snapshot->toolMutexes.insert(key, keyMutex);
         }
     }
+    // 5WHY (复核 2026-08-21 取消先行): 取消检查置于键锁获取之前——已取消
+    // 探针不得为等锁再付持有者的完整超时（QThreadPool 槽位/整轮收尾延迟）。
+    if (ctx.cancelled.load()) return QString();
     QMutexLocker keyLock(keyMutex.get());
     // 等锁期间可能已被取消——先响应取消再执行（同键互斥本意是去重，
     // 不是为已取消探针继续付外部命令延迟）。
@@ -180,11 +189,20 @@ inline QString cachedRunTool(RunContext& ctx, const QString& exe,
         if (it != ctx.snapshot->toolOutputs.cend()) return it.value();
     }
     const QString out = runOnce();
-    // 5WHY (复核 2026-08-21 失败不缓存): 曾失败（超时/空输出）也入缓存——
-    // 同键第二消费方整轮复用空串，一次瞬时失败（NM D-Bus 忙）毒化同轮
-    // 所有复用者（旧行为各探针独立 QProcess 自带重试窗口）。空 = 失败
-    // 不入缓存：下一调用方重试一次（互斥保证同键仍只串行执行）。
-    if (!out.isEmpty()) {
+    // 5WHY (复核 2026-08-21 失败限次重试): 曾失败（超时/空输出）不入缓存
+    // ——同键 k 个消费方对持续失败命令 k 次串行付满超时（nmcli 4s ×
+    // 每消费方，"下一调用方重试一次"的承诺实为每消费方重试），且同轮
+    // 首败次成令两个复用者快照不一致。空 = 失败按键计数：第 2 次失败后
+    // 入缓存（每键每轮至多执行 2 次 = 首探 + 一次重试），其后消费方
+    // 即时复用失败空串回退（旧行为；互斥保证同键仍只串行执行）。
+    bool cacheIt = !out.isEmpty();
+    if (!cacheIt) {
+        QMutexLocker lock(&ctx.snapshot->mutex);
+        const int attempts = ctx.snapshot->toolAttempts.value(key, 0) + 1;
+        ctx.snapshot->toolAttempts.insert(key, attempts);
+        cacheIt = attempts >= 2;
+    }
+    if (cacheIt) {
         QMutexLocker lock(&ctx.snapshot->mutex);
         ctx.snapshot->toolOutputs.insert(key, out);
     }

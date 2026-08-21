@@ -4,6 +4,7 @@
 #include "Report/Model/ReportEngine.h"
 #include "Common/Utils/AppColors.h"   // 报告状态色（与 Palette.js 同步）
 #include "Common/Services/Logger.h"
+#include "Diagnostics/Model/GHelpers.h"   // propsDumpText（报告体派生与终端同源）
 
 #include <QDateTime>
 #include <QDir>
@@ -488,7 +489,13 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail, bool da
                     // each <td> is a complete, independent layout unit.  No
                     // page-break-inside hacks, no row-count estimates needed.
                     // Light theme uses transparent <td> regardless → unaffected.
-                    const QString body = r.details.isEmpty() ? r.rawOutput : r.details;
+                    // 5WHY (复核 2026-08-21 报告缺口): 详情页/剪贴板已对空
+                    // details 派生 props 转储（propsDumpText），报告引擎曾
+                    // 仍读原始 details——纯属性结果（如 TCP Connect）在导出
+                    // 报告中空体，与屏幕终端不一致。同源派生补齐。
+                    const QString body = !r.details.isEmpty() ? r.details
+                        : (!r.rawOutput.isEmpty() ? r.rawOutput
+                        : SystemDiagnostics::propsDumpText(r.properties));
                     if (!body.trimmed().isEmpty()) {
                         const QStringList lines = body.split(QStringLiteral("\n"));
                         h += QStringLiteral(
@@ -788,7 +795,11 @@ QString ReportEngine::buildRichDocument(const ReportData& data, bool darkBackgro
                     .arg(cls, reportStatusText(r.status), name).arg(r.durationMs);
                 if (!r.summary.isEmpty())
                     h += QStringLiteral("<div class=\"analysis\">%1</div>").arg(r.summary.toHtmlEscaped());
-                const QString body = r.details.isEmpty() ? r.rawOutput : r.details;
+                // 5WHY (复核 2026-08-21 报告缺口): 与表格体同源——空 details
+                // 时派生 props 转储，报告与屏幕终端一致。
+                const QString body = !r.details.isEmpty() ? r.details
+                    : (!r.rawOutput.isEmpty() ? r.rawOutput
+                    : SystemDiagnostics::propsDumpText(r.properties));
                 if (!body.trimmed().isEmpty())
                     h += QStringLiteral("<div class=\"raw\">%1</div>").arg(body.toHtmlEscaped());
                 h += QStringLiteral("</div></details>\n");

@@ -17,10 +17,11 @@ inline qint64 monotonicMsSinceAppStart() {
         t.start();
         return t;
     }();
-    // 5WHY (复核 2026-08-21 首轮零值碰撞): 首轮首探针初始化 kStart 时
-    // elapsed()==0，同毫秒内启动的兄弟探针起点也全为 0——UI 以
-    // startedAtMonoMs > 0 作"有起点"哨兵，0 被判"未注入"退回本地计数，
-    // 网格重建即归零（本时钟链声称修复的回归在首轮复现）。+1 偏置使
-    // 任何已启动探针起点恒 ≥1；相减双方同偏置，计时差不受影响。
-    return kStart.elapsed() + 1;
+    // 5WHY (复核 2026-08-21 首轮零值碰撞 + 哨兵显式化): 首轮首探针初始化
+    // kStart 时 elapsed()==0——UI 曾以 startedAtMonoMs > 0 作"有起点"哨兵，
+    // 0 被判"未注入"。曾以 +1 偏置在时钟域兜底（时钟契约 "ms since app
+    // start" 被整体平移 1ms，任何混用他钟的消费方继承偏斜）。修正落于
+    // 消费侧：itemFor 注入显式 hasStartedAt 标记，时钟恢复诚实值
+    // （相减双方同源，计时差不受影响）。
+    return kStart.elapsed();
 }
