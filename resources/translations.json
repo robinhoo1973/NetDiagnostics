@@ -1037,6 +1037,23 @@
       "Desconhecido",
       "غير معروف"
     ],
+    "detailWaitComplete": [
+      "请等待检测完成后再查看详情。",
+      "請等待檢測完成後再查看詳情。",
+      "診断の完了までお待ちください。",
+      "진단이 완료될 때까지 기다려 주세요.",
+      "कृपया निदान पूर्ण होने की प्रतीक्षा करें।",
+      "Vui lòng chờ quá trình chẩn đoán hoàn tất.",
+      "Teşhis tamamlanana kadar lütfen bekleyin.",
+      "Please wait for the diagnostic to complete.",
+      "Veuillez attendre la fin du diagnostic.",
+      "Bitte warten Sie, bis die Diagnose abgeschlossen ist.",
+      "Подождите завершения диагностики.",
+      "Attendi il completamento della diagnostica.",
+      "Espere a que finalice el diagnóstico.",
+      "Aguarde a conclusão do diagnóstico.",
+      "يرجى الانتظار حتى اكتمال التشخيص."
+    ],
     "detailedReport": [
       "详细报告和导出",
       "詳細報告和匯出",

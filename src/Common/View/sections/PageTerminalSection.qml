@@ -28,9 +28,17 @@ PageSection {
             color: ThemeEngine.colors.onSurfaceVariant
         }
         Loader {
+            id: termLoader
             Layout.fillWidth: true
             Layout.preferredHeight: Math.min(360, Math.max(72, root._terminalLines * 18 + 24))
             sourceComponent: TerminalBlock {
+                // 5WHY (2026-08-22, issue 2): TerminalBlock 的 implicitHeight 跟随
+                // 全文行数（长输出可达 1200px+），溢出 Loader 的钳制视口后，内部
+                // Flickable 视口=全文高度、interactive=false 永不滚动，末尾行被
+                // 后序区块覆盖。必须把组件尺寸显式钉住 = Loader 视口，内部滚动
+                // 才接管（独立 harness 验证：viewport 336 → contentY 可达 869=maxY）。
+                width: termLoader.width
+                height: termLoader.height
                 text: root._terminalText
                 typewriter: true
             }

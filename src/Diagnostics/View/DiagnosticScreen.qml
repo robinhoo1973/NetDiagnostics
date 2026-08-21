@@ -105,6 +105,14 @@ PageDisplay {
                     // 8-18：双保险——未完成的检测不允许激活详情页（瓦片层已禁用
                     // MouseArea，此处再按 isPending 拦截一次）。
                     if (d && d.isPending === true) return
+                    // 5WHY (2026-08-22, issue 3): resultFor() 返回运行中快照——
+                    // 检测尚未完成时首次进入详情，快照冻结为空 details，Terminal
+                    // 永远空白；切到别的已完成详情再回来才拿到完整数据。修复：仅
+                    // 允许已完成 (isDone) 的检测打开详情，运行中给出提示。
+                    if (!d || d.isDone !== true) {
+                        page.showToast(T.tr("detailWaitComplete"))
+                        return
+                    }
                     page._detail = AppState.resultFor(d.diagId)
                     page._detailVisible = page._detail !== null && Object.keys(page._detail).length > 0
                     if (!page._detailVisible)

@@ -1630,8 +1630,10 @@ static DiagnosticResult probeActiveConnections(DiagId id, const QString&, RunCon
 static DiagnosticResult probeCellular(DiagId id, const QString&, RunContext& ctx) {
     QVector<ResultProperty> props;
     QStringList out;
-    // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): 头行曾缺冒号——v0.0.3 为
-    // "Cellular Information:"（iOS 恒文同款头）。
+    // 5WHY (复核 2026-08-22 v0.0.3 逐字复刻): v0.0.3 G1CellularInfo.cpp 开头为
+    // 空行 + "Cellular Information:" + 空行——首空行曾在重构中丢失，逐字补回
+    // （review/history G1CellularInfo.cpp:8-10 为证）。
+    out.append(QString());
     out.append(QStringLiteral("Cellular Information:"));
     out.append(QString());
 
