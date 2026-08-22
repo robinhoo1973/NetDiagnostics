@@ -1627,6 +1627,16 @@ static DiagnosticResult probeActiveConnections(DiagId id, const QString&, RunCon
 }
 
 // ── G1CellularInfo ────────────────────────────────────────────────────────
+// 5WHY (2026-08-22 死代码根因): iOS 注册表把 G1CellularInfo 派发给
+// iosCellularProbe（本文末段）——其输出构建读 iosCellularInfo 的旧键
+// （simSlots/dataIp/gateway/signalStrength），而 iosCellularInfo 现产
+// sims/carrierName/radioAccess——键名脱节致全字段恒空，iOS 终端永远
+// "IP Address: (not assigned)"，此前多轮对 probeCellular iOS 分支的
+// 修复均未触达 iOS 显示路径（用户反馈 "多次修改一点变化都没有"）。
+// 收敛为单一实现 cellularProbeIos（iOS 分支抽取），两处共享。
+#if defined(PLATFORM_IOS)
+static DiagnosticResult cellularProbeIos(DiagId id);
+#endif
 static DiagnosticResult probeCellular(DiagId id, const QString&, RunContext& ctx) {
     QVector<ResultProperty> props;
     QStringList out;
@@ -1638,114 +1648,10 @@ static DiagnosticResult probeCellular(DiagId id, const QString&, RunContext& ctx
     out.append(QString());
 
 #if defined(PLATFORM_IOS)
-    // 5WHY (复核 2026-08-21 用户 "Cellular 与历史差距大"): v0.0.3 的 iOS
-    // 深探测分支（Carrier/Radio Access/IP/Gateway/Signal/SIM 卡槽）在重构
-    // 中丢失——iOS 上只剩接口名枚举，无任何蜂窝详情。逐字复刻 v0.0.3
-    // cellularInfo iOS 分支（iosCellularInfo/pdp_ip0 网关）。
-    {
-        QVariantMap cell = iosCellularInfo();
-        const bool hasCellIdentity = SystemDiagnostics::hasCellularIdentity(cell);
-        // 5WHY (复核 2026-08-22 用户 "只显示 IP Address: (not assigned)、
-        // SIM 与连接信息全无"): 上一轮按"完全复制历史"恢复的 pdp_ip0
-        // 硬编码在接口改名设备上恒空——历史逻辑本身在新设备上失效。
-        // iosCellularIPv4 超集兜底（pdp_ip0 为首候选，历史行为保留）；
-        // iosCellularIfaces 枚举蜂窝类接口作为连接信息兜底行——网络层
-        // 事实不受 CoreTelephony 16.4+ 隐私占位影响。
-        QString cellIface;
-        const QString cellIp = iosCellularIPv4(&cellIface);
-        const QString cellGw = cellIface.isEmpty()
-            ? QString() : iosGatewayForInterface(cellIface);
-        const QVariantList cellIfaces = iosCellularIfaces();
-        // 接口连接行 + 属性卡（两分支共用，先构建一次）
-        QStringList ifaceLines;
-        for (const QVariant& v : cellIfaces) {
-            const QVariantMap im = v.toMap();
-            const QString ip4 = im.value(QStringLiteral("ipv4")).toString();
-            const QString ip6 = im.value(QStringLiteral("ipv6")).toString();
-            if (ip4.isEmpty() && ip6.isEmpty()) continue;
-            ifaceLines.append(QStringLiteral("  Interface %1: IPv4 %2  IPv6 %3")
-                .arg(im.value(QStringLiteral("name")).toString(),
-                     ip4.isEmpty() ? QStringLiteral("(none)") : ip4,
-                     ip6.isEmpty() ? QStringLiteral("(none)") : ip6));
-            ResultProperty p(QStringLiteral("interface %1").arg(im.value(QStringLiteral("name")).toString()),
-                ip4.isEmpty() ? QStringLiteral("(no IPv4)") : ip4);
-            if (!ip6.isEmpty()) p.children.append({QStringLiteral("IPv6"), ip6});
-            props.append(p);
-        }
-        const QVariantList sims = cell.value(QStringLiteral("sims")).toList();
-        const bool multiSim = sims.size() > 1;
-        DiagStatus status = DiagStatus::Info;
-        QString summary;
-        if (hasCellIdentity || !sims.isEmpty()) {
-            if (multiSim)
-                out.append(QStringLiteral("  %1 SIM / eSIM lines active:").arg(sims.size()));
-            for (const QVariant& v : sims) {
-                const QVariantMap sim = v.toMap();
-                const QString pad = multiSim ? QStringLiteral("    ") : QStringLiteral("  ");
-                if (multiSim)
-                    out.append(QStringLiteral("  SIM %1:").arg(sim.value(QStringLiteral("slot")).toInt()));
-                const QString carrier = sim.value(QStringLiteral("carrierName")).toString();
-                out.append(QStringLiteral("%1Carrier: %2").arg(pad,
-                    carrier.isEmpty() ? QStringLiteral("(hidden by iOS 16.4+)") : carrier));
-                const QString radio = sim.value(QStringLiteral("radioAccess")).toString();
-                out.append(QStringLiteral("%1Radio Access: %2").arg(pad,
-                    radio.isEmpty() ? QStringLiteral("(not available)") : radio));
-                // 5WHY (2026-08-22 用户诉求 "显示 SIM 卡及卡对应的连接
-                // 信息"): 卡级连接信息补全——MCC/MNC 与 ISO 国家码
-                // （iOS ≤16.3 仍返回真值）、数据服务标记。占位值（65535/
-                // 空）不印行，保持终端整洁。
-                const QString mcc = sim.value(QStringLiteral("mcc")).toString();
-                const QString mnc = sim.value(QStringLiteral("mnc")).toString();
-                if (!mcc.isEmpty() || !mnc.isEmpty())
-                    out.append(QStringLiteral("%1MCC/MNC: %2 %3").arg(pad, mcc, mnc));
-                const QString iso = sim.value(QStringLiteral("isoCountry")).toString();
-                if (!iso.isEmpty())
-                    out.append(QStringLiteral("%1ISO Country: %2").arg(pad, iso));
-                if (sim.value(QStringLiteral("dataService")).toBool())
-                    out.append(QStringLiteral("%1Data service: active").arg(pad));
-                ResultProperty sp(QStringLiteral("SIM %1").arg(sim.value(QStringLiteral("slot")).toInt()),
-                    carrier.isEmpty() ? QStringLiteral("(hidden by iOS 16.4+)") : carrier);
-                if (!radio.isEmpty()) sp.children.append({QStringLiteral("radio access"), radio});
-                props.append(sp);
-            }
-            out.append(QStringLiteral("  %1: %2")
-                .arg(multiSim ? QStringLiteral("Data IP (active line)") : QStringLiteral("IP Address"),
-                     cellIp.isEmpty() ? QStringLiteral("(not assigned)") : cellIp));
-            if (!cellGw.isEmpty())
-                out.append(QStringLiteral("  Gateway: %1").arg(cellGw));
-            out.append(ifaceLines);
-            if (SystemDiagnostics::hasNonEmptyValue(cell, "signalNotice"))
-                out.append(QStringLiteral("  Signal: %1").arg(cell["signalNotice"].toString()));
-            out.append(QString());
-            status = DiagStatus::Pass;
-            if (multiSim) {
-                QStringList rats;
-                for (const QVariant& v : sims) {
-                    const QString ra = v.toMap().value(QStringLiteral("radioAccess")).toString();
-                    rats.append(ra.isEmpty() ? QStringLiteral("\u2014") : ra);
-                }
-                summary = QStringLiteral("%1 SIMs (%2)").arg(sims.size()).arg(rats.join(QStringLiteral(", ")));
-            } else {
-                summary = SystemDiagnostics::cellularSummary(cell);
-            }
-        } else {
-            out.append(QStringLiteral("  No cellular service available"));
-            if (!cellIp.isEmpty())
-                out.append(QStringLiteral("  IP Address: %1").arg(cellIp));
-            if (!cellGw.isEmpty())
-                out.append(QStringLiteral("  Gateway: %1").arg(cellGw));
-            out.append(ifaceLines);
-            if (SystemDiagnostics::hasNonEmptyValue(cell, "signalNotice"))
-                out.append(QStringLiteral("  Signal: %1").arg(cell["signalNotice"].toString()));
-            summary = QStringLiteral("No cellular service");
-        }
-        out.append(QString());
-        DiagnosticResult r = makeResult(id, status, summary, props, out.join(QLatin1Char('\n')));
-        r.narrative = (status == DiagStatus::Pass)
-            ? QStringLiteral("Cellular service is active: %1.").arg(summary)
-            : QStringLiteral("No cellular service available on this device.");
-        return r;
-    }
+    // 5WHY (2026-08-22 单一实现收敛): iOS 输出构建与注册表的
+    // iosCellularProbe 共享 cellularProbeIos（定义见本文末 iOS 段）——
+    // 不再有双份构建器键名脱节问题。
+    return cellularProbeIos(id);
 #endif
 
     // 5WHY (复核 2026-08-20 计数锁步): 曾 found bool 与 foundNames 逐处同
@@ -1970,6 +1876,119 @@ static DiagnosticResult probeCellular(DiagId id, const QString&, RunContext& ctx
 // ── 平台深探针（iOS IosNetworkInfo / Android JNI）───────────────────
 #if defined(PLATFORM_IOS)
 #include "Diagnostics/Model/G1/Platform/IOS/IosNetworkInfo.h"
+
+namespace g1 {
+// ── iOS 蜂窝探针单一实现（probeCellular 的 iOS 分支抽取）──────────────
+// 5WHY (2026-08-22 死代码根因): 注册表把 G1CellularInfo 派发给本文另一
+// 份 iosCellularProbe——其输出构建读 iosCellularInfo 旧键（simSlots/
+// dataIp/gateway），与现产键（sims/carrierName/radioAccess）脱节，iOS
+// 终端恒为 "IP Address: (not assigned)"。本函数为唯一构建器，probeCellular
+// 与 iosCellularProbe 均委托至此——单一实现，键名不再双份漂移。
+// 能力：v0.0.3 行序列逐字复刻 + IP 超集兜底（pdp_ip0 首候选）+
+// 蜂窝接口连接行（网络层事实，不受 CoreTelephony 16.4+ 隐私占位影响）+
+// 每卡 MCC/MNC/ISO/Data service 行。
+DiagnosticResult cellularProbeIos(DiagId id) {
+    QVector<ResultProperty> props;
+    QStringList out;
+    out.append(QString());
+    out.append(QStringLiteral("Cellular Information:"));
+    out.append(QString());
+
+    QVariantMap cell = iosCellularInfo();
+    const bool hasCellIdentity = SystemDiagnostics::hasCellularIdentity(cell);
+    QString cellIface;
+    const QString cellIp = iosCellularIPv4(&cellIface);
+    const QString cellGw = cellIface.isEmpty()
+        ? QString() : iosGatewayForInterface(cellIface);
+    const QVariantList cellIfaces = iosCellularIfaces();
+    // 接口连接行 + 属性卡（两分支共用，先构建一次）
+    QStringList ifaceLines;
+    for (const QVariant& v : cellIfaces) {
+        const QVariantMap im = v.toMap();
+        const QString ip4 = im.value(QStringLiteral("ipv4")).toString();
+        const QString ip6 = im.value(QStringLiteral("ipv6")).toString();
+        if (ip4.isEmpty() && ip6.isEmpty()) continue;
+        ifaceLines.append(QStringLiteral("  Interface %1: IPv4 %2  IPv6 %3")
+            .arg(im.value(QStringLiteral("name")).toString(),
+                 ip4.isEmpty() ? QStringLiteral("(none)") : ip4,
+                 ip6.isEmpty() ? QStringLiteral("(none)") : ip6));
+        ResultProperty p(QStringLiteral("interface %1").arg(im.value(QStringLiteral("name")).toString()),
+            ip4.isEmpty() ? QStringLiteral("(no IPv4)") : ip4);
+        if (!ip6.isEmpty()) p.children.append({QStringLiteral("IPv6"), ip6});
+        props.append(p);
+    }
+    const QVariantList sims = cell.value(QStringLiteral("sims")).toList();
+    const bool multiSim = sims.size() > 1;
+    DiagStatus status = DiagStatus::Info;
+    QString summary;
+    if (hasCellIdentity || !sims.isEmpty()) {
+        if (multiSim)
+            out.append(QStringLiteral("  %1 SIM / eSIM lines active:").arg(sims.size()));
+        for (const QVariant& v : sims) {
+            const QVariantMap sim = v.toMap();
+            const QString pad = multiSim ? QStringLiteral("    ") : QStringLiteral("  ");
+            if (multiSim)
+                out.append(QStringLiteral("  SIM %1:").arg(sim.value(QStringLiteral("slot")).toInt()));
+            const QString carrier = sim.value(QStringLiteral("carrierName")).toString();
+            out.append(QStringLiteral("%1Carrier: %2").arg(pad,
+                carrier.isEmpty() ? QStringLiteral("(hidden by iOS 16.4+)") : carrier));
+            const QString radio = sim.value(QStringLiteral("radioAccess")).toString();
+            out.append(QStringLiteral("%1Radio Access: %2").arg(pad,
+                radio.isEmpty() ? QStringLiteral("(not available)") : radio));
+            const QString mcc = sim.value(QStringLiteral("mcc")).toString();
+            const QString mnc = sim.value(QStringLiteral("mnc")).toString();
+            if (!mcc.isEmpty() || !mnc.isEmpty())
+                out.append(QStringLiteral("%1MCC/MNC: %2 %3").arg(pad, mcc, mnc));
+            const QString iso = sim.value(QStringLiteral("isoCountry")).toString();
+            if (!iso.isEmpty())
+                out.append(QStringLiteral("%1ISO Country: %2").arg(pad, iso));
+            if (sim.value(QStringLiteral("dataService")).toBool())
+                out.append(QStringLiteral("%1Data service: active").arg(pad));
+            ResultProperty sp(QStringLiteral("SIM %1").arg(sim.value(QStringLiteral("slot")).toInt()),
+                carrier.isEmpty() ? QStringLiteral("(hidden by iOS 16.4+)") : carrier);
+            if (!radio.isEmpty()) sp.children.append({QStringLiteral("radio access"), radio});
+            props.append(sp);
+        }
+        out.append(QStringLiteral("  %1: %2")
+            .arg(multiSim ? QStringLiteral("Data IP (active line)") : QStringLiteral("IP Address"),
+                 cellIp.isEmpty() ? QStringLiteral("(not assigned)") : cellIp));
+        if (!cellGw.isEmpty())
+            out.append(QStringLiteral("  Gateway: %1").arg(cellGw));
+        out.append(ifaceLines);
+        if (SystemDiagnostics::hasNonEmptyValue(cell, "signalNotice"))
+            out.append(QStringLiteral("  Signal: %1").arg(cell["signalNotice"].toString()));
+        out.append(QString());
+        status = DiagStatus::Pass;
+        if (multiSim) {
+            QStringList rats;
+            for (const QVariant& v : sims) {
+                const QString ra = v.toMap().value(QStringLiteral("radioAccess")).toString();
+                rats.append(ra.isEmpty() ? QStringLiteral("\u2014") : ra);
+            }
+            summary = QStringLiteral("%1 SIMs (%2)").arg(sims.size()).arg(rats.join(QStringLiteral(", ")));
+        } else {
+            summary = SystemDiagnostics::cellularSummary(cell);
+        }
+    } else {
+        out.append(QStringLiteral("  No cellular service available"));
+        if (!cellIp.isEmpty())
+            out.append(QStringLiteral("  IP Address: %1").arg(cellIp));
+        if (!cellGw.isEmpty())
+            out.append(QStringLiteral("  Gateway: %1").arg(cellGw));
+        out.append(ifaceLines);
+        if (SystemDiagnostics::hasNonEmptyValue(cell, "signalNotice"))
+            out.append(QStringLiteral("  Signal: %1").arg(cell["signalNotice"].toString()));
+        summary = QStringLiteral("No cellular service");
+    }
+    out.append(QString());
+    DiagnosticResult r = makeResult(id, status, summary, props, out.join(QLatin1Char('\n')));
+    r.narrative = (status == DiagStatus::Pass)
+        ? QStringLiteral("Cellular service is active: %1.").arg(summary)
+        : QStringLiteral("No cellular service available on this device.");
+    return r;
+}
+} // namespace g1
+
 namespace {
 DiagnosticResult iosWifiProbe(DiagId id, const QString&, RunContext&) {
     const QVariantMap info = iosWiFiInfo();
@@ -2033,101 +2052,14 @@ DiagnosticResult iosWifiProbe(DiagId id, const QString&, RunContext&) {
 }
 
 DiagnosticResult iosCellularProbe(DiagId id) {
-    const QVariantMap info = iosCellularInfo();
-    // 5WHY (复核 2026-08-19 v0.0.3 对等): v0.0.3 的 "No cellular service"
-    // 是 Info 态（G1CellularInfo.cpp）——曾返回 skipped 丢失该呈现。
-    // iOS 设备恒有调制解调器：空图即"无服务"而非"无硬件"。
-    if (info.isEmpty()) {
-        // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): 空服务恒文（v0.0.3 iOS
-        // "  No cellular service available" + 可选 IP/Gateway/Signal 行 +
-        // 尾部空行）——曾空 details 落复刻层误判。
-        const QStringList vOut = {
-            QString(),
-            QStringLiteral("Cellular Information:"),
-            QString(),
-            QStringLiteral("  No cellular service available"),
-            QString(),
-        };
-        DiagnosticResult nr = g1::makeResult(id, DiagStatus::Info,
-            QStringLiteral("No cellular service"),
-            {{QStringLiteral("cellular"), QStringLiteral("No cellular service available")}},
-            vOut.join(QLatin1Char('\n')));
-        // 5WHY (复核 2026-08-20 文案三份): 同一句叙述曾逐字复制于 iOS/
-        // Android——措辞修正需逐文件改。共享 GHelpers 单一来源。
-        nr.narrative = SystemDiagnostics::cellularNoServiceNarrative();
-        return nr;
-    }
-    QVector<ResultProperty> props;
-    auto add = [&props](const char* label, const QString& v) {
-        if (!v.isEmpty()) props.append({QLatin1String(label), v});
-    };
-    add("carrier", info.value(QStringLiteral("carrierName")).toString());
-    add("radio access", info.value(QStringLiteral("radioAccess")).toString());
-    add("MCC", info.value(QStringLiteral("mcc")).toString());
-    add("MNC", info.value(QStringLiteral("mnc")).toString());
-    add("signal", info.value(QStringLiteral("signalStrength")).toString());
-    // 5WHY (复核 2026-08-19 v0.0.3 对等): 数据 IP/网关/多卡槽位（SIM-by-SIM）
-    // 曾随表呈现——ObjC 侧若提供相应键即呈现（防御性读取；键缺失不崩）。
-    add("Data IP", info.value(QStringLiteral("dataIp")).toString());
-    add("Gateway", info.value(QStringLiteral("gateway")).toString());
-    // 5WHY (复核 2026-08-19 CI 失败根因): 变量名曾为 `slots`——Qt 关键字宏
-    // （#define slots Q_SLOTS，Apple 构建未定义 QT_NO_KEYWORDS）展开成
-    // Q_SLOTS → "expected unqualified-id"。本段在 __APPLE__ 门内，Linux
-    // 本地构建不编译、CI 才暴露。改名避开关键字。
-    const QVariantList simSlotList = info.value(QStringLiteral("simSlots")).toList();
-    for (const QVariant& s : simSlotList) {
-        const QVariantMap sim = s.toMap();
-        if (sim.isEmpty()) continue;
-        props.append({QStringLiteral("SIM %1").arg(sim.value(QStringLiteral("slot")).toString()),
-            QStringLiteral("%1 / %2").arg(sim.value(QStringLiteral("carrier")).toString(),
-                                          sim.value(QStringLiteral("rat")).toString())});
-    }
-    // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): v0.0.3 iOS 蜂窝逐行恒文——
-    // 多卡 "  N SIM / eSIM lines active:" + 逐卡 "  SIM n:"/缩进 Carrier/
-    // Radio Access（空值 "(hidden by iOS 16+)"/"(not available)"）+
-    // Data IP/Gateway/Signal + 尾部空行。
-    QStringList vOut;
-    vOut.append(QString());
-    vOut.append(QStringLiteral("Cellular Information:"));
-    vOut.append(QString());
-    const bool multiSim = simSlotList.size() > 1;
-    if (multiSim)
-        vOut.append(QStringLiteral("  %1 SIM / eSIM lines active:").arg(simSlotList.size()));
-    for (const QVariant& s : simSlotList) {
-        const QVariantMap sim = s.toMap();
-        const QString pad = multiSim ? QStringLiteral("    ") : QStringLiteral("  ");
-        if (multiSim)
-            vOut.append(QStringLiteral("  SIM %1:").arg(sim.value(QStringLiteral("slot")).toString()));
-        const QString carrier = sim.value(QStringLiteral("carrier")).toString();
-        vOut.append(QStringLiteral("%1Carrier: %2").arg(pad,
-            carrier.isEmpty() ? QStringLiteral("(hidden by iOS 16+)") : carrier));
-        const QString rat = sim.value(QStringLiteral("rat")).toString();
-        vOut.append(QStringLiteral("%1Radio Access: %2").arg(pad,
-            rat.isEmpty() ? QStringLiteral("(not available)") : rat));
-    }
-    const QString dataIp = info.value(QStringLiteral("dataIp")).toString();
-    vOut.append(QStringLiteral("  %1: %2")
-        .arg(multiSim ? QStringLiteral("Data IP (active line)") : QStringLiteral("IP Address"),
-             dataIp.isEmpty() ? QStringLiteral("(not assigned)") : dataIp));
-    const QString gw = info.value(QStringLiteral("gateway")).toString();
-    if (!gw.isEmpty())
-        vOut.append(QStringLiteral("  Gateway: %1").arg(gw));
-    const QString sig = info.value(QStringLiteral("signalStrength")).toString();
-    if (!sig.isEmpty())
-        vOut.append(QStringLiteral("  Signal: %1").arg(sig));
-    vOut.append(QString());
-    // 5WHY (复核 2026-08-20 复用): "Carrier: X" 字符串曾各平台各写一份
-    // ——共享 GHelpers::cellularSummary（carrier+radio 组合回退逻辑）。
-    DiagnosticResult r = g1::makeResult(id, DiagStatus::Pass,
-        SystemDiagnostics::cellularSummary(info), props, vOut.join(QLatin1Char('\n')));
-    // 摘要卡叙述（与桌面/Android 同构）：运营商 → 制式 → 信号 → 承载
-    r.narrative = QStringLiteral("Carrier %1 on %2 (MCC %3, MNC %4). "
-        "Signal, data IP, gateway and SIM slots are listed in the property cards below.")
-        .arg(info.value(QStringLiteral("carrierName")).toString(),
-             info.value(QStringLiteral("radioAccess")).toString(),
-             info.value(QStringLiteral("mcc")).toString(),
-             info.value(QStringLiteral("mnc")).toString());
-    return r;
+    // 5WHY (2026-08-22 死代码修复): 本函数曾自带整套输出构建——读取
+    // iosCellularInfo 的旧键（simSlots/dataIp/gateway/signalStrength），
+    // 而 iosCellularInfo 现产 sims/carrierName/radioAccess——键名脱节致
+    // 全字段恒空，iOS 终端永远 "IP Address: (not assigned)"，历轮对
+    // probeCellular 的修复均未触达此路径（用户 "多次修改一点变化都
+    // 没有"）。收敛为 g1::cellularProbeIos 单一实现（含 v0.0.3 行序列、
+    // IP 超集兜底、蜂窝接口连接行、逐卡 MCC/MNC/ISO/Data service）。
+    return g1::cellularProbeIos(id);
 }
 } // namespace
 #endif
