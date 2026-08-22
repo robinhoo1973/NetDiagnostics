@@ -55,6 +55,13 @@ Rectangle {
             id: bodyFlick
             Layout.fillWidth: true
             Layout.fillHeight: true
+            // 5WHY (2026-08-23 用户 "弹窗只剩按钮无文本"): 卡片高度取
+            // cardCol.implicitHeight，而 Flickable 在 Qt 6.8 不把
+            // contentHeight 回传给 implicitHeight——fillHeight 项的隐式高
+            // 为 0，卡片坍缩成 footer+边距（实测 106px），主体内容被
+            // clip 裁掉，只剩继续/取消按钮。显式声明隐式高 = 内容高：
+            // 卡片恢复全高；屏幕钳制时 Flickable 仍可滚动主体。
+            implicitHeight: bodyCol.implicitHeight
             contentWidth: width
             contentHeight: bodyCol.implicitHeight
             clip: true

@@ -23,9 +23,11 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QGuiApplication>
+#include <QHostAddress>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QNetworkInterface>
 #include <QSettings>
 #include <QStandardPaths>
 #include <QUrl>
@@ -33,6 +35,9 @@
 
 #if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
 #include "Common/Platform/PlatformShare.h"   // 移动端系统分享单
+#endif
+#if defined(PLATFORM_IOS)
+#include "Diagnostics/Model/G1/Platform/IOS/IosNetworkInfo.h"   // 5WHY (2026-08-23): 流量弹窗触发需 WiFi 连接事实
 #endif
 
 namespace {
@@ -52,6 +57,57 @@ DiagGroup groupForIndex(int idx) {
 bool runnableFor(DiagId id, const QString& schemeLower) {
     return AdapterRegistry::select(id, schemeLower) != nullptr
         && DeviceCapability::diagSupportedOnDevice(id);
+}
+
+// 5WHY (2026-08-23 弹窗误触发): 流量警告曾以 "有 target 输入" 为触发
+// 条件——WiFi 下也弹、无 target 的蜂窝大流量诊断反而不弹。正确语义
+// （用户定义）：无 WiFi 网络且蜂窝数据可用时才询问，与 target 无关。
+// 判据采用网络层事实：WiFi 接口持有非链路本地 IPv4 = 已连 WiFi；
+// iOS 另用 CoreLocation SSID（权限缺失时回退 en0 IPv4）。
+bool isOnWifi() {
+#if defined(PLATFORM_IOS)
+    if (!iosCopyWiFiSSID().isEmpty()) return true;
+    return !iosInterfaceIPv4(QStringLiteral("en0")).isEmpty();
+#else
+    const auto ifaces = QNetworkInterface::allInterfaces();
+    for (const QNetworkInterface& iface : ifaces) {
+        if (!iface.flags().testFlag(QNetworkInterface::IsRunning)) continue;
+        const QString name = iface.name().toLower();
+        const bool wifiLike = name.contains(QLatin1String("wlan"))
+            || name.contains(QLatin1String("wi-fi"))
+            || name.contains(QLatin1String("wl"))
+            || name.startsWith(QLatin1String("en0"));   // macOS 无线 en0
+        if (!wifiLike) continue;
+        for (const QNetworkAddressEntry& e : iface.addressEntries()) {
+            const QHostAddress a = e.ip();
+            if (a.protocol() == QAbstractSocket::IPv4Protocol
+                && !a.isLinkLocal() && !a.isLoopback())
+                return true;
+        }
+    }
+    return false;
+#endif
+}
+
+bool hasCellularUp() {
+#if defined(PLATFORM_IOS)
+    return !iosCellularIPv4().isEmpty();
+#else
+    const auto ifaces = QNetworkInterface::allInterfaces();
+    for (const QNetworkInterface& iface : ifaces) {
+        if (!iface.flags().testFlag(QNetworkInterface::IsRunning)) continue;
+        const QString name = iface.name().toLower();
+        if (!name.contains(QLatin1String("wwan")) && !name.contains(QLatin1String("rmnet"))
+            && !name.contains(QLatin1String("pdp")) && !name.contains(QLatin1String("cellular")))
+            continue;
+        for (const QNetworkAddressEntry& e : iface.addressEntries()) {
+            const QHostAddress a = e.ip();
+            if (a.protocol() == QAbstractSocket::IPv4Protocol && !a.isLinkLocal())
+                return true;
+        }
+    }
+    return false;
+#endif
 }
 } // namespace
 
@@ -266,7 +322,11 @@ void AppState::runDiagnostics() {
     // 8-18（5WHY 死机根因 1/3）：蜂窝数据警告前移到整轮开始前。原实现在 G3 前
     // （runNextGroup 内）中途弹窗并 return 等待，配合遮罩不可见缺陷造成
     // “界面卡死、无法切页、组不推进”。前移后：清屏 → 弹窗 → 确认/取消。
-    if (m_isPremiumPlatform && !noTarget && !m_cellularWarnAcked) {
+    // 5WHY (2026-08-23 弹窗误触发): 曾以 "有 target" 为触发条件——WiFi 下
+    // 也弹窗、无 target 的蜂窝大流量诊断反而不弹。正确语义：本轮含 G3
+    // 且当前无 WiFi（蜂窝数据可用）时，G3 开始前询问，与 target 无关。
+    if (m_isPremiumPlatform && !m_cellularWarnAcked
+        && m_pendingGroups.contains(2) && !isOnWifi() && hasCellularUp()) {
         m_cellularWarnVisible = true;
         // 5WHY (复核 2026-08-19 状态语义): 此路径已清空
         // m_results/m_groupDone/m_currentGroup 却只发

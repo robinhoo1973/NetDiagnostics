@@ -780,8 +780,14 @@ static QString detectCountry(int timeoutMs = 5000) {
         QMutexLocker lock(&sMutex);
         if (!sCached.isEmpty() && sCached != QLatin1String("XX")) return sCached;
     }
+    // 5WHY (2026-08-23 用户 "国别返回 XX"): 三家提供商任一超时/限流即
+    // 整体 XX——单一故障点连锁。扩展为五家异构提供商（JSON/纯文本各半），
+    // 首个有效两字母码即收敛；全败才 XX（UI 层仍映射为 Unknown，见
+    // countryFullName）。
     static const struct { const char* url; int parser; } providers[] = {
         {"https://ip-api.com/json/",         0},   // JSON countryCode
+        {"https://ipwho.is/",                2},   // JSON country_code/country
+        {"https://ipinfo.io/json/",          2},   // JSON country
         {"https://ipapi.co/country/",        1},   // plain-text 2-letter
         {"https://ifconfig.co/country-iso",  1},
     };
@@ -809,6 +815,13 @@ static QString detectCountry(int timeoutMs = 5000) {
             const QJsonDocument doc = QJsonDocument::fromJson(body);
             if (doc.isObject())
                 cc = doc.object().value(QStringLiteral("countryCode")).toString();
+        } else if (providers[pr.first].parser == 2) {
+            const QJsonDocument doc = QJsonDocument::fromJson(body);
+            if (doc.isObject()) {
+                const QJsonObject o = doc.object();
+                cc = o.value(QStringLiteral("country_code")).toString();
+                if (cc.size() != 2) cc = o.value(QStringLiteral("country")).toString();
+            }
         } else {
             if (text.size() == 2) cc = text.toUpper();
         }
@@ -880,8 +893,13 @@ static DiagnosticResult probeGeoIPLoc(DiagId id, const QString&, RunContext& ctx
         }
     }
     if (cc.isEmpty()) cc = detectCountry(5000);
-    props.append({QStringLiteral("Country Code"), cc.isEmpty() ? QStringLiteral("Unknown") : cc});
-    out.append(QStringLiteral("  Country: %1").arg(cc.isEmpty() ? QStringLiteral("Unknown") : cc));
+    // 5WHY (2026-08-23 用户 "国别应显示国家全名"): 属性卡曾显示裸两字母
+    // 码（US/CN），全败时甚至显示内部哨兵 "XX"——码对用户不友好且 XX 是
+    // 内部失败标记不应泄漏到 UI。显示层统一国家全名；码保留在 data 层
+    // 供机器消费。
+    const QString countryDisplay = SystemDiagnostics::countryFullName(cc);   // "XX"/空 → "Unknown"
+    props.append({QStringLiteral("Country"), countryDisplay});
+    out.append(QStringLiteral("  Country: %1").arg(countryDisplay));
     if (!city.isEmpty())    { props.append({QStringLiteral("City"), city});     out.append(QStringLiteral("  City: %1").arg(city)); }
     if (!isp.isEmpty())     { props.append({QStringLiteral("ISP"), isp});       out.append(QStringLiteral("  ISP: %1").arg(isp)); }
     if (!asName.isEmpty())  { props.append({QStringLiteral("AS"), asName});     out.append(QStringLiteral("  AS: %1").arg(asName)); }
@@ -932,6 +950,7 @@ static DiagnosticResult probeGeoIPLoc(DiagId id, const QString&, RunContext& ctx
                 QStringLiteral("GeoIP: %1, Physical: Unknown").arg(SystemDiagnostics::countryFullName(cc)),
                 props, out.join(QLatin1Char('\n')));
             early.data[QStringLiteral("countryCode")] = cc;
+            early.data[QStringLiteral("countryName")] = SystemDiagnostics::countryFullName(cc);
             early.data[QStringLiteral("city")] = city;
             early.data[QStringLiteral("isp")] = isp;
             early.data[QStringLiteral("as")] = asName;
@@ -1119,6 +1138,7 @@ static DiagnosticResult probeGeoIPLoc(DiagId id, const QString&, RunContext& ctx
 
     DiagnosticResult r = makeResult(id, status, summary, props, out.join(QLatin1Char('\n')));
     r.data[QStringLiteral("countryCode")] = cc;
+    r.data[QStringLiteral("countryName")] = SystemDiagnostics::countryFullName(cc);
     r.data[QStringLiteral("city")] = city;
     r.data[QStringLiteral("isp")] = isp;
     r.data[QStringLiteral("as")] = asName;
