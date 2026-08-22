@@ -16,6 +16,7 @@
 #include "Common/Services/DnsResolver.h"
 #include "Common/Model/DiagnosticMeta.h"
 #include "Common/Model/DiagNames.h"
+#include "Common/Utils/TargetRedaction.h"   // 5WHY (2026-08-22 P0-2): 出口脱敏——探针输出不得含 user:pass@
 
 #if defined(PLATFORM_IOS)
 // iOS NSURLSession HTTP 族（.mm 实现，全局作用域声明）
@@ -26,6 +27,7 @@ DiagnosticResult iosHttpDiagnostic(DiagId id, const QString& target);
 #endif
 
 #include <QUrl>
+#include <QHostAddress>   // 5WHY (2026-08-22 P1-4): IP 字面量数值分类
 #include <QTcpSocket>
 #include <QSslSocket>
 #include <QSslCertificate>
@@ -245,11 +247,12 @@ static HttpResult httpOnce(const QUrl& u, const QByteArray& method,
 
     // Phase: DNS (only for hostnames) — DnsResolver 3s 超时单例（H4：裸 QHostInfo
     // 在坏网络下可阻塞数十秒，远超 watchdog 预算）
-    if (u.host().contains(QLatin1Char('.')) && !u.host().startsWith(QLatin1String("192."))
-        && !u.host().startsWith(QLatin1String("10."))
-        && !u.host().startsWith(QLatin1String("198.18."))
-        && !u.host().startsWith(QLatin1String("172."))
-        && !u.host().startsWith(QLatin1String("127."))) {
+    // 5WHY (2026-08-22 P1-4): 曾以 contains('.') + startsWith 前缀族判断
+    // "是否 IP 字面量"——192.example.com 被 192. 前缀误伤、172.32 公网被
+    // 误跳 DNS、缺 CGNAT 100.64/10 与 IPv6 ULA。QHostAddress 数值分类：
+    // 真字面量 dnsMs=0（诚实——无查询发生），其余一律真实解析。
+    QHostAddress literalCheck;
+    if (!literalCheck.setAddress(u.host())) {
         const QString ip = DnsResolver::instance().resolve(u.host(), 3000);
         r.dnsMs = phase.restart();
         if (ip.isEmpty()) {
@@ -505,7 +508,7 @@ static DiagnosticResult probeHttpHeaders(DiagId id, const QString& target, RunCo
     if (!hr.ok) return makeResult(id, DiagStatus::Fail,
         hr.error.isEmpty() ? QStringLiteral("HTTP request failed") : hr.error, {}, {});
     QStringList out;
-    out.append(QStringLiteral("HTTP/1.1 response headers for %1:").arg(u.toString()));
+    out.append(QStringLiteral("HTTP/1.1 response headers for %1:").arg(TargetRedaction::forDisplay(u.toString())));
     out.append(QStringLiteral("  %1").arg(QString::fromLatin1(hr.statusLine)));
     for (const auto& kv : hr.headers)
         out.append(QStringLiteral("  %1: %2").arg(QString::fromLatin1(kv.first), QString::fromLatin1(kv.second)));
@@ -653,7 +656,7 @@ static DiagnosticResult probeHttpRedirect(DiagId id, const QString& target, RunC
     QUrl u = normalizeUrl(target);
     if (u.isEmpty()) return makeResult(id, DiagStatus::Fail, QStringLiteral("Invalid target"), {}, {});
     QStringList out;
-    out.append(QStringLiteral("Redirect chain for %1:").arg(u.toString()));
+    out.append(QStringLiteral("Redirect chain for %1:").arg(TargetRedaction::forDisplay(u.toString())));
     int redirectCount = 0;
     bool finalOk = false;
     HttpResult last;
@@ -665,11 +668,11 @@ static DiagnosticResult probeHttpRedirect(DiagId id, const QString& target, RunC
         last = hr;
         if (!hr.ok) break;
         QVariantMap hm;
-        hm[QStringLiteral("url")] = u.toString();
+        hm[QStringLiteral("url")] = TargetRedaction::forDisplay(u.toString());
         hm[QStringLiteral("statusCode")] = hr.statusCode;
         hm[QStringLiteral("location")] = hr.redirectLocation;
         hops.append(hm);
-        out.append(QStringLiteral("  → %1 [HTTP %2]").arg(u.toString()).arg(hr.statusCode));
+        out.append(QStringLiteral("  → %1 [HTTP %2]").arg(TargetRedaction::forDisplay(u.toString())).arg(hr.statusCode));
         if (hr.statusCode >= 300 && hr.statusCode < 400 && !hr.redirectLocation.isEmpty()) {
             out.append(QStringLiteral("    Location: %1").arg(hr.redirectLocation));
             u = u.resolved(QUrl(hr.redirectLocation));
@@ -702,7 +705,7 @@ static DiagnosticResult probeHttpRedirect(DiagId id, const QString& target, RunC
     r.data[QStringLiteral("redirectCount")] = redirectCount;
     r.data[QStringLiteral("redirects")] = hops;   // diag-g5 §2.8 契约键
     r.data[QStringLiteral("finalStatus")] = last.statusCode;
-    r.data[QStringLiteral("finalUrl")] = u.toString();
+    r.data[QStringLiteral("finalUrl")] = TargetRedaction::forDisplay(u.toString());
     return r;
 }
 
@@ -758,7 +761,7 @@ static DiagnosticResult probeHttpTiming(DiagId id, const QString& target, RunCon
     if (!hr.ok) return makeResult(id, DiagStatus::Fail,
         hr.error.isEmpty() ? QStringLiteral("HTTP request failed") : hr.error, {}, {});
     QStringList out;
-    out.append(QStringLiteral("HTTP timing breakdown (%1):").arg(u.toString()));
+    out.append(QStringLiteral("HTTP timing breakdown (%1):").arg(TargetRedaction::forDisplay(u.toString())));
     out.append(QStringLiteral("  DNS lookup:   %1 ms").arg(hr.dnsMs));
     out.append(QStringLiteral("  TCP connect:  %1 ms").arg(hr.connectMs));
     out.append(QStringLiteral("  TLS handshake:%1 ms").arg(hr.tlsMs));

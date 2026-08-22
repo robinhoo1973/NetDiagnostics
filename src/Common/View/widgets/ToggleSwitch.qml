@@ -34,7 +34,7 @@ Switch {
             x: control.checked ? parent.width - width - 2 : 2
             y: (parent.height - height) / 2
             width: 16; height: 16; radius: 8
-            color: "#FFFFFF"
+            color: ThemeEngine.colors.onPrimary   // 5WHY (2026-08-22 P2-11): 硬编码白
             Behavior on x { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
         }
     }

@@ -90,8 +90,13 @@ PageDisplay {
                     page.showToast(T.tr("premiumRequiredMsg"))
                     return
                 }
-                AppState.shareReportFile(format)
-                page.showToast(T.tr("reportCopied"))
+                // 5WHY (2026-08-22 UX-2): 曾无条件提示"已复制"——桌面端实际
+                // 是导出文件并交给默认应用，文案与事实不符。分支：文本=已
+                // 复制；文件=已导出并打开；失败=明确报错。
+                const out = AppState.shareReportFile(format)
+                if (out === "ok") page.showToast(T.tr("reportCopied"))
+                else if (out !== "") page.showToast(T.tr("reportOpened"))
+                else page.showToast(T.tr("shareFailed"))
             }
         },
         Repeater {
@@ -187,7 +192,7 @@ PageDisplay {
                     spacing: ThemeEngine.spacing.sm
                     Button {
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 44
+                        Layout.preferredHeight: 48
                         text: T.tr("cellularCancel")
                         flat: true
                         onClicked: AppState.cancel()

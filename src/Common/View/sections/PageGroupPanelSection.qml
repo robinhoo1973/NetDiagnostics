@@ -224,7 +224,7 @@ PageSection {
                     Label {
                         // M8：组前缀 "G1:"（归档语义，折叠态也能定位第几组）
                         text: (T.groupPrefix(groupIndex) ? T.groupPrefix(groupIndex) + ": " : "")
-                              + (T.groupName(groupIndex) || qsTr("Group"))
+                              + (T.groupName(groupIndex) || T.tr("groupGeneric"))
                         font.family: ThemeEngine.fontUi
                         font.pixelSize: ThemeEngine.fontSize.subhead
                         font.weight: Font.DemiBold
@@ -304,7 +304,7 @@ PageSection {
                 // NEW-22：折叠头可聚焦/读屏可达
                 Accessible.role: Accessible.Button
                 Accessible.name: (T.groupPrefix(groupIndex) ? T.groupPrefix(groupIndex) + ": " : "")
-                                 + (T.groupName(groupIndex) || qsTr("Group"))
+                                 + (T.groupName(groupIndex) || T.tr("groupGeneric"))
             }
         }
 

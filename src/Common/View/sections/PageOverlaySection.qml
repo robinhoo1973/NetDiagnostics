@@ -26,7 +26,14 @@ PageSection {
         Layout.fillHeight: true
         color: ThemeEngine.colors.scrim   // 半透明遮罩
         visible: root.visible
-        MouseArea { anchors.fill: parent; onClicked: root.closeRequested() }
+        // 5WHY (2026-08-22 UX-5): 遮罩曾无 Accessible 标记——读屏把纯装饰
+        // 点击层当匿名控件播报。装饰性遮罩忽略之；关闭语义由显式关闭控
+        // 件（PageDetailSheet 返回钮/对话框按钮）承担。
+        MouseArea {
+            anchors.fill: parent
+            onClicked: root.closeRequested()
+            Accessible.ignored: true
+        }
     }
     // 覆盖基类 default property：内容直接进遮罩（自由定位，不进 body 布局）
     default property alias overlayContent: mask.data

@@ -11,6 +11,7 @@
 #include <thread>
 #include <chrono>
 #include <cstring>
+#include <limits>
 #include <QDateTime>
 #include <QDebug>
 #include <QHostAddress>
@@ -93,6 +94,22 @@ bool finishLookup(const std::shared_ptr<LookupState>& st, std::thread& t,
 }
 
 } // namespace
+
+// 5WHY (2026-08-22 CP-2): 驱逐最旧条目（ts 最小）——近似 LRU。仅 DnsResolver
+// 内部（持锁上下文）调用，条目量≤512 线性扫描开销可忽略。
+void DnsResolver::pruneCache(QHash<QString, DnsEntry>& cache) {
+    while (cache.size() > kCacheMaxEntries) {
+        QString oldestKey;
+        qint64 oldestTs = std::numeric_limits<qint64>::max();
+        for (auto it = cache.cbegin(); it != cache.cend(); ++it) {
+            if (it.value().ts < oldestTs) {
+                oldestTs = it.value().ts;
+                oldestKey = it.key();
+            }
+        }
+        cache.remove(oldestKey);
+    }
+}
 
 // IP 字面量 → sockaddr_storage（resolvePtr 反查用；返回 salen，0=无法解析）
 int fillSockaddr(const QByteArray& ipb, struct sockaddr_storage& sa) {
@@ -217,6 +234,7 @@ QString DnsResolver::resolve(const QString& host, int timeoutMs) {
     {
         QMutexLocker locker(&m_mutex);
         m_cache[host] = {ipOut, QDateTime::currentMSecsSinceEpoch()};
+        pruneCache(m_cache);
     }
     // Drop the waiter's reference; last one out frees. On timeout the still-running
     // worker keeps ctx (and the semaphore) alive until it finishes — no UAF, no
@@ -242,6 +260,7 @@ QString DnsResolver::resolve(const QString& host, int timeoutMs) {
         const qint64 backdated = QDateTime::currentMSecsSinceEpoch()
             - (DnsResolver::kNegativeTtlMs - DnsResolver::kSpawnFailTtlMs);
         m_cache[host] = {QString(), backdated};
+        pruneCache(m_cache);
         return {};
     }
     // 5WHY: t.detach() was unconditional -- even when the thread completed
@@ -258,6 +277,7 @@ QString DnsResolver::resolve(const QString& host, int timeoutMs) {
     {
         QMutexLocker locker(&m_mutex);
         m_cache[host] = {done ? st->ip : QString(), QDateTime::currentMSecsSinceEpoch()};
+        pruneCache(m_cache);
     }
     return done ? st->ip : QString();
 #endif
@@ -325,6 +345,7 @@ QString DnsResolver::resolve6(const QString& host, int timeoutMs) {
     {
         QMutexLocker locker(&m_mutex);
         m_cache[QStringLiteral("v6:") + host] = {ipOut, QDateTime::currentMSecsSinceEpoch()};
+        pruneCache(m_cache);
     }
     if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
         dispatch_release(ctx->sem);
@@ -342,6 +363,7 @@ QString DnsResolver::resolve6(const QString& host, int timeoutMs) {
         const qint64 backdated = QDateTime::currentMSecsSinceEpoch()
             - (DnsResolver::kNegativeTtlMs - DnsResolver::kSpawnFailTtlMs);
         m_cache[QStringLiteral("v6:") + host] = {QString(), backdated};
+        pruneCache(m_cache);
         return {};
     }
     // 5WHY: prefer join() when thread completed within timeout for immediate
@@ -351,6 +373,7 @@ QString DnsResolver::resolve6(const QString& host, int timeoutMs) {
     {
         QMutexLocker l(&m_mutex);
         m_cache[QStringLiteral("v6:") + host] = {done ? st->ip : QString(), QDateTime::currentMSecsSinceEpoch()};
+        pruneCache(m_cache);
     }
     return done ? st->ip : QString();
 #endif
@@ -416,6 +439,7 @@ QString DnsResolver::resolvePtr(const QString& ip, int timeoutMs) {
     if (!nameOut.isEmpty()) {
         QMutexLocker locker(&m_mutex);
         m_cache[QStringLiteral("ptr:") + ip] = {nameOut, QDateTime::currentMSecsSinceEpoch()};
+        pruneCache(m_cache);
     }
     if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
         dispatch_release(ctx->sem);
@@ -445,6 +469,7 @@ QString DnsResolver::resolvePtr(const QString& ip, int timeoutMs) {
     if (done && !st->ip.isEmpty()) {
         QMutexLocker l(&m_mutex);
         m_cache[QStringLiteral("ptr:") + ip] = {st->ip, QDateTime::currentMSecsSinceEpoch()};
+        pruneCache(m_cache);
     }
     return done ? st->ip : QString();
 #endif

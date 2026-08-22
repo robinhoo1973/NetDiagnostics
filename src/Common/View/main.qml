@@ -12,7 +12,10 @@ Window {
     height: 720
     minimumWidth: 360
     minimumHeight: 480
-    visible: true
+    // 5WHY (2026-08-22 UX-1): 曾 visible: true 在 onCompleted 几何恢复前
+    // 首发——首帧 480×720 在左上角闪一下才跳到 1080×760 居中。先不可见，
+    // 几何/主题恢复完毕后 onCompleted 末尾置真，首帧即最终形态。
+    visible: false
     title: T.tr("appName")
     color: ThemeEngine.colors.surface
     // M5：桌面无边框 + 自定义窗口按钮；移动端保留原生 chrome（IME 兼容）
@@ -34,6 +37,7 @@ Window {
                 win.y = scr.virtualY + Math.round((scr.height - win.height) / 2)
             }
         }
+        win.visible = true   // 几何恢复完成后首帧亮相（UX-1）
     }
 
     // H5：字体注册——JetBrains Mono（等宽）与 DejaVu Sans Mono（box-drawing/CJK

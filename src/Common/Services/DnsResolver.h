@@ -62,6 +62,12 @@ private:
         QString ip;      // resolved IP; empty = failed lookup
         qint64  ts = 0;  // cached-at time (msecs since epoch)
     };
+    // 5WHY (2026-08-22 CP-2): 缓存无上限——多轮 run × 多键型（A/AAAA/PTR/
+    // 负缓存）在长进程内单调增长。LRU 容量上限，超限驱逐最旧条目。
+    static constexpr int kCacheMaxEntries = 512;
+    // 5WHY (2026-08-22 CP-2): 驱逐最旧条目（ts 最小）——近似 LRU；
+    // 条目量≤512 线性扫描开销可忽略，仅供本类内部调用。
+    static void pruneCache(QHash<QString, DnsEntry>& cache);
     QHash<QString, DnsEntry> m_cache;
     QMutex m_mutex;
 };

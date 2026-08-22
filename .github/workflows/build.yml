@@ -52,6 +52,32 @@ jobs:
       - id: v
         uses: ./.github/actions/detect-version
 
+  # ═══ Selftest — 44-probe headless gate (P1-6) ═══
+  # 5WHY: CI 从未运行 --selftest——probe 契约违约（Pass 缺 keyMetricField、
+  # 分组越界、注册缺口）只在发布后暴露。本任务以 ND_TESTING=ON 构建并
+  # 无头运行全部 44 探针，exit 0 = 全绿，作为发布/PR 的快速门禁。
+  selftest:
+    name: Selftest (44 probes)
+    runs-on: ubuntu-latest
+    needs: [version]
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake ninja-build \
+            qt6-base-dev qt6-declarative-dev libqt6quickcontrols2-6 \
+            qt6-tools-dev qt6-tools-dev-tools qt6-svg-dev \
+            libcurl4-openssl-dev
+      - name: Configure (ND_TESTING=ON)
+        run: cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DND_TESTING=ON -B build-test -S .
+      - name: Build
+        run: ninja -C build-test net_diagnostics
+      - name: Run selftest
+        run: QT_QPA_PLATFORM=offscreen ./build-test/net_diagnostics --test
+
   # ═══ Linux — build-linux action (arch matrix) ═══
   linux:
     name: Linux ${{ matrix.arch }}

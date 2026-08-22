@@ -99,4 +99,8 @@ private:
     QElapsedTimer m_elapsed;
     QFutureWatcher<DiagnosticResult>* m_watcher = nullptr;
     QTimer*    m_watchdog = nullptr;
+    // 5WHY (2026-08-22 CP-1 取消两段式): 协作段（cancelled 标志）后仍需
+    // 硬兑底——阻塞型 worker（G5 waitFor*）不查 ctx 时，5s 宽限期到即以
+    // Cancelled 记账（exchange 单发射，与 onWatchdogTimeout 同款 UAF 安全）。
+    QTimer*    m_abortGrace = nullptr;
 };

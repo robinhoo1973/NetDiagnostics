@@ -25,6 +25,7 @@ DiagnosticBase::DiagnosticBase(
 DiagnosticBase::~DiagnosticBase() {
     delete m_watcher;
     delete m_watchdog;
+    delete m_abortGrace;
 }
 
 bool DiagnosticBase::runnable(DiagId id, const QString& schemeLower) {
@@ -87,6 +88,20 @@ void DiagnosticBase::start() {
 void DiagnosticBase::cancel() {
     m_state->cancelled.store(true, std::memory_order_release);
     if (m_watchdog) m_watchdog->stop();
+    // 5WHY (2026-08-22 CP-1): 曾 cancel 后无任何兑底——阻塞型 worker
+    // （G5 waitFor* 不查 ctx）可把套件卡到自然结束（但 watchdog 已停，
+    // 唯一兑底被撤）。两段式取消：协作段置标志；硬兑底段 5s 宽限期到
+    // 仍未 finished 即以 Cancelled 记账。exchange 保证恰好一次发射；
+    // 孤儿 worker 由套件析构时 QThreadPool::waitForDone 收敛。
+    if (!m_abortGrace) {
+        m_abortGrace = new QTimer(this);
+        m_abortGrace->setSingleShot(true);
+        connect(m_abortGrace, &QTimer::timeout, this, [this] {
+            if (!m_state->finishedEmitted.exchange(true))
+                emit finished(DiagnosticResult::cancelled(m_id, QStringLiteral("Cancelled")));
+        });
+    }
+    m_abortGrace->start(5000);
 }
 
 void DiagnosticBase::onFutureFinished() {

@@ -9,6 +9,7 @@
 #include "Common/Platform/DeviceCapability.h"
 #include "Common/Platform/PlatformFlags.h"
 #include "Common/Services/PlatformAdapter.h"
+#include "Common/Services/DnsResolver.h"   // 5WHY (2026-08-22 P1-3): 每轮 run 前清 DNS 缓存
 #include "Configuration/Controller/ConfigurationController.h"
 #include "Diagnostics/Model/DiagnosticSuite.h"
 #include "Diagnostics/Model/GHelpers.h"   // propsDumpText（终端兜底派生单一来源）
@@ -93,9 +94,11 @@ void AppState::persistResults() {
         o[QStringLiteral("id")] = static_cast<int>(r.id);
         o[QStringLiteral("status")] = static_cast<int>(r.status);
         o[QStringLiteral("summary")] = r.summary;
-        o[QStringLiteral("details")] = r.details;
-        o[QStringLiteral("rawOutput")] = r.rawOutput;
-        o[QStringLiteral("errorOutput")] = r.errorOutput;
+        // 5WHY (2026-08-22 P0-2): 落盘前出口红线——details/rawOutput/
+        // errorOutput 均可能含 user:pass@ 形态目标串。
+        o[QStringLiteral("details")] = redactCredentials(r.details);
+        o[QStringLiteral("rawOutput")] = redactCredentials(r.rawOutput);
+        o[QStringLiteral("errorOutput")] = redactCredentials(r.errorOutput);
         o[QStringLiteral("durationMs")] = r.durationMs;
         o[QStringLiteral("timestamp")] = r.timestamp.toString(Qt::ISODate);
         arr.append(o);
@@ -104,6 +107,17 @@ void AppState::persistResults() {
     QFile f(resultsCachePath());
     if (f.open(QIODevice::WriteOnly | QIODevice::Truncate))
         f.write(QJsonDocument(arr).toJson(QJsonDocument::Compact));
+}
+
+QString AppState::redactCredentials(const QString& text) const {
+    if (m_targetUser.isEmpty() || text.isEmpty()) return text;
+    const QString auth = QUrl::toPercentEncoding(m_targetUser) + QLatin1Char(':')
+                       + QUrl::toPercentEncoding(m_targetPassword) + QLatin1Char('@');
+    if (auth == QLatin1String("@")) return text;
+    const QString masked = QUrl::toPercentEncoding(m_targetUser) + QLatin1String(":***@");
+    QString out = text;
+    out.replace(auth, masked);
+    return out;
 }
 
 void AppState::loadCachedResults() {
@@ -189,7 +203,10 @@ void AppState::setTarget(const QString& host, const QString& scheme) {
 
 void AppState::setTargetCredentials(const QString& user, const QString& password, const QString& port) {
     const QString u = user.trimmed();
-    const QString p = password.trimmed();
+    // 5WHY (2026-08-22 P2-2): 曾 password.trimmed() 且校验前落盘——尾随
+    // 空格密码被无声改写。密码保留原值（空格是合法密码字符），仅用户名
+    // 去首尾空白（输入便利性）。
+    const QString p = password;
     // 端口仅接受 1-65535；非法输入忽略（不清空已有值）
     QString pt;
     if (!port.trimmed().isEmpty()) {
@@ -209,6 +226,10 @@ void AppState::setTargetCredentials(const QString& user, const QString& password
 
 void AppState::runDiagnostics() {
     if (m_runStatus == Running) return;
+    // 5WHY (2026-08-22 P1-3): DnsResolver::clearCache() 零调用者——进程生
+    // 命周期内第二次诊断拿到陈旧解析。每轮 run 开始清空（含负缓存），
+    // 新一轮探测以当前 DNS 事实为准。
+    DnsResolver::instance().clearCache();
     // 8-4：无目标时仅运行 G1-G3（系统/适配器、连接与安全、互联网与 DNS），
     // G4/G5 依赖目标主机。
     const bool noTarget = m_targetHost.isEmpty();
@@ -382,8 +403,12 @@ void AppState::runNextGroup() {
         }
     }
     QString auth;
-    if (!m_targetUser.isEmpty())
-        auth = m_targetUser + QLatin1Char(':') + m_targetPassword + QLatin1Char('@');
+    if (!m_targetUser.isEmpty()) {
+        // 5WHY (2026-08-22 P2-1): 曾原始拼接 user:pass@——密码含 ':'/'@'
+        // 即破坏 URL 解析。逐组件百分号编码后拼接。
+        auth = QUrl::toPercentEncoding(m_targetUser) + QLatin1Char(':')
+             + QUrl::toPercentEncoding(m_targetPassword) + QLatin1Char('@');
+    }
     const QString target = m_targetScheme + QLatin1String("://") + auth + host + m_targetPath;
     m_suite->run(target, m_targetScheme.toLower());
 }
@@ -903,6 +928,9 @@ void AppState::savePreferences() {
     s.setValue(QStringLiteral("activeGroups"), active);
     s.setValue(QStringLiteral("languageIndex"), m_languageIndex);
     s.setValue(QStringLiteral("themeMode"), m_themeMode);
+    // 5WHY (2026-08-22 P2-16): 偏好无 schema 版本——未来迁移免灾，现在
+    // 写入版本号很便宜；读取端容缺（缺省 0 = 旧版无版本）。
+    s.setValue(QStringLiteral("schemaVersion"), 1);
     s.setValue(QStringLiteral("targetUser"), m_targetUser);
     s.setValue(QStringLiteral("targetPassword"), m_targetPassword);
     s.setValue(QStringLiteral("targetPort"), m_targetPort);
@@ -1035,7 +1063,8 @@ void AppState::copyDetailToClipboard(int diagIdInt) {
         if (derived.isEmpty()) derived = SystemDiagnostics::propsDumpText(it->properties);
         if (!derived.isEmpty()) lines.append(derived);
     }
-    QGuiApplication::clipboard()->setText(lines.join(QLatin1Char('\n')));
+    // 5WHY (2026-08-22 P0-2): 剪贴板出口红线（单检测项详情粘贴）。
+    QGuiApplication::clipboard()->setText(redactCredentials(lines.join(QLatin1Char('\n'))));
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -1112,7 +1141,7 @@ QString AppState::previewReportHtml() const {
         d.groupStats[gi] = st;
         d.diagIdsInGroup[g] = ids;
     }
-    return ReportEngine::buildHtml(d, true, true);
+    return redactCredentials(ReportEngine::buildHtml(d, true, true));
 }
 
 QString AppState::renderPreviewImage(int widthPx) const {
@@ -1140,7 +1169,9 @@ QString AppState::exportPdfReport() const {
 QString AppState::shareReportFile(const QString& format) {
     if (format == QLatin1String("text")) {
         copyReportToClipboard();
-        return {};
+        // 5WHY (2026-08-22 UX-2): 曾返回空串——QML 无从区分"已复制"与
+        // "失败"，只好无条件提示"已复制"。"ok" 契约：文本=复制成功。
+        return QStringLiteral("ok");
     }
     QString path;
     if (format == QLatin1String("pdf")) path = exportPdfReport();

@@ -126,7 +126,7 @@ Rectangle {
                 contentItem: Text {
                     text: parent.text
                     font: parent.font
-                    color: "#FFFFFF"
+                    color: ThemeEngine.colors.onError   // 5WHY (2026-08-22 P2-11): 硬编码白
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
                 }
