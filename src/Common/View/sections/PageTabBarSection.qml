@@ -31,17 +31,23 @@ PageSection {
         Layout.leftMargin: ThemeEngine.spacing.lg
         Layout.rightMargin: ThemeEngine.spacing.lg
         spacing: ThemeEngine.spacing.sm
+        // 首帧门控 (5WHY 2026-08-23 review 残留③): 委托先于布局 polish 创建，
+        // width 绑定首帧全为 0——5 个塌缩 tab 在 push 过渡帧上"塌缩→弹开"。
+        // 宽度就绪前整体隐藏（一帧内恢复），几何稳定即现，无动画成本。
+        opacity: tabRow.width > 0 ? 1 : 0
 
         Repeater {
+            id: tabRep
             model: 5
             delegate: ItemDelegate {
                 id: tabBtn
-                // 等宽分配：总宽减去 4 个间距后平均（Row 显式宽度，不依赖布局引擎协商）。
-                // 5WHY (2026-08-22 首帧异常): 首个委托创建时 tabRow 尚未完成布局
-                // （tabRow.width 仍为 0），(0-间距)/5 得负宽——负几何驱动位置器
-                // 错位、首个 tab 图标瞬移。Math.max 钳制非负，布局完成后绑定随
-                // tabRow.width 重算，首帧即稳定。
-                width: Math.max(0, (tabRow.width - tabRow.spacing * 4) / 5)
+                // 等宽分配：总宽减去 count-1 个间距后平均（Row 显式宽度，不依
+                // 赖布局引擎协商）；除数与间距项数派生自 repeater.count——model
+                // 变更不再静默失配。5WHY (2026-08-22 首帧异常): 首个委托创建时
+                // tabRow 尚未完成布局（tabRow.width 仍为 0），(0-间距)/count 得
+                // 负宽——负几何驱动位置器错位、首个 tab 图标瞬移。Math.max 钳制
+                // 非负，布局完成后绑定随 tabRow.width 重算，首帧即稳定。
+                width: Math.max(0, (tabRow.width - tabRow.spacing * (tabRep.count - 1)) / tabRep.count)
                 height: tabRow.height
                 padding: 0
                 property int _pv: root.configPollVersion
@@ -63,11 +69,15 @@ PageSection {
                 Accessible.name: tabBtn._groupName
 
                 contentItem: RowLayout {
-                    // 内边距 10px：徽标与文本不会贴选项卡边缘；左对齐使 5 个
-                    // 徽标横向对齐成栅格（等宽选项卡 + 固定内边距，UI 评审）
+                    // 内边距：展开态 10px——徽标与文本不贴选项卡边缘、左对齐使
+                    // 5 个徽标横向对齐成栅格（UI 评审）；窄屏纯图标收至 6px。
+                    // 5WHY (2026-08-23 review 残留②): 竖屏 ~59px/tab 时内区仅
+                    // 39.2px < 徽标最小需求 44px（28 + 2×间距8），缺口曾全部由
+                    // 徽标吸收（唯一可收缩项）压成椭圆；6px 边距释放 8px 后内区
+                    // 47.2 ≥ 44，两侧垫片获得真居中余量（360dp 主流屏覆盖）。
                     anchors.fill: parent
-                    anchors.leftMargin: 10
-                    anchors.rightMargin: 10
+                    anchors.leftMargin: ThemeEngine.isCompactUi(root.width) ? 6 : 10
+                    anchors.rightMargin: ThemeEngine.isCompactUi(root.width) ? 6 : 10
                     spacing: ThemeEngine.spacing.sm
                     // 窄屏纯图标：徽标两侧等宽弹性垫片（fillWidth 平分富余），
                     // 徽标水平居中（5WHY verify 2026-08-17: RowLayout 非填充
@@ -81,6 +91,12 @@ PageSection {
                     // 圆形组徽标 = 全选/全不选开关（颜色三态语义）
                     Rectangle {
                         id: selBadge
+                        // 收缩下界契约 (5WHY 同上②): 未声明 minimumWidth 时收缩
+                        // 下界 = implicitWidth（裸 Rectangle 为 0）——RowLayout 空
+                        // 间不足时垫片已触底（min=pref=0），徽标是唯一可收缩项，
+                        // 被压成 28→~23px 的椭圆。声明后圆形几何恒保，极端窄屏
+                        // 仅轻微偏心（≤2.4px，不可感知）。
+                        Layout.minimumWidth: 28
                         Layout.preferredWidth: 28
                         Layout.preferredHeight: 28
                         Layout.alignment: Qt.AlignVCenter
@@ -95,6 +111,10 @@ PageSection {
                             anchors.centerIn: parent
                             name: ThemeEngine.groupIconName(index)
                             size: 16
+                            // 5WHY (2026-08-23 review 残留④): 异步解码使圆底先于
+                            // 字形出现一帧（pop-in），叠加首帧布局抖动放大"图标
+                            // 位置怪"感知。常驻首屏小字形同步加载成本可忽略。
+                            syncLoad: true
                             color: tabBtn._selMode === 2 ? ThemeEngine.colors.onPrimary
                                  : tabBtn._selMode === 1 ? ThemeEngine.colors.iconInk
                                  : ThemeEngine.colors.textMuted

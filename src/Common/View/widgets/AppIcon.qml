@@ -19,6 +19,10 @@ Item {
     property color color: "white"
     property int size: 20
     property bool mirror: false
+    // 同步加载 opt-in（默认关）：常驻首屏小字形（tab 徽标 16px 等）异步解码会
+    // 让底座先于字形渲染一帧（pop-in，用户感知为"图标位置怪"）。本地 provider
+    // 解码 16px 成本可忽略；大图/长列表勿开。
+    property bool syncLoad: false
 
     width: size; height: size
     implicitWidth: size; implicitHeight: size
@@ -55,6 +59,6 @@ Item {
         fillMode: Image.PreserveAspectFit
         opacity: root.color.a
         cache: true
-        asynchronous: true
+        asynchronous: !root.syncLoad
     }
 }

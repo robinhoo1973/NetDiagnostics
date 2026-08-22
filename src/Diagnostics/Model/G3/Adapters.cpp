@@ -773,6 +773,22 @@ static DiagnosticResult probeDnsIntegrity(DiagId id, const QString&, RunContext&
 // ═════════════════════════════════════════════════════════════════════════
 // G3GeoIPLoc — country/city/ISP via HTTPS + TCP-RTT VPN heuristic
 // ═════════════════════════════════════════════════════════════════════════
+// 两字母码合理性门禁 (2026-08-23 review 残留④): 曾仅验 cc.size()==2——长度
+// 区分不了真码与失败标记，提供商哨兵 "XX"/乱码两字符可入库缓存并被后续轮次
+// 复用。改为大写拉丁字母校验并显式拒绝 "XX"；不做 kCountryMap 全表成员校验
+// ——表缺 JE/GG/IM 等小 territory，成员校验会误杀合法码（与"确保能返回国别"
+// 相悖），未知但形态合法的码交由显示层 countryFullName 原样透出。
+static bool plausibleCountryCode(const QString& cc) {
+    // 5WHY (review 2026-08-23): "ZZ" 是另一家常见"未知"哨兵（部分提供商失败
+    // 时返回）——不拒则入库缓存并经 countryFullName 原样透出到 UI（与 XX
+    // 同类泄漏）。ISO 3166 无正式 ZZ 分配，拒绝安全。
+    if (cc.size() != 2 || cc == QLatin1String("XX") || cc == QLatin1String("ZZ")) return false;
+    for (const QChar ch : cc) {
+        if (!ch.isLetter() || !ch.isUpper() || ch.unicode() > 0x7F) return false;
+    }
+    return true;
+}
+
 static QString detectCountry(int timeoutMs = 5000) {
     static QString sCached;
     static QMutex sMutex;
@@ -819,13 +835,20 @@ static QString detectCountry(int timeoutMs = 5000) {
             const QJsonDocument doc = QJsonDocument::fromJson(body);
             if (doc.isObject()) {
                 const QJsonObject o = doc.object();
-                cc = o.value(QStringLiteral("country_code")).toString();
-                if (cc.size() != 2) cc = o.value(QStringLiteral("country")).toString();
+                // 5WHY (review 2026-08-23): 门禁须在归一化后判定——曾对原值
+                // 校验，小写码（"us"）被 isUpper 误拒而误走 country 回退字段
+                // （ipwho.is 该键是国家全名，必被再拒）→ 整家提供商白费。
+                // toUpper 后再验：ipinfo.io 无 country_code 键、其 "country"
+                // 存两字母码；ipwho.is 同名键为全名被拒——语义自洽。
+                cc = o.value(QStringLiteral("country_code")).toString().toUpper();
+                if (!plausibleCountryCode(cc))
+                    cc = o.value(QStringLiteral("country")).toString().toUpper();
             }
         } else {
             if (text.size() == 2) cc = text.toUpper();
         }
-        if (cc.size() == 2) {
+        cc = cc.toUpper();   // JSON 路径原样取值，统一归一化大写（缓存键一致性）
+        if (plausibleCountryCode(cc)) {
             QMutexLocker lock(&sMutex);
             sCached = cc;
             return cc;
@@ -892,7 +915,11 @@ static DiagnosticResult probeGeoIPLoc(DiagId id, const QString&, RunContext& ctx
             hasCoords = true;
         }
     }
-    if (cc.isEmpty()) cc = detectCountry(5000);
+    // 5WHY (review 2026-08-23): 主提供商（ip-api）返回值曾未过形态门禁——
+    // 两字符乱码/失败标记会直接进展示链与 data。统一门禁：非合法形态即走
+    // 多提供商冗余回退（detectCountry 内含同门禁，失败时返回 XX 由显示层
+    // 映射 Unknown）。
+    if (!plausibleCountryCode(cc)) cc = detectCountry(5000);
     // 5WHY (2026-08-23 用户 "国别应显示国家全名"): 属性卡曾显示裸两字母
     // 码（US/CN），全败时甚至显示内部哨兵 "XX"——码对用户不友好且 XX 是
     // 内部失败标记不应泄漏到 UI。显示层统一国家全名；码保留在 data 层
