@@ -407,7 +407,9 @@
    "softDark": "#94A3B8",
    "softLight": "#475569",
    "fixedDark": [],
-   "fixedLight": []
+   "fixedLight": [],
+   "accentDark": "#4ADE80",
+   "accentLight": "#10B981"
   },
   "nd-diag-g3-dns-servers": {
    "accent": "#0EA5E9",

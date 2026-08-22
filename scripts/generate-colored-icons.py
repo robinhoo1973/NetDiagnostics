@@ -113,6 +113,11 @@ DIAG_ACCENT: dict[str, tuple[str, str]] = {
 # 认知连续性）。
 DIAG_ACCENT_THEMED: dict[str, tuple[str, str]] = {
     "nd-diag-g1-wifi-info": ("Dark.warning", "#C2410C"),
+    # 5WHY (2026-08-22 用户诉求 "DNS Integrity tick 用亮色系"): 曾单值
+    # #06B6D4（Light.tertiary）两主题同色——dark 下不够亮。按主题分派
+    # success 亮色系（与 CheckAnimation 动画勾同源同色）：dark #4ADE80
+    # （深底高亮绿）、light #10B981（亮绿 vivid，浅底仍饱和）。
+    "nd-diag-g3-dns-integrity": ("Dark.success", "Light.success"),
 }
 
 # ── 第二强调色（固定色，逐图标；#101010 sentinel）────────────────────────
