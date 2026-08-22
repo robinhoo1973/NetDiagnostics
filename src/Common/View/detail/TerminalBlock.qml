@@ -57,33 +57,42 @@ Item {
     // sequence.  Without this, switching from one diag's output to another
     // would show stale lines from the previous text until the old animation
     // finished.  Reset + restart guarantees fresh content each time.
+    // 5WHY (2026-08-22 issue 1): 处理器运行早于依赖绑定重估——此处读 _lines
+    // 拿到的是旧数组（0 行），typewriter 门控恒假、计时器永不启动，首次
+    // 进入详情终端永久空白（离屏 harness 复现：TEXTCHANGED len=71 _lines=0）。
+    // 行数必须直读 text（处理器运行时已是新值），不走惰性绑定。
     onTextChanged: {
         _visibleCount = 0
-        if (typewriter && _lines.length > 0) {
+        var count = root.text ? root.text.split('\n').length : 0
+        if (typewriter && count > 0) {
             staggerTimer.start()
         } else {
-            _visibleCount = _lines.length
+            _visibleCount = count
         }
     }
     // 5WHY: When typewriter is toggled on after text is already set,
     // restart the animation from zero.  When toggled off, reveal all.
+    // （行数直读 text，同 onTextChanged 的惰性绑定 5WHY）
     onTypewriterChanged: {
-        if (typewriter && _lines.length > 0 && _visibleCount >= _lines.length) {
+        var count = root.text ? root.text.split('\n').length : 0
+        if (typewriter && count > 0 && _visibleCount >= count) {
             _visibleCount = 0
             staggerTimer.start()
         } else if (!typewriter) {
-            _visibleCount = _lines.length
+            _visibleCount = count
         }
     }
 
     // 5WHY: Internal restart point — called when component completes or
     // text arrives before the component initializes.  Ensures animation
     // always starts on first display.
+    // （行数直读 text，同 onTextChanged 的惰性绑定 5WHY）
     Component.onCompleted: {
-        if (typewriter && _lines.length > 0) {
+        var count = root.text ? root.text.split('\n').length : 0
+        if (typewriter && count > 0) {
             staggerTimer.start()
         } else if (!typewriter) {
-            _visibleCount = _lines.length
+            _visibleCount = count
         }
     }
 

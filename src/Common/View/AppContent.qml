@@ -151,10 +151,14 @@ Item {
                         } else if (swipeStartIndex >= 0) {
                             var dx = swipeLastX - swipeStartX
                             var dy = swipeLastY - swipeStartY
-                            if (Math.abs(dx) >= 60 && Math.abs(dx) >= 1.5 * Math.abs(dy)) {
-                                if (content.navBlocked) {
-                                    content.closeCurrentOverlay()
-                                } else if (dx < 0) {
+                            // 5WHY (2026-08-22 issue 3): 浮层（详情页）打开时
+                            // 横向滑动曾直接 closeCurrentOverlay——Terminal
+                            // 输出横向滚动查看长行即误触关闭。导航手势不得
+                            // 吞内容手势（业界惯例：浮层内手势归浮层内容）。
+                            // 浮层打开时滑动整体让位，关闭走返回键/遮罩。
+                            if (Math.abs(dx) >= 60 && Math.abs(dx) >= 1.5 * Math.abs(dy)
+                                && !content.navBlocked) {
+                                if (dx < 0) {
                                     content.switchToTab(swipeStartIndex + 1)   // 左滑 → 下一个
                                 } else {
                                     content.switchToTab(swipeStartIndex - 1)   // 右滑 → 上一个

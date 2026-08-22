@@ -33,7 +33,6 @@ AnimationBase {
     property int arcFade: Tokens.tokens.wifiWaveFade
     property int arcHold: Tokens.tokens.wifiWaveHold
     property int arcGap:  Tokens.tokens.wifiWaveGap
-    property int colorStep: Tokens.tokens.wifiWaveColorStep
 
     // 图标名（AnimationBase 统一声明，DiagAnimator 装载时绑定下发）→
     // 每图标锚点集。WiFi 信息图标（nd-diag-g1-wifi-info）的三弧几何
@@ -117,32 +116,19 @@ AnimationBase {
             property real segW: arcItem.segCount <= 1
                 ? 2 * arcItem.radius * Math.sin(Math.abs(arcItem._a1 - arcItem._a0) * Math.PI / 360)
                 : arcLen / segCount * 0.5
-            // 5WHY (复核 2026-08-22 用户诉求 "弧线用不同的高亮颜色呈现，
-            // 并不停的变化"): 上轮实现只做到静态分色（三弧各固定一色，
-            // 仅透明度明灭）——"颜色不断变化"的时间轮换维度缺失。改为
-            // 每弧沿 4 色高亮盘（primary/tertiary/warning/success）连续
-            // 轮换，步长 colorStep=500ms；三弧起色按 index 错位——任一
-            // 时刻三弧各持不同颜色且各自流动（业界"分色流光"惯例）。
-            // ColorAnimation 序列与明灭序列独立循环（颜色流动不因弧
-            // 熄灭暂停）；RestartController 重启时 from/to 重读主题色。
+            // 5WHY (复核 2026-08-22 用户三次诉求 "弧线高亮色不停轮换"):
+            // 曾独立 colorSeq 每 500ms 换色——弧线每轮只有 ~44% 时间可见，
+            // 短暂点亮窗口内的换色难以察觉。改为颜色推进与明灭相位同步：
+            // 每次点亮前先推进一格调色盘——每次出现的弧线都是新颜色；
+            // 三弧起色按 index 错位，任一时刻三弧各持不同高亮色，轮换
+            // 语义明确（业界"分色流光"惯例）。主题切换经 _palette 绑定
+            // 即时重估（_arcColor 是声明式绑定，不再有断绑复位问题）。
             readonly property var _palette: [T.ThemeEngine.colors.primary,
                 T.ThemeEngine.colors.tertiary, T.ThemeEngine.colors.warning,
                 T.ThemeEngine.colors.success]
-            property color _arcColor: arcItem._palette[index % 4]
+            property int _palIdx: index
+            property color _arcColor: arcItem._palette[arcItem._palIdx % 4]
             opacity: 0
-            SequentialAnimation on _arcColor {
-                id: colorSeq
-                loops: Animation.Infinite
-                ColorAnimation { from: arcItem._palette[(index + 0) % 4]; to: arcItem._palette[(index + 1) % 4]; duration: root.colorStep }
-                ColorAnimation { from: arcItem._palette[(index + 1) % 4]; to: arcItem._palette[(index + 2) % 4]; duration: root.colorStep }
-                ColorAnimation { from: arcItem._palette[(index + 2) % 4]; to: arcItem._palette[(index + 3) % 4]; duration: root.colorStep }
-                ColorAnimation { from: arcItem._palette[(index + 3) % 4]; to: arcItem._palette[(index + 0) % 4]; duration: root.colorStep }
-            }
-            RestartController {
-                running: root.running
-                target: colorSeq
-                onStopped: arcItem._arcColor = arcItem._palette[index % 4]
-            }
 
             Repeater {
                 model: arcItem.segCount
@@ -185,6 +171,8 @@ AnimationBase {
                 id: seq
                 loops: Animation.Infinite
                 PauseAnimation { duration: (2 - index) * root.arcFade }
+                // 点亮前推进调色盘（同 index 弧每次出现皆新色）
+                ScriptAction { script: { arcItem._palIdx = (arcItem._palIdx + 1) % 4 } }
                 NumberAnimation {
                     target: arcItem; property: "opacity"
                     from: 0; to: 1; duration: root.arcFade

@@ -19,58 +19,67 @@ PageSection {
     readonly property var _data: detailData ? detailData : ({})
     signal backRequested()
 
-    ColumnLayout {
+    // 5WHY (2026-08-22, issue 2): Plain（无镀铬）后浮层无底色——scrim 半透
+    // 遮罩透出下一层窗口，卡片间距可见下层内容。全窗 sheet 必须有独立
+    // 不透明底色（M3 full-screen sheet = surface），卡片（surfaceContainer
+    // Low）在其上仍可区分。Rectangle 作为唯一布局子项承载内容列。
+    Rectangle {
         Layout.fillWidth: true
         Layout.fillHeight: true
-        spacing: 0
+        color: ThemeEngine.colors.surface
 
-        S.PageDetailHeaderSection {
-            Layout.fillWidth: true
-            title: root._data.displayName || ""
-            // 5WHY (review round 2, UX+PM): 头部不展示诊断图标——hero 光晕垫
-            // 是唯一身份元素（page-detail.md §2.1/§2.2）。
-            onBackRequested: root.backRequested()
-        }
-        // 7-5：全窗详情需滚动（内容可超视口高度）——仅内容区滚动
-        Flickable {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            clip: true
-            boundsBehavior: Flickable.StopAtBounds
-            ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
-            contentHeight: sheetCol.implicitHeight
-            ColumnLayout {
-                id: sheetCol
-                width: parent.width
-                spacing: ThemeEngine.spacing.sm
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: 0
 
-                S.PageHeroSection {
-                    Layout.fillWidth: true
-                    detailData: root._data
-                }
-                S.PageSummarySection {
-                    Layout.fillWidth: true
-                    detailData: root._data
-                }
-                S.PageMetricSection {
-                    Layout.fillWidth: true
-                    detailData: root._data
-                }
-                S.PageErrorSection {
-                    Layout.fillWidth: true
-                    detailData: root._data
-                }
-                S.PagePropertiesSection {
-                    Layout.fillWidth: true
-                    detailData: root._data
-                }
-                S.PageChartsSection {
-                    Layout.fillWidth: true
-                    detailData: root._data
-                }
-                S.PageTerminalSection {
-                    Layout.fillWidth: true
-                    detailData: root._data
+            S.PageDetailHeaderSection {
+                Layout.fillWidth: true
+                title: root._data.displayName || ""
+                // 5WHY (review round 2, UX+PM): 头部不展示诊断图标——hero 光晕垫
+                // 是唯一身份元素（page-detail.md §2.1/§2.2）。
+                onBackRequested: root.backRequested()
+            }
+            // 7-5：全窗详情需滚动（内容可超视口高度）——仅内容区滚动
+            Flickable {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
+                ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+                contentHeight: sheetCol.implicitHeight
+                ColumnLayout {
+                    id: sheetCol
+                    width: parent.width
+                    spacing: ThemeEngine.spacing.sm
+
+                    S.PageHeroSection {
+                        Layout.fillWidth: true
+                        detailData: root._data
+                    }
+                    S.PageSummarySection {
+                        Layout.fillWidth: true
+                        detailData: root._data
+                    }
+                    S.PageMetricSection {
+                        Layout.fillWidth: true
+                        detailData: root._data
+                    }
+                    S.PageErrorSection {
+                        Layout.fillWidth: true
+                        detailData: root._data
+                    }
+                    S.PagePropertiesSection {
+                        Layout.fillWidth: true
+                        detailData: root._data
+                    }
+                    S.PageChartsSection {
+                        Layout.fillWidth: true
+                        detailData: root._data
+                    }
+                    S.PageTerminalSection {
+                        Layout.fillWidth: true
+                        detailData: root._data
+                    }
                 }
             }
         }

@@ -20,7 +20,6 @@ var tokens = {
     wifiWaveFade: 220,       // 信号弧单条淡入/淡出时长（逐条明灭）
     wifiWaveHold: 400,       // 三道弧全部显现后的保持时长
     wifiWaveGap: 200,        // 全部熄灭后到下一轮的休整时长
-    wifiWaveColorStep: 500,  // 弧线高亮色轮换单步时长（分色高亮不断变化）
     barsCycleColorStep: 500, // 蜂窝信号柱高亮色轮换单步时长
     convergeTravel: 380,     // 网关箭头单程（聚拢/回退）时长
     convergeStagger: 120,    // 四箭头有序启动间隔
