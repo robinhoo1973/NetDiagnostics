@@ -36,8 +36,12 @@ PageSection {
             model: 5
             delegate: ItemDelegate {
                 id: tabBtn
-                // 等宽分配：总宽减去 4 个间距后平均（Row 显式宽度，不依赖布局引擎协商）
-                width: (tabRow.width - tabRow.spacing * 4) / 5
+                // 等宽分配：总宽减去 4 个间距后平均（Row 显式宽度，不依赖布局引擎协商）。
+                // 5WHY (2026-08-22 首帧异常): 首个委托创建时 tabRow 尚未完成布局
+                // （tabRow.width 仍为 0），(0-间距)/5 得负宽——负几何驱动位置器
+                // 错位、首个 tab 图标瞬移。Math.max 钳制非负，布局完成后绑定随
+                // tabRow.width 重算，首帧即稳定。
+                width: Math.max(0, (tabRow.width - tabRow.spacing * 4) / 5)
                 height: tabRow.height
                 padding: 0
                 property int _pv: root.configPollVersion
@@ -102,6 +106,15 @@ PageSection {
                             cursorShape: Qt.PointingHandCursor
                             hoverEnabled: true
                             onClicked: {
+                                // 5WHY (2026-08-22 非选中 tab 徽标误触): 徽标
+                                // 即全选开关，但点击非当前组的徽标曾直接改写
+                                // 其他组的选择状态（未选中 tab 时用户预期是
+                                // 切换到该组）。限定：仅当 tab 已选中且正展示
+                                // 该组检测项时才切换全选/全不选；否则先切换。
+                                if (!tabBtn.activeTab) {
+                                    root.tabChanged(index)
+                                    return
+                                }
                                 // 全选 → 全不选；其余 → 全选
                                 AppState.setGroupEnabled(index, tabBtn._selMode !== 2)
                             }

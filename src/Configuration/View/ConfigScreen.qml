@@ -79,6 +79,7 @@ PageDisplay {
                 }
                 spacing: 2
                 Label {
+                    Layout.fillWidth: true   // 5WHY (2026-08-22): ColumnLayout 子项不 fillWidth 时按隐式宽度排布——长文本溢出布局框压到开关上；fillWidth 后受锚定宽度约束，elide 生效
                     text: {
                         let _ = row._pv
                         return T.diagName(modelData) || (T.tr("testIdPrefix") + " " + modelData)
@@ -90,6 +91,7 @@ PageDisplay {
                     elide: Text.ElideRight
                 }
                 Label {
+                    Layout.fillWidth: true
                     visible: text !== ""
                     text: {
                         let _ = row._pv
@@ -98,6 +100,11 @@ PageDisplay {
                     font.family: ThemeEngine.fontUi
                     font.pixelSize: ThemeEngine.fontSize.caption
                     color: ThemeEngine.colors.onSurfaceVariant
+                    // 5WHY (2026-08-22 竖屏重叠): 描述文本曾无宽度约束、
+                    // 无换行——implicitWidth 超出布局框后与开关控件重叠。
+                    // fillWidth 限定宽度 + WordWrap 换行 + 两行上限。
+                    wrapMode: Text.WordWrap
+                    maximumLineCount: 2
                     elide: Text.ElideRight
                 }
             }

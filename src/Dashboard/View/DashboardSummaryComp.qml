@@ -117,6 +117,9 @@ Item {
             font.pixelSize: ThemeEngine.fontSize.caption
             color: Qt.alpha(ThemeEngine.colors.onSurfaceVariant, 0.5)
             horizontalAlignment: Text.AlignHCenter
+            // 5WHY (2026-08-22): runFromDiag 含换行符——无 wrapMode 的
+            // Label 按单行渲染，换行失效。
+            wrapMode: Text.WordWrap
         }
 
         // ── 7 类结果彩色行（零计数隐藏：用户诉求 2026-08-19）──

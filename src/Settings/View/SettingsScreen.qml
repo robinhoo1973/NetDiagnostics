@@ -241,20 +241,24 @@ PageDisplay {
                     horizontalAlignment: Text.AlignHCenter
                 }
                 // M4：版本细节（AppState 编译期信息）
+                // 5WHY (2026-08-22 用户诉求): 曾把 build 号与 hash 挤在第二行
+                // （"build 195 · abc1234"）——hash 是提交追踪关键信息却被
+                // 缩写式混杂。第一行版本全量（Version x.y.z · 平台 build n），
+                // 第二行独立 "Build hash <hash>"（等宽字体对齐可扫描）。
                 ColumnLayout {
                     Layout.alignment: Qt.AlignHCenter
                     spacing: 2
                     Label {
                         Layout.alignment: Qt.AlignHCenter
                         text: T.tr("versionLabel") + " " + AppState.appVersion()
-                              + " · " + AppState.appEdition()
+                              + " · " + AppState.appEdition() + " build " + AppState.buildNumber()
                         font.family: ThemeEngine.monoFont
                         font.pixelSize: ThemeEngine.fontSize.caption
                         color: ThemeEngine.colors.textMuted
                     }
                     Label {
                         Layout.alignment: Qt.AlignHCenter
-                        text: "build " + AppState.buildNumber() + " · " + AppState.gitHash()
+                        text: T.tr("buildHashLabel") + " " + AppState.gitHash()
                         font.family: ThemeEngine.monoFont
                         font.pixelSize: ThemeEngine.fontSize.micro
                         color: ThemeEngine.colors.textMuted
