@@ -166,77 +166,11 @@ QString iosInterfaceIPv4(const QString& iface) {
     return ip;
 }
 
-// 5WHY (复核 2026-08-21 用户 "Cellular 无法找到 IP"): 曾硬编码 pdp_ip0——
-// iOS 26 部分设备蜂窝接口改名（ap1 等）时 IPv4 恒取不到。候选名依次尝试，
-// 最后按排除法扫描：第一个 AF_INET 且非 WiFi/隧道/回环的接口即蜂窝数据接口
-// （返回实际接口名供网关路由查询，避免网关仍按 pdp_ip0 查而落空）。
-// 5WHY (复核 2026-08-22 用户 "总是显示 IP 没有指定"): 候选表仍过窄且排除
-// 扫描无 pdp 优先级——接口名漂移（pdp_ip2/3 或运营商标记名）时 IP 恒空，
-// 终端恒印 "(not assigned)"。三线兜底：1) 候选名；2) pdp 前缀优先 + 排除
-// 法扫描；3) 默认路由接口若是蜂窝类名直接取其地址（路由表接口名事实）。
-QString iosCellularIPv4(QString* ifaceOut) {
-    static const QStringList kCandidates = {
-        QStringLiteral("pdp_ip0"), QStringLiteral("pdp_ip1"),
-        QStringLiteral("pdp_ip2"), QStringLiteral("pdp_ip3"),
-        QStringLiteral("ap1"), QStringLiteral("ipsec0"),
-    };
-    for (const QString& c : kCandidates) {
-        const QString ip = iosInterfaceIPv4(c);
-        if (!ip.isEmpty()) {
-            if (ifaceOut) *ifaceOut = c;
-            return ip;
-        }
-    }
-    // 排除法扫描：第一遍只收 pdp 前缀（命名漂移仍命中蜂窝接口），
-    // 第二遍收其他非 WiFi/隧道/回环接口。
-    for (int pass = 0; pass < 2; ++pass) {
-        struct ifaddrs* ifa = nullptr;
-        if (getifaddrs(&ifa) != 0) continue;
-        QString ip;
-        QString iface;
-        for (auto* p = ifa; p; p = p->ifa_next) {
-            if (!p->ifa_addr || p->ifa_addr->sa_family != AF_INET) continue;
-            const QString name = QString::fromLatin1(p->ifa_name);
-            if (pass == 0 && !name.startsWith(QLatin1String("pdp"))) continue;
-            if (name.startsWith(QLatin1String("en")) || name.startsWith(QLatin1String("lo"))
-                || name.startsWith(QLatin1String("utun")) || name.startsWith(QLatin1String("bridge"))
-                || name.startsWith(QLatin1String("awdl")) || name.startsWith(QLatin1String("llw"))
-                || name.startsWith(QLatin1String("gif")) || name.startsWith(QLatin1String("stf")))
-                continue;
-            char buf[INET_ADDRSTRLEN] = {0};
-            auto* sin = (struct sockaddr_in*)p->ifa_addr;
-            inet_ntop(AF_INET, &sin->sin_addr, buf, sizeof(buf));
-            ip = QString::fromLatin1(buf);
-            iface = name;
-            break;
-        }
-        freeifaddrs(ifa);
-        if (!ip.isEmpty()) {
-            if (ifaceOut) *ifaceOut = iface;
-            return ip;
-        }
-    }
-    // 终极兜底：默认路由接口若是蜂窝类名（pdp/rmnet/wwan/ap/ipsec），
-    // 直接取其地址——路由表接口名事实优先于接口枚举。
-    for (const auto& rt : iosReadRoutes()) {
-        if (rt.dest != QStringLiteral("default") || rt.iface.isEmpty()) continue;
-        if (!(rt.flags & RTF_GATEWAY)) continue;
-        const QString n = rt.iface;
-        const bool cellularLike = n.startsWith(QLatin1String("pdp"))
-            || n.startsWith(QLatin1String("rmnet"))
-            || n.startsWith(QLatin1String("wwan"))
-            || n.startsWith(QLatin1String("ap"))
-            || n.startsWith(QLatin1String("ipsec"));
-        if (!cellularLike) continue;
-        const QString ip = iosInterfaceIPv4(n);
-        if (!ip.isEmpty()) {
-            if (ifaceOut) *ifaceOut = n;
-            return ip;
-        }
-    }
-    return QString();
-}
-
+// 5WHY (复核 2026-08-22 用户明确要求 "完全复制历史代码逻辑"): 候选名
+// 扫描版 iosCellularIPv4 已删——Cellular 面板按 v0.0.3 逐字调用
+// iosInterfaceIPv4("pdp_ip0") / iosGatewayForInterface("pdp_ip0")
+// （见 G1CellularInfo.cpp 历史源码），本文件不再提供任何偏离历史的
+// IP 查找路径。
 QString iosGatewayForInterface(const QString& iface) {
     QString fallback;
     for (const auto& rt : iosReadRoutes()) {

@@ -1645,13 +1645,13 @@ static DiagnosticResult probeCellular(DiagId id, const QString&, RunContext& ctx
     {
         QVariantMap cell = iosCellularInfo();
         const bool hasCellIdentity = SystemDiagnostics::hasCellularIdentity(cell);
-        // 5WHY (复核 2026-08-21 用户 "Cellular 无法找到 IP"): 曾硬编码
-        // pdp_ip0——接口改名时 IP 与网关双双落空。iosCellularIPv4 候选名
-        // + 排除法扫描，并回传真实接口名供网关查询。
-        QString cellIface;
-        const QString cellIp = iosCellularIPv4(&cellIface);
-        const QString cellGw = cellIface.isEmpty()
-            ? QString() : iosGatewayForInterface(cellIface);
+        // 5WHY (复核 2026-08-22 用户明确要求 "完全复制历史代码逻辑"): 曾以
+        // iosCellularIPv4 候选名扫描替换硬编码 pdp_ip0——与 v0.0.3
+        // G1CellularInfo.cpp 逻辑偏离，输出数据来源不再是历史实现。按用户
+        // 要求逐字复刻历史：IP 恒查 pdp_ip0、网关恒查 pdp_ip0（历史同款
+        // 调用，见 review/history G1CellularInfo.cpp 第 12-13 行）。
+        const QString cellIp = iosInterfaceIPv4(QStringLiteral("pdp_ip0"));
+        const QString cellGw = iosGatewayForInterface(QStringLiteral("pdp_ip0"));
         const QVariantList sims = cell.value(QStringLiteral("sims")).toList();
         const bool multiSim = sims.size() > 1;
         DiagStatus status = DiagStatus::Info;
