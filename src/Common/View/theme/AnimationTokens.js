@@ -45,6 +45,16 @@ var tokens = {
             { stroke: "M8.5 16.429 a5 5 0 0 1 7 0", sw: 1.2 }
         ]
     },
+    // 蜂窝四信号柱弧（BarsCycleAnimation SVG 复绘，与 WifiWave 同机制）：
+    // 路径 = ffffff 母版 nd-diag-g1-cellular.svg 逐字事实（24 系 stroke）。
+    barsCycleSets: {
+        "nd-diag-g1-cellular": [
+            { stroke: "M6.4 18 V15", sw: 1.6 },
+            { stroke: "M10.1 18 V13", sw: 1.6 },
+            { stroke: "M13.8 18 V11", sw: 1.6 },
+            { stroke: "M17.5 18 V9", sw: 1.6 }
+        ]
+    },
 
     // 5WHY (复核 2026-08-19 单一来源): 详情页有界回放窗口曾是 DiagAnimator
     // 硬编码 2400——与各循环周期的手算关系写在注释里（wifiWave 1920、

@@ -708,6 +708,12 @@ QVariantMap iosCellularInfo()
         if (@available(iOS 12.0, *)) {
             NSDictionary<NSString*, CTCarrier*>* providers = netInfo.serviceSubscriberCellularProviders;
             NSDictionary<NSString*, NSString*>* rats = netInfo.serviceCurrentRadioAccessTechnology;
+            // 5WHY (2026-08-22 用户诉求 "iOS 无法显示 SIM 卡及连接信息"):
+            // iOS 16.4+ 起 CTCarrier 属性返回占位值（carrierName "--"、
+            // MCC/MNC 65535——Apple 隐私政策，Apple 论坛 thread 729366
+            // 官方确认），iOS 26 起整组接口停用；providers 可能为空字典。
+            // dataServiceIdentifier（同弃用）尽力标记当前数据服务。
+            NSString* dataSvc = netInfo.dataServiceIdentifier;
             if (providers && providers.count > 0) {
                 // dictionary order is undefined; sort keys for stable SIM slot numbers.
                 NSArray<NSString*>* keys = [providers.allKeys sortedArrayUsingSelector:@selector(compare:)];
@@ -716,6 +722,10 @@ QVariantMap iosCellularInfo()
                     CTCarrier* carrier = providers[key];
                     QVariantMap sim;
                     sim["slot"] = ++slot;
+                    sim["serviceId"] = QString::fromNSString(key);
+                    // 当前数据服务标记（弃用接口，尽力而为）
+                    if (dataSvc && dataSvc.length > 0 && [key isEqualToString:dataSvc])
+                        sim["dataService"] = true;
 
                     QString mccStr, mncStr, carrierName;
                     if (carrier) {
@@ -793,6 +803,27 @@ QVariantMap iosCellularInfo()
                     QVariantMap m = sims[i].toMap();
                     m.remove("_ratMatched");
                     sims[i] = m;
+                }
+            }
+            // 5WHY (2026-08-22 用户诉求 "iOS 无法显示 SIM 卡及连接信息"):
+            // providers 为空字典时（iOS 16.4+ 占位/停用）SIM 枚举整段落空、
+            // 终端退化为 "No cellular service available"。但 RAT 字典仍可用：
+            // 以 serviceCurrentRadioAccessTechnology 的键直接枚举服务——
+            // 每卡一行连接信息（制式），不再整段落空。业界通行做法
+            // （GitHub 设备信息类项目同款）：以 RAT 字典作为"卡存在性"事实。
+            if (sims.isEmpty() && rats && rats.count > 0) {
+                NSArray<NSString*>* rkeys = [rats.allKeys sortedArrayUsingSelector:@selector(compare:)];
+                int slot = 0;
+                for (NSString* rk in rkeys) {
+                    if (!rats[rk]) continue;
+                    QVariantMap sim;
+                    sim["slot"] = ++slot;
+                    sim["serviceId"] = QString::fromNSString(rk);
+                    sim["radioAccess"] = QString::fromNSString(radioAccessLabel(rats[rk]));
+                    sim["radioAccessRaw"] = QString::fromNSString(rats[rk]);
+                    if (dataSvc && dataSvc.length > 0 && [rk isEqualToString:dataSvc])
+                        sim["dataService"] = true;
+                    sims.append(sim);
                 }
             }
         }

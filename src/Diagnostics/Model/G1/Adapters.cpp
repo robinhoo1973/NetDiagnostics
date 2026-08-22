@@ -1666,12 +1666,25 @@ static DiagnosticResult probeCellular(DiagId id, const QString&, RunContext& ctx
                     out.append(QStringLiteral("  SIM %1:").arg(sim.value(QStringLiteral("slot")).toInt()));
                 const QString carrier = sim.value(QStringLiteral("carrierName")).toString();
                 out.append(QStringLiteral("%1Carrier: %2").arg(pad,
-                    carrier.isEmpty() ? QStringLiteral("(hidden by iOS 16+)") : carrier));
+                    carrier.isEmpty() ? QStringLiteral("(hidden by iOS 16.4+)") : carrier));
                 const QString radio = sim.value(QStringLiteral("radioAccess")).toString();
                 out.append(QStringLiteral("%1Radio Access: %2").arg(pad,
                     radio.isEmpty() ? QStringLiteral("(not available)") : radio));
+                // 5WHY (2026-08-22 用户诉求 "显示 SIM 卡及卡对应的连接
+                // 信息"): 卡级连接信息补全——MCC/MNC 与 ISO 国家码
+                // （iOS ≤16.3 仍返回真值）、数据服务标记。占位值（65535/
+                // 空）不印行，保持终端整洁。
+                const QString mcc = sim.value(QStringLiteral("mcc")).toString();
+                const QString mnc = sim.value(QStringLiteral("mnc")).toString();
+                if (!mcc.isEmpty() || !mnc.isEmpty())
+                    out.append(QStringLiteral("%1MCC/MNC: %2 %3").arg(pad, mcc, mnc));
+                const QString iso = sim.value(QStringLiteral("isoCountry")).toString();
+                if (!iso.isEmpty())
+                    out.append(QStringLiteral("%1ISO Country: %2").arg(pad, iso));
+                if (sim.value(QStringLiteral("dataService")).toBool())
+                    out.append(QStringLiteral("%1Data service: active").arg(pad));
                 ResultProperty sp(QStringLiteral("SIM %1").arg(sim.value(QStringLiteral("slot")).toInt()),
-                    carrier.isEmpty() ? QStringLiteral("(hidden by iOS 16+)") : carrier);
+                    carrier.isEmpty() ? QStringLiteral("(hidden by iOS 16.4+)") : carrier);
                 if (!radio.isEmpty()) sp.children.append({QStringLiteral("radio access"), radio});
                 props.append(sp);
             }
