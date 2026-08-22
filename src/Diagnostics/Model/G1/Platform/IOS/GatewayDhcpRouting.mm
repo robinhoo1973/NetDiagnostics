@@ -166,11 +166,103 @@ QString iosInterfaceIPv4(const QString& iface) {
     return ip;
 }
 
-// 5WHY (复核 2026-08-22 用户明确要求 "完全复制历史代码逻辑"): 候选名
-// 扫描版 iosCellularIPv4 已删——Cellular 面板按 v0.0.3 逐字调用
-// iosInterfaceIPv4("pdp_ip0") / iosGatewayForInterface("pdp_ip0")
-// （见 G1CellularInfo.cpp 历史源码），本文件不再提供任何偏离历史的
-// IP 查找路径。
+// ── 蜂窝连接事实（网络层，不受 CoreTelephony 隐私限制影响）────────────
+// 5WHY (复核 2026-08-22 用户 "只显示 IP Address: (not assigned)、SIM 与
+// 连接信息全无，甚至历史版本内容都出不来"): 历史复刻的 pdp_ip0 硬编码
+// 在接口改名设备上恒空，且 iOS 16.4+ CoreTelephony 全占位——SIM 与 IP
+// 双双落空。网络层事实（getifaddrs 接口枚举 + 路由表）不依赖任何被
+// 弃用 API：蜂窝类接口（pdp/rmnet/wwan/ap/ipsec）连同 IPv4/IPv6 即
+// "卡所对应的连接信息"。业界通行做法（GitHub 设备信息类项目同款）。
+QVariantList iosCellularIfaces() {
+    QVariantList list;
+    struct ifaddrs* ifa = nullptr;
+    if (getifaddrs(&ifa) != 0) return list;
+    QMap<QString, QVariantMap> byName;
+    QStringList order;
+    for (auto* p = ifa; p; p = p->ifa_next) {
+        if (!p->ifa_addr) continue;
+        const QString name = QString::fromLatin1(p->ifa_name);
+        const bool cellularLike = name.startsWith(QLatin1String("pdp"))
+            || name.startsWith(QLatin1String("rmnet"))
+            || name.startsWith(QLatin1String("wwan"))
+            || name.startsWith(QLatin1String("ap"))
+            || name.startsWith(QLatin1String("ipsec"));
+        if (!cellularLike) continue;
+        if (!byName.contains(name)) {
+            QVariantMap m;
+            m[QStringLiteral("name")] = name;
+            m[QStringLiteral("ipv4")] = QString();
+            m[QStringLiteral("ipv6")] = QString();
+            byName.insert(name, m);
+            order.append(name);
+        }
+        char buf[INET6_ADDRSTRLEN] = {0};
+        if (p->ifa_addr->sa_family == AF_INET) {
+            inet_ntop(AF_INET,
+                &reinterpret_cast<struct sockaddr_in*>(p->ifa_addr)->sin_addr,
+                buf, sizeof(buf));
+            byName[name][QStringLiteral("ipv4")] = QString::fromLatin1(buf);
+        } else if (p->ifa_addr->sa_family == AF_INET6) {
+            inet_ntop(AF_INET6,
+                &reinterpret_cast<struct sockaddr_in6*>(p->ifa_addr)->sin6_addr,
+                buf, sizeof(buf));
+            const QString v6 = QString::fromLatin1(buf);
+            if (!v6.startsWith(QLatin1String("fe80")))   // 跳过链路本地
+                byName[name][QStringLiteral("ipv6")] = v6;
+        }
+    }
+    freeifaddrs(ifa);
+    for (const QString& n : order) list.append(byName.value(n));
+    return list;
+}
+
+// 5WHY (复核 2026-08-22 用户 "只显示 IP Address: (not assigned)"): 上一轮
+// 按"完全复制历史"恢复硬编码 pdp_ip0——接口改名设备（pdp_ip1/2、ap1 等）
+// 上 IPv4 恒取不到，正是本症状。超集兜底（历史行为保留为第一候选）：
+// 1) pdp_ip0..3/ap1/ipsec0 候选名（pdp_ip0 与 v0.0.3 同款，先试）；
+// 2) 蜂窝类接口枚举（iosCellularIfaces）；3) 默认路由蜂窝类接口地址
+// （路由表接口名事实）。任一命中即回传真实接口名供网关查询。
+QString iosCellularIPv4(QString* ifaceOut) {
+    static const QStringList kCandidates = {
+        QStringLiteral("pdp_ip0"), QStringLiteral("pdp_ip1"),
+        QStringLiteral("pdp_ip2"), QStringLiteral("pdp_ip3"),
+        QStringLiteral("ap1"), QStringLiteral("ipsec0"),
+    };
+    for (const QString& c : kCandidates) {
+        const QString ip = iosInterfaceIPv4(c);
+        if (!ip.isEmpty()) {
+            if (ifaceOut) *ifaceOut = c;
+            return ip;
+        }
+    }
+    const QVariantList ifaces = iosCellularIfaces();
+    for (const QVariant& v : ifaces) {
+        const QVariantMap m = v.toMap();
+        const QString ip = m.value(QStringLiteral("ipv4")).toString();
+        if (!ip.isEmpty()) {
+            if (ifaceOut) *ifaceOut = m.value(QStringLiteral("name")).toString();
+            return ip;
+        }
+    }
+    for (const auto& rt : iosReadRoutes()) {
+        if (rt.dest != QStringLiteral("default") || rt.iface.isEmpty()) continue;
+        if (!(rt.flags & RTF_GATEWAY)) continue;
+        const QString n = rt.iface;
+        const bool cellularLike = n.startsWith(QLatin1String("pdp"))
+            || n.startsWith(QLatin1String("rmnet"))
+            || n.startsWith(QLatin1String("wwan"))
+            || n.startsWith(QLatin1String("ap"))
+            || n.startsWith(QLatin1String("ipsec"));
+        if (!cellularLike) continue;
+        const QString ip = iosInterfaceIPv4(n);
+        if (!ip.isEmpty()) {
+            if (ifaceOut) *ifaceOut = n;
+            return ip;
+        }
+    }
+    return QString();
+}
+
 QString iosGatewayForInterface(const QString& iface) {
     QString fallback;
     for (const auto& rt : iosReadRoutes()) {

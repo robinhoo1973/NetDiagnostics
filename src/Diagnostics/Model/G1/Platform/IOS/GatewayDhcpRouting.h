@@ -11,8 +11,17 @@ DiagnosticResult iosRoutingTableDiag(DiagId id);
 // Interface helpers used by the cellular / WiFi panels.
 // iosInterfaceIPv4: IPv4 assigned to an interface (e.g. "pdp_ip0", "en0"), or empty.
 // iosGatewayForInterface: next-hop gateway routed via the interface, or empty.
+// iosCellularIfaces: cellular-like interfaces (pdp/rmnet/wwan/ap/ipsec) with
+// IPv4/IPv6 — network-layer connection facts (immune to CoreTelephony privacy
+// placeholders since iOS 16.4+).
+// iosCellularIPv4: cellular data IPv4 via superset fallback (pdp_ip0 first —
+// historical behavior preserved — then interface enumeration, then the default
+// route's cellular-like interface); writes the actual interface name to
+// ifaceOut when found.
 QString iosInterfaceIPv4(const QString& iface);
 QString iosGatewayForInterface(const QString& iface);
+QVariantList iosCellularIfaces();
+QString iosCellularIPv4(QString* ifaceOut = nullptr);
 // =============================================================================
 // IosWiFiHelper.h — iOS WiFi auth + SSID + Cellular retrieval (declarations)
 // =============================================================================

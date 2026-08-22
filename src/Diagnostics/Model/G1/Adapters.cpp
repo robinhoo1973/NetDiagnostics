@@ -1645,13 +1645,33 @@ static DiagnosticResult probeCellular(DiagId id, const QString&, RunContext& ctx
     {
         QVariantMap cell = iosCellularInfo();
         const bool hasCellIdentity = SystemDiagnostics::hasCellularIdentity(cell);
-        // 5WHY (复核 2026-08-22 用户明确要求 "完全复制历史代码逻辑"): 曾以
-        // iosCellularIPv4 候选名扫描替换硬编码 pdp_ip0——与 v0.0.3
-        // G1CellularInfo.cpp 逻辑偏离，输出数据来源不再是历史实现。按用户
-        // 要求逐字复刻历史：IP 恒查 pdp_ip0、网关恒查 pdp_ip0（历史同款
-        // 调用，见 review/history G1CellularInfo.cpp 第 12-13 行）。
-        const QString cellIp = iosInterfaceIPv4(QStringLiteral("pdp_ip0"));
-        const QString cellGw = iosGatewayForInterface(QStringLiteral("pdp_ip0"));
+        // 5WHY (复核 2026-08-22 用户 "只显示 IP Address: (not assigned)、
+        // SIM 与连接信息全无"): 上一轮按"完全复制历史"恢复的 pdp_ip0
+        // 硬编码在接口改名设备上恒空——历史逻辑本身在新设备上失效。
+        // iosCellularIPv4 超集兜底（pdp_ip0 为首候选，历史行为保留）；
+        // iosCellularIfaces 枚举蜂窝类接口作为连接信息兜底行——网络层
+        // 事实不受 CoreTelephony 16.4+ 隐私占位影响。
+        QString cellIface;
+        const QString cellIp = iosCellularIPv4(&cellIface);
+        const QString cellGw = cellIface.isEmpty()
+            ? QString() : iosGatewayForInterface(cellIface);
+        const QVariantList cellIfaces = iosCellularIfaces();
+        // 接口连接行 + 属性卡（两分支共用，先构建一次）
+        QStringList ifaceLines;
+        for (const QVariant& v : cellIfaces) {
+            const QVariantMap im = v.toMap();
+            const QString ip4 = im.value(QStringLiteral("ipv4")).toString();
+            const QString ip6 = im.value(QStringLiteral("ipv6")).toString();
+            if (ip4.isEmpty() && ip6.isEmpty()) continue;
+            ifaceLines.append(QStringLiteral("  Interface %1: IPv4 %2  IPv6 %3")
+                .arg(im.value(QStringLiteral("name")).toString(),
+                     ip4.isEmpty() ? QStringLiteral("(none)") : ip4,
+                     ip6.isEmpty() ? QStringLiteral("(none)") : ip6));
+            ResultProperty p(QStringLiteral("interface %1").arg(im.value(QStringLiteral("name")).toString()),
+                ip4.isEmpty() ? QStringLiteral("(no IPv4)") : ip4);
+            if (!ip6.isEmpty()) p.children.append({QStringLiteral("IPv6"), ip6});
+            props.append(p);
+        }
         const QVariantList sims = cell.value(QStringLiteral("sims")).toList();
         const bool multiSim = sims.size() > 1;
         DiagStatus status = DiagStatus::Info;
@@ -1693,6 +1713,7 @@ static DiagnosticResult probeCellular(DiagId id, const QString&, RunContext& ctx
                      cellIp.isEmpty() ? QStringLiteral("(not assigned)") : cellIp));
             if (!cellGw.isEmpty())
                 out.append(QStringLiteral("  Gateway: %1").arg(cellGw));
+            out.append(ifaceLines);
             if (SystemDiagnostics::hasNonEmptyValue(cell, "signalNotice"))
                 out.append(QStringLiteral("  Signal: %1").arg(cell["signalNotice"].toString()));
             out.append(QString());
@@ -1713,6 +1734,7 @@ static DiagnosticResult probeCellular(DiagId id, const QString&, RunContext& ctx
                 out.append(QStringLiteral("  IP Address: %1").arg(cellIp));
             if (!cellGw.isEmpty())
                 out.append(QStringLiteral("  Gateway: %1").arg(cellGw));
+            out.append(ifaceLines);
             if (SystemDiagnostics::hasNonEmptyValue(cell, "signalNotice"))
                 out.append(QStringLiteral("  Signal: %1").arg(cell["signalNotice"].toString()));
             summary = QStringLiteral("No cellular service");
