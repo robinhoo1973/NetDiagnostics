@@ -1,4 +1,7 @@
-// IosNetworkInfo.h — iOS network info (gateway, DHCP)
+// IosNetworkInfo.h — iOS 网络信息平台层（路由/网关/DHCP/接口/蜂窝/WiFi）
+// 5WHY (2026-08-22 模块边界纠错): 曾名 GatewayDhcpRouting——历轮追加使
+// 内容远超网关/DHCP（接口枚举、CoreTelephony 蜂窝、WiFi 均入内）。
+// 改名 IosNetworkInfo（伞式自描述），分区见 .mm 顶部横幅。
 #pragma once
 #if defined(PLATFORM_IOS)
 #include <QString>

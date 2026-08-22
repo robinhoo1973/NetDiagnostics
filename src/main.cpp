@@ -16,7 +16,7 @@
 #include "Settings/Model/PremiumStore.h"
 #include "Common/Services/IconProvider.h"   // 图标管线 v4：image://icon 运行时着色
 #if defined(PLATFORM_IOS)
-#include "Diagnostics/Model/G1/Platform/IOS/GatewayDhcpRouting.h"   // iosRequestWiFiAuthorization
+#include "Diagnostics/Model/G1/Platform/IOS/IosNetworkInfo.h"   // iosRequestWiFiAuthorization
 #endif
 #if defined(PLATFORM_IOS) || defined(Q_OS_MACOS)
 #include "Common/Platform/NativePdfDocument.h"

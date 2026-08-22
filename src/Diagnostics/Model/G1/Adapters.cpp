@@ -1967,9 +1967,9 @@ static DiagnosticResult probeCellular(DiagId id, const QString&, RunContext& ctx
 
 } // namespace g1
 
-// ── 平台深探针（iOS GatewayDhcpRouting / Android JNI）───────────────────
+// ── 平台深探针（iOS IosNetworkInfo / Android JNI）───────────────────
 #if defined(PLATFORM_IOS)
-#include "Diagnostics/Model/G1/Platform/IOS/GatewayDhcpRouting.h"
+#include "Diagnostics/Model/G1/Platform/IOS/IosNetworkInfo.h"
 namespace {
 DiagnosticResult iosWifiProbe(DiagId id, const QString&, RunContext&) {
     const QVariantMap info = iosWiFiInfo();

@@ -30,7 +30,7 @@
 #include <net/if.h>
 #include <sys/ioctl.h>
 #if defined(PLATFORM_IOS)
-#include "Diagnostics/Model/G1/Platform/IOS/GatewayDhcpRouting.h"
+#include "Diagnostics/Model/G1/Platform/IOS/IosNetworkInfo.h"
 #endif
 #include <resolv.h>          // __res_state (DNS resolver state)
 #if defined(__APPLE__)

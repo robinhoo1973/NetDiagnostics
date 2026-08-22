@@ -1,5 +1,16 @@
 // =============================================================================
-// IosNetworkInfo.mm �� iOS network info via public API workarounds
+// IosNetworkInfo.mm — iOS 网络信息平台层（公共 API 变通实现）
+//
+// 5WHY (2026-08-22 模块边界纠错): 本文件曾名 GatewayDhcpRouting——历轮
+// iOS 修复把接口/蜂窝/WiFi helper 逐一追加进来，文件名与实际内容严重
+// 脱节（"Adapter 信息在网关文件里"）。PLATFORM_IOS 专属代码仅 iOS CI
+// 可编译，彻底拆文件风险/收益不成比例——按业界实践改为自描述的伞式
+// 平台模块 IosNetworkInfo，内容分五区：
+//   1. 路由表/网关（NET_RT_DUMP2 sysctl）
+//   2. 接口 IPv4/IPv6（getifaddrs，含蜂窝接口枚举）
+//   3. DHCP/路由表诊断
+//   4. WiFi（SystemConfiguration）
+//   5. Cellular（CoreTelephony + 网络层事实兜底）
 //
 // Provides partial implementations for Diagnostics that Apple's sandbox blocks:
 // - default gateway: real gateway IP via sysctl NET_RT_DUMP2 (BSD route dump)
@@ -64,7 +75,7 @@ struct rt_msghdr2 {
 #include <QList>
 #include <cstddef>
 #include "Common/Model/DiagnosticResult.h"
-#include "Diagnostics/Model/G1/Platform/IOS/GatewayDhcpRouting.h" // 5WHY: own header for declaration checking
+#include "Diagnostics/Model/G1/Platform/IOS/IosNetworkInfo.h" // 5WHY: own header for declaration checking
 #include "Diagnostics/View/DiagnosticFormatter.h"
 #include "Common/Services/Logger.h"
 

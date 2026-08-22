@@ -32,7 +32,7 @@
 #include "Diagnostics/Model/G5/Platform/Android/NetworkDiagnostics.h"
 #endif
 #if defined(PLATFORM_IOS)
-#include "Diagnostics/Model/G1/Platform/IOS/GatewayDhcpRouting.h"
+#include "Diagnostics/Model/G1/Platform/IOS/IosNetworkInfo.h"
 #endif
 
 #include <QNetworkInterface>
@@ -761,7 +761,7 @@ void registerG2Adapters() {
     return;
 #else
 #if defined(PLATFORM_IOS)
-    // iOS：网关/路由经系统 API（GatewayDhcpRouting）
+    // iOS：网关/路由经系统 API（IosNetworkInfo）
     AdapterRegistry::registerAdapters(DiagId::G2DefaultGateway, {
         { PF_IOS, "iOS", {}, [](DiagId i, const QString&, RunContext&) { return iosDefaultGatewayDiag(i); } },
     });

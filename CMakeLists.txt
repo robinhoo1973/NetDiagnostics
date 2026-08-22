@@ -80,7 +80,7 @@ if(IOS)
         src/Common/Platform/Apple/IOS/PlatformPdfRenderer.mm
         src/Common/Platform/Apple/IOS/PlatformStore.mm
         src/Common/Platform/NativePdfDocument.cpp
-        src/Diagnostics/Model/G1/Platform/IOS/GatewayDhcpRouting.mm
+        src/Diagnostics/Model/G1/Platform/IOS/IosNetworkInfo.mm
         src/Diagnostics/Model/G3/Platform/IOS/DnsResolve.mm
         src/Diagnostics/Model/G5/Platform/IOS/HttpDiagnostics.mm
     )
