@@ -40,6 +40,18 @@
 #include <windows.h>
 #endif
 
+// 5WHY (2026-08-22 WifiWave SVG 复绘): 动画层以 data:image/svg+xml;base64
+// 数据 URI 重绘母版弧线——QML Image 解码 SVG 走 qsvg imageformat 插件。
+// 静态 Qt（iOS/Android/Windows-MSYS2）下插件不会自动注册，必须显式
+// Q_IMPORT_PLUGIN(QSvgPlugin)（Qt 官方静态构建文档惯例）；Qt6::Svg 由
+// cmake/netdiag-target.cmake 在 Qt6Svg_FOUND 时统一链接（IconProvider
+// 的 QSvgRenderer 同源依赖，全平台已具备）。动态 Qt 自动发现插件，
+// 此宏为 no-op（QT_STATIC 未定义）。
+#if defined(QT_STATIC)
+#include <QtPlugin>
+Q_IMPORT_PLUGIN(QSvgPlugin)
+#endif
+
 namespace {
 
 // NEW-16: verify failure policy — fail-fast on debug/CI, hide+continue on release.
