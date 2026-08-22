@@ -501,11 +501,73 @@ static DiagnosticResult probeNicAdvanced(DiagId id, const QString&, RunContext& 
 
 // ── G1WifiDiagnostics ─────────────────────────────────────────────────────
 #if defined(PLATFORM_IOS)
-// 5WHY (2026-08-22 死分派同源修复): 注册表把 G1WifiDiagnostics 的 iOS
-// 派发给本文末段 iosWifiProbe——probeWifi 内全部 PLATFORM_IOS 分支是
-// 死代码，构成双构建器（Cellular 同款陷阱）。收敛：probeWifi 的 iOS
-// 路径委托单一实现，未来修改只落一处。
+// 5WHY (2026-08-22 死分派同源修复 + 链接修复): 注册表把 G1WifiDiagnostics
+// 的 iOS 派发给 iosWifiProbe——probeWifi 内全部 PLATFORM_IOS 分支是死
+// 代码（双构建器，Cellular 同款陷阱）。iosWifiProbe 定义上移至本命名
+// 空间（原在全局匿名命名空间——前向声明 g1::iosWifiProbe 与其内部链接
+// 不匹配，iOS 静态链接 undefined symbol）。收敛：单一实现 + 委托。
 DiagnosticResult iosWifiProbe(DiagId id, const QString& t, RunContext& ctx);
+
+DiagnosticResult iosWifiProbe(DiagId id, const QString&, RunContext&) {
+    const QVariantMap info = iosWiFiInfo();
+    if (info.isEmpty())
+        return DiagnosticResult::skipped(id, QStringLiteral("No WiFi interface present"));
+    QVector<ResultProperty> props;
+    auto add = [&props](const char* label, const QString& v) {
+        if (!v.isEmpty()) props.append({QLatin1String(label), v});
+    };
+    const QString ssid = info.value(QStringLiteral("ssid")).toString();
+    const QString bssid = info.value(QStringLiteral("bssid")).toString();
+    add("SSID", ssid);
+    add("BSSID", bssid);
+    add("signal dBm", info.value(QStringLiteral("rssi")).toString());
+    add("channel", info.value(QStringLiteral("channel")).toString());
+    add("security", info.value(QStringLiteral("security")).toString());
+    // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): 曾空 details 落复刻层——
+    // 平铺 props 被误当逐接口行（表头列名当接口名）。重建 v0.0.3 iOS
+    // 终端：表行（en0 + SSID/BSSID，Channel/Signal/Bitrate "-"）+
+    // IP/Gateway + "unavailable" 行 + SSID 缺失时的说明块。
+    QStringList vOut;
+    vOut.append(QString());
+    vOut.append(QStringLiteral("Wireless LAN information:"));
+    vOut.append(QString());
+    {
+        static const QVector<DiagnosticFormatter::ColSpec> kWifiCols = {
+            {"Interface", 12, false}, {"SSID", 20, false}, {"BSSID", 17, false},
+            {"Channel", 8, true}, {"Signal", 7, true}, {"Bitrate", 0, true},
+        };
+        QList<QStringList> rows;
+        rows.append({QStringLiteral("en0"),
+            ssid.isEmpty() ? QStringLiteral("-") : ssid,
+            bssid.isEmpty() ? QStringLiteral("-") : bssid,
+            QStringLiteral("-"), QStringLiteral("-"), QStringLiteral("-")});
+        vOut.append(DiagnosticFormatter::formatTable(kWifiCols, rows));
+    }
+    const QString wifiIp = iosInterfaceIPv4(QStringLiteral("en0"));
+    const QString wifiGw = iosGatewayForInterface(QStringLiteral("en0"));
+    vOut.append(QString());
+    vOut.append(QStringLiteral("  IP Address: %1").arg(wifiIp.isEmpty() ? QStringLiteral("(not connected)") : wifiIp));
+    if (!wifiGw.isEmpty())
+        vOut.append(QStringLiteral("  Gateway: %1").arg(wifiGw));
+    vOut.append(QStringLiteral("  Channel/Signal/Bitrate: unavailable on iOS (no public API)"));
+    if (ssid.isEmpty()) {
+        vOut.append(QString());
+        const QString diag = info.value(QStringLiteral("wifiDiagnostics")).toString();
+        if (!diag.isEmpty())
+            vOut.append(QStringLiteral("  %1").arg(diag));
+        else {
+            vOut.append(QStringLiteral("  Note: SSID/BSSID need the \"Access WiFi Information\" entitlement,"));
+            vOut.append(QStringLiteral("        Location permission, and an active WiFi connection."));
+        }
+    }
+    DiagnosticResult r = makeResult(id, DiagStatus::Pass,
+        QStringLiteral("WiFi: %1").arg(ssid),
+        props, vOut.join(QLatin1Char('\n')));
+    r.narrative = QStringLiteral("Wi-Fi is connected to %1 (BSSID %2). "
+        "Signal, channel and security are listed in the property cards below.")
+        .arg(ssid, bssid);
+    return r;
+}
 #endif
 static DiagnosticResult probeWifi(DiagId id, const QString&, RunContext& ctx) {
 #if defined(PLATFORM_IOS)
@@ -2014,67 +2076,6 @@ DiagnosticResult cellularProbeIos(DiagId id) {
 } // namespace g1
 
 namespace {
-DiagnosticResult iosWifiProbe(DiagId id, const QString&, RunContext&) {
-    const QVariantMap info = iosWiFiInfo();
-    if (info.isEmpty())
-        return DiagnosticResult::skipped(id, QStringLiteral("No WiFi interface present"));
-    QVector<ResultProperty> props;
-    auto add = [&props](const char* label, const QString& v) {
-        if (!v.isEmpty()) props.append({QLatin1String(label), v});
-    };
-    const QString ssid = info.value(QStringLiteral("ssid")).toString();
-    const QString bssid = info.value(QStringLiteral("bssid")).toString();
-    add("SSID", ssid);
-    add("BSSID", bssid);
-    add("signal dBm", info.value(QStringLiteral("rssi")).toString());
-    add("channel", info.value(QStringLiteral("channel")).toString());
-    add("security", info.value(QStringLiteral("security")).toString());
-    // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): 曾空 details 落复刻层——
-    // 平铺 props 被误当逐接口行（表头列名当接口名）。重建 v0.0.3 iOS
-    // 终端：表行（en0 + SSID/BSSID，Channel/Signal/Bitrate "-"）+
-    // IP/Gateway + "unavailable" 行 + SSID 缺失时的说明块。
-    QStringList vOut;
-    vOut.append(QString());
-    vOut.append(QStringLiteral("Wireless LAN information:"));
-    vOut.append(QString());
-    {
-        static const QVector<DiagnosticFormatter::ColSpec> kWifiCols = {
-            {"Interface", 12, false}, {"SSID", 20, false}, {"BSSID", 17, false},
-            {"Channel", 8, true}, {"Signal", 7, true}, {"Bitrate", 0, true},
-        };
-        QList<QStringList> rows;
-        rows.append({QStringLiteral("en0"),
-            ssid.isEmpty() ? QStringLiteral("-") : ssid,
-            bssid.isEmpty() ? QStringLiteral("-") : bssid,
-            QStringLiteral("-"), QStringLiteral("-"), QStringLiteral("-")});
-        vOut.append(DiagnosticFormatter::formatTable(kWifiCols, rows));
-    }
-    const QString wifiIp = iosInterfaceIPv4(QStringLiteral("en0"));
-    const QString wifiGw = iosGatewayForInterface(QStringLiteral("en0"));
-    vOut.append(QString());
-    vOut.append(QStringLiteral("  IP Address: %1").arg(wifiIp.isEmpty() ? QStringLiteral("(not connected)") : wifiIp));
-    if (!wifiGw.isEmpty())
-        vOut.append(QStringLiteral("  Gateway: %1").arg(wifiGw));
-    vOut.append(QStringLiteral("  Channel/Signal/Bitrate: unavailable on iOS (no public API)"));
-    if (ssid.isEmpty()) {
-        vOut.append(QString());
-        const QString diag = info.value(QStringLiteral("wifiDiagnostics")).toString();
-        if (!diag.isEmpty())
-            vOut.append(QStringLiteral("  %1").arg(diag));
-        else {
-            vOut.append(QStringLiteral("  Note: SSID/BSSID need the \"Access WiFi Information\" entitlement,"));
-            vOut.append(QStringLiteral("        Location permission, and an active WiFi connection."));
-        }
-    }
-    DiagnosticResult r = g1::makeResult(id, DiagStatus::Pass,
-        QStringLiteral("WiFi: %1").arg(ssid),
-        props, vOut.join(QLatin1Char('\n')));
-    r.narrative = QStringLiteral("Wi-Fi is connected to %1 (BSSID %2). "
-        "Signal, channel and security are listed in the property cards below.")
-        .arg(ssid, bssid);
-    return r;
-}
-
 DiagnosticResult iosCellularProbe(DiagId id) {
     // 5WHY (2026-08-22 死代码修复): 本函数曾自带整套输出构建——读取
     // iosCellularInfo 的旧键（simSlots/dataIp/gateway/signalStrength），
@@ -2129,7 +2130,7 @@ void registerG1Adapters() {
         { PF_IOS, "iOS", {}, [](DiagId i, const QString&, RunContext&) { return iosDhcpDiag(i); } },
     });
     AdapterRegistry::registerAdapters(DiagId::G1WifiDiagnostics, {
-        { PF_IOS, "iOS", {}, [](DiagId i, const QString& t, RunContext& ctx) { return iosWifiProbe(i, t, ctx); } },
+        { PF_IOS, "iOS", {}, [](DiagId i, const QString& t, RunContext& ctx) { return g1::iosWifiProbe(i, t, ctx); } },
     });
     AdapterRegistry::registerAdapters(DiagId::G1CellularInfo, {
         { PF_IOS, "iOS", {}, [](DiagId i, const QString&, RunContext&) { return iosCellularProbe(i); } },
