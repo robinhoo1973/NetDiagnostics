@@ -23,6 +23,13 @@
 #include "Common/Model/DiagnosticMeta.h"
 #include "Common/Model/DiagNames.h"
 
+// 5WHY (2026-08-22 死分派同源修复): probeDhcp/probeWifi 的 iOS 委托需
+// iosDhcpDiag/iosWifiProbe 声明——原 include 在文件末段 iOS 区，前移至
+// 此（头文件自带 PLATFORM_IOS 守卫，双 include 安全）。
+#if defined(PLATFORM_IOS)
+#include "Diagnostics/Model/G1/Platform/IOS/IosNetworkInfo.h"
+#endif
+
 #if defined(PLATFORM_ANDROID)
 #include "Diagnostics/Model/G5/Platform/Android/NetworkDiagnostics.h"
 #endif
@@ -493,7 +500,18 @@ static DiagnosticResult probeNicAdvanced(DiagId id, const QString&, RunContext& 
 }
 
 // ── G1WifiDiagnostics ─────────────────────────────────────────────────────
+#if defined(PLATFORM_IOS)
+// 5WHY (2026-08-22 死分派同源修复): 注册表把 G1WifiDiagnostics 的 iOS
+// 派发给本文末段 iosWifiProbe——probeWifi 内全部 PLATFORM_IOS 分支是
+// 死代码，构成双构建器（Cellular 同款陷阱）。收敛：probeWifi 的 iOS
+// 路径委托单一实现，未来修改只落一处。
+DiagnosticResult iosWifiProbe(DiagId id, const QString& t, RunContext& ctx);
+#endif
 static DiagnosticResult probeWifi(DiagId id, const QString&, RunContext& ctx) {
+#if defined(PLATFORM_IOS)
+    // 死分派同源修复：iOS 直接委托单一实现（见声明处 5WHY）。
+    return iosWifiProbe(id, QString(), ctx);
+#endif
     QVector<ResultProperty> props;
     QStringList ssids;
     // 5WHY (复核 2026-08-21 用户 "WiFi 没有任何输出"): 曾只填属性卡、
@@ -851,6 +869,12 @@ static DiagnosticResult probeWired(DiagId id, const QString&, RunContext& ctx) {
 
 // ── G1DhcpStatus ──────────────────────────────────────────────────────────
 static DiagnosticResult probeDhcp(DiagId id, const QString&, RunContext& ctx) {
+#if defined(PLATFORM_IOS)
+    // 5WHY (2026-08-22 死分派同源修复): 注册表把 G1DhcpStatus 的 iOS
+    // 派发给 iosDhcpDiag——本函数内 PLATFORM_IOS 分支是死代码（双构建
+    // 器，Cellular 同款陷阱）。收敛：iOS 委托单一实现。
+    return iosDhcpDiag(id);
+#endif
     QVector<ResultProperty> props;
     QStringList leases;
     int likelyCount = 0;   // 路由表网关推断的 "Likely" 行数（非确认租约）

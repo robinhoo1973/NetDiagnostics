@@ -101,6 +101,13 @@ static QString ip4ToStr(const struct in_addr& a) { return QString::fromLatin1(in
 
 // ── G2RoutingTable ─────────────────────────────────────────────────────────
 static DiagnosticResult probeRoutingTable(DiagId id, const QString&, RunContext& ctx) {
+#if defined(PLATFORM_IOS)
+    // 5WHY (2026-08-22 死分派同源修复): 注册表把 G2RoutingTable 的 iOS
+    // 派发给 iosRoutingTableDiag——本函数内 PLATFORM_IOS 分支（
+    // "[iOS] Routing table: unavailable"）是死代码（双构建器，Cellular
+    // 同款陷阱）。收敛：iOS 委托单一实现。
+    return iosRoutingTableDiag(id);
+#endif
     QVector<ResultProperty> props;
     QStringList out;
     int routeCount = 0;
