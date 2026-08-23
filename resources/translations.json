@@ -3502,6 +3502,76 @@
       "linhas",
       "أسطر"
     ],
+    "outlineDnsIntegrityPh1": [
+      "阶段 1 · ISP 劫持探测——经本地解析器查询随机不存在的域名",
+      "階段 1 · ISP 劫持探測——經本地解析器查詢隨機不存在的網域",
+      "", "", "", "", "",
+      "Phase 1 · ISP hijack — random non-existent domains via the local resolver",
+      "", "", "", "", "", "", ""
+    ],
+    "outlineDnsIntegrityPh2": [
+      "阶段 2 · 污染检测——本地 UDP 应答对照 DoH 基准真相",
+      "階段 2 · 污染檢測——本地 UDP 應答對照 DoH 基準真相",
+      "", "", "", "", "",
+      "Phase 2 · Pollution — local UDP answers vs DoH ground truth",
+      "", "", "", "", "", "", ""
+    ],
+    "outlineDnsIntegrityVerdict": [
+      "结论 · 加权完整性评分（劫持 / 污染 / 可疑）",
+      "結論 · 加權完整性評分（劫持 / 污染 / 可疑）",
+      "", "", "", "", "",
+      "Verdict · weighted integrity score (hijack / pollution / suspicious)",
+      "", "", "", "", "", "", ""
+    ],
+    "outlineGeoIpPh1": [
+      "阶段 1 · 出口 GeoIP——HTTPS 提供商（国家 / 城市 / ISP）",
+      "階段 1 · 出口 GeoIP——HTTPS 提供商（國家 / 城市 / ISP）",
+      "", "", "", "", "",
+      "Phase 1 · Egress GeoIP — HTTPS providers (country / city / ISP)",
+      "", "", "", "", "", "", ""
+    ],
+    "outlineGeoIpPh2": [
+      "阶段 2 · 物理位置——测速节点群 TTFB 探测，最低 HL 国家",
+      "階段 2 · 物理位置——測速節點群 TTFB 探測，最低 HL 國家",
+      "", "", "", "", "",
+      "Phase 2 · Physical location — fleet TTFB probe, lowest HL country",
+      "", "", "", "", "", "", ""
+    ],
+    "outlineGeoIpPh3": [
+      "阶段 3 · VPN 判定——Mann-Whitney U 置换检验 + Cliff's δ",
+      "階段 3 · VPN 判定——Mann-Whitney U 置換檢驗 + Cliff's δ",
+      "", "", "", "", "",
+      "Phase 3 · VPN test — Mann-Whitney U permutation + Cliff's δ",
+      "", "", "", "", "", "", ""
+    ],
+    "outlineInternetPh1": [
+      "阶段 1 · 定位——全球 TTFB 探测（3 轮，HL 聚合）",
+      "階段 1 · 定位——全球 TTFB 探測（3 輪，HL 聚合）",
+      "", "", "", "", "",
+      "Phase 1 · Location — global TTFB probe (3 rounds, HL aggregation)",
+      "", "", "", "", "", "", ""
+    ],
+    "outlineInternetPh2": [
+      "阶段 2 · 排序——按延迟取前 5 服务器",
+      "階段 2 · 排序——按延遲取前 5 伺服器",
+      "", "", "", "", "",
+      "Phase 2 · Ranking — top 5 servers by latency",
+      "", "", "", "", "", "", ""
+    ],
+    "outlineInternetPh3": [
+      "阶段 3 · 选优——最优服务器 + 故障转移",
+      "階段 3 · 選優——最優伺服器 + 故障轉移",
+      "", "", "", "", "",
+      "Phase 3 · Selection — best server with failover",
+      "", "", "", "", "", "", ""
+    ],
+    "outlineInternetPh4": [
+      "阶段 4 · 测速——分档 64 KB / 256 KB / 1 MB，下载 + 上传",
+      "階段 4 · 測速——分檔 64 KB / 256 KB / 1 MB，下載 + 上傳",
+      "", "", "", "", "",
+      "Phase 4 · Speed — tiered 64 KB / 256 KB / 1 MB, down + up",
+      "", "", "", "", "", "", ""
+    ],
     "themeLight": [
       "浅色",
       "淺色",
@@ -3997,6 +4067,69 @@
     ]
   },
   "propLabels": {
+    "Phase 1 · Hijack Probe": [
+      "阶段 1 · 劫持探测",
+      "階段 1 · 劫持探測",
+      "", "", "", "", "",
+      "Phase 1 · Hijack Probe",
+      "", "", "", "", "", "", ""
+    ],
+    "Phase 2 · Pollution Cross-check": [
+      "阶段 2 · 污染交叉验证",
+      "階段 2 · 污染交叉驗證",
+      "", "", "", "", "",
+      "Phase 2 · Pollution Cross-check",
+      "", "", "", "", "", "", ""
+    ],
+    "Integrity Score": [
+      "完整性评分",
+      "完整性評分",
+      "", "", "", "", "",
+      "Integrity Score",
+      "", "", "", "", "", "", ""
+    ],
+    "Top Physical Locations": [
+      "物理位置排名",
+      "物理位置排名",
+      "", "", "", "", "",
+      "Top Physical Locations",
+      "", "", "", "", "", "", ""
+    ],
+    "VPN Statistical Verdict": [
+      "VPN 统计判定",
+      "VPN 統計判定",
+      "", "", "", "", "",
+      "VPN Statistical Verdict",
+      "", "", "", "", "", "", ""
+    ],
+    "Best Server": [
+      "最优服务器",
+      "最優伺服器",
+      "", "", "", "", "",
+      "Best Server",
+      "", "", "", "", "", "", ""
+    ],
+    "Probe Coverage": [
+      "探测覆盖",
+      "探測覆蓋",
+      "", "", "", "", "",
+      "Probe Coverage",
+      "", "", "", "", "", "", ""
+    ],
+    "Download Rounds": [
+      "下载轮次",
+      "下載輪次",
+      "", "", "", "", "",
+      "Download Rounds",
+      "", "", "", "", "", "", ""
+    ],
+    "Upload Rounds": [
+      "上传轮次",
+      "上傳輪次",
+      "", "", "", "", "",
+      "Upload Rounds",
+      "", "", "", "", "", "", ""
+    ],
     "Addresses": [
       "地址",
       "地址",
@@ -6218,6 +6351,204 @@
         "A porta deve estar entre 1 e 65535 (recebido: %1)",
         ""
       ]
-    ]
+    ],
+    "narratives": {
+      "nDnsIntegrityNoResolver": [
+        "此平台未暴露系统 DNS 解析器——劫持/污染阶段无法执行。不产出不可靠结论（诚实跳过）；DoH 查询由其他检测覆盖。",
+        "此平台未暴露系統 DNS 解析器——劫持/污染階段無法執行。不產出不可靠結論（誠實跳過）；DoH 查詢由其他檢測覆蓋。",
+        "", "", "", "", "",
+        "No system DNS resolver is exposed on this platform — hijack/pollution phases cannot run. No verdict is produced rather than an unreliable one; DoH lookups remain covered by other tests.",
+        "", "", "", "", "", "", ""
+      ],
+      "nDnsIntegrity": [
+        "劫持探测：%1 个域名——%2 干净、%3 劫持、%4 超时。污染检测：%5 个域名——%6 干净、%7 污染、%8 可疑、%9 错误。完整性评分：%10/100。",
+        "劫持探測：%1 個網域——%2 乾淨、%3 劫持、%4 逾時。污染檢測：%5 個網域——%6 乾淨、%7 污染、%8 可疑、%9 錯誤。完整性評分：%10/100。",
+        "", "", "", "", "",
+        "Hijack probe: %1 domains — %2 clean, %3 hijacked, %4 timeout. Pollution: %5 domains — %6 clean, %7 polluted, %8 suspicious, %9 errors. Integrity score: %10/100.",
+        "", "", "", "", "", "", ""
+      ],
+      "nGeoIp": [
+        "出口 IP %1——GeoIP %2 · ISP %3 · 物理位置 %4。%5（U=%6，p=%7，δ=%8）。",
+        "出口 IP %1——GeoIP %2 · ISP %3 · 物理位置 %4。%5（U=%6，p=%7，δ=%8）。",
+        "", "", "", "", "",
+        "Egress IP %1 — GeoIP %2 · ISP %3 · physical %4. %5 (U=%6, p=%7, δ=%8).",
+        "", "", "", "", "", "", ""
+      ],
+      "nInternetNoServer": [
+        "无测速服务器可达——设备疑似无互联网连接。",
+        "無測速伺服器可達——裝置疑似無網際網路連線。",
+        "", "", "", "", "",
+        "No speed-test server was reachable — the device appears to have no Internet connectivity.",
+        "", "", "", "", "", "", ""
+      ],
+      "nInternetFull": [
+        "物理位置 %1 · %2/%3 服务器可达。最优服务器 %4（TTFB %5 ms）。测速：↓ %6 Mbps · ↑ %7 Mbps。",
+        "物理位置 %1 · %2/%3 伺服器可達。最優伺服器 %4（TTFB %5 ms）。測速：↓ %6 Mbps · ↑ %7 Mbps。",
+        "", "", "", "", "",
+        "Physical %1 · %2/%3 servers reachable. Best server %4 (TTFB %5 ms). Speed: ↓ %6 Mbps · ↑ %7 Mbps.",
+        "", "", "", "", "", "", ""
+      ],
+      "nInternetDlOnly": [
+        "物理位置 %1 · %2/%3 服务器可达。最优服务器 %4（TTFB %5 ms）。下载 %6 Mbps · 上传失败。",
+        "物理位置 %1 · %2/%3 伺服器可達。最優伺服器 %4（TTFB %5 ms）。下載 %6 Mbps · 上傳失敗。",
+        "", "", "", "", "",
+        "Physical %1 · %2/%3 servers reachable. Best server %4 (TTFB %5 ms). Download %6 Mbps · upload failed.",
+        "", "", "", "", "", "", ""
+      ],
+      "nInternetUlOnly": [
+        "物理位置 %1 · %2/%3 服务器可达。最优服务器 %4（TTFB %5 ms）。下载失败 · 上传 %6 Mbps。",
+        "物理位置 %1 · %2/%3 伺服器可達。最優伺服器 %4（TTFB %5 ms）。下載失敗 · 上傳 %6 Mbps。",
+        "", "", "", "", "",
+        "Physical %1 · %2/%3 servers reachable. Best server %4 (TTFB %5 ms). Download failed · upload %6 Mbps.",
+        "", "", "", "", "", "", ""
+      ],
+      "nInternetSpeedFail": [
+        "物理位置 %1 · %2/%3 服务器可达。最优服务器 %4（TTFB %5 ms）。服务器可达但测速失败。",
+        "物理位置 %1 · %2/%3 伺服器可達。最優伺服器 %4（TTFB %5 ms）。伺服器可達但測速失敗。",
+        "", "", "", "", "",
+        "Physical %1 · %2/%3 servers reachable. Best server %4 (TTFB %5 ms). Speed test failed despite a reachable server.",
+        "", "", "", "", "", "", ""
+      ],
+      "nDnsTimeout": [
+        "查询 %1（A）发往 %2，3 秒超时——服务器不可达或 UDP/53 被丢弃。无响应头可展示。",
+        "查詢 %1（A）發往 %2，3 秒逾時——伺服器不可達或 UDP/53 被丟棄。無回應標頭可展示。",
+        "", "", "", "", "",
+        "Query %1 (A) to %2 timed out after 3 s — server unreachable or UDP/53 dropped. No response header produced.",
+        "", "", "", "", "", "", ""
+      ],
+      "nDnsResolve": [
+        "查询 %1（A）经 %2——%3，%4 条记录，%5 ms。解析结果：%6。完整 dig 风格输出见终端。",
+        "查詢 %1（A）經 %2——%3，%4 筆記錄，%5 ms。解析結果：%6。完整 dig 風格輸出見終端。",
+        "", "", "", "", "",
+        "Query %1 (A) via %2 — %3, %4 record(s), %5 ms. Resolved: %6. Full dig-style output in the terminal.",
+        "", "", "", "", "", "", ""
+      ],
+      "nDnsNoRec": [
+        "查询 %1（A）经 %2——%3，无 A 记录，%4 ms。",
+        "查詢 %1（A）經 %2——%3，無 A 記錄，%4 ms。",
+        "", "", "", "", "",
+        "Query %1 (A) via %2 — %3, no A records, %4 ms.",
+        "", "", "", "", "", "", ""
+      ],
+      "nPingUnreach": [
+        "目标 %1 不可达——%2/%2 探测全部丢失。",
+        "目標 %1 不可達——%2/%2 探測全部遺失。",
+        "", "", "", "", "",
+        "Target %1 is UNREACHABLE — %2/%2 probes lost.",
+        "", "", "", "", "", "", ""
+      ],
+      "nPingReach": [
+        "目标 %1 可达——%2/%3 已收到（丢包 %4%%）。延迟平均 %5 ms（最小 %6 / 最大 %7），抖动 %8 ms%9。",
+        "目標 %1 可達——%2/%3 已收到（丟包 %4%%）。延遲平均 %5 ms（最小 %6 / 最大 %7），抖動 %8 ms%9。",
+        "", "", "", "", "",
+        "Target %1 is reachable — %2/%3 received (%4%% loss). Latency avg %5 ms (min %6 / max %7), jitter %8 ms%9.",
+        "", "", "", "", "", "", ""
+      ],
+      "nTraceComplete": [
+        "到 %1 的路由完整——%2 跳，目标已到达。逐跳 RTT 见终端追踪。",
+        "到 %1 的路由完整——%2 跳，目標已到達。逐跳 RTT 見終端追蹤。",
+        "", "", "", "", "",
+        "Route to %1 complete — %2 hop(s), target reached. Per-hop RTT in the terminal trace.",
+        "", "", "", "", "", "", ""
+      ],
+      "nTraceBlocked": [
+        "到 %1 的路由在第 %2 跳被阻断——路由器/防火墙过滤了探测。",
+        "到 %1 的路由在第 %2 跳被阻斷——路由器/防火牆過濾了探測。",
+        "", "", "", "", "",
+        "Route to %1 BLOCKED at hop %2 — a router/firewall filtered the probes.",
+        "", "", "", "", "", "", ""
+      ],
+      "nTraceTcp": [
+        "到 %1 的路由不完整（%2 跳）——ICMP 被过滤，目标经 TCP 可达。",
+        "到 %1 的路由不完整（%2 跳）——ICMP 被過濾，目標經 TCP 可達。",
+        "", "", "", "", "",
+        "Route to %1 incomplete (%2 hop(s)) — ICMP filtered, target reachable via TCP.",
+        "", "", "", "", "", "", ""
+      ],
+      "nTraceIncomplete": [
+        "到 %1 的路由在 %2 跳后不完整——目标可能被防火墙屏蔽。",
+        "到 %1 的路由在 %2 跳後不完整——目標可能被防火牆屏蔽。",
+        "", "", "", "", "",
+        "Route to %1 incomplete after %2 hop(s) — target may be firewalled.",
+        "", "", "", "", "", "", ""
+      ],
+      "nPathPingOk": [
+        "到 %1 的路径经 %2 跳——末跳交付率 %3%%（丢包 %4%%）。逐跳详情见终端。",
+        "到 %1 的路徑經 %2 跳——末跳交付率 %3%%（丟包 %4%%）。逐跳詳情見終端。",
+        "", "", "", "", "",
+        "Path to %1 traverses %2 hop(s) — final-hop delivery %3%% (loss %4%%). Per-hop details in the terminal.",
+        "", "", "", "", "", "", ""
+      ],
+      "nPathPingNoReply": [
+        "到 %1 的路径经 %2 跳——交付探测无应答；丢包统计不可信（探测可能被过滤）。",
+        "到 %1 的路徑經 %2 跳——交付探測無應答；丟包統計不可信（探測可能被過濾）。",
+        "", "", "", "", "",
+        "Path to %1 traverses %2 hop(s) — delivery probe got no replies; loss statistics inconclusive (probes may be filtered).",
+        "", "", "", "", "", "", ""
+      ],
+      "nPathPingIncomplete": [
+        "到 %1 的路径在 %2 跳后不完整——中间跳停止应答。详情见终端。",
+        "到 %1 的路徑在 %2 跳後不完整——中間跳停止應答。詳情見終端。",
+        "", "", "", "", "",
+        "Path to %1 incomplete after %2 hop(s) — intermediate hops stopped responding. Details in the terminal.",
+        "", "", "", "", "", "", ""
+      ],
+      "nMtuJumbo": [
+        "到 %1 的路径 MTU：%2 字节（MSS %3）。巨型帧——传统链路上存在分片风险。",
+        "到 %1 的路徑 MTU：%2 位元組（MSS %3）。巨型訊框——傳統鏈路上存在分片風險。",
+        "", "", "", "", "",
+        "Path MTU to %1: %2 bytes (MSS %3). Jumbo frame — fragmentation risk across legacy links.",
+        "", "", "", "", "", "", ""
+      ],
+      "nMtuLow": [
+        "到 %1 的路径 MTU：%2 字节（MSS %3）。低于 IPv6 最低 1280——IPv6 隧道可能中断。",
+        "到 %1 的路徑 MTU：%2 位元組（MSS %3）。低於 IPv6 最低 1280——IPv6 隧道可能中斷。",
+        "", "", "", "", "",
+        "Path MTU to %1: %2 bytes (MSS %3). Below IPv6 minimum 1280 — IPv6 tunnels may break.",
+        "", "", "", "", "", "", ""
+      ],
+      "nMtuStd": [
+        "到 %1 的路径 MTU：%2 字节（MSS %3）。标准以太网 MTU——预期无分片。",
+        "到 %1 的路徑 MTU：%2 位元組（MSS %3）。標準乙太網路 MTU——預期無分片。",
+        "", "", "", "", "",
+        "Path MTU to %1: %2 bytes (MSS %3). Standard Ethernet MTU — no fragmentation expected.",
+        "", "", "", "", "", "", ""
+      ],
+      "nMtuLocal": [
+        "到 %1 的路径 MTU：%2 字节（MSS %3）。目标未解析——仅为本地接口 MTU。",
+        "到 %1 的路徑 MTU：%2 位元組（MSS %3）。目標未解析——僅為本地介面 MTU。",
+        "", "", "", "", "",
+        "Path MTU to %1: %2 bytes (MSS %3). Target unresolved — local interface MTU only.",
+        "", "", "", "", "", "", ""
+      ],
+      "nIPv6NoRecord": [
+        "主机 %1 无 IPv6（AAAA）记录——未发布 IPv6 或 IPv6 DNS 不可用。IPv6 未检测；IPv4 不受影响。",
+        "主機 %1 無 IPv6（AAAA）記錄——未發佈 IPv6 或 IPv6 DNS 不可用。IPv6 未檢測；IPv4 不受影響。",
+        "", "", "", "", "",
+        "Host %1 has no IPv6 (AAAA) records — IPv6 not published or DNS unavailable. IPv6 untested; IPv4 unaffected.",
+        "", "", "", "", "", "", ""
+      ],
+      "nIPv6Mapped": [
+        "主机 %1 仅发布 IPv4 映射 AAAA（%2）——无原生 IPv6 可测。端口探测已跳过（诚实跳过）。",
+        "主機 %1 僅發佈 IPv4 映射 AAAA（%2）——無原生 IPv6 可測。連接埠探測已跳過（誠實跳過）。",
+        "", "", "", "", "",
+        "Host %1 publishes only an IPv4-mapped AAAA (%2) — no native IPv6 to test. Port probes skipped (honest skip).",
+        "", "", "", "", "", "", ""
+      ],
+      "nIPv6Ok": [
+        "主机 %1 → %2 个 IPv6 地址。IPv6 可达——%3/%4 端口连通。",
+        "主機 %1 → %2 個 IPv6 位址。IPv6 可達——%3/%4 連接埠連通。",
+        "", "", "", "", "",
+        "Host %1 → %2 IPv6 address(es). IPv6 REACHABLE — %3/%4 ports connected.",
+        "", "", "", "", "", "", ""
+      ],
+      "nIPv6Fail": [
+        "主机 %1 → %2 个 IPv6 地址。IPv6 不可达——0/%3 端口连通；网络可能未提供 IPv6。",
+        "主機 %1 → %2 個 IPv6 位址。IPv6 不可達——0/%3 連接埠連通；網路可能未提供 IPv6。",
+        "", "", "", "", "",
+        "Host %1 → %2 IPv6 address(es). IPv6 UNREACHABLE — 0/%3 ports; network may lack IPv6.",
+        "", "", "", "", "", "", ""
+      ]
+    }
   }
 }

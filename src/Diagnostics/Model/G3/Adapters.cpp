@@ -575,6 +575,8 @@ static DiagnosticResult probeDnsIntegrity(DiagId id, const QString&, RunContext&
             "(e.g. iOS sandboxes resolv.conf), so the hijack and pollution phases cannot be tested "
             "against the local resolver. No integrity verdict is produced rather than an unreliable one; "
             "encrypted DoH lookups remain covered by other tests.");
+        r.data[QStringLiteral("narrativeKey")] = QStringLiteral("nDnsIntegrityNoResolver");
+        r.data[QStringLiteral("narrativeArgs")] = QVariantList{};
         return r;
     }
 
@@ -825,6 +827,16 @@ static DiagnosticResult probeDnsIntegrity(DiagId id, const QString&, RunContext&
         r.narrative += QStringLiteral("Local answers diverged from DoH ground truth on %1 domain(s) — evidence of DNS pollution. ")
             .arg(pollutionWarn);
     r.narrative += QStringLiteral("Overall integrity score: %1/100.").arg(overall);
+    // 5WHY (2026-08-23 叙述多语言): key+args 模板（T.trNarrative 按语言格式化；
+    // narrative EN 保留为回退/剪贴板源）。
+    r.data[QStringLiteral("narrativeKey")] = QStringLiteral("nDnsIntegrity");
+    r.data[QStringLiteral("narrativeArgs")] = QVariantList{
+        QString::number(hijackClean + hijackWarn + hijackTimeout), QString::number(hijackClean),
+        QString::number(hijackWarn), QString::number(hijackTimeout),
+        QString::number(pollutionClean + pollutionWarn + pollutionSuspicious + pollutionErrors),
+        QString::number(pollutionClean), QString::number(pollutionWarn),
+        QString::number(pollutionSuspicious), QString::number(pollutionErrors),
+        QString::number(overall) };
     return r;
 }
 
@@ -1280,6 +1292,14 @@ static DiagnosticResult probeGeoIPLoc(DiagId id, const QString&, RunContext& ctx
         + vpnVerdict
         + QStringLiteral(" (Mann-Whitney U = %1, p = %2, Cliff's δ = %3).")
             .arg(U, 0, 'f', 1).arg(pValue, 0, 'f', 4).arg(delta, 0, 'f', 3);
+    r.data[QStringLiteral("narrativeKey")] = QStringLiteral("nGeoIp");
+    r.data[QStringLiteral("narrativeArgs")] = QVariantList{
+        publicIp.isEmpty() ? QStringLiteral("unknown") : publicIp,
+        SystemDiagnostics::countryFullName(countryA),
+        isp.isEmpty() ? QStringLiteral("unknown") : isp,
+        SystemDiagnostics::countryFullName(countryB),
+        vpnVerdict,
+        QString::number(U, 'f', 1), QString::number(pValue, 'f', 4), QString::number(delta, 'f', 3) };
     return r;
 }
 
@@ -1374,6 +1394,8 @@ static DiagnosticResult probeInternetConnectivity(DiagId id, const QString&, Run
         r.data[QStringLiteral("downloadMbpsBest")] = 0.0;
         r.data[QStringLiteral("uploadMbpsBest")] = 0.0;
         r.narrative = QStringLiteral("No speed-test server was reachable — the device appears to have no Internet connectivity.");
+        r.data[QStringLiteral("narrativeKey")] = QStringLiteral("nInternetNoServer");
+        r.data[QStringLiteral("narrativeArgs")] = QVariantList{};
         return r;
     }
 
@@ -1621,6 +1643,24 @@ static DiagnosticResult probeInternetConnectivity(DiagId id, const QString&, Run
                 : anyUlOk
                     ? QStringLiteral("Speed test: download failed, upload %1 Mbps.").arg(bestUlMbps, 0, 'f', 1)
                     : QStringLiteral("Speed test failed despite a reachable server."));
+    const QVariantList connBase{
+        SystemDiagnostics::countryFullName(result.physicalCountry),
+        QString::number(result.servers.size()), QString::number(GeoProbe::allServers().size()),
+        chosenName, QString::number(chosenTtfb, 'f', 0) };
+    if (anyDlOk && anyUlOk) {
+        r.data[QStringLiteral("narrativeKey")] = QStringLiteral("nInternetFull");
+        r.data[QStringLiteral("narrativeArgs")] = connBase
+            + QVariantList{ QString::number(bestDlMbps, 'f', 1), QString::number(bestUlMbps, 'f', 1) };
+    } else if (anyDlOk) {
+        r.data[QStringLiteral("narrativeKey")] = QStringLiteral("nInternetDlOnly");
+        r.data[QStringLiteral("narrativeArgs")] = connBase + QVariantList{ QString::number(bestDlMbps, 'f', 1) };
+    } else if (anyUlOk) {
+        r.data[QStringLiteral("narrativeKey")] = QStringLiteral("nInternetUlOnly");
+        r.data[QStringLiteral("narrativeArgs")] = connBase + QVariantList{ QString::number(bestUlMbps, 'f', 1) };
+    } else {
+        r.data[QStringLiteral("narrativeKey")] = QStringLiteral("nInternetSpeedFail");
+        r.data[QStringLiteral("narrativeArgs")] = connBase;
+    }
     return r;
 }
 

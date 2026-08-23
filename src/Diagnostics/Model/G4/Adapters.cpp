@@ -594,6 +594,8 @@ static DiagnosticResult probeDnsResolution(DiagId id, const QString& target, Run
             "The server may be unreachable, silently dropping UDP port 53, or the path to it is down. "
             "No dig-style header is shown because no response was received.")
             .arg(host, server);
+        r.data[QStringLiteral("narrativeKey")] = QStringLiteral("nDnsTimeout");
+        r.data[QStringLiteral("narrativeArgs")] = QVariantList{ host, server };
         return r;
     }
     // 5WHY (2026-08-20 用户诉求 "输出与 dig 有距离"): 曾硬编码
@@ -668,6 +670,15 @@ static DiagnosticResult probeDnsResolution(DiagId id, const QString& target, Run
         + (anCount > 0 ? QStringLiteral("Resolved address(es): %1. Full dig-style output is in the terminal section.")
             .arg(ips.join(QStringLiteral(", ")))
                        : QStringLiteral("No A records were returned for this name."));
+    if (anCount > 0) {
+        r.data[QStringLiteral("narrativeKey")] = QStringLiteral("nDnsResolve");
+        r.data[QStringLiteral("narrativeArgs")] = QVariantList{ host, server,
+            rcodeText(rcode), QString::number(anCount), QString::number(ms), ips.join(QStringLiteral(", ")) };
+    } else {
+        r.data[QStringLiteral("narrativeKey")] = QStringLiteral("nDnsNoRec");
+        r.data[QStringLiteral("narrativeArgs")] = QVariantList{ host, server,
+            rcodeText(rcode), QString::number(ms) };
+    }
     return r;
 }
 
@@ -808,6 +819,17 @@ static DiagnosticResult probePing(DiagId id, const QString& target, RunContext& 
                         "locally by a middlebox (VPN/CDN offload); treat as <1 ms.")
                     : QString())
             : QStringLiteral("No responses received — latency unknown."));
+    if (loss >= 100.0) {
+        r.data[QStringLiteral("narrativeKey")] = QStringLiteral("nPingUnreach");
+        r.data[QStringLiteral("narrativeArgs")] = QVariantList{ host, QString::number(sent) };
+    } else if (rcvd > 0) {
+        r.data[QStringLiteral("narrativeKey")] = QStringLiteral("nPingReach");
+        r.data[QStringLiteral("narrativeArgs")] = QVariantList{ host,
+            QString::number(sent), QString::number(rcvd), QString::number(loss, 'f', 1),
+            QString::number(avg, 'f', 0), QString::number(minMs, 'f', 0), QString::number(maxMs, 'f', 0),
+            QString::number(jitter, 'f', 1),
+            tcpFallback ? QStringLiteral(" · TCP fallback probe") : QString() };
+    }
     return r;
 }
 
@@ -955,6 +977,11 @@ static DiagnosticResult probeTraceroute(DiagId id, const QString& target, RunCon
             : tcpReachable
                 ? QStringLiteral("Route to %1 incomplete (%2 hop(s)) — ICMP filtered, but the target is reachable via TCP.").arg(host).arg(hopCount)
                 : QStringLiteral("Route to %1 incomplete after %2 hop(s) — the target may be firewalled.").arg(host).arg(hopCount);
+    r.data[QStringLiteral("narrativeKey")] = reached ? QStringLiteral("nTraceComplete")
+        : blocked ? QStringLiteral("nTraceBlocked")
+        : tcpReachable ? QStringLiteral("nTraceTcp")
+        : QStringLiteral("nTraceIncomplete");
+    r.data[QStringLiteral("narrativeArgs")] = QVariantList{ host, QString::number(hopCount) };
     return r;
 }
 
@@ -1080,6 +1107,17 @@ static DiagnosticResult probePathPing(DiagId id, const QString& target, RunConte
                 : QStringLiteral("Per-hop loss/RTT is in the terminal section."))
         : QStringLiteral("Path to %1 incomplete after %2 hop(s) — intermediate hops stopped responding. "
             "Per-hop details are in the terminal section.").arg(host).arg(hopCount);
+    if (reached && finalLoss < 99.9) {
+        r.data[QStringLiteral("narrativeKey")] = QStringLiteral("nPathPingOk");
+        r.data[QStringLiteral("narrativeArgs")] = QVariantList{ host, QString::number(hopCount),
+            QString::number(100.0 - finalLoss, 'f', 0), QString::number(finalLoss, 'f', 0) };
+    } else if (reached) {
+        r.data[QStringLiteral("narrativeKey")] = QStringLiteral("nPathPingNoReply");
+        r.data[QStringLiteral("narrativeArgs")] = QVariantList{ host, QString::number(hopCount) };
+    } else {
+        r.data[QStringLiteral("narrativeKey")] = QStringLiteral("nPathPingIncomplete");
+        r.data[QStringLiteral("narrativeArgs")] = QVariantList{ host, QString::number(hopCount) };
+    }
     return r;
 }
 
@@ -1245,6 +1283,12 @@ static DiagnosticResult probeMtuDiscovery(DiagId id, const QString& target, RunC
                     ? QStringLiteral("Below the IPv6 minimum (1280) — IPv6 tunnels may break.")
                     : QStringLiteral("Standard Ethernet MTU — no fragmentation expected."))
             : QStringLiteral("Target did not resolve — the value is the local interface MTU only."));
+    r.data[QStringLiteral("narrativeKey")] = !targetResolved ? QStringLiteral("nMtuLocal")
+        : quality == QLatin1String("jumbo") ? QStringLiteral("nMtuJumbo")
+        : quality == QLatin1String("below-ipv6-min") ? QStringLiteral("nMtuLow")
+        : QStringLiteral("nMtuStd");
+    r.data[QStringLiteral("narrativeArgs")] = QVariantList{ host,
+        QString::number(discoveredMtu), QString::number(discoveredMtu > 40 ? discoveredMtu - 40 : 0) };
     return r;
 }
 
@@ -1278,6 +1322,8 @@ static DiagnosticResult probeIPv6Connectivity(DiagId id, const QString& target, 
         r.narrative = QStringLiteral("Host %1 returned no IPv6 (AAAA) records — the network or the host "
             "does not publish IPv6, or IPv6 DNS is unavailable. Connectivity over IPv6 was not tested. "
             "IPv4 services are unaffected by this result.").arg(host);
+        r.data[QStringLiteral("narrativeKey")] = QStringLiteral("nIPv6NoRecord");
+        r.data[QStringLiteral("narrativeArgs")] = QVariantList{ host };
         return r;
     }
     if (v6.startsWith(QLatin1String("::ffff:"), Qt::CaseInsensitive)) {
@@ -1292,6 +1338,8 @@ static DiagnosticResult probeIPv6Connectivity(DiagId id, const QString& target, 
             "which represents an IPv4 address — there is no native IPv6 address to test. "
             "The port probes were skipped rather than reporting IPv4 results as IPv6 reachability.")
             .arg(host).arg(v6);
+        r.data[QStringLiteral("narrativeKey")] = QStringLiteral("nIPv6Mapped");
+        r.data[QStringLiteral("narrativeArgs")] = QVariantList{ host, v6 };
         return r;
     }
     v6Addrs.append(v6);
@@ -1348,6 +1396,10 @@ static DiagnosticResult probeIPv6Connectivity(DiagId id, const QString& target, 
         + (connected > 0
             ? QStringLiteral("IPv6 is REACHABLE: %1/%2 test port(s) connected over IPv6.").arg(connected).arg(connected + failed)
             : QStringLiteral("IPv6 is UNREACHABLE: 0/%1 test port(s) connected — the network may not provide IPv6.").arg(connected + failed));
+    r.data[QStringLiteral("narrativeKey")] = connected > 0 ? QStringLiteral("nIPv6Ok") : QStringLiteral("nIPv6Fail");
+    r.data[QStringLiteral("narrativeArgs")] = connected > 0
+        ? QVariantList{ host, QString::number(v6Addrs.size()), QString::number(connected), QString::number(connected + failed) }
+        : QVariantList{ host, QString::number(v6Addrs.size()), QString::number(connected + failed) };
     return r;
 }
 

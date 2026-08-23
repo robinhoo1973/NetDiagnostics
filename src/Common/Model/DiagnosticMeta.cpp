@@ -72,14 +72,14 @@ static const DiagnosticMeta kDiagMeta[] = {
     { DiagId::G3DnsCache,          "DNS Cache",          "nd-diag-g3-dns-cache",    PF_Desktop|PF_Android,        DiagAnimType::Jiggle, DiagTemplateType::System, sys("cacheEntries","entries",0), 60000 },
     // 5WHY (2026-08-23 详情页信息前置): 三大件 summaryOutline——阶段序列
     // 静态声明于 meta（动态数值仍由探针 narrative 承载），Summary 卡在
-    // 结论行之上渲染过程概览，用户展开 terminal 前即知检测路径。
+    // 结论行之上渲染过程概览；值为翻译键（QML T.tr 按语言渲染）。
     { DiagId::G3DnsIntegrity,      "DNS Integrity",      "nd-diag-g3-dns-integrity",   PF_All,
       DiagAnimType::Tick, DiagTemplateType::Handshake,
       []{ DP d = metricOnly("overallScorePercent","%",0,DP::Gauge);
           d.summaryOutline = {
-              QStringLiteral("Phase 1 · ISP hijack — resolve random non-existent domains via the local resolver"),
-              QStringLiteral("Phase 2 · Pollution — compare local UDP answers against DoH ground truth"),
-              QStringLiteral("Verdict · weighted integrity score (hijack/pollution/suspicious)") };
+              QStringLiteral("outlineDnsIntegrityPh1"),
+              QStringLiteral("outlineDnsIntegrityPh2"),
+              QStringLiteral("outlineDnsIntegrityVerdict") };
           return d; }(), 120000 },
     // 5WHY (2026-08-19 用户诉求 "IP 动画不知道在干什么"): Bounce 是通用
     // 往返小球，地球+定位针图形上无语义锚点——改用 GeoRadar（针头雷达波
@@ -88,18 +88,18 @@ static const DiagnosticMeta kDiagMeta[] = {
       DiagAnimType::GeoRadar, DiagTemplateType::System,
       []{ DP d = sys();
           d.summaryOutline = {
-              QStringLiteral("Phase 1 · Egress GeoIP — HTTPS providers (country/city/ISP)"),
-              QStringLiteral("Phase 2 · Physical location — TTFB probe across the server fleet, lowest HL country"),
-              QStringLiteral("Phase 3 · VPN test — Mann-Whitney U permutation test + Cliff's δ effect size") };
+              QStringLiteral("outlineGeoIpPh1"),
+              QStringLiteral("outlineGeoIpPh2"),
+              QStringLiteral("outlineGeoIpPh3") };
           return d; }(), 150000 },
     { DiagId::G3InternetConnectivity, "Internet Connectivity & Speed", "nd-diag-g3-internet", PF_All,
       DiagAnimType::WifiWave, DiagTemplateType::Handshake,
       []{ DP d = metricOnly("downloadMbpsBest","Mbps",1,DP::Gauge);
           d.summaryOutline = {
-              QStringLiteral("Phase 1 · Location — global TTFB probe (3 rounds, HL aggregation)"),
-              QStringLiteral("Phase 2 · Candidate ranking — top 5 servers by latency"),
-              QStringLiteral("Phase 3 · Best-server selection with failover"),
-              QStringLiteral("Phase 4 · Tiered speed test — 64 KB / 256 KB / 1 MB, down + up") };
+              QStringLiteral("outlineInternetPh1"),
+              QStringLiteral("outlineInternetPh2"),
+              QStringLiteral("outlineInternetPh3"),
+              QStringLiteral("outlineInternetPh4") };
           return d; }(), 180000 },
 
     // ── G4  Remote Host (all platforms — NEW-1) ─────────────────────────────

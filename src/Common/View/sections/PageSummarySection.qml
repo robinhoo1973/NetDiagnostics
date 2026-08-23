@@ -25,7 +25,15 @@ PageSection {
     // 概览（阶段序列）渲染于结论行之上——用户展开 terminal 前即知「测了什么、
     // 按什么顺序」；空表 = 未迁移探针，完全回退纯 narrative。
     readonly property var _outline: detailData.summaryOutline || []
-    active: _narrative !== "" || _outline.length > 0
+    // 5WHY (2026-08-23 叙述多语言): 探针下发 narrativeKey+narrativeArgs——
+    // T.trNarrative 按当前语言格式化（语言切换即重算）；键缺失/译文空 =
+    // 回退 narrative EN（经 T.trMsg exact 表仍可静态词命中）。
+    readonly property var _data: detailData.data || ({})
+    readonly property string _narrativeKey: _data.narrativeKey || ""
+    readonly property var _narrativeArgs: _data.narrativeArgs || []
+    readonly property string _narrativeText:
+        _narrativeKey !== "" ? T.trNarrative(_narrativeKey, _narrativeArgs) : ""
+    active: _narrative !== "" || _narrativeText !== "" || _outline.length > 0
 
     ColumnLayout {
         Layout.fillWidth: true
@@ -56,7 +64,9 @@ PageSection {
                 }
                 Label {
                     Layout.fillWidth: true
-                    text: modelData
+                    // 5WHY (2026-08-23 多语言): outline 存翻译键——T.tr 按
+                    // 当前语言渲染（键即回退值，缺失时显示键本身）。
+                    text: T.tr(modelData)
                     font.family: ThemeEngine.fontUi
                     font.pixelSize: ThemeEngine.fontSize.caption
                     color: ThemeEngine.colors.onSurfaceVariant
@@ -73,8 +83,8 @@ PageSection {
         }
         Label {
             Layout.fillWidth: true
-            text: root._narrative
-            visible: root._narrative !== ""
+            text: root._narrativeText !== "" ? root._narrativeText : T.trMsg(root._narrative)
+            visible: root._narrative !== "" || root._narrativeText !== ""
             font.family: ThemeEngine.fontUi
             font.pixelSize: ThemeEngine.fontSize.body
             color: ThemeEngine.colors.onSurface

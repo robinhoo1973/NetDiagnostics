@@ -77,6 +77,7 @@ QtObject {
     property var _diagDescs: ({})   // diagDesc:    "id" -> [15 langs]
     property var _msgExact: ({})    // trMsg.exact: EN text -> [15 langs]
     property var _msgTpl: []        // trMsg.templates: [[15],[15]]
+    property var _narr: ({})        // trMsg.narratives: key -> [15] 带 %1..%9 占位
     property bool _loaded: false
 
     // ── Load translations.json ─────────────────────────────────────────
@@ -96,6 +97,7 @@ QtObject {
         var tm = j.trMsg || {}
         root._msgExact   = tm.exact      || {}
         root._msgTpl     = tm.templates  || []
+        root._narr       = tm.narratives || {}
         root._loaded = true
     }
 
@@ -113,6 +115,25 @@ QtObject {
         let _ = root.lang // register binding dependency (captured by engine)
         if (!root._loaded) root._load()
         return root._pick(root._props[key]) || key
+    }
+
+    // 5WHY (2026-08-23 详情卡叙述多语言): 探针 narrative 为动态 EN 文本，
+    // exact 表无法覆盖——引入 key+args 模板：C++ 侧下发 narrativeKey/
+    // narrativeArgs，本函数按当前语言替换 %1..%9。键缺失或该语言空 = 返
+    // 回空串（调用方回退 narrative EN 原文）。读 root.lang 保证语言切换
+    // 时绑定重算。
+    function trNarrative(key, args) {
+        let _ = root.lang
+        if (!root._loaded) root._load()
+        var tpl = root._pick(root._narr[key])
+        if (tpl === "") return ""
+        var out = tpl
+        var a = args || []
+        for (var i = 0; i < a.length; ++i) {
+            var v = (a[i] === undefined || a[i] === null) ? "" : String(a[i])
+            out = out.replace("%" + (i + 1), v)
+        }
+        return out
     }
 
     // Translate a diagnostic PROPERTY label (English, from C++) via the
