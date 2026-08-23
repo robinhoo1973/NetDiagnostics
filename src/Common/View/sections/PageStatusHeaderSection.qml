@@ -61,10 +61,18 @@ PageSection {
     // 词+X/Y 计数；第二行结果统计徽标左对齐（11px 缩进对位）且 7 状态全量。
     // 重构后压缩成单行（fillWidth 标签把徽标推到最右），横屏下徽标与标签挤
     // 在一行、取消态缺失——恢复归档两行结构。
-    ColumnLayout {
+    // 5WHY (2026-08-23 历史比对): 历史版（0.0.3）结果头 = 两行统计 + 右侧
+    // 纵向居中 ShareButtons（bare 图标对）。8-2 移除后诊断页完成态无分享
+    // 入口——外层 RowLayout 恢复：内层两行组占满剩余宽度，分享图标对跨两
+    // 行垂直居中（Layout.alignment 沿交叉轴生效）。
+    RowLayout {
         Layout.fillWidth: true
         Layout.leftMargin: ThemeEngine.spacing.md
         Layout.rightMargin: ThemeEngine.spacing.md
+        spacing: ThemeEngine.spacing.sm
+
+    ColumnLayout {
+        Layout.fillWidth: true
         spacing: 4
 
         // ── 第一行：运行指示 + 状态词 + X/Y 计数 ──
@@ -118,24 +126,6 @@ PageSection {
                 elide: Text.ElideRight
                 Layout.fillWidth: true
             }
-            // 5WHY (2026-08-23 用户诉求 "结束后分享按钮不见"): 8-2 曾把
-            // 分享按钮从状态头移除（归位 Dashboard 预览卡）——但诊断页完成
-            // 态的即时分享入口随之消失。恢复剪贴板复制入口：仅
-            // Completed(2)（全部诊断结束）显示，运行中不干扰状态词语义。
-            AppIcon {
-                visible: AppState.runStatus === 2
-                name: "clipboard"
-                size: 18
-                color: ThemeEngine.colors.textMuted
-                MouseArea {
-                    anchors.fill: parent
-                    anchors.margins: -6   // 热区外扩（≥24px 命中）
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: root.shareRequested("text")
-                }
-                Accessible.role: Accessible.Button
-                Accessible.name: T.tr("shareBtn")
-            }
         }
 
         // ── 第二行：结果统计徽标，左对齐（全 7 状态）──
@@ -150,6 +140,22 @@ PageSection {
             visible: root._agg.completed > 0
             // 5WHY (复核 2026-08-18 三处复制收敛): 7 徽标行改用共享簇组件
             StatusBadgeCluster { stats: root._agg; compact: ThemeEngine.isMobile }
+        }
+        }
+
+        // ── 5WHY (2026-08-23 历史比对): 拷贝历史实现——ShareButtons bare
+        // 模式（PDF/HTML 图标对），全部诊断完成（runStatus=2）且已出结果
+        // 时出现；tertiary 即历史 cyan。
+        ShareButtons {
+            Layout.alignment: Qt.AlignVCenter
+            mode: "bare"
+            pdfAccent: ThemeEngine.colors.tertiary
+            htmlAccent: ThemeEngine.colors.primary
+            visible: AppState.runStatus === 2 && AppState.totalCompleted > 0
+            onShareRequested: function(fmt) { root.shareRequested(fmt) }
+            // 锁定态（Premium 平台未解锁）走 premiumRequired 信号——复用
+            // DiagnosticScreen 既有 "locked" 分支呈现 premiumRequiredMsg。
+            onPremiumRequired: root.shareRequested("locked")
         }
     }
 
