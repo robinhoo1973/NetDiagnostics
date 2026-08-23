@@ -16,13 +16,14 @@ enum class DiagTemplateType { System, Ping, Path, Handshake, Request, Query };
 //   Sonar 声呐扫描（Ping）/ RouteTrace 径迹行进（Traceroute）/
 //   HopSample 逐跳采样（PathPing)——2026-08-23 替代通用 Bounce/Path；
 //   TypeText 打字机（IP 配置）/ BlinkText 文字闪烁（DNS 服务器）/
-//   FlashContent 内容闪烁（HTTP 三图标，HTML 字符恒显）——同日用户裁定。
+//   FlashContent 内容闪烁（HTTP 三图标，HTML 字符恒显）——同日用户裁定；
+//   TermType 终端打字（SSH/FTP/TELNET：光标恒闪，两拍一字）。
 //   与 G4 新母版（radar/route/waypoints）锚定，设计见 anim/04 文档。
 // 5WHY：新值一律追加尾部——枚举值即 int，插入中间会重排全部下游值。
 // （WifiWave 为 Meter 原位更名——2026-08-20 表针动画废弃，值位不变；
 //   Tick 为 Check 原位更名——pre-commit 第 10 项 Apple 保留词，值位不变）
 enum class DiagAnimType     { Pulse, Jiggle, Bounce, Type, Path, Lock, Tick, WifiWave, Converge, GeoRadar, BarsCycle, Sonar, RouteTrace, HopSample,
-                          TypeText, BlinkText, FlashContent };
+                          TypeText, BlinkText, FlashContent, TermType };
 
 inline QString diagDisplayName(DiagId id) {
     switch (id) {

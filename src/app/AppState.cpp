@@ -1231,6 +1231,7 @@ QString AppState::diagAnimationUrl(int diagIdInt) const {
         case DiagAnimType::TypeText:   return QStringLiteral("qrc:/qt/qml/widgets/animations/TypeTextAnimation.qml");
         case DiagAnimType::BlinkText:  return QStringLiteral("qrc:/qt/qml/widgets/animations/BlinkTextAnimation.qml");
         case DiagAnimType::FlashContent: return QStringLiteral("qrc:/qt/qml/widgets/animations/FlashContentAnimation.qml");
+        case DiagAnimType::TermType:   return QStringLiteral("qrc:/qt/qml/widgets/animations/TermTypeAnimation.qml");
         default:                   return QStringLiteral("qrc:/qt/qml/widgets/animations/JiggleAnimation.qml");
     }
 }
