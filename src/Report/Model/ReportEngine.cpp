@@ -3,6 +3,7 @@
 // =============================================================================
 #include "Report/Model/ReportEngine.h"
 #include "Common/Utils/AppColors.h"   // 报告状态色（与 Palette.js 同步）
+#include "Common/Utils/NarrativeLocalizer.h"   // 5WHY (2026-08-23): 报告叙述与详情页同表同键本地化
 #include "Common/Services/Logger.h"
 #include "Diagnostics/Model/GHelpers.h"   // propsDumpText（报告体派生与终端同源）
 #include "Diagnostics/View/LegacyTerminalFormat.h"   // legacyTerminalLines（报告/屏幕/剪贴板同链）
@@ -492,8 +493,15 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail, bool da
                     // 5WHY (复核 2026-08-20 报告缺叙述): 详情页新增摘要卡叙述
                     // （DiagnosticResult.narrative）后，HTML/PDF 快照未同步——
                     // 报告读者看不到推导文字。与详情页/剪贴板同一来源渲染。
-                    if (!r.narrative.isEmpty()) {
-                        QString narr = r.narrative.toHtmlEscaped();
+                    // 5WHY (2026-08-23 报告同步本地化): 详情页已按语言渲染模板
+                    // 文本——报告/剪贴板需同源（NarrativeLocalizer 同表同键）；
+                    // 未命中回退 narrative EN 原文。
+                    const QString narrKey = r.data.value(QStringLiteral("narrativeKey")).toString();
+                    QString narr = NarrativeLocalizer::localized(narrKey,
+                        r.data.value(QStringLiteral("narrativeArgs")).toList(), data.languageIndex);
+                    if (narr.isEmpty()) narr = r.narrative;
+                    if (!narr.isEmpty()) {
+                        narr = narr.toHtmlEscaped();
                         narr.replace(QLatin1Char('\n'), QStringLiteral("<br/>"));
                         h += QStringLiteral("<br/><span style=\"font-size:12px;color:%1\">%2</span>")
                             .arg(textPrimary, narr);

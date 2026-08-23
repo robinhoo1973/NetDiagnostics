@@ -23,6 +23,9 @@ struct ReportData {
     QString appVersion;
     QString buildNumber;
     QString gitHash;
+    // 5WHY (2026-08-23 报告叙述同步): 叙述模板按当前语言格式化（与详情页
+    // 同表同键）；缺省 7 = English。
+    int languageIndex = 7;
     QStringList groupLabels;                         // 5 translated group names
     QMap<DiagId, DiagnosticResult> results;          // all completed results
     QMap<int, QVariantMap> groupStats;               // group index → {pass,warn,fail,skip,info,total}

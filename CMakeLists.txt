@@ -36,6 +36,7 @@ set(SOURCES
     src/Configuration/Controller/ConfigurationController.cpp
     src/Common/Model/DiagnosticResult.cpp
     src/Common/Model/DiagnosticMeta.cpp
+    src/Common/Utils/NarrativeLocalizer.cpp
     src/Common/Services/Logger.cpp
     src/Common/Services/DiagnosticBase.cpp
     src/Common/Services/AdapterRegistry.cpp

@@ -10,6 +10,7 @@
 #include "Common/Platform/PlatformFlags.h"
 #include "Common/Services/PlatformAdapter.h"
 #include "Common/Services/DnsResolver.h"   // 5WHY (2026-08-22 P1-3): 每轮 run 前清 DNS 缓存
+#include "Common/Utils/NarrativeLocalizer.h"   // 5WHY (2026-08-23): 剪贴板叙述与详情页同源本地化
 #include "Configuration/Controller/ConfigurationController.h"
 #include "Diagnostics/Model/DiagnosticSuite.h"
 #include "Diagnostics/Model/GHelpers.h"   // propsDumpText（终端兜底派生单一来源）
@@ -161,6 +162,13 @@ void AppState::persistResults() {
         o[QStringLiteral("errorOutput")] = redactCredentials(r.errorOutput);
         o[QStringLiteral("durationMs")] = r.durationMs;
         o[QStringLiteral("timestamp")] = r.timestamp.toString(Qt::ISODate);
+        // 5WHY (2026-08-23 恢复保真): 叙述与 data（含 narrativeKey/Args）
+        // 落盘——恢复后详情页仍可本地化渲染，剪贴板/报告同源。
+        o[QStringLiteral("narrative")] = redactCredentials(r.narrative);
+        QVariantMap dataMap;
+        for (auto it = r.data.cbegin(); it != r.data.cend(); ++it)
+            dataMap[it.key()] = it.value();
+        o[QStringLiteral("data")] = QJsonObject::fromVariantMap(dataMap);
         arr.append(o);
     }
     QDir().mkpath(QFileInfo(resultsCachePath()).absolutePath());
@@ -206,6 +214,11 @@ void AppState::loadCachedResults() {
         r.errorOutput = o.value(QStringLiteral("errorOutput")).toString();
         r.durationMs = o.value(QStringLiteral("durationMs")).toDouble();
         r.timestamp = QDateTime::fromString(o.value(QStringLiteral("timestamp")).toString(), Qt::ISODate);
+        r.narrative = o.value(QStringLiteral("narrative")).toString();
+        // 5WHY (2026-08-23 恢复保真): data（含 narrativeKey/Args）还原。
+        const QVariantMap dataMap = o.value(QStringLiteral("data")).toObject().toVariantMap();
+        for (auto it = dataMap.cbegin(); it != dataMap.cend(); ++it)
+            r.data[it.key()] = it.value();
         m_results.insert(r.id, r);
     }
 }
@@ -1167,8 +1180,11 @@ void AppState::copyDetailToClipboard(int diagIdInt) {
     QStringList lines;
     lines.append(QStringLiteral("[%1] %2").arg(statusToken(it->status), it->displayName));
     if (!it->summary.isEmpty()) lines.append(it->summary);
-    // 摘要卡叙述（结论 + 依据）——摘要与明细之间，剪贴板与详情页一致
-    if (!it->narrative.isEmpty()) lines.append(it->narrative);
+    // 摘要卡叙述（结论 + 依据）——摘要与明细之间，剪贴板与详情页一致；
+    // 5WHY (2026-08-23): 与详情页同源本地化（模板命中用译文，否则 EN 原文）。
+    const QString narr = NarrativeLocalizer::forResult(*it, m_languageIndex);
+    if (!narr.isEmpty()) lines.append(narr);
+    else if (!it->narrative.isEmpty()) lines.append(it->narrative);
     // 5WHY (复核 2026-08-20 剪贴板双份): G1 的属性派生转储与属性循环输出
     // 逐字相同——曾双双追加，粘贴的票据每条属性出现两次。
     // 5WHY (复核 2026-08-21 呈现层同源): details 为空时与 resultFor 同链
@@ -1226,6 +1242,9 @@ QString AppState::previewReportHtml() const {
     d.appVersion = QStringLiteral(PROJECT_VERSION);
     d.buildNumber = QStringLiteral(ND_BUILD_NUMBER);
     d.gitHash = QStringLiteral("dev");
+    // 5WHY (2026-08-23 报告同步本地化): 叙述模板按当前语言格式化（与详情页
+    // 同表同键）；缺省 7=English。
+    d.languageIndex = m_languageIndex;
     for (int gi = 0; gi < 5; ++gi) {
         const DiagGroup g = groupForIndex(gi);
         d.groupLabels.append(diagGroupLabel(g));
