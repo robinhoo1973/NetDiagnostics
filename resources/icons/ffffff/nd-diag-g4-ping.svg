@@ -1,13 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke-linecap="round" stroke-linejoin="round" fill-opacity="0">
-  <defs>
-    <linearGradient id="ngnddiagg4ping" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#FFFFFF" />
-      <stop offset="100%" stop-color="#AAAAAA" />
-    </linearGradient>
-  </defs>
-
-  <!-- Sonar source dot + two echo arcs -->
-  <circle cx="5.6" cy="12" r="2" fill="#000000" fill-opacity="1" />
-  <path d="M10.28 9.3 A5.4 5.4 0 0 1 10.28 14.7" stroke="#FFFFFF" stroke-width="1.2" />
-  <path d="M13.05 7.7 A8.6 8.6 0 0 1 13.05 16.3" stroke="#AAAAAA" stroke-width="1.2" />
+  <!-- 2026-08-23 重绘：Lucide radar v0.469 逐字（声呐雷达仪）
+       隐喻：探测脉冲环 + 扫描线；中心为被测主机。
+       accent = 扫描线（success 绿，与 Bounce 动画往返语义同源）-->
+  <path d="M19.07 4.93A10 10 0 0 0 6.99 3.34" stroke="#FFFFFF" stroke-width="1.6" />
+  <path d="M4 6h.01" stroke="#FFFFFF" stroke-width="1.6" />
+  <path d="M2.29 9.62A10 10 0 1 0 21.31 8.35" stroke="#FFFFFF" stroke-width="1.6" />
+  <path d="M16.24 7.76A6 6 0 1 0 8.23 16.67" stroke="#AAAAAA" stroke-width="1.2" />
+  <path d="M12 18h.01" stroke="#FFFFFF" stroke-width="1.6" />
+  <path d="M17.99 11.66A6 6 0 0 1 15.77 16.67" stroke="#AAAAAA" stroke-width="1.2" />
+  <circle cx="12" cy="12" r="2" stroke="#FFFFFF" stroke-width="1.6" />
+  <path d="m13.41 10.59 5.66-5.66" stroke="#000000" stroke-width="1.6" />
 </svg>

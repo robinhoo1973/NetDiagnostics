@@ -1,14 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke-linecap="round" stroke-linejoin="round" fill-opacity="0">
-  <defs>
-    <linearGradient id="ngnddiagg4pathping" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#FFFFFF" />
-      <stop offset="100%" stop-color="#AAAAAA" />
-    </linearGradient>
-  </defs>
-
-  <!-- Zigzag path with per-hop pulse dots -->
-  <path d="M4.6 9.6 H7.8 V14.4 H12.6 V9.4 H17" stroke="url(#ngnddiagg4pathping)" stroke-width="1.6" />
-  <circle cx="7.8" cy="14.4" r="1.3" fill="#000000" fill-opacity="1" />
-  <circle cx="12.6" cy="9.4" r="1.3" fill="#000000" fill-opacity="1" />
-  <rect x="17.2" y="7.8" width="3.4" height="3.2" stroke="url(#ngnddiagg4pathping)" stroke-width="1.6" />
+  <!-- 2026-08-23 重绘：Lucide waypoints v0.469 逐字（菱形四节点链）
+       隐喻：逐跳路径 + 中段被测统计；与 Traceroute(route 双环 S 脊) 三处剪影差异
+       （节点数 4v2 / 小圆v大环 / 直角折线v光滑S）——修复 8-14 遗留互斥失败。
+       accent = 右中节点内心（warning 琥珀，逐跳统计采样点语义）-->
+  <circle cx="12" cy="4.5" r="2.5" stroke="#FFFFFF" stroke-width="1.6" />
+  <path d="m10.2 6.3-3.9 3.9" stroke="#AAAAAA" stroke-width="1.6" />
+  <circle cx="4.5" cy="12" r="2.5" stroke="#FFFFFF" stroke-width="1.6" />
+  <path d="M7 12h10" stroke="#FFFFFF" stroke-width="1.6" />
+  <circle cx="19.5" cy="12" r="2.5" stroke="#FFFFFF" stroke-width="1.6" />
+  <circle cx="19.5" cy="12" r="1.1" fill="#000000" fill-opacity="1" />
+  <path d="m13.8 17.7 3.9-3.9" stroke="#AAAAAA" stroke-width="1.6" />
+  <circle cx="12" cy="19.5" r="2.5" stroke="#FFFFFF" stroke-width="1.6" />
 </svg>

@@ -1,15 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke-linecap="round" stroke-linejoin="round" fill-opacity="0">
+  <!-- 2026-08-23 重绘：参考 Tabler plug-connected（两插头咬合 + 线缆 +
+       触点），隐喻"活动连接正在建立"。原三节点三角网语义弱且与
+       share 类图标趋同。
+       ink = 双插头主体；soft = 两端线缆；accent = 双触点（tertiary 青，
+       导通语义，单处 ≤2 上限）-->
   <defs>
     <linearGradient id="ngnddiagg1activeconnections" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#FFFFFF" />
       <stop offset="100%" stop-color="#AAAAAA" />
     </linearGradient>
   </defs>
-
-  <!-- Three-node mesh of active sockets -->
-  <circle cx="5.8" cy="8.6" r="2" stroke="url(#ngnddiagg1activeconnections)" stroke-width="1.6" />
-  <circle cx="12" cy="15.2" r="2" stroke="url(#ngnddiagg1activeconnections)" stroke-width="1.6" />
-  <circle cx="18.2" cy="8.6" r="2" stroke="url(#ngnddiagg1activeconnections)" stroke-width="1.6" />
-  <path d="M7.4 9.9 L10.4 13.9 M13.6 13.9 L16.6 9.9 M7.8 8.6 H16.2"
-        stroke="#AAAAAA" stroke-width="1.2" />
+  <path d="M7 12l5 5l-1.5 1.5a3.536 3.536 0 1 1 -5 -5l1.5 -1.5z" stroke="url(#ngnddiagg1activeconnections)" stroke-width="1.6" />
+  <path d="M17 12l-5 -5l1.5 -1.5a3.536 3.536 0 1 1 5 5l-1.5 1.5z" stroke="url(#ngnddiagg1activeconnections)" stroke-width="1.6" />
+  <path d="M3 21l2.5 -2.5 M18.5 5.5l2.5 -2.5" stroke="#AAAAAA" stroke-width="1.2" />
+  <path d="M10 11l-2 2 M13 14l-2 2" stroke="#000000" stroke-width="1.2" />
 </svg>

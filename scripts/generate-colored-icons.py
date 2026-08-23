@@ -148,10 +148,6 @@ FIXED_COLORS: dict[str, list[str]] = {
     # write_icon_tints 首槽亮度门占位（lum<0.15 → tint 回退 DIAG_ACCENT
     # 琥珀，光晕垫色保持不变）。
     "nd-diag-g1-dhcp": ["#1E293B", "Dark.terminalInk"],
-    # IPv6 显示器：电源点+底座 → 浅腚（与 DIAG_ACCENT 浅色端一致）
-    "nd-diag-g4-ipv6": ["#818CF8"],
-    # Proxy 地球线框：蓝色循环箭头 + 黄色闪电（忠实参考图色）
-    "nd-diag-g2-proxy": ["#5CAEFF", "#FFCC5E"],
     # Gateway：圆 #38BDF8 + 白箭头（dark）；light 双套见 FIXED_COLORS_LIGHT
     "nd-diag-g2-gateway": ["#38BDF8", "#FFFFFF"],
     # Network Profile：blankfile 背景（页面 #007CC9 + 折角 #0094F5）
@@ -163,13 +159,18 @@ FIXED_COLORS: dict[str, list[str]] = {
     "nd-diag-g5-postgres": ["#007CC9", "#0094F5", "#FFFFFF", "#003E6B", "#0068AA", "#007BC8"],
     "nd-diag-g5-redis": ["#007CC9", "#0094F5", "#FFFFFF", "#003E6B", "#0068AA", "#007BC8"],
     "nd-diag-g5-mongodb": ["#007CC9", "#0094F5", "#FFFFFF", "#003E6B", "#0068AA", "#007BC8"],
-    # HTTP 六图标：背景 = 1:1 复刻 blankfile.png（页面 #007CC9 + 折角 #0094F5），内部图形保留主题色
+    # HTTP 图标：背景 = 1:1 复刻 blankfile.png（页面 #007CC9 + 折角 #0094F5），内部图形保留主题色
     # 5WHY (2026-08-19 浅色可读): HTML 文字/白图形（#B0000n）曾用 #FFFFFF
     # 请求色——页面蓝上 2.3-3.0:1（dark 2.35/light 2.95）。与 DB 四联同
     # 模式：dark 白、light 深墨 #0F172A（5.6-4.4:1）。
+    # 5WHY (2026-08-23 S1): security/http-headers/curl 三图删描摹底形出族
+    # （同源底形互斥失败）——固定槽随之移除，tint 回退 DIAG_ACCENT。
     "nd-diag-g5-http-timing": ["#007CC9", "#0094F5", "#FBBF24", "#FFFFFF"],
     "nd-diag-g5-http-redirect": ["#007CC9", "#0094F5", "#FFFFFF"],
     "nd-diag-g5-ssl-certificate": ["#007CC9", "#0094F5", "#FBBF24", "#4ADE80", "#FFFFFF"],
+    # 5WHY (2026-08-23 用户复决): security/http-headers/curl 三图恢复
+    # blankfile 底形样式（S1 瘦身方案全部回退）——用户裁定底形家族识别度
+    # 优先于剪影互斥；同源碰撞登记为已知接受项。
     "nd-diag-g5-security-headers": ["#007CC9", "#0094F5", "#FFFFFF"],
     "nd-diag-g5-http-headers": ["#007CC9", "#0094F5", "#FFFFFF"],
     "nd-diag-g5-curl-verbose": ["#007CC9", "#0094F5", "#FFFFFF"],
@@ -203,8 +204,6 @@ FIXED_COLORS_LIGHT: dict[str, list[str]] = {
     # （#B00002）——白卡上 9.5:1 保持球框可见，字母交叉处 1.25→2.4:1
     "nd-diag-g1-ip-config": ["#FFFFFF"],
     "nd-diag-g1-dhcp": ["#1E293B", "#0F172A"],
-    "nd-diag-g2-proxy": ["#1D4ED8", "#F59E0B"],
-    "nd-diag-g4-ipv6": ["#6366F1"],
     "nd-diag-g1-cellular": ["#DC2626", "#D97706", "#10B981", "#0EA5E9"],
     "nd-diag-g3-internet": ["#E11D48", "#2563EB", "#F59E0B"],
     "nd-diag-g2-gateway": ["#0EA5E9", "#FFFFFF"],

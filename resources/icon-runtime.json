@@ -368,14 +368,8 @@
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
-   "fixedDark": [
-    "#5CAEFF",
-    "#FFCC5E"
-   ],
-   "fixedLight": [
-    "#1D4ED8",
-    "#F59E0B"
-   ]
+   "fixedDark": [],
+   "fixedLight": []
   },
   "nd-diag-g2-routing-table": {
    "accent": "#2563EB",
@@ -460,12 +454,8 @@
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
-   "fixedDark": [
-    "#818CF8"
-   ],
-   "fixedLight": [
-    "#6366F1"
-   ]
+   "fixedDark": [],
+   "fixedLight": []
   },
   "nd-diag-g4-mtu": {
    "accent": "#EA580C",
