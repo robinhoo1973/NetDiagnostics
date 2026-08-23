@@ -17,3 +17,6 @@ WifiWaveAnimation 1.0 WifiWaveAnimation.qml
 BarsCycleAnimation 1.0 BarsCycleAnimation.qml
 ConvergeAnimation 1.0 ConvergeAnimation.qml
 GeoLocateAnimation 1.0 GeoLocateAnimation.qml
+SonarSweepAnimation 1.0 SonarSweepAnimation.qml
+RouteTraceAnimation 1.0 RouteTraceAnimation.qml
+HopSampleAnimation 1.0 HopSampleAnimation.qml

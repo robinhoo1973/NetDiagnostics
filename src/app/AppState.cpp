@@ -1223,6 +1223,11 @@ QString AppState::diagAnimationUrl(int diagIdInt) const {
         case DiagAnimType::BarsCycle: return QStringLiteral("qrc:/qt/qml/widgets/animations/BarsCycleAnimation.qml");
         case DiagAnimType::Converge: return QStringLiteral("qrc:/qt/qml/widgets/animations/ConvergeAnimation.qml");
         case DiagAnimType::GeoRadar: return QStringLiteral("qrc:/qt/qml/widgets/animations/GeoLocateAnimation.qml");
+        // 5WHY (2026-08-23): G4 三动画与各自母版锚定（radar/route/waypoints），
+        // 设计文档 review/refactor/ui/anim/04-g4-route-animations.md。
+        case DiagAnimType::Sonar:      return QStringLiteral("qrc:/qt/qml/widgets/animations/SonarSweepAnimation.qml");
+        case DiagAnimType::RouteTrace: return QStringLiteral("qrc:/qt/qml/widgets/animations/RouteTraceAnimation.qml");
+        case DiagAnimType::HopSample:  return QStringLiteral("qrc:/qt/qml/widgets/animations/HopSampleAnimation.qml");
         default:                   return QStringLiteral("qrc:/qt/qml/widgets/animations/JiggleAnimation.qml");
     }
 }

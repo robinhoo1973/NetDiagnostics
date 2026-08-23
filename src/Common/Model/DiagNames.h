@@ -13,10 +13,13 @@ enum class DiagTemplateType { System, Ping, Path, Handshake, Request, Query };
 //   Lock 盖章落下 / Tick 盾牌打勾 / WifiWave 信号弧逐条明灭 / Converge 箭头聚拢
 //   GeoRadar 定位雷达波（IP Geolocation；2026-08-19 替代无语义的 Bounce）
 //   BarsCycle 蜂窝信号柱颜色轮换（2026-08-22；Cellular 语义专属）
+//   Sonar 声呐扫描（Ping）/ RouteTrace 径迹行进（Traceroute）/
+//   HopSample 逐跳采样（PathPing)——2026-08-23 替代通用 Bounce/Path，
+//   与 G4 新母版（radar/route/waypoints）锚定，设计见 anim/04 文档。
 // 5WHY：新值一律追加尾部——枚举值即 int，插入中间会重排全部下游值。
 // （WifiWave 为 Meter 原位更名——2026-08-20 表针动画废弃，值位不变；
 //   Tick 为 Check 原位更名——pre-commit 第 10 项 Apple 保留词，值位不变）
-enum class DiagAnimType     { Pulse, Jiggle, Bounce, Type, Path, Lock, Tick, WifiWave, Converge, GeoRadar, BarsCycle };
+enum class DiagAnimType     { Pulse, Jiggle, Bounce, Type, Path, Lock, Tick, WifiWave, Converge, GeoRadar, BarsCycle, Sonar, RouteTrace, HopSample };
 
 inline QString diagDisplayName(DiagId id) {
     switch (id) {

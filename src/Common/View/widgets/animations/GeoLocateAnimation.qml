@@ -20,9 +20,13 @@ AnimationBase {
     // 锚点：geoip 母版定位针头中心（实测 ≈(0.71, 0.30)）。读
     // AnimationTokens.js 单一来源（曾 C++/QML 同值双份靠注释"两处同改"
     // 维系，母版位移改一处即静默错位）。
-    property real anchorCx: Tokens.tokens.geoRadarAnchorCx
-    property real anchorCy: Tokens.tokens.geoRadarAnchorCy
-    property real anchorMaxR: Tokens.tokens.geoRadarAnchorMaxR
+    // 5WHY (复核 2026-08-23 回归修复): v7 锚点管道删除时把 geoRadarAnchor*
+    // 三键从 tokens 一并扫除，本文件却仍读 Tokens.tokens.geoRadarAnchorCx
+    // ——undefined 强转 real 得 0，三圈波锚到左上角且半径 0，动画整体静默
+    // 消失。按 v7 教义收敛：锚点几何 QML 本地字面量（母版位移改此处）。
+    property real anchorCx: 0.71
+    property real anchorCy: 0.30
+    property real anchorMaxR: 0.29
     readonly property real _cx: parent.width * root.anchorCx
     readonly property real _cy: parent.height * root.anchorCy
     // 5WHY (复核 2026-08-19 边界): 半径在 (cx,cy) 锚点上越界（无裁剪链——

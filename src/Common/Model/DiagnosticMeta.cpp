@@ -104,9 +104,12 @@ static const DiagnosticMeta kDiagMeta[] = {
 
     // ── G4  Remote Host (all platforms — NEW-1) ─────────────────────────────
     { DiagId::G4DnsResolution,     "DNS Resolution",     "nd-diag-g4-dns-resolution",  PF_All,                       DiagAnimType::Path, DiagTemplateType::System, sys("queryTimeMs","ms",0), 60000 },
-    { DiagId::G4Ping,              "Ping",               "nd-diag-g4-ping",         PF_All,                       DiagAnimType::Bounce, DiagTemplateType::Ping,   metricOnly("rttAvgMs","ms",0,DP::BarChart,"individualRtts"), 30000 },
-    { DiagId::G4Traceroute,        "Traceroute",         "nd-diag-g4-traceroute",   PF_All,                       DiagAnimType::Path,   DiagTemplateType::Path,   metricOnly("hopCount","hops",0,DP::BarChart,"hops"), 90000 },
-    { DiagId::G4PathPing,          "PathPing",           "nd-diag-g4-pathping",    PF_All,                       DiagAnimType::Path, DiagTemplateType::Path,   metricOnly("hopCount","hops",0,DP::BarChart,"hops"), 120000 },
+    // 5WHY (2026-08-23): Ping/Traceroute/PathPing 三动画与 G4 新母版锚定
+    // （Sonar=radar 扫掠 / RouteTrace=route S 脊 / HopSample=waypoints 逐跳
+    // 采样）——通用 Bounce/Path 与图形无语义锚点，见 anim/04 设计文档。
+    { DiagId::G4Ping,              "Ping",               "nd-diag-g4-ping",         PF_All,                       DiagAnimType::Sonar, DiagTemplateType::Ping,   metricOnly("rttAvgMs","ms",0,DP::BarChart,"individualRtts"), 30000 },
+    { DiagId::G4Traceroute,        "Traceroute",         "nd-diag-g4-traceroute",   PF_All,                       DiagAnimType::RouteTrace,   DiagTemplateType::Path,   metricOnly("hopCount","hops",0,DP::BarChart,"hops"), 90000 },
+    { DiagId::G4PathPing,          "PathPing",           "nd-diag-g4-pathping",    PF_All,                       DiagAnimType::HopSample, DiagTemplateType::Path,   metricOnly("hopCount","hops",0,DP::BarChart,"hops"), 120000 },
     { DiagId::G4MtuDiscovery,      "MTU Discovery",      "nd-diag-g4-mtu",          PF_All,                       DiagAnimType::Jiggle, DiagTemplateType::System, sys(),              60000 },
     { DiagId::G4IPv6Connectivity,  "IPv6 Connectivity",  "nd-diag-g4-ipv6",         PF_All,                       DiagAnimType::Type,   DiagTemplateType::System, sys("connectedCount","ports",0), 60000 },
 

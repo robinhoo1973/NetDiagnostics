@@ -62,6 +62,9 @@
         <file alias="widgets/animations/BarsCycleAnimation.qml">../src/Common/View/widgets/animations/BarsCycleAnimation.qml</file>
         <file alias="widgets/animations/ConvergeAnimation.qml">../src/Common/View/widgets/animations/ConvergeAnimation.qml</file>
         <file alias="widgets/animations/GeoLocateAnimation.qml">../src/Common/View/widgets/animations/GeoLocateAnimation.qml</file>
+        <file alias="widgets/animations/SonarSweepAnimation.qml">../src/Common/View/widgets/animations/SonarSweepAnimation.qml</file>
+        <file alias="widgets/animations/RouteTraceAnimation.qml">../src/Common/View/widgets/animations/RouteTraceAnimation.qml</file>
+        <file alias="widgets/animations/HopSampleAnimation.qml">../src/Common/View/widgets/animations/HopSampleAnimation.qml</file>
         <file alias="theme/AnimationTokens.js">../src/Common/View/theme/AnimationTokens.js</file>
         <!-- detail 组件（page-detail.md 复用件） -->
         <file alias="detail/qmldir">../src/Common/View/detail/qmldir</file>

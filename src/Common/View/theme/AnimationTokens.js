@@ -27,6 +27,20 @@ var tokens = {
     geoRadarPeriod: 900,     // 定位雷达波单圈扩散时长（GeoLocateAnimation）
     geoRadarStagger: 300,    // 三圈雷达波有序启动间隔
 
+    // ── v8 (2026-08-23): G4 远端主机三动画令牌 ──────────────────────────
+    // 5WHY (设计文档 review/refactor/ui/anim/04-g4-route-animations.md):
+    // Ping/Traceroute/PathPing 曾共用通用 Bounce/Path——与新母版
+    // （Lucide radar/route/waypoints）无语义锚点，观者无法建立"探测中"
+    // 联想。三动画几何锚定各自母版（归一化常量在动画 QML 本地，v7 教义：
+    // 几何事实不进 tokens）；本表只收时序。
+    sonarSweepMs: 1100,      // 声呐波束整圈扫描时长（SonarSweepAnimation）
+    routeTravelMs: 1400,     // 探测包沿 route S 形单程时长（RouteTraceAnimation）
+    routeArrivalMs: 380,     // 终点命中脉冲扩散时长
+    routeHoldMs: 420,        // 命中后到下一轮的休整时长
+    hopSampleStagger: 280,   // waypoints 四节点逐跳采样启动间隔（HopSampleAnimation）
+    hopSamplePulseMs: 320,   // 单节点采样环扩散时长
+    hopSampleHoldMs: 480,    // 末节点采样后休整时长
+
     // ── v7 (2026-08-22): 用户诉求 "不断重绘 SVG，重绘时对 WiFi 弧线做
     // 不同色彩设定"——弧线几何单一来源改为母版 SVG 路径逐字复刻：动画层
     // 以 data-URI SVG 复绘母版弧线（路径 = ffffff 母版事实，零几何漂移），
