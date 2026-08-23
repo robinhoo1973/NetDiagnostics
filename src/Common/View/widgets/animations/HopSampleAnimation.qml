@@ -111,8 +111,10 @@ AnimationBase {
         Rectangle {
             id: ring
             property var cfg: root._samples[index]
-            // 环基径 = 母版节点直径 (r2.5×2=5)/24；强调环略大
-            readonly property real base: root.width * (index === root._samples.length - 1 ? 0.26 : 0.21)
+            // 环基径 = 母版节点直径 (r2.5×2=5)/24；强调环略大（0.23：
+            // ×1.6 峰值半宽 0.184S，距右缘 0.8125 不越框——0.26 曾溢框
+            // 2%，GeoLocate「环画到垫外」同类）
+            readonly property real base: root.width * (index === root._samples.length - 1 ? 0.23 : 0.21)
             x: cfg.nx * root.width - width / 2
             y: cfg.ny * root.height - height / 2
             width: base

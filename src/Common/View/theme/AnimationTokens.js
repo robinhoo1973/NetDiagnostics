@@ -37,6 +37,7 @@ var tokens = {
     routeTravelMs: 1400,     // 探测包沿 route S 形单程时长（RouteTraceAnimation）
     routeArrivalMs: 380,     // 终点命中脉冲扩散时长
     routeHoldMs: 420,        // 命中后到下一轮的休整时长
+    routeFadeMs: 150,        // 探测包终点淡出（防止环首瞬移回起点）
     hopSampleStagger: 280,   // waypoints 四节点逐跳采样启动间隔（HopSampleAnimation）
     hopSamplePulseMs: 320,   // 单节点采样环扩散时长
     hopSampleHoldMs: 480,    // 末节点采样后休整时长

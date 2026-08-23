@@ -333,7 +333,9 @@
    "softDark": "#94A3B8",
    "softLight": "#475569",
    "fixedDark": [],
-   "fixedLight": []
+   "fixedLight": [],
+   "accentDark": "#94A3B8",
+   "accentLight": "#475569"
   },
   "nd-diag-g2-gateway": {
    "accent": "#0EA5E9",
@@ -377,7 +379,9 @@
    "softDark": "#94A3B8",
    "softLight": "#475569",
    "fixedDark": [],
-   "fixedLight": []
+   "fixedLight": [],
+   "accentDark": "#A5B4FC",
+   "accentLight": "#2563EB"
   },
   "nd-diag-g2-tcp-settings": {
    "accent": "#06B6D4",
@@ -487,7 +491,9 @@
    "softDark": "#94A3B8",
    "softLight": "#475569",
    "fixedDark": [],
-   "fixedLight": []
+   "fixedLight": [],
+   "accentDark": "#A5B4FC",
+   "accentLight": "#2563EB"
   },
   "nd-diag-g5-curl-verbose": {
    "accent": "#06B6D4",
@@ -604,8 +610,12 @@
    "second": "",
    "softDark": "#94A3B8",
    "softLight": "#475569",
-   "fixedDark": [],
-   "fixedLight": []
+   "fixedDark": [
+    "#0F172A"
+   ],
+   "fixedLight": [
+    "#0F172A"
+   ]
   },
   "nd-diag-g5-mongodb": {
    "accent": "#10B981",

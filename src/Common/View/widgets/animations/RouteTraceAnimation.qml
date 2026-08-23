@@ -28,6 +28,7 @@ AnimationBase {
     readonly property int _travelMs: Tokens.tokens.routeTravelMs
     readonly property int _arrivalMs: Tokens.tokens.routeArrivalMs
     readonly property int _holdMs: Tokens.tokens.routeHoldMs
+    readonly property int _fadeMs: Tokens.tokens.routeFadeMs
 
     // 母版 S 脊线逐字（像素坐标随父项缩放）
     Path {
@@ -89,6 +90,10 @@ AnimationBase {
         id: seq
         loops: Animation.Infinite
 
+        // 5WHY (复核 2026-08-23 瞬移): progress 1→0 环首重绕时包点从终点
+        // 瞬移回起点——加首拍显形 + 末拍淡出（fade-in 0 由 PropertyAction
+        // 承担，周期 = travel+arrival+hold+fade = 2350ms）。
+        PropertyAction { target: packet; property: "opacity"; value: 1 }
         NumberAnimation {
             target: interp; property: "progress"
             from: 0; to: 1
@@ -111,6 +116,13 @@ AnimationBase {
             }
         }
         PauseAnimation { duration: root._holdMs }
+        // 末拍淡出：包点消隐于终点，下一轮从起点重现
+        NumberAnimation {
+            target: packet; property: "opacity"
+            from: 1; to: 0
+            duration: root._fadeMs
+            easing.type: Easing.OutQuad
+        }
     }
 
     RestartController {
@@ -118,6 +130,7 @@ AnimationBase {
         target: seq
         onStopped: {
             interp.progress = 0
+            packet.opacity = 1
             hitRing.opacity = 0
             hitRing.scale = 0.25
         }
@@ -125,6 +138,7 @@ AnimationBase {
 
     function resetVisuals() {
         interp.progress = 0
+        packet.opacity = 1
         hitRing.opacity = 0
         hitRing.scale = 0.25
     }

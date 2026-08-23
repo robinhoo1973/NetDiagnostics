@@ -118,6 +118,13 @@ DIAG_ACCENT_THEMED: dict[str, tuple[str, str]] = {
     # success 亮色系（与 CheckAnimation 动画勾同源同色）：dark #4ADE80
     # （深底高亮绿）、light #10B981（亮绿 vivid，浅底仍饱和）。
     "nd-diag-g3-dns-integrity": ("Dark.success", "Light.success"),
+    # 5WHY (2026-08-23 审计): 单值 accent 取浅色端双主题同值——暗主题瓦片
+    # (#1E293B) 上跌破 3:1 图形底线：arp 双箭头 #475569 仅 1.93:1、
+    # routing 折线 / traceroute 终点 #2563EB 仅 2.83:1。THEMED 分派暗端
+    # (#94A3B8 / #A5B4FC，均 ≥5:1)，与 wifi-info/dns-integrity 同管道。
+    "nd-diag-g2-arp-table": ("Dark.onSurfaceVariant", "Light.onSurfaceVariant"),
+    "nd-diag-g2-routing-table": ("Dark.info", "Light.info"),
+    "nd-diag-g4-traceroute": ("Dark.info", "Light.info"),
 }
 
 # ── 第二强调色（固定色，逐图标；#101010 sentinel）────────────────────────
@@ -159,6 +166,10 @@ FIXED_COLORS: dict[str, list[str]] = {
     "nd-diag-g5-postgres": ["#007CC9", "#0094F5", "#FFFFFF", "#003E6B", "#0068AA", "#007BC8"],
     "nd-diag-g5-redis": ["#007CC9", "#0094F5", "#FFFFFF", "#003E6B", "#0068AA", "#007BC8"],
     "nd-diag-g5-mongodb": ["#007CC9", "#0094F5", "#FFFFFF", "#003E6B", "#0068AA", "#007BC8"],
+    # LDAP 认证章勾：深墨 #0F172A（accent 圆 #0EA5E9 双主题同值；勾若走
+    # #FFFFFF 请求色，dark = iconInk #60C8F8 与 accent 同系 1.47:1 不可见）
+    # ——固定槽深墨双主题 ≈4.9:1，与终端三协议深墨文字同模式。
+    "nd-diag-g5-ldap": ["#0F172A"],
     # HTTP 图标：背景 = 1:1 复刻 blankfile.png（页面 #007CC9 + 折角 #0094F5），内部图形保留主题色
     # 5WHY (2026-08-19 浅色可读): HTML 文字/白图形（#B0000n）曾用 #FFFFFF
     # 请求色——页面蓝上 2.3-3.0:1（dark 2.35/light 2.95）。与 DB 四联同

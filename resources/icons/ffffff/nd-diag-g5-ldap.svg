@@ -4,7 +4,10 @@
        右下认证通过章（accent 圆章 + 白勾，"bind 成功"）。
        目录树方案废弃；参考 lucide contact / tabler id-badge 比例。
        ink = 卡身 + 挂绳夹；soft = 人像 + 字段行；
-       accent = 认证章（primary 蓝，单处 ≤2 上限；白勾为 FFFFFF 哨兵）-->
+       accent = 认证章（primary 蓝，单处 ≤2 上限）；勾 = #B00001 固定槽
+       （5WHY 2026-08-23 审计：白勾走 #FFFFFF 请求色——dark = iconInk
+       #60C8F8 与 accent #0EA5E9 同色系 1.47:1 不可见。改固定槽深墨
+       #0F172A 双主题 ≈4.9:1，与终端三协议深墨文字同模式）-->
   <defs>
     <linearGradient id="ngnddiagg5ldap" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#FFFFFF" />
@@ -17,5 +20,5 @@
   <path d="M5.4 15 C5.4 13.1 6.5 12.1 7.8 12.1 C9.1 12.1 10.2 13.1 10.2 15" stroke="#AAAAAA" stroke-width="1.6" />
   <path d="M13.1 8.9 H18.3 M13.1 11.4 H19.1" stroke="#AAAAAA" stroke-width="1.2" />
   <circle cx="17" cy="15.7" r="2.3" fill="#000000" fill-opacity="1" />
-  <path d="M15.95 15.75 L16.75 16.6 L18.15 14.95" stroke="#FFFFFF" stroke-width="1.25" fill="none" />
+  <path d="M15.95 15.75 L16.75 16.6 L18.15 14.95" stroke="#B00001" stroke-width="1.25" fill="none" />
 </svg>
