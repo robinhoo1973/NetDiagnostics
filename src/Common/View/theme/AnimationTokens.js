@@ -75,6 +75,44 @@ var tokens = {
     // 硬编码 2400——与各循环周期的手算关系写在注释里（wifiWave 1920、
     // geoRadar 900+2×300=1500、jiggle 540）。窗口与周期同为动画时序事实，收敛进
     // tokens 同源维护；新增动画周期超过窗口时由 250ms 淡出兜底截断。
+
+    // ── v9 (2026-08-23): 文字打字/闪烁 + HTTP 内容闪烁动画集 ──────────
+    // 5WHY (用户裁定): IP Configuration 打字机逐字点亮「1.1.1.1」、
+    // DNS Servers 闪烁「DNS」三字符、HTTP 三图标（curl/http-headers/
+    // security-headers）仅闪烁文件图形内部（HTML 字符保持静止）。
+    // 字形/内容 = 母版 SVG 逐字事实（同 wifiWaveArcSets 单一来源约定），
+    // 运行时经 data-URI SVG 复绘着色。
+    typeTextStepMs: 240,     // 打字单字符步进（TypeTextAnimation）
+    typeTextHoldMs: 520,     // 全部出现后保持
+    typeTextClearMs: 200,    // 清屏休整（ip-config 周期=7×240+520+200=2400）
+    blinkTextOnMs: 420,      // 「DNS」亮相时长（BlinkTextAnimation）
+    blinkTextOffMs: 380,     // 熄灭时长
+    flashOnMs: 460,          // 内容亮相时长（FlashContentAnimation）
+    flashOffMs: 340,         // 熄灭时长（HTML 文本不参与，恒显）
+    glyphTypeSets: {
+        "nd-diag-g1-ip-config": { tf: "", sw: 0.8, chars: [
+            { d: "M 6.31 8.99 L 6.66 8.81 L 7.17 8.30 L 7.17 11.90" },
+            { d: "M 9.02 11.56 L 8.85 11.73 L 9.02 11.90 L 9.19 11.73 L 9.02 11.56" },
+            { d: "M 9.83 8.99 L 10.18 8.81 L 10.69 8.30 L 10.69 11.90" },
+            { d: "M 12.54 11.56 L 12.37 11.73 L 12.54 11.90 L 12.71 11.73 L 12.54 11.56" },
+            { d: "M 13.35 8.99 L 13.70 8.81 L 14.21 8.30 L 14.21 11.90" },
+            { d: "M 16.06 11.56 L 15.89 11.73 L 16.06 11.90 L 16.23 11.73 L 16.06 11.56" },
+            { d: "M 16.87 8.99 L 17.22 8.81 L 17.73 8.30 L 17.73 11.90" },
+        ] },
+    },
+    glyphBlinkSets: {
+        "nd-diag-g3-dns-servers": { tf: "", sw: 0.6, letters: [
+            { d: "M 10.30 10.00 L 10.30 13.00 M 10.30 10.00 L 11.10 10.00 L 11.44 10.14 L 11.67 10.43 L 11.79 10.71 L 11.90 11.14 L 11.90 11.86 L 11.79 12.29 L 11.67 12.57 L 11.44 12.86 L 11.10 13.00 L 10.30 13.00" },
+            { d: "M 12.74 10.00 L 12.74 13.00 M 12.74 10.00 L 14.34 13.00 M 14.34 10.00 L 14.34 13.00" },
+            { d: "M 16.78 10.43 L 16.55 10.14 L 16.21 10.00 L 15.75 10.00 L 15.41 10.14 L 15.18 10.43 L 15.18 10.71 L 15.29 11.00 L 15.41 11.14 L 15.64 11.29 L 16.32 11.57 L 16.55 11.71 L 16.67 11.86 L 16.78 12.14 L 16.78 12.57 L 16.55 12.86 L 16.21 13.00 L 15.75 13.00 L 15.41 12.86 L 15.18 12.57" },
+        ] },
+    },
+    flashContentSets: {
+        "nd-diag-g5-curl-verbose": { tf: "translate(5.4 3.16) scale(0.55)", body: "<!-- Browser requests page, server responds --> <rect x=\"3.4\" y=\"7\" width=\"6\" height=\"10\" rx=\"1.4\" stroke=\"url(#ngnddiagg5curlverbose)\" stroke-width=\"1.6\" /> <path d=\"M3.4 9.6 H9.4\" stroke=\"#AAAAAA\" stroke-width=\"1.2\" /> <circle cx=\"6.4\" cy=\"13\" r=\"0.9\" fill=\"#000000\" fill-opacity=\"1\" /> <rect x=\"14.6\" y=\"7\" width=\"6\" height=\"10\" rx=\"1.4\" stroke=\"url(#ngnddiagg5curlverbose)\" stroke-width=\"1.6\" /> <circle cx=\"17\" cy=\"10.4\" r=\"0.7\" fill=\"#777777\" fill-opacity=\"1\" /> <circle cx=\"17\" cy=\"13.2\" r=\"0.7\" fill=\"#777777\" fill-opacity=\"1\" /> <path d=\"M9.6 9.4 H14.4 M14.4 9.4 l-2.2 -1.4 M14.4 9.4 l-2.2 1.4\" stroke=\"#000000\" stroke-width=\"1.4\" /> <path d=\"M14.4 14.6 H9.6 M9.6 14.6 l2.2 -1.4 M9.6 14.6 l2.2 1.4\" stroke=\"#AAAAAA\" stroke-width=\"1.2\" />" },
+        "nd-diag-g5-http-headers": { tf: "translate(4.86 1.89) scale(0.6)", body: "<path d=\"M5.4 5.8 V18.2 M9.6 5.8 V18.2 M5.4 12 H9.6\" stroke=\"url(#ngnddiagg5httpheaders)\" stroke-width=\"1.6\" /> <path d=\"M12.6 9.8 H18.4 M12.6 13.2 H18.4 M12.6 16.6 H16\" stroke=\"#000000\" stroke-width=\"1.3\" />" },
+        "nd-diag-g5-security-headers": { tf: "translate(6.0 3.4) scale(0.5)", body: "<path d=\"M12 3.4 L18.6 6 V12.4 C18.6 16.6 15.7 19.6 12 21.4 C8.3 19.6 5.4 16.6 5.4 12.4 V6 Z\" stroke=\"url(#ngnddiagg5securityheaders)\" stroke-width=\"1.6\" /> <path d=\"M8.6 10.6 H15.4 M8.6 13.2 H15.4 M8.6 15.8 H12.6\" stroke=\"#000000\" stroke-width=\"1.3\" />" },
+    },
+
     replayWindowMs: 2400,
 
     // ── Settle / transition (used by DiagBlock.qml Behavior) ─────────────

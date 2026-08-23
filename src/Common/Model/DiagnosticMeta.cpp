@@ -53,7 +53,7 @@ static const DiagnosticMeta kDiagMeta[] = {
     { DiagId::G1WifiDiagnostics,   "WiFi Information",   "nd-diag-g1-wifi-info",         PF_All,                       DiagAnimType::WifiWave,  DiagTemplateType::System, sysGroupedTT(),            60000 },
     { DiagId::G1WiredDiagnostics,  "Wired Information",  "nd-diag-g1-wired",  PF_Desktop|PF_Android,        DiagAnimType::Jiggle, DiagTemplateType::System, sysGrouped(),              60000 },
     { DiagId::G1DhcpStatus,        "DHCP Status",        "nd-diag-g1-dhcp",        PF_All,                       DiagAnimType::Bounce, DiagTemplateType::System, sysGrouped("leaseCount","leases",0), 60000 },
-    { DiagId::G1IpConfiguration,   "IP Configuration",   "nd-diag-g1-ip-config",    PF_All,                       DiagAnimType::Jiggle, DiagTemplateType::System, sysGrouped(),              60000 },
+    { DiagId::G1IpConfiguration,   "IP Configuration",   "nd-diag-g1-ip-config",    PF_All,                       DiagAnimType::TypeText, DiagTemplateType::System, sysGrouped(),              60000 },
     { DiagId::G1ActiveConnections, "Active Connections", "nd-diag-g1-active-connections",  PF_Desktop|PF_Android,        DiagAnimType::Path,   DiagTemplateType::System, sys("tcpCount","connections",0), 60000 },
     { DiagId::G1CellularInfo,      "Cellular Information","nd-diag-g1-cellular",    PF_All,                       DiagAnimType::BarsCycle,  DiagTemplateType::System, sys(),              60000 },
 
@@ -68,7 +68,7 @@ static const DiagnosticMeta kDiagMeta[] = {
     { DiagId::G2ProxySettings,     "Proxy Settings",     "nd-diag-g2-proxy",        PF_Desktop|PF_Android,        DiagAnimType::Path,   DiagTemplateType::System, sys(),              60000 },
 
     // ── G3  Internet & DNS ───────────────────────────────────────────────────
-    { DiagId::G3DnsServers,        "DNS Servers",        "nd-diag-g3-dns-servers",   PF_All,                       DiagAnimType::Pulse,  DiagTemplateType::System, sys("serverCount","servers",0), 60000 },
+    { DiagId::G3DnsServers,        "DNS Servers",        "nd-diag-g3-dns-servers",   PF_All,                       DiagAnimType::BlinkText,  DiagTemplateType::System, sys("serverCount","servers",0), 60000 },
     { DiagId::G3DnsCache,          "DNS Cache",          "nd-diag-g3-dns-cache",    PF_Desktop|PF_Android,        DiagAnimType::Jiggle, DiagTemplateType::System, sys("cacheEntries","entries",0), 60000 },
     // 5WHY (2026-08-23 详情页信息前置): 三大件 summaryOutline——阶段序列
     // 静态声明于 meta（动态数值仍由探针 narrative 承载），Summary 卡在
@@ -117,9 +117,9 @@ static const DiagnosticMeta kDiagMeta[] = {
     { DiagId::G5UrlParsing,        "URL Parsing",        "nd-diag-g5-url-parsing",    PF_All,                       DiagAnimType::Type,   DiagTemplateType::System, sys(),              60000 },
     { DiagId::G5TcpConnect,        "TCP Connect",        "nd-diag-g5-tcp-connect",  PF_All,                       DiagAnimType::Path,   DiagTemplateType::Query,  metricOnly("latencyMs","ms",0,DP::Gauge), 60000 },
     { DiagId::G5ServiceBanner,     "Service Banner",     "nd-diag-g5-service-banner", PF_All,                       DiagAnimType::Type,   DiagTemplateType::Query,  metricOnly("latencyMs","ms",0,DP::Gauge), 60000 },
-    { DiagId::G5CurlVerbose,       "HTTP Request",       "nd-diag-g5-curl-verbose", PF_All,                       DiagAnimType::Bounce,   DiagTemplateType::Request, []{ DP d = metricOnly("totalMs","ms",0,DP::BarChart,"waterfall"); d.showProperties=false; return d; }(), 120000 },
-    { DiagId::G5HttpHeaders,       "HTTP Headers",       "nd-diag-g5-http-headers", PF_All,                       DiagAnimType::Type,   DiagTemplateType::Request, sys("headerCount","headers",0), 60000 },
-    { DiagId::G5SecurityHeaders,   "Security Headers",   "nd-diag-g5-security-headers", PF_All,                   DiagAnimType::Lock,   DiagTemplateType::Handshake, metricOnly("score","score",0,DP::Gauge), 60000 },
+    { DiagId::G5CurlVerbose,       "HTTP Request",       "nd-diag-g5-curl-verbose", PF_All,                       DiagAnimType::FlashContent,   DiagTemplateType::Request, []{ DP d = metricOnly("totalMs","ms",0,DP::BarChart,"waterfall"); d.showProperties=false; return d; }(), 120000 },
+    { DiagId::G5HttpHeaders,       "HTTP Headers",       "nd-diag-g5-http-headers", PF_All,                       DiagAnimType::FlashContent,   DiagTemplateType::Request, sys("headerCount","headers",0), 60000 },
+    { DiagId::G5SecurityHeaders,   "Security Headers",   "nd-diag-g5-security-headers", PF_All,                   DiagAnimType::FlashContent,   DiagTemplateType::Handshake, metricOnly("score","score",0,DP::Gauge), 60000 },
     { DiagId::G5SslCertificate,    "SSL Certificate",    "nd-diag-g5-ssl-certificate",  PF_All,                       DiagAnimType::Lock,   DiagTemplateType::Handshake, metricOnly("daysLeft","days",0,DP::Gauge), 60000 },
     { DiagId::G5HttpRedirect,      "HTTP Redirect",      "nd-diag-g5-http-redirect",     PF_All,                       DiagAnimType::Path,   DiagTemplateType::Request, sys("redirectCount","hops",0), 60000 },
     { DiagId::G5HttpCompression,   "HTTP Compression",   "nd-diag-g5-http-compression",  PF_All,                       DiagAnimType::Jiggle, DiagTemplateType::Request, sys("totalMs","ms",0), 60000 },

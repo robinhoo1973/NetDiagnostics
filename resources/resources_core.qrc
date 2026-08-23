@@ -65,6 +65,9 @@
         <file alias="widgets/animations/SonarSweepAnimation.qml">../src/Common/View/widgets/animations/SonarSweepAnimation.qml</file>
         <file alias="widgets/animations/RouteTraceAnimation.qml">../src/Common/View/widgets/animations/RouteTraceAnimation.qml</file>
         <file alias="widgets/animations/HopSampleAnimation.qml">../src/Common/View/widgets/animations/HopSampleAnimation.qml</file>
+        <file alias="widgets/animations/TypeTextAnimation.qml">../src/Common/View/widgets/animations/TypeTextAnimation.qml</file>
+        <file alias="widgets/animations/BlinkTextAnimation.qml">../src/Common/View/widgets/animations/BlinkTextAnimation.qml</file>
+        <file alias="widgets/animations/FlashContentAnimation.qml">../src/Common/View/widgets/animations/FlashContentAnimation.qml</file>
         <file alias="theme/AnimationTokens.js">../src/Common/View/theme/AnimationTokens.js</file>
         <!-- detail 组件（page-detail.md 复用件） -->
         <file alias="detail/qmldir">../src/Common/View/detail/qmldir</file>

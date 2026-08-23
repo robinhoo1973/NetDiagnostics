@@ -20,3 +20,6 @@ GeoLocateAnimation 1.0 GeoLocateAnimation.qml
 SonarSweepAnimation 1.0 SonarSweepAnimation.qml
 RouteTraceAnimation 1.0 RouteTraceAnimation.qml
 HopSampleAnimation 1.0 HopSampleAnimation.qml
+TypeTextAnimation 1.0 TypeTextAnimation.qml
+BlinkTextAnimation 1.0 BlinkTextAnimation.qml
+FlashContentAnimation 1.0 FlashContentAnimation.qml
