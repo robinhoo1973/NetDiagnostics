@@ -562,6 +562,22 @@ static DiagnosticResult probeDnsIntegrity(DiagId id, const QString&, RunContext&
     out.append(QStringLiteral("Resolver under test: %1")
         .arg(testServer.isEmpty() ? QStringLiteral("(none found)") : testServer));
 
+    // 5WHY (2026-08-23 报告样本一致性 D3, review/ui-ux-audit-plan §5.2): 无系统
+    // 解析器时曾继续跑两阶段——Phase 1 全 Not Resolved、Phase 2 全 Skipped，
+    // 产出 "(none found)" 的 Info 噪声卡（真实样本实证）。测量能力缺失 ≠ 网络
+    // 结论：诚实早退并说明平台限制，不伪造阶段结果。
+    if (testServer.isEmpty()) {
+        out.append(QStringLiteral("No system DNS resolver configuration was exposed by this platform — "
+            "hijack/pollution phases cannot run against a local resolver."));
+        DiagnosticResult r = makeResult(id, DiagStatus::Info,
+            QStringLiteral("Not measurable — no system resolver"), {}, out.join(QLatin1Char('\n')));
+        r.narrative = QStringLiteral("This platform does not expose a system DNS resolver configuration "
+            "(e.g. iOS sandboxes resolv.conf), so the hijack and pollution phases cannot be tested "
+            "against the local resolver. No integrity verdict is produced rather than an unreliable one; "
+            "encrypted DoH lookups remain covered by other tests.");
+        return r;
+    }
+
     // ══ Phase 1: ISP DNS Hijacking (NXDOMAIN hijack) ══
     int hijackClean = 0, hijackWarn = 0, hijackTimeout = 0;
     QStringList hijackIPs;
@@ -732,7 +748,6 @@ static DiagnosticResult probeDnsIntegrity(DiagId id, const QString&, RunContext&
         }
     }
 
-    DiagnosticResult r = makeResult(id, status, summary, {}, out.join(QLatin1Char('\n')));
     // overallScorePercent 驱动仪表盘：由最终裁决推导（含 Phase 1 劫持），
     // 不再用与裁决脱节的任意公式——仪表与结论必须一致。
     const int overall = (hijackDetected && pollutionDetected) ? 0
@@ -741,17 +756,60 @@ static DiagnosticResult probeDnsIntegrity(DiagId id, const QString&, RunContext&
         : pollutionSuspicious > 0 ? 60
         : phase2AllFailed   ? 80
         : 100;
-    r.data[QStringLiteral("phase1HijackDetected")] = hijackDetected;
-    r.data[QStringLiteral("phase1Clean")] = hijackClean;
-    r.data[QStringLiteral("phase1HijackWarn")] = hijackWarn;
-    r.data[QStringLiteral("phase1Timeout")] = hijackTimeout;
-    r.data[QStringLiteral("phase2Verdict")] =
-        (hijackDetected && pollutionDetected) ? QStringLiteral("hijack+ pollution")
+    const QString p2verdict =
+        (hijackDetected && pollutionDetected) ? QStringLiteral("hijack + pollution")
         : hijackDetected      ? QStringLiteral("hijack")
         : pollutionDetected   ? QStringLiteral("pollution")
         : pollutionSuspicious ? QStringLiteral("suspicious")
         : phase2AllFailed     ? QStringLiteral("inconclusive")
                               : QStringLiteral("clean");
+
+    // 5WHY (2026-08-23 详情页信息前置): 两阶段计数与裁决曾只在 terminal/
+    // narrative 散文里——提炼为分组属性行，terminal 折叠后仍可直读各阶段
+    // 结果与总分。
+    QVector<ResultProperty> dprops;
+    {
+        ResultProperty p1;
+        p1.label = QStringLiteral("Phase 1 · Hijack Probe");
+        p1.value = hijackDetected ? QStringLiteral("HIJACKED") : QStringLiteral("Clean");
+        if (hijackDetected) p1.severity = ResultPropertySeverity::Warning;
+        p1.children.append({QStringLiteral("Random domains tested"),
+            QString::number(hijackClean + hijackWarn + hijackTimeout)});
+        p1.children.append({QStringLiteral("Clean"), QString::number(hijackClean)});
+        p1.children.append({QStringLiteral("Hijacked"), QString::number(hijackWarn)});
+        p1.children.append({QStringLiteral("Timeout"), QString::number(hijackTimeout)});
+        if (!hijackIPs.isEmpty())
+            p1.children.append({QStringLiteral("Hijack IPs"),
+                hijackIPs.join(QStringLiteral(", "))});
+        dprops.append(p1);
+
+        ResultProperty p2;
+        p2.label = QStringLiteral("Phase 2 · Pollution Cross-check");
+        p2.value = p2verdict;
+        if (pollutionDetected) p2.severity = ResultPropertySeverity::Warning;
+        const int p2total = pollutionClean + pollutionWarn + pollutionSuspicious + pollutionErrors;
+        p2.children.append({QStringLiteral("Benchmark domains"), QString::number(p2total)});
+        p2.children.append({QStringLiteral("Clean"), QString::number(pollutionClean)});
+        p2.children.append({QStringLiteral("Polluted"), QString::number(pollutionWarn)});
+        if (pollutionSuspicious > 0)
+            p2.children.append({QStringLiteral("Suspicious"), QString::number(pollutionSuspicious)});
+        p2.children.append({QStringLiteral("Errors"), QString::number(pollutionErrors)});
+        dprops.append(p2);
+
+        ResultProperty sc;
+        sc.label = QStringLiteral("Integrity Score");
+        sc.value = QStringLiteral("%1 / 100").arg(overall);
+        if (overall < 50) sc.severity = ResultPropertySeverity::Error;
+        else if (overall < 80) sc.severity = ResultPropertySeverity::Warning;
+        dprops.append(sc);
+    }
+
+    DiagnosticResult r = makeResult(id, status, summary, dprops, out.join(QLatin1Char('\n')));
+    r.data[QStringLiteral("phase1HijackDetected")] = hijackDetected;
+    r.data[QStringLiteral("phase1Clean")] = hijackClean;
+    r.data[QStringLiteral("phase1HijackWarn")] = hijackWarn;
+    r.data[QStringLiteral("phase1Timeout")] = hijackTimeout;
+    r.data[QStringLiteral("phase2Verdict")] = p2verdict;
     r.data[QStringLiteral("overallScorePercent")] = overall;
     // 摘要卡推导叙述：两阶段检测方法与结论依据（用户可复现判断链）
     r.narrative = QStringLiteral("Phase 1 (ISP hijack): %1 randomly-named test domains were resolved — "
@@ -1163,6 +1221,42 @@ static DiagnosticResult probeGeoIPLoc(DiagId id, const QString&, RunContext& ctx
         vpnVerdict = QStringLiteral("Inconclusive — latency pattern shows no clear VPN signal");
     }
 
+    // 5WHY (2026-08-23 详情页信息前置): Top 物理位置表与统计判决数字曾只在
+    // terminal 散文里——提炼为分组属性行（PagePropertiesSection Kv 模式下
+    // children 以 "· " 前缀缩进渲染，两态通用），p 值等统计量同时给出置信
+    // 语言化标签，普通用户无需解读裸统计量。
+    auto confidenceWord = [](int c) -> QString {
+        return c >= 80 ? QStringLiteral("High")
+             : c >= 50 ? QStringLiteral("Medium")
+             : c > 0   ? QStringLiteral("Low")
+                       : QStringLiteral("Unknown");
+    };
+    if (!result.countries.isEmpty()) {
+        ResultProperty loc;
+        loc.label = QStringLiteral("Top Physical Locations");
+        const int nTop = qMin(5, result.countries.size());
+        for (int i = 0; i < nTop; ++i) {
+            const auto& cr = result.countries[i];
+            loc.children.append({SystemDiagnostics::countryFullName(cr.code),
+                QStringLiteral("%1 ms · %2 server(s)").arg(cr.hlMs, 0, 'f', 1).arg(cr.serverCount)});
+        }
+        props.append(loc);
+    }
+    {
+        ResultProperty vpn;
+        vpn.label = QStringLiteral("VPN Statistical Verdict");
+        vpn.value = confidenceWord(vpnConfidence)
+            + (vpnSuspected ? QStringLiteral(" — VPN suspected") : QString());
+        vpn.severity = vpnSuspected ? ResultPropertySeverity::Warning : ResultPropertySeverity::Info;
+        vpn.children.append({QStringLiteral("Samples"),
+            QStringLiteral("%1 GeoIP vs %2 physical").arg(nA).arg(nB)});
+        vpn.children.append({QStringLiteral("Mann-Whitney U"), QString::number(U, 'f', 1)});
+        vpn.children.append({QStringLiteral("p-value"), QString::number(pValue, 'f', 4)});
+        vpn.children.append({QStringLiteral("Cliff's δ"), QString::number(delta, 'f', 3)});
+        vpn.children.append({QStringLiteral("Decision"), vpnVerdict});
+        props.append(vpn);
+    }
+
     DiagnosticResult r = makeResult(id, status, summary, props, out.join(QLatin1Char('\n')));
     r.data[QStringLiteral("countryCode")] = cc;
     r.data[QStringLiteral("countryName")] = SystemDiagnostics::countryFullName(cc);
@@ -1293,6 +1387,13 @@ static DiagnosticResult probeInternetConnectivity(DiagId id, const QString&, Run
     double chosenTtfb = 0;
     QString chosenName;
     int pingMs = -1;
+    // 5WHY (2026-08-23 详情页信息前置): 服务器档案与分档测速结果曾只活在
+    // terminal 文本里——候选循环中捕获为局部事实，循环结束后提炼成分组
+    // 属性（Properties 卡直读），terminal 折叠后信息不丢失。
+    QString chosenHostPort, chosenIp, chosenCountryFull, chosenSponsor;
+    double chosenCiHalf = 0;
+    int chosenRounds = 0;
+    QVector<QPair<QString, QString>> dlFacts, ulFacts;
     const int kCandidates = qMin(2, result.servers.size());
     struct Tier { int bytes; const char* label; };
     const Tier kDlTiers[] = { { 64000, "64 KB" }, { 256000, "256 KB" }, { 1000000, "1 MB" } };
@@ -1311,6 +1412,12 @@ static DiagnosticResult probeInternetConnectivity(DiagId id, const QString&, Run
         const QString bestIp = resolveIp(best.host);
         chosenTtfb = best.ttfbMs;
         chosenName = bestMeta != metaByKey.cend() ? bestMeta->name : best.host;
+        chosenHostPort = QStringLiteral("%1:%2").arg(best.host).arg(best.port);
+        chosenIp = bestIp;
+        chosenCountryFull = SystemDiagnostics::countryFullName(best.country);
+        chosenSponsor = (bestMeta != metaByKey.cend()) ? bestMeta->sponsor : QString();
+        chosenCiHalf = best.ciHalf;
+        chosenRounds = best.rounds;
 
         out.append(QStringLiteral("── Phase 3: Best Server ──"));
         out.append(QStringLiteral("  Name:    %1").arg(chosenName));
@@ -1347,6 +1454,7 @@ static DiagnosticResult probeInternetConnectivity(DiagId id, const QString&, Run
             anyDlOk = false; anyUlOk = false;
             bestDlMbps = 0; bestUlMbps = 0;
             dlOut.clear(); ulOut.clear();
+            dlFacts.clear(); ulFacts.clear();
 
             dlOut.append(QStringLiteral("  Download:"));
             dlOut.append(QString());
@@ -1362,6 +1470,8 @@ static DiagnosticResult probeInternetConnectivity(DiagId id, const QString&, Run
                             QStringLiteral("%1 Mbps").arg(dl.mbps, 0, 'f', 1),
                             QStringLiteral("%1ms").arg(dl.durationMs),
                             QString::number(dl.bytes), QStringLiteral("✓") });
+                        dlFacts.append({ QString::fromLatin1(tier.label),
+                            QStringLiteral("%1 Mbps · %2ms").arg(dl.mbps, 0, 'f', 1).arg(dl.durationMs) });
                         anyDlOk = true;
                         if (dl.mbps > bestDlMbps) bestDlMbps = dl.mbps;
                     } else {
@@ -1387,6 +1497,8 @@ static DiagnosticResult probeInternetConnectivity(DiagId id, const QString&, Run
                             QStringLiteral("%1 Mbps").arg(ul.mbps, 0, 'f', 1),
                             QStringLiteral("%1ms").arg(ul.durationMs),
                             QString::number(ul.bytes), QStringLiteral("✓") });
+                        ulFacts.append({ QString::fromLatin1(tier.label),
+                            QStringLiteral("%1 Mbps · %2ms").arg(ul.mbps, 0, 'f', 1).arg(ul.durationMs) });
                         anyUlOk = true;
                         if (ul.mbps > bestUlMbps) bestUlMbps = ul.mbps;
                     } else {
@@ -1435,7 +1547,58 @@ static DiagnosticResult probeInternetConnectivity(DiagId id, const QString&, Run
         status = DiagStatus::Warning;
     }
 
-    DiagnosticResult r = makeResult(id, status, summary, {}, out.join(QLatin1Char('\n')));
+    // 5WHY (2026-08-23 详情页信息前置): Best Server 档案 / Probe Coverage /
+    // 分档测速轮次从 terminal 提炼为分组属性——terminal 折叠后（§5 方案）
+    // 这些是用户读取主要结果的唯一入口。
+    QVector<ResultProperty> cprops;
+    {
+        // 5WHY (review 2026-08-23): 候选集空（全站不可达）时 chosenName 空——
+        // 曾照常产 Best Server 空行。有档案才产出该属性组。
+        if (!chosenName.isEmpty()) {
+        ResultProperty best;
+        best.label = QStringLiteral("Best Server");
+        best.value = chosenName;
+        if (!chosenSponsor.isEmpty())
+            best.children.append({QStringLiteral("Sponsor"), chosenSponsor});
+        best.children.append({QStringLiteral("Endpoint"), chosenHostPort});
+        if (!chosenIp.isEmpty())
+            best.children.append({QStringLiteral("IP"), chosenIp});
+        best.children.append({QStringLiteral("Country"), chosenCountryFull});
+        best.children.append({QStringLiteral("TTFB"),
+            QStringLiteral("%1 ms ± %2 (%3 rounds)")
+                .arg(chosenTtfb, 0, 'f', 1).arg(chosenCiHalf, 0, 'f', 1).arg(chosenRounds)});
+        if (pingMs >= 0)
+            best.children.append({QStringLiteral("TCP Ping"), QStringLiteral("%1 ms").arg(pingMs)});
+        cprops.append(best);
+        }
+
+        ResultProperty cov;
+        cov.label = QStringLiteral("Probe Coverage");
+        cov.value = QStringLiteral("%1 / %2 servers")
+            .arg(result.servers.size()).arg(GeoProbe::allServers().size());
+        cov.children.append({QStringLiteral("Countries reachable"),
+            QString::number(result.countries.size())});
+        cov.children.append({QStringLiteral("Physical location"),
+            SystemDiagnostics::countryFullName(result.physicalCountry)});
+        cprops.append(cov);
+
+        if (!dlFacts.isEmpty()) {
+            ResultProperty g;
+            g.label = QStringLiteral("Download Rounds");
+            g.value = QStringLiteral("%1 Mbps best").arg(bestDlMbps, 0, 'f', 1);
+            for (const auto& f : dlFacts) g.children.append({f.first, f.second});
+            cprops.append(g);
+        }
+        if (!ulFacts.isEmpty()) {
+            ResultProperty g;
+            g.label = QStringLiteral("Upload Rounds");
+            g.value = QStringLiteral("%1 Mbps best").arg(bestUlMbps, 0, 'f', 1);
+            for (const auto& f : ulFacts) g.children.append({f.first, f.second});
+            cprops.append(g);
+        }
+    }
+
+    DiagnosticResult r = makeResult(id, status, summary, cprops, out.join(QLatin1Char('\n')));
     r.data[QStringLiteral("connected")] = true;
     r.data[QStringLiteral("reachableEndpoints")] = result.servers.size();
     r.data[QStringLiteral("bestTtfbMs")] = chosenTtfb;

@@ -101,6 +101,10 @@ public:
     Q_INVOKABLE QString targetScheme() const { return m_targetScheme; }
     Q_INVOKABLE qint64 runDurationMs() const;
     Q_INVOKABLE QStringList supportedSchemes() const;
+    // 桌面窗口几何持久化（P0-2, review/ui-ux-audit-plan §4）：restore 返回
+    // {x,y,width,height,maximized}，无存档时各键缺省（QML 侧走默认布局）。
+    Q_INVOKABLE QVariantMap restoreWindowGeometry() const;
+    Q_INVOKABLE void saveWindowGeometry(int x, int y, int width, int height, bool maximized);
 
     // ── P1：Config 页桥接 ──
     Q_INVOKABLE QVariantList allDiagIdsForGroup(int groupInt) const;
@@ -203,7 +207,7 @@ private:
     QSet<int> m_activeGroups;      // 默认全激活，持久化
     int  m_stateVersion = 0;
     int  m_languageIndex = 7;      // 与 translations.json 一致：7 = English
-    int  m_themeMode = 2;          // 2 = Dark（ThemeEngine.drkMode）
+    int  m_themeMode = 0;          // 0 = System（跟随 OS 深浅；1=Light 2=Dark）
     bool m_isPremiumPlatform = false;
 
     QHash<DiagId, DiagnosticResult> m_results;

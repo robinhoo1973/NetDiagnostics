@@ -65,6 +65,9 @@ PageDisplay {
                 spacing: ThemeEngine.spacing.sm
                 Repeater {
                     model: [
+                        // 5WHY (2026-08-23 P0-1): 二态硬选→三态，"跟随系统"为行业标配
+                        // 且作为新装默认（AppState 缺省 0）。1/2 绝对值兼容旧存档。
+                        { label: T.tr("themeSystem"), mode: 0, icon: "gear" },
                         { label: T.tr("themeLight"), mode: 1, icon: "brightness" },
                         { label: T.tr("themeDark"),  mode: 2, icon: "moon" }
                     ]

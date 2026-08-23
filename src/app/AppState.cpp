@@ -797,6 +797,13 @@ QVariantMap AppState::resultFor(int diagIdInt) const {
     // 裸 === 1 直比）——枚举重排即静默错乱。只下发布尔语义（propGrouped），
     // QML 单一命名常量消费，跨语言不再存在序值契约。
     m[QStringLiteral("propGrouped")] = dp.propLayout == DetailProfile::PropLayout::Grouped;
+    // 5WHY (2026-08-23 详情页信息前置): meta 静态声明的过程概览下发 Summary 卡
+    // （PageSummarySection 渲染于结论行之上）；空表 = 未迁移探针，QML 端
+    // 自然回退纯 narrative 呈现。
+    QVariantList outline;
+    outline.reserve(dp.summaryOutline.size());
+    for (const QString& s : dp.summaryOutline) outline.append(s);
+    m[QStringLiteral("summaryOutline")] = outline;
     return m;
 }
 
@@ -889,6 +896,31 @@ void AppState::setThemeMode(int mode) {
     m_themeMode = mode;
     savePreferences();
     emit themeModeChanged();
+}
+
+QVariantMap AppState::restoreWindowGeometry() const {
+    QVariantMap m;
+    QSettings s;
+    s.beginGroup(QStringLiteral("AppSettings"));
+    // 5WHY (2026-08-23 P0-2 窗口几何持久化): 桌面端几何曾每次启动重置为
+    // 1080×760 居中——行业标配是记住上次位置/尺寸/最大化态。缺键时返回空
+    // 值（QML 侧据此走默认布局），移动端不调用。
+    m[QStringLiteral("x")] = s.value(QStringLiteral("winX"), -1).toInt();
+    m[QStringLiteral("y")] = s.value(QStringLiteral("winY"), -1).toInt();
+    m[QStringLiteral("width")] = s.value(QStringLiteral("winW"), 1080).toInt();
+    m[QStringLiteral("height")] = s.value(QStringLiteral("winH"), 760).toInt();
+    m[QStringLiteral("maximized")] = s.value(QStringLiteral("winMax"), false).toBool();
+    return m;
+}
+
+void AppState::saveWindowGeometry(int x, int y, int width, int height, bool maximized) {
+    QSettings s;
+    s.beginGroup(QStringLiteral("AppSettings"));
+    s.setValue(QStringLiteral("winX"), x);
+    s.setValue(QStringLiteral("winY"), y);
+    s.setValue(QStringLiteral("winW"), width);
+    s.setValue(QStringLiteral("winH"), height);
+    s.setValue(QStringLiteral("winMax"), maximized);
 }
 
 void AppState::setGroupActive(int groupInt, bool active) {
@@ -998,7 +1030,10 @@ void AppState::loadPreferences() {
         }
     }
     m_languageIndex = s.value(QStringLiteral("languageIndex"), 7).toInt();
-    m_themeMode = s.value(QStringLiteral("themeMode"), 2).toInt();
+    // 5WHY (2026-08-23 P0-1 主题跟随系统): 缺省曾为 2(Dark)——新装用户应跟随
+    // OS 深浅（行业标配）。已持久化的 1/2 绝对值不受影响；0=System 新语义经
+    // ThemeEngine.isDark 推导生效。
+    m_themeMode = s.value(QStringLiteral("themeMode"), 0).toInt();
     m_targetUser = s.value(QStringLiteral("targetUser")).toString();
     m_targetPassword = s.value(QStringLiteral("targetPassword")).toString();
     m_targetPort = s.value(QStringLiteral("targetPort")).toString();

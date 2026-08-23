@@ -21,7 +21,11 @@ PageSection {
 
     property var detailData: ({})
     readonly property string _narrative: detailData.narrative || ""
-    active: _narrative !== ""
+    // 5WHY (2026-08-23 详情页信息前置): meta.summaryOutline 静态声明的过程
+    // 概览（阶段序列）渲染于结论行之上——用户展开 terminal 前即知「测了什么、
+    // 按什么顺序」；空表 = 未迁移探针，完全回退纯 narrative。
+    readonly property var _outline: detailData.summaryOutline || []
+    active: _narrative !== "" || _outline.length > 0
 
     ColumnLayout {
         Layout.fillWidth: true
@@ -33,9 +37,44 @@ PageSection {
             font.pixelSize: ThemeEngine.fontSize.caption
             color: ThemeEngine.colors.onSurfaceVariant
         }
+        // 过程概览行：序号徽标 + 阶段描述（caption 弱化色）
+        Repeater {
+            model: root._outline
+            delegate: RowLayout {
+                Layout.fillWidth: true
+                spacing: ThemeEngine.spacing.sm
+                Rectangle {
+                    width: 16; height: 16; radius: 8
+                    color: Qt.alpha(ThemeEngine.colors.primary, 0.14)
+                    Label {
+                        anchors.centerIn: parent
+                        text: index + 1
+                        font.family: ThemeEngine.monoFont
+                        font.pixelSize: ThemeEngine.fontSize.micro
+                        color: ThemeEngine.colors.primary
+                    }
+                }
+                Label {
+                    Layout.fillWidth: true
+                    text: modelData
+                    font.family: ThemeEngine.fontUi
+                    font.pixelSize: ThemeEngine.fontSize.caption
+                    color: ThemeEngine.colors.onSurfaceVariant
+                    wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                }
+            }
+        }
+        Label {
+            // 概览与结论之间的分隔线（仅双段齐备时出现）
+            Layout.fillWidth: true
+            height: 1
+            color: Qt.alpha(ThemeEngine.colors.outlineVariant, 0.6)
+            visible: root._outline.length > 0 && root._narrative !== ""
+        }
         Label {
             Layout.fillWidth: true
             text: root._narrative
+            visible: root._narrative !== ""
             font.family: ThemeEngine.fontUi
             font.pixelSize: ThemeEngine.fontSize.body
             color: ThemeEngine.colors.onSurface

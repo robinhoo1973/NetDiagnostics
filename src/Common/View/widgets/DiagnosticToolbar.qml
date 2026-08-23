@@ -43,7 +43,7 @@ Rectangle {
                 }
                 TextField {
                     id: hostField
-                    anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
+                    anchors { fill: parent; leftMargin: 8; rightMargin: clearBtn.visible ? 28 : 8 }
                     font.family: ThemeEngine.monoFont; font.pixelSize: 12
                     color: ThemeEngine.colors.onSurface
                     placeholderText: "example.com"
@@ -53,6 +53,40 @@ Rectangle {
                     verticalAlignment: TextInput.AlignVCenter
                     background: Item {}
                     onTextChanged: AppState.setTarget(text, schemeCombo.currentText)
+                    Accessible.role: Accessible.EditableText
+                    // targetLabel 值形如 "目标: "——剥掉冒号空白作读屏名
+                    Accessible.name: T.tr("targetLabel").replace(/[:：]\s*$/, "").trim()
+                }
+                // 目标清除钮（5WHY 2026-08-23 P0-4): accClearTarget 键已翻译却
+                // 无控件——长 URL 粘贴后逐字回删是真实痛点。热区外扩至 ~36px。
+                AbstractButton {
+                    id: clearBtn
+                    visible: hostField.text !== "" && hostField.enabled
+                    width: 24; height: 24
+                    anchors { right: parent.right; rightMargin: 4; verticalCenter: parent.verticalCenter }
+                    padding: 0
+                    contentItem: AppIcon {
+                        name: "close"; size: 14
+                        color: clearBtn.hovered ? ThemeEngine.colors.onSurface
+                                                : ThemeEngine.colors.textMuted
+                    }
+                    background: Rectangle {
+                        radius: 12
+                        color: clearBtn.hovered ? Qt.alpha(ThemeEngine.colors.onSurfaceVariant, 0.12) : "transparent"
+                    }
+                    onClicked: {
+                        hostField.text = ""
+                        AppState.setTarget("", schemeCombo.currentText)
+                        hostField.forceActiveFocus()
+                    }
+                    // MouseArea 外扩命中（36px 有效热区）
+                    MouseArea {
+                        anchors { fill: parent; margins: -6 }
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: clearBtn.clicked()
+                    }
+                    Accessible.role: Accessible.Button
+                    Accessible.name: T.tr("accClearTarget")
                 }
             }
 
@@ -94,7 +128,10 @@ Rectangle {
                 font.pixelSize: 12
                 onClicked: root.runRequested()
                 Accessible.role: Accessible.Button
-                Accessible.name: T.tr("runDiag")
+                // 5WHY (2026-08-23 P0-4 孤儿键接线): 曾用 "runDiag"——acc* 七键
+                // 已翻译却零消费（review/ui-ux-audit-plan §2.2）。接线更完整的
+                // 读屏语义；无对应控件的键保持孤儿并在计划文档登记。
+                Accessible.name: T.tr("accRunDiag")
                 background: Rectangle {
                     radius: 18
                     color: runBtn.hovered ? Qt.lighter(ThemeEngine.colors.primary, 1.15)
@@ -117,7 +154,7 @@ Rectangle {
                 font.pixelSize: 12
                 onClicked: root.cancelRequested()
                 Accessible.role: Accessible.Button
-                Accessible.name: T.tr("cellularCancel")   // "Cancel" 15 语言
+                Accessible.name: T.tr("accStopDiag")   // 5WHY 同上：语义化"停止诊断"
                 background: Rectangle {
                     radius: 18
                     color: ThemeEngine.colors.fail
@@ -224,13 +261,45 @@ Rectangle {
                     border { width: 1; color: ThemeEngine.colors.outlineVariant }
                     TextField {
                         id: passField
-                        anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
-                        echoMode: TextInput.Password
+                        // 5WHY (review 2026-08-23): 右内边距曾固定 66——显隐
+                        // 按钮宽度随本地化文本变化（DE/AR 标签更长），长标签
+                        // 会盖住输入文本。改为随按钮实际宽度自适应。
+                        anchors { fill: parent; leftMargin: 8; rightMargin: passReveal.width + 12 }
+                        echoMode: passReveal.revealed ? TextInput.Normal : TextInput.Password
                         font.family: ThemeEngine.monoFont; font.pixelSize: 12
                         color: ThemeEngine.colors.onSurface
                         placeholderTextColor: ThemeEngine.colors.textPlaceholder
                         verticalAlignment: TextInput.AlignVCenter
                         background: Item {}
+                        Accessible.role: Accessible.EditableText
+                        Accessible.name: T.tr("targetPassword")
+                    }
+                    // 密码显隐切换（5WHY 2026-08-23 P0-4): accShow/accHidePassword
+                    // 两键已翻译却无控件——密码框无法核对输入是真实可用性缺口。
+                    // 图标库无 eye 母版，用本地化文字微按钮（兼作可见标签）。
+                    AbstractButton {
+                        id: passReveal
+                        property bool revealed: false
+                        width: Math.max(32, revealLabel.implicitWidth + 8)
+                        anchors { right: parent.right; rightMargin: 4; verticalCenter: parent.verticalCenter }
+                        padding: 0
+                        Label {
+                            id: revealLabel
+                            anchors.centerIn: parent
+                            text: passReveal.revealed ? T.tr("accHidePassword") : T.tr("accShowPassword")
+                            font.family: ThemeEngine.fontUi
+                            font.pixelSize: ThemeEngine.fontSize.micro
+                            color: passReveal.hovered ? ThemeEngine.colors.onSurface
+                                                      : ThemeEngine.colors.textMuted
+                        }
+                        background: Rectangle {
+                            radius: ThemeEngine.radius.sm
+                            color: passReveal.hovered ? Qt.alpha(ThemeEngine.colors.onSurfaceVariant, 0.12) : "transparent"
+                        }
+                        onClicked: passReveal.revealed = !passReveal.revealed
+                        Accessible.role: Accessible.Button
+                        Accessible.name: passReveal.revealed ? T.tr("accHidePassword") : T.tr("accShowPassword")
+                        Accessible.checked: passReveal.revealed
                     }
                 }
             }

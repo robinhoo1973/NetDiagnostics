@@ -3468,6 +3468,40 @@
       "Tema",
       "المظهر"
     ],
+    "themeSystem": [
+      "跟随系统",
+      "跟隨系統",
+      "システムに従う",
+      "시스템 따르기",
+      "सिस्टम के अनुसार",
+      "Theo hệ thống",
+      "Sisteme göre",
+      "System",
+      "Système",
+      "System",
+      "Как в системе",
+      "Come il sistema",
+      "Según el sistema",
+      "Conforme o sistema",
+      "حسب النظام"
+    ],
+    "lineCountSuffix": [
+      "行",
+      "行",
+      "行",
+      "줄",
+      "पंक्तियाँ",
+      "dòng",
+      "satır",
+      "lines",
+      "lignes",
+      "Zeilen",
+      "строк",
+      "righe",
+      "líneas",
+      "linhas",
+      "أسطر"
+    ],
     "themeLight": [
       "浅色",
       "淺色",
@@ -5961,6 +5995,23 @@
   },
   "trMsg": {
     "exact": {
+      "All groups are disabled": [
+        "所有检测组均已停用",
+        "所有檢測組均已停用",
+        "すべての診断グループが無効です",
+        "모든 진단 그룹이 비활성화되었습니다",
+        "",
+        "",
+        "",
+        "All groups are disabled",
+        "Tous les groupes de diagnostic sont désactivés",
+        "Alle Diagnosegruppen sind deaktiviert",
+        "Все группы диагностики отключены",
+        "Tutti i gruppi di diagnostica sono disattivati",
+        "Todos los grupos de diagnóstico están desactivados",
+        "Todos os grupos de diagnóstico estão desativados",
+        ""
+      ],
       "Empty URL scheme": [
         "URL 协议为空",
         "URL 協定為空",

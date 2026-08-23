@@ -13,8 +13,22 @@ import "../widgets/IconTints.js" as IconTints
 QtObject {
     readonly property int litMode: 1
     readonly property int drkMode: 2
+    // 5WHY (2026-08-23 P0-1, review/ui-ux-audit-plan §4): 曾仅 Light/Dark 二态
+    // 硬选——"跟随系统"是全行业标配（对标矩阵 G5）。mode 0=跟随系统：isDark 由
+    // QStyleHints::colorScheme 推导，全部既有 isDark 消费方零改动。
+    readonly property int sysMode: 0
     property int mode: drkMode
-    readonly property bool isDark: mode !== litMode
+    // 5WHY (review 2026-08-23 修正两点):
+    // ① Qt::ColorScheme = { Unknown=0, Light=1, Dark=2 }——曾写 === 1
+    //    （Light 当深色、Dark 当浅色，跟随系统态明暗完全颠倒）。
+    // ② Qt.styleHints 静态绑定为项目禁用模式（D.1 同类静态初始化顺序
+    //    崩溃）——曾直接绑定 Qt.styleHints.colorScheme。改为可写属性 +
+    //    onCompleted 空检赋值 + colorSchemeChanged 连接（fontUi 同模式）。
+    property int systemScheme: 2   // 缺省 Dark（onCompleted 前安全值）
+    readonly property bool systemIsDark: systemScheme === 2
+    readonly property bool isDark: mode === sysMode
+        ? systemIsDark
+        : (mode !== litMode)
     // 5WHY (review round 4, D.1): Qt.platform 静态绑定与 Qt.application 同类的
     // C++ 后端初始化顺序风险——可写属性 + onCompleted 空检赋值（readonly 会
     // 静默丢弃赋值，round 3 教训）。
@@ -23,17 +37,26 @@ QtObject {
     property var colors: Palette.Dark
 
     function applyTheme() {
-        var p = (mode === litMode) ? Palette.Light : Palette.Dark
+        var dark = (mode === sysMode) ? systemIsDark : (mode !== litMode)
+        var p = dark ? Palette.Dark : Palette.Light
         if (colors !== p)
             colors = Object.assign({}, p)
     }
     onModeChanged: applyTheme()
+    // 跟随系统模式下响应 OS 深浅切换（colorSchemeChanged → systemScheme → 触发）
+    onSystemIsDarkChanged: if (mode === sysMode) applyTheme()
     Component.onCompleted: {
         applyTheme()
         // 5WHY (review 2026-08-17, D.1): Qt.application 静态绑定违反项目规则
         // ——onCompleted 空检赋值（并入既有初始化点，避免第二个 handler）
         if (Qt.application) fontUi = Qt.application.font.family
         if (Qt.platform) isMobile = (Qt.platform.os === "ios" || Qt.platform.os === "android")
+        // 5WHY (review 2026-08-23 同款空检赋值): 系统深浅色初始化 + 运行时
+        // 跟随（colorSchemeChanged 信号）；静态绑定禁止规则见上。
+        if (Qt.styleHints) {
+            systemScheme = Qt.styleHints.colorScheme
+            Qt.styleHints.colorSchemeChanged.connect(function (cs) { systemScheme = cs })
+        }
     }
 
     readonly property var statusColors: [

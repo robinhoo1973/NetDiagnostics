@@ -575,6 +575,18 @@ static DiagnosticResult probeSecurityHeaders(DiagId id, const QString& target, R
     r.data[QStringLiteral("score")] = score;
     r.data[QStringLiteral("totalRequired")] = 7;
     r.data[QStringLiteral("statusCode")] = hr.statusCode;
+    // 5WHY (2026-08-23 报告样本审计 F4): Fail 只列 [MISS] 清单无任何解释与
+    // 建议——诊断价值闭环 = 发现→解释→下一步（Lighthouse/SSL Labs 惯例）。
+    // 补叙述：影响面 + 可执行修复路径。
+    r.narrative = missing.isEmpty()
+        ? QStringLiteral("All 7 recommended security response headers are present — the endpoint "
+            "follows current hardening guidance.")
+        : QStringLiteral("%1 of 7 recommended security headers are missing (%2). These headers mitigate "
+            "clickjacking, MIME sniffing, cross-site scripting and protocol-downgrade attacks. "
+            "Recommended: enable them at the web server or edge CDN — Strict-Transport-Security to "
+            "enforce HTTPS, Content-Security-Policy to constrain script origins, plus X-Frame-Options, "
+            "X-Content-Type-Options, Referrer-Policy and Permissions-Policy as baseline hardening.")
+            .arg(missing.size()).arg(missing.join(QStringLiteral(", ")));
     return r;
 }
 
@@ -747,6 +759,20 @@ static DiagnosticResult probeHttpCompression(DiagId id, const QString& target, R
     r.data[QStringLiteral("originalSize")] = originalSize;
     r.data[QStringLiteral("compressedSize")] = compressedSize;
     r.data[QStringLiteral("ratio")] = ratio;
+    // 5WHY (2026-08-23 报告样本审计 F4): "Uncompressed" 曾无影响说明——
+    // 270KB 未压缩传输对用户意味着什么没有交代。补叙述：量化代价 + 修复路径。
+    r.narrative = supported
+        ? QStringLiteral("%1 compression is negotiated — payload transferred at %2% of the identity "
+            "size (%3 KB → %4 KB).").arg(QString::fromLatin1(encoding))
+              .arg(100.0 - ratio, 0, 'f', 0)
+              .arg(originalSize / 1024).arg(compressedSize / 1024)
+        : QStringLiteral("The server did not negotiate any compression despite an explicit "
+            "Accept-Encoding offer. Text assets transfer uncompressed — expect roughly 3–5× larger "
+            "payloads and proportionally slower first loads on metered or high-latency links"
+            "%1. Enabling gzip or brotli at the server/CDN typically resolves this.")
+            .arg(originalSize > 0
+                ? QStringLiteral(" (%1 KB received here)").arg(hr.body.size() / 1024)
+                : QString());
     return r;
 }
 

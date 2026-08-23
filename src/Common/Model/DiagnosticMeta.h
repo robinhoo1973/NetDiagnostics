@@ -13,6 +13,7 @@
 #include "Common/Model/DiagNames.h"
 #include "Common/Platform/PlatformFlags.h"
 #include <cstdint>
+#include <QStringList>
 
 // ── Detail page display profile ──────────────────────────────────────────
 struct DetailProfile {
@@ -40,6 +41,13 @@ struct DetailProfile {
     const char* chartField = nullptr;   // 图表数据键：individualRtts / hops / waterfall（R1-1：Gauge 同 key 字段）
 
     bool terminalTypewriter = false;
+
+    // 5WHY (2026-08-23 详情页信息前置, review/ui-ux-audit-plan-2026-08-23.md §5):
+    // 多阶段探针的过程概览曾只存在于 terminal 散文里——用户展开原始输出前
+    // 看不到「测了什么、按什么顺序」。静态声明每测试的阶段序列（动态数值
+    // 仍走 narrative），Summary 卡渲染于结论行之上；空表 = 完全回退现状
+    // （未迁移探针零行为变化）。
+    QStringList summaryOutline;
 };
 
 // ── Per-test metadata ────────────────────────────────────────────────────

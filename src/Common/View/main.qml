@@ -21,15 +21,26 @@ Window {
     // M5：桌面无边框 + 自定义窗口按钮；移动端保留原生 chrome（IME 兼容）
     flags: ThemeEngine.isMobile ? Qt.Window : Qt.FramelessWindowHint
 
-    // 启动恢复：主题（UX 评审 3）+ 桌面窗口尺寸（UX 评审 6）+ 屏幕居中（8-16）
+    // 启动恢复：主题（UX 评审 3）+ 桌面窗口几何持久化（P0-2）+ 屏幕居中兜底
     Component.onCompleted: {
         if (AppState && ThemeEngine.mode !== AppState.themeMode)
             ThemeEngine.mode = AppState.themeMode
         if (!ThemeEngine.isMobile) {
-            win.width = 1080
-            win.height = 760
             win.minimumWidth = 720
             win.minimumHeight = 560
+            // P0-2：恢复上次几何；无存档（首启）走默认 1080×760 居中
+            var g = AppState.restoreWindowGeometry()
+            if (g.width >= win.minimumWidth && g.height >= win.minimumHeight) {
+                win.width = g.width
+                win.height = g.height
+                win.x = (g.x >= 0 && g.x < 32000) ? g.x : win.x
+                win.y = (g.y >= 0 && g.y < 32000) ? g.y : win.y
+                win.visible = true   // 几何就绪后先亮相，最大化随后应用
+                if (g.maximized === true) win.showMaximized()
+                return
+            }
+            win.width = 1080
+            win.height = 760
             // 主窗口居中于所属屏幕
             var scr = win.screen
             if (scr) {
@@ -38,6 +49,13 @@ Window {
             }
         }
         win.visible = true   // 几何恢复完成后首帧亮相（UX-1）
+    }
+    // P0-2：正常态几何随关闭落盘（最大化时记录的是还原尺寸，max 标志单独记）
+    onClosing: function(closeEvent) {
+        if (!ThemeEngine.isMobile && visibility !== Window.Maximized)
+            AppState.saveWindowGeometry(x, y, width, height, false)
+        else if (!ThemeEngine.isMobile)
+            AppState.saveWindowGeometry(x, y, width, height, true)
     }
 
     // H5：字体注册——JetBrains Mono（等宽）与 DejaVu Sans Mono（box-drawing/CJK

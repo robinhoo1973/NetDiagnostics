@@ -800,6 +800,13 @@ static DiagnosticResult probePing(DiagId id, const QString& target, RunContext& 
         + (rcvd > 0
             ? QStringLiteral("Latency: average %1 ms (min %2 / max %3), jitter %4 ms.")
                 .arg(avg, 0, 'f', 0).arg(minMs, 0, 'f', 0).arg(maxMs, 0, 'f', 0).arg(jitter, 0, 'f', 1)
+                // 5WHY (2026-08-23 报告样本一致性 D4): VPN/中间盒代答场景下
+                // RTT 恒整 0 ms 曾无任何解释（真实样本 "avg 0.0ms"）——补
+                // 诚实脚注，避免用户误读为"零延迟"。
+                + (avg < 0.5
+                    ? QStringLiteral(" Sub-millisecond round trip — replies were likely answered "
+                        "locally by a middlebox (VPN/CDN offload); treat as <1 ms.")
+                    : QString())
             : QStringLiteral("No responses received — latency unknown."));
     return r;
 }
@@ -1051,8 +1058,12 @@ static DiagnosticResult probePathPing(DiagId id, const QString& target, RunConte
 
     DiagStatus status = reached ? DiagStatus::Pass : DiagStatus::Warning;
     const double finalLoss = stats.isEmpty() ? 100.0 : stats.last().loss;
+    // 5WHY (2026-08-23 报告样本一致性 D1, review/ui-ux-audit-plan §5.2): summary
+    // 曾把交付率标成 "loss"——"final-hop loss 0%" 实为 delivery 100%，与叙述
+    // "(loss 100%)" 同屏自相矛盾（真实样本实证）。统一 delivery 语式；reached
+    // 但末跳零应答（统计不可信）时补诚实脚注而非让两处各说各话。
     QString summary = reached
-        ? QStringLiteral("%1 hops, final-hop loss %2%").arg(hopCount).arg(100.0 - finalLoss, 0, 'f', 0)
+        ? QStringLiteral("%1 hops, final-hop delivery %2%").arg(hopCount).arg(100.0 - finalLoss, 0, 'f', 0)
         : QStringLiteral("Incomplete — %1 hops").arg(hopCount);
 
     DiagnosticResult r = makeResult(id, status, summary, {}, lines.join(QLatin1Char('\n')));
@@ -1061,9 +1072,12 @@ static DiagnosticResult probePathPing(DiagId id, const QString& target, RunConte
     r.data[QStringLiteral("reached")] = reached;
     // 摘要卡叙述：可达性 → 跳数 → 末跳丢包
     r.narrative = reached
-        ? QStringLiteral("Path to %1 traverses %2 hop(s); final-hop packet delivery %3%% (loss %4%%). "
-            "Per-hop loss/RTT is in the terminal section.")
+        ? QStringLiteral("Path to %1 traverses %2 hop(s); final-hop packet delivery %3%% (loss %4%%). ")
             .arg(host).arg(hopCount).arg(100.0 - finalLoss, 0, 'f', 0).arg(finalLoss, 0, 'f', 0)
+            + (finalLoss >= 99.9
+                ? QStringLiteral("The end-to-end delivery probe received no replies — loss statistics "
+                    "are inconclusive on this path (probes may be filtered).")
+                : QStringLiteral("Per-hop loss/RTT is in the terminal section."))
         : QStringLiteral("Path to %1 incomplete after %2 hop(s) — intermediate hops stopped responding. "
             "Per-hop details are in the terminal section.").arg(host).arg(hopCount);
     return r;
@@ -1246,8 +1260,12 @@ static DiagnosticResult probeIPv6Connectivity(DiagId id, const QString& target, 
     // Phase 1: AAAA resolution — DnsResolver 3s 超时（H4）
     QStringList v6Addrs;
     const QString v6 = DnsResolver::instance().resolve6(host, 3000);
-    if (!v6.isEmpty()) v6Addrs.append(v6);
-    if (v6Addrs.isEmpty()) {
+    // 5WHY (2026-08-23 报告样本一致性 D2, review/ui-ux-audit-plan §5.2):
+    // ::ffff:x.x.x.x 是 IPv4-mapped 地址——曾按原生 IPv6 计数并 connect，
+    // 把 IPv4 连通误报成 "IPv6 reachable"（真实样本：AAAA=::ffff:198.18.0.246
+    // 判 PASS 3/3）。映射地址剔除；仅有映射记录 = 无原生 IPv6，走独立诚实
+    // 叙述而非伪造可达。
+    if (v6.isEmpty()) {
         out.append(QStringLiteral("DNS AAAA resolution FAILED — no IPv6 address for %1").arg(host));
         DiagnosticResult r = makeResult(id, DiagStatus::Warning,
             QStringLiteral("No IPv6 DNS resolution"), {}, out.join(QLatin1Char('\n')));
@@ -1262,6 +1280,21 @@ static DiagnosticResult probeIPv6Connectivity(DiagId id, const QString& target, 
             "IPv4 services are unaffected by this result.").arg(host);
         return r;
     }
+    if (v6.startsWith(QLatin1String("::ffff:"), Qt::CaseInsensitive)) {
+        out.append(QStringLiteral("DNS AAAA: %1 (IPv4-mapped record — ignored)").arg(v6));
+        DiagnosticResult r = makeResult(id, DiagStatus::Warning,
+            QStringLiteral("No native IPv6 (IPv4-mapped AAAA only)"), {}, out.join(QLatin1Char('\n')));
+        r.data[QStringLiteral("dnsResolved")] = true;
+        r.data[QStringLiteral("nativeIpv6")] = false;
+        r.data[QStringLiteral("connectedCount")] = 0;
+        r.data[QStringLiteral("totalPorts")] = 0;
+        r.narrative = QStringLiteral("Host %1 publishes only an IPv4-mapped AAAA record (%2), "
+            "which represents an IPv4 address — there is no native IPv6 address to test. "
+            "The port probes were skipped rather than reporting IPv4 results as IPv6 reachability.")
+            .arg(host).arg(v6);
+        return r;
+    }
+    v6Addrs.append(v6);
     out.append(QStringLiteral("DNS AAAA: %1").arg(v6Addrs.join(QStringLiteral(", "))));
 
     // Phase 2: TCP connect over IPv6.
