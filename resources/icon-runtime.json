@@ -869,6 +869,14 @@
    "fixedDark": [],
    "fixedLight": []
   },
+  "spinner": {
+   "accent": "",
+   "second": "",
+   "softDark": "#94A3B8",
+   "softLight": "#475569",
+   "fixedDark": [],
+   "fixedLight": []
+  },
   "translate": {
    "accent": "",
    "second": "",
