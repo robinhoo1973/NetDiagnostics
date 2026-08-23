@@ -2,6 +2,7 @@ module widgets
 AppIcon 1.0 AppIcon.qml
 AppBar 1.0 AppBar.qml
 AppLabel 1.0 AppLabel.qml
+SpinnerIcon 1.0 SpinnerIcon.qml
 StatusBadge 1.0 StatusBadge.qml
 StatusBadgeCluster 1.0 StatusBadgeCluster.qml
 Toast 1.0 Toast.qml

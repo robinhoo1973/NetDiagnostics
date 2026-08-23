@@ -16,6 +16,7 @@
         <!-- widgets (P0) -->
         <file alias="widgets/qmldir">../src/Common/View/widgets/qmldir</file>
         <file alias="widgets/AppIcon.qml">../src/Common/View/widgets/AppIcon.qml</file>
+        <file alias="widgets/SpinnerIcon.qml">../src/Common/View/widgets/SpinnerIcon.qml</file>
         <file alias="widgets/IconTints.js">../src/Common/View/widgets/IconTints.js</file>
         <file alias="widgets/StatsUtil.js">../src/Common/View/widgets/StatsUtil.js</file>
         <file alias="widgets/StatsBridge.qml">../src/Common/View/widgets/StatsBridge.qml</file>

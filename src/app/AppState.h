@@ -18,6 +18,7 @@
 #include <QStringList>
 #include <QElapsedTimer>
 #include <QTimer>
+#include <atomic>
 
 #include "Common/Model/DiagId.h"
 #include "Common/Model/DiagnosticResult.h"
@@ -162,6 +163,10 @@ signals:
 private:
     void runNextGroup();
     void onSuiteFinished();
+    // 5WHY (2026-08-23 点击 Run 3 秒才启动): 同步 isOnWifi/hasCellularUp
+    // 曾阻塞主线程（iOS iosCopyWiFiSSID semaphore 最长 5s）——改后台
+    // 刷新 + Run 时零阻塞读缓存（m_wifiUp/m_cellularUp）。
+    void refreshConnectivityAsync();
     void updateItemModel(DiagId id, const DiagnosticResult& r);
     QVariantMap itemFor(DiagId id, const QHash<DiagId, qint64>* startsMono = nullptr) const;
     void loadPreferences();
@@ -216,6 +221,10 @@ private:
     // H1：移动数据警告（G3 起大流量探测前暂停，移动/Apple 平台）
     bool m_cellularWarnVisible = false;
     bool m_cellularWarnAcked = false;
+    // 连通性异步缓存（后台刷新，Run 时零阻塞读）：默认假定 WiFi 连接
+    // ——首轮刷新落地前不误弹流量警告（宁可漏提不可误提）。
+    std::atomic<bool> m_wifiUp{true};
+    std::atomic<bool> m_cellularUp{false};
     // 5WHY (复核 2026-08-20 去重): 队列广播待发标志——runNextGroup 的组推进
     // 路径与 runDiagnostics 主路径广播同帧双发 currentRunningGroupChanged
     // （面板双载）。主路径广播待发时组推进跳过自有发射；lambda 送达即清。

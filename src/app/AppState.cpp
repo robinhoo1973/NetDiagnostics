@@ -32,6 +32,7 @@
 #include <QStandardPaths>
 #include <QUrl>
 #include <QVector>
+#include <QtConcurrent/QtConcurrent>
 
 #if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
 #include "Common/Platform/PlatformShare.h"   // 移动端系统分享单
@@ -128,6 +129,9 @@ AppState::AppState(QObject* parent) : QObject(parent) {
     connect(m_elapsedTicker, &QTimer::timeout, this, [this] {
         if (m_runStatus == Running) emit runElapsedChanged();
     });
+    // 5WHY (2026-08-23): 启动即后台刷新连通性缓存——首次点击 Run 时
+    // 缓存已就绪（即使未就绪，默认 WiFi 假定也不误弹）。
+    refreshConnectivityAsync();
 }
 
 qint64 AppState::runDurationMs() const {
@@ -325,8 +329,11 @@ void AppState::runDiagnostics() {
     // 5WHY (2026-08-23 弹窗误触发): 曾以 "有 target" 为触发条件——WiFi 下
     // 也弹窗、无 target 的蜂窝大流量诊断反而不弹。正确语义：本轮含 G3
     // 且当前无 WiFi（蜂窝数据可用）时，G3 开始前询问，与 target 无关。
+    // 判定读异步缓存（零阻塞；构造/结果落地/完成期后台持续刷新）。
     if (m_isPremiumPlatform && !m_cellularWarnAcked
-        && m_pendingGroups.contains(2) && !isOnWifi() && hasCellularUp()) {
+        && m_pendingGroups.contains(2)
+        && !m_wifiUp.load(std::memory_order_acquire)
+        && m_cellularUp.load(std::memory_order_acquire)) {
         m_cellularWarnVisible = true;
         // 5WHY (复核 2026-08-19 状态语义): 此路径已清空
         // m_results/m_groupDone/m_currentGroup 却只发
@@ -434,6 +441,10 @@ void AppState::runNextGroup() {
         m_currentDiagLabel = nr.displayName;
         updateItemModel(nr.id, nr);
         emit progressChanged();
+        // 5WHY (2026-08-23 连通性缓存刷新): G1 WiFi/蜂窝结果落地即后台
+        // 刷新缓存——下一轮 Run 的弹窗判定读新鲜网络事实。
+        if (nr.id == DiagId::G1WifiDiagnostics || nr.id == DiagId::G1CellularInfo)
+            refreshConnectivityAsync();
     });
     connect(m_suite, &DiagnosticSuite::suiteFinished, this, [this, gen]() {
         auto* s = qobject_cast<DiagnosticSuite*>(sender());
@@ -488,6 +499,8 @@ void AppState::onSuiteFinished() {
     m_suite->deleteLater();
     m_suite = nullptr;
     emit progressChanged();
+    // 5WHY (2026-08-23): 每组建完即后台刷新连通性——完成态缓存总是新鲜。
+    refreshConnectivityAsync();
     runNextGroup();
 }
 
@@ -951,6 +964,20 @@ void AppState::queueStateBroadcast() {
 }
 bool AppState::isGroupAllEnabled(int groupInt) const {
     return m_config && m_config->isGroupAllEnabled(groupInt);
+}
+
+// 5WHY (2026-08-23 点击 Run 3 秒才启动): runDiagnostics 内曾同步调用
+// isOnWifi/hasCellularUp——iOS iosCopyWiFiSSID 内部 semaphore 最长阻塞 5s
+// （CNCopyCurrentNetworkInfo 等待结果），主线程卡死整条启动链（清屏→弹窗
+// 判定→Running 全在点击处理器栈内）。改为后台刷新 + Run 时零阻塞读
+// std::atomic 缓存；QNetworkInterface/CNCopy 均为线程安全 C API。
+void AppState::refreshConnectivityAsync() {
+    QtConcurrent::run([this] {
+        const bool w = isOnWifi();
+        const bool c = hasCellularUp();
+        m_wifiUp.store(w, std::memory_order_release);
+        m_cellularUp.store(c, std::memory_order_release);
+    });
 }
 bool AppState::isGroupAnyEnabled(int groupInt) const {
     return m_config && m_config->isGroupAnyEnabled(groupInt);

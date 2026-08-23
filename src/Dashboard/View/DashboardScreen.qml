@@ -169,10 +169,10 @@ PageDisplay {
                 Item {
                     Layout.preferredWidth: 28
                     Layout.preferredHeight: 28
-                    BusyIndicator {
+                    SpinnerIcon {
                         visible: AppState.runStatus === 1
                         anchors.fill: parent
-                        running: AppState.runStatus === 1
+                        size: 28
                     }
                     AppIcon {
                         // 5WHY (复核 2026-08-18 用户诉求 "孤立成功图标" 平行站点):

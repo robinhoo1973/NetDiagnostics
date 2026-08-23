@@ -75,10 +75,10 @@ PageSection {
             // 运行指示（spinner 或状态点）
             Item {
                 Layout.preferredWidth: 16; Layout.preferredHeight: 16
-                BusyIndicator {
+                SpinnerIcon {
                     visible: root._isRunning
                     anchors.fill: parent
-                    running: root._isRunning
+                    size: 16
                 }
                 AppIcon {
                     // 5WHY (复核 2026-08-18 用户诉求 "初始状态孤立成功图标"):
@@ -118,8 +118,24 @@ PageSection {
                 elide: Text.ElideRight
                 Layout.fillWidth: true
             }
-            // 8-2：分享按钮从状态头移除（文件图标不该出现在标题栏右侧；
-            // 分享入口归位到 Dashboard 报告预览卡）
+            // 5WHY (2026-08-23 用户诉求 "结束后分享按钮不见"): 8-2 曾把
+            // 分享按钮从状态头移除（归位 Dashboard 预览卡）——但诊断页完成
+            // 态的即时分享入口随之消失。恢复剪贴板复制入口：仅
+            // Completed(2)（全部诊断结束）显示，运行中不干扰状态词语义。
+            AppIcon {
+                visible: AppState.runStatus === 2
+                name: "clipboard"
+                size: 18
+                color: ThemeEngine.colors.textMuted
+                MouseArea {
+                    anchors.fill: parent
+                    anchors.margins: -6   // 热区外扩（≥24px 命中）
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.shareRequested("text")
+                }
+                Accessible.role: Accessible.Button
+                Accessible.name: T.tr("shareBtn")
+            }
         }
 
         // ── 第二行：结果统计徽标，左对齐（全 7 状态）──
