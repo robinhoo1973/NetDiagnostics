@@ -24,3 +24,5 @@ TypeTextAnimation 1.0 TypeTextAnimation.qml
 BlinkTextAnimation 1.0 BlinkTextAnimation.qml
 FlashContentAnimation 1.0 FlashContentAnimation.qml
 TermTypeAnimation 1.0 TermTypeAnimation.qml
+FlashLabelAnimation 1.0 FlashLabelAnimation.qml
+MeasureAnimation 1.0 MeasureAnimation.qml

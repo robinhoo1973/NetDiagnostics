@@ -110,7 +110,7 @@ static const DiagnosticMeta kDiagMeta[] = {
     { DiagId::G4Ping,              "Ping",               "nd-diag-g4-ping",         PF_All,                       DiagAnimType::Sonar, DiagTemplateType::Ping,   metricOnly("rttAvgMs","ms",0,DP::BarChart,"individualRtts"), 30000 },
     { DiagId::G4Traceroute,        "Traceroute",         "nd-diag-g4-traceroute",   PF_All,                       DiagAnimType::RouteTrace,   DiagTemplateType::Path,   metricOnly("hopCount","hops",0,DP::BarChart,"hops"), 90000 },
     { DiagId::G4PathPing,          "PathPing",           "nd-diag-g4-pathping",    PF_All,                       DiagAnimType::HopSample, DiagTemplateType::Path,   metricOnly("hopCount","hops",0,DP::BarChart,"hops"), 120000 },
-    { DiagId::G4MtuDiscovery,      "MTU Discovery",      "nd-diag-g4-mtu",          PF_All,                       DiagAnimType::Jiggle, DiagTemplateType::System, sys(),              60000 },
+    { DiagId::G4MtuDiscovery,      "MTU Discovery",      "nd-diag-g4-mtu",          PF_All,                       DiagAnimType::Measure, DiagTemplateType::System, sys(),              60000 },
     { DiagId::G4IPv6Connectivity,  "IPv6 Connectivity",  "nd-diag-g4-ipv6",         PF_All,                       DiagAnimType::Type,   DiagTemplateType::System, sys("connectedCount","ports",0), 60000 },
 
     // ── G5  Protocol ─────────────────────────────────────────────────────────
@@ -128,10 +128,10 @@ static const DiagnosticMeta kDiagMeta[] = {
     { DiagId::G5SshDiagnostics,    "SSH Diagnostics",    "nd-diag-g5-ssh",          PF_All,                       DiagAnimType::TermType,   DiagTemplateType::Query,  metricOnly("latencyMs","ms",0,DP::Gauge), 60000 },
     { DiagId::G5EmailDiagnostics,  "Email Diagnostics",  "nd-diag-g5-email",         PF_All,                       DiagAnimType::Jiggle, DiagTemplateType::Query,  metricOnly("latencyMs","ms",0,DP::Gauge), 60000 },
     { DiagId::G5Telnet,            "Telnet",             "nd-diag-g5-telnet",       PF_All,                       DiagAnimType::TermType,   DiagTemplateType::Query,  metricOnly("latencyMs","ms",0,DP::Gauge), 60000 },
-    { DiagId::G5Mysql,             "MySQL",              "nd-diag-g5-mysql",        PF_Desktop,                 DiagAnimType::Pulse,  DiagTemplateType::Query,  metricOnly("latencyMs","ms",0,DP::Gauge), 60000 },
-    { DiagId::G5Postgres,          "PostgreSQL",         "nd-diag-g5-postgres",         PF_Desktop,                 DiagAnimType::Pulse,  DiagTemplateType::Query,  metricOnly("latencyMs","ms",0,DP::Gauge), 60000 },
-    { DiagId::G5Redis,             "Redis",              "nd-diag-g5-redis",        PF_Desktop,                 DiagAnimType::Pulse,  DiagTemplateType::Query,  metricOnly("latencyMs","ms",0,DP::Gauge), 60000 },
-    { DiagId::G5Mongodb,           "MongoDB",            "nd-diag-g5-mongodb",      PF_Desktop,                 DiagAnimType::Pulse,  DiagTemplateType::Query,  metricOnly("latencyMs","ms",0,DP::Gauge), 60000 },
+    { DiagId::G5Mysql,             "MySQL",              "nd-diag-g5-mysql",        PF_Desktop,                 DiagAnimType::FlashLabel,  DiagTemplateType::Query,  metricOnly("latencyMs","ms",0,DP::Gauge), 60000 },
+    { DiagId::G5Postgres,          "PostgreSQL",         "nd-diag-g5-postgres",         PF_Desktop,                 DiagAnimType::FlashLabel,  DiagTemplateType::Query,  metricOnly("latencyMs","ms",0,DP::Gauge), 60000 },
+    { DiagId::G5Redis,             "Redis",              "nd-diag-g5-redis",        PF_Desktop,                 DiagAnimType::FlashLabel,  DiagTemplateType::Query,  metricOnly("latencyMs","ms",0,DP::Gauge), 60000 },
+    { DiagId::G5Mongodb,           "MongoDB",            "nd-diag-g5-mongodb",      PF_Desktop,                 DiagAnimType::FlashLabel,  DiagTemplateType::Query,  metricOnly("latencyMs","ms",0,DP::Gauge), 60000 },
     { DiagId::G5Ldap,              "LDAP",               "nd-diag-g5-ldap",         PF_Desktop,                 DiagAnimType::Pulse,   DiagTemplateType::Query,  metricOnly("latencyMs","ms",0,DP::Gauge), 60000 },
     { DiagId::G5Mqtt,              "MQTT",               "nd-diag-g5-mqtt",         PF_Desktop,                 DiagAnimType::Bounce, DiagTemplateType::Query,  metricOnly("latencyMs","ms",0,DP::Gauge), 60000 },
 };

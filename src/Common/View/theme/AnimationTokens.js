@@ -123,6 +123,9 @@ var tokens = {
     termBlinkHalfMs: 220,    // 光标半周期（亮/灭各一拍，两拍=一字）
     termHoldMs: 1000,        // 全词打印完的保持时长
     termClearMs: 120,        // 清屏休整
+    // 终端屏幕底色（FIXED_COLORS_LIGHT #B00001 首槽双套）——覆盖静态 _
+    // 令其闪烁的覆盖条颜色（TermTypeAnimation 读取）。
+    termScreenColors: { dark: "#1E293B", light: "#0F172A" },
     termTypeSets: {
         "nd-diag-g5-ftp": { chars: [
             { d: "M 10.98 10.10 L 10.98 12.10 M 10.98 10.10 L 12.22 10.10 M 10.98 11.05 L 11.74 11.05", cx: 12.56 },
@@ -144,6 +147,27 @@ var tokens = {
         ] },
     },
     replayWindowMs: 2400,
+
+    // ── v11 (2026-08-23): DB 名称闪烁 + MTU 箭头伸缩 ───────────────────
+    // 5WHY (用户裁定): DB 四图标不用 Pulse 呼吸——闪烁数据库名（页面底部
+    // #B00003 名称标签以页面底色覆盖-显隐，同 FlashContent 拍）；MTU 不用
+    // Jiggle——底部尺寸双箭头自中线伸缩（卡尺语义）。
+    labelFlashOnMs: 460,     // DB 名称亮相时长（与 FlashContent 同拍）
+    labelFlashOffMs: 340,    // 熄灭时长
+    // 名称标签 bbox（chromium 实测 24 系，master #B00003 名称行）+ 覆盖色
+    // （= FIXED_COLORS 首槽 #B00001 页面底，dark/light 双套）
+    labelFlashSets: {
+        "nd-diag-g5-mysql":    { rect: {x: 8.66, y: 17.30, w: 6.68, h: 2.30},
+                                  coverDark: "#007CC9", coverLight: "#0094F5" },
+        "nd-diag-g5-postgres": { rect: {x: 5.26, y: 17.30, w: 13.49, h: 2.30},
+                                  coverDark: "#007CC9", coverLight: "#0094F5" },
+        "nd-diag-g5-redis":    { rect: {x: 9.24, y: 17.30, w: 5.53, h: 2.10},
+                                  coverDark: "#007CC9", coverLight: "#0094F5" },
+        "nd-diag-g5-mongodb":  { rect: {x: 7.20, y: 17.30, w: 9.59, h: 2.10},
+                                  coverDark: "#007CC9", coverLight: "#0094F5" },
+    },
+    measureExtendMs: 500,    // MTU 尺寸箭头外伸时长（MeasureAnimation）
+    measureRetractMs: 500,   // 回缩时长
 
     // ── Settle / transition (used by DiagBlock.qml Behavior) ─────────────
     settleDuration: 300,     // Done settle pop (OutBack)
