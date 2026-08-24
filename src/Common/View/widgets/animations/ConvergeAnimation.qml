@@ -23,11 +23,16 @@ AnimationBase {
 
     readonly property real _cx: parent.width / 2
     readonly property real _cy: parent.height / 2
-    readonly property real _r1: parent.width * 0.21   // 起点半径（外）
-    readonly property real _r2: parent.width * 0.055  // 终点半径（内，近圆心）
-    readonly property real _shaft: Math.max(1.5, parent.width * 1.8 / 24)
-    readonly property real _len: parent.width * 6.5 / 24
-    readonly property real _head: parent.width * 3.2 / 24
+    // 5WHY (2026-08-24 用户复核 "移动箭头与图上箭头位置偏离"): 母版四根
+    // 斜箭头实测占径 4.24..8.85u（外端箭头翼至 9.96）——旧参数 .21/.055
+    // 让移动箭头在 1.3..5u 内圈飞行，与静态白箭头完全脱位。改为沿母版
+    // 斜杆往复（头端 8.85u ↔ 4.7u，杆即母版斜杆段 4.6u，厚 2.0u 对齐
+    // 母版 sw2.3），运动轨迹与静态箭头重合。
+    readonly property real _r1: parent.width * 0.369   // 头端远位（=母版外端 8.85u）
+    readonly property real _r2: parent.width * 0.196   // 头端近位（≈母版内端 4.7u）
+    readonly property real _shaft: Math.max(1.5, parent.width * 2.0 / 24)
+    readonly property real _len: parent.width * 4.6 / 24
+    readonly property real _head: parent.width * 2.9 / 24
 
     Component {
         id: arrowComp
