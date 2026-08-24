@@ -48,9 +48,9 @@ AnimationBase {
                 radius: root._shaft / 2
                 color: root.accentColor
                 x: root._cx + Math.cos(arrow.angle * Math.PI / 180)
-                   * (arrow.radius + root._len / 2) - width / 2
+                   * (arrow.radius - root._len / 2) - width / 2
                 y: root._cy + Math.sin(arrow.angle * Math.PI / 180)
-                   * (arrow.radius + root._len / 2) - height / 2
+                   * (arrow.radius - root._len / 2) - height / 2
                 transform: Rotation {
                     origin.x: width / 2
                     origin.y: height / 2
