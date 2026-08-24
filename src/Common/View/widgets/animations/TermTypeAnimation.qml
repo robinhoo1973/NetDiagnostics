@@ -2,18 +2,18 @@ import QtQuick
 import "../../theme" as T
 import "../../theme/AnimationTokens.js" as Tokens
 
-// ── TermTypeAnimation.qml — 终端命令行打字（SSH/FTP/TELNET）──────────────
-// 5WHY (2026-08-23 用户复核裁定 "打字不是下面协议名大字，是 > 提示符后
-// 显示；闪烁下划线是 > 旁的那个 _"): 前版另起一根光标条（x10.6 处
-// 1.4×0.9u）排在静态 _ 右侧——观者读到"下划线之后又一根新下划线"且
-// 光条位 y12.3 偏下一行，语义歧义。修正为命令行惯例：> 后唯一光标就是
-// 静态 _ 本身——以屏幕底色覆盖条显隐令 _ 闪烁（覆盖=熄灭），打字字符
-// 紧随 _ 右缘（起笔 ~10.7）逐字瞬现；全词保持 holdMs、清屏 clearMs。
+// ── TermTypeAnimation.qml — 终端协议名打字（SSH/FTP/TELNET）──────────────
+// 5WHY (2026-08-23 v2 复核 用户澄清): 其一，闪烁的"下划线" = 图标里 >
+// 提示符边上的静态 _（x6.4..9.8, y12.1）——动画以 primary 高亮条覆盖其上
+// 明灭；其二，打字对象 = 图标底部一行的协议名大字（Hershey「FTP/SSH/
+// TELNET」，y16.1..19.0，母版 #B00005 路径按 x 聚类拆分为字母），每两拍
+// 瞬现一个字母，全部出现后保持、清屏循环。v1 的"提示符行后打印+光标推进"
+// 理解废弃。
 //
-// 几何：静态 _ = 母版 M6.4 12.1 H9.8（三终端同规格）；覆盖条 x6.2/y11.6
-// 起 3.8×1.2u（比 _ 外扩 0.3u 兜住抗锯齿）。屏幕底色 = termScreenColors
-// （FIXED_COLORS #B00001 双主题槽同源）。字形 = Hershey 逐字预解析
-// （tokens termTypeSets），data-URI SVG 复绘 primary（WifiWave 同机制）。
+// 字形 = termTypeSets（母版逐字事实单一来源）；data-URI SVG 复绘 primary
+// （压过静态 terminalInk 字色 → 逐字点亮，WifiWave 同机制）。时序：
+// 光标恒闪（半周期 220ms 不停）；第 i 字母于 2×220×(i+1) ms 瞬现；
+// 全词后保持 holdMs、清屏 clearMs。
 //
 // Usage: 经 DiagAnimator 装载——
 //   DiagAnimator { anchors.fill: parent; diagId: ...; running: testRunning }
@@ -27,53 +27,49 @@ AnimationBase {
     }
     readonly property var _set: root.iconName !== ""
         ? (Tokens.tokens.termTypeSets[root.iconName] || null) : null
-    readonly property int _n: _set ? _set.chars.length : 0
+    readonly property int _n: _set ? _set.letters.length : 0
     readonly property real _half: Tokens.tokens.termBlinkHalfMs
     readonly property int _holdMs: Tokens.tokens.termHoldMs
     readonly property int _clearMs: Tokens.tokens.termClearMs
     readonly property real _u: root.width / 24
     // 周期 = 两拍/字 × N + 保持 + 清屏
     readonly property int _period: Math.round(2 * _half) * _n + _holdMs + _clearMs
-    // 覆盖条颜色 = 终端屏幕底色（token 双主题）
-    readonly property color _screen: T.ThemeEngine.isDark
-        ? Tokens.tokens.termScreenColors.dark : Tokens.tokens.termScreenColors.light
 
-    function _charUri(i) {
+    function _letterUri(i) {
         if (!_set) return ""
         var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"'
                 + ' fill="none" stroke-linecap="round" stroke-linejoin="round">'
-                + '<path d="' + _set.chars[i].d + '" stroke="#' + _inkHex
-                + '" stroke-width="1.1" fill="none"/></svg>'
+                + '<path d="' + _set.letters[i].d + '" stroke="#' + _inkHex
+                + '" stroke-width="0.85" fill="none"/></svg>'
         return "data:image/svg+xml;base64," + Qt.btoa(svg)
     }
 
-    // ── 静态 _ 本身闪烁：屏幕底色覆盖条显隐（覆盖 = 下划线熄灭）────────
+    // ── 光标高亮条：覆盖静态 _，恒常明灭 ─────────────────────────────────
     Rectangle {
-        id: underscoreCover
-        visible: root._n > 0
-        x: root._u * 6.2
-        y: root._u * 11.6
-        width: root._u * 3.8
-        height: root._u * 1.2
-        color: root._screen
-        opacity: 0
+        id: cursor
+        visible: root._n > 0 && root.running
+        x: root._u * 6.15
+        y: root._u * 11.55
+        width: root._u * 3.9
+        height: root._u * 1.1
+        radius: root._u * 0.35
+        color: root._inkHex
 
         SequentialAnimation {
             id: blinkSeq
             loops: Animation.Infinite
-            PropertyAction { target: underscoreCover; property: "opacity"; value: 0 }
+            PropertyAction { target: cursor; property: "opacity"; value: 0.9 }
             PauseAnimation { duration: root._half }
-            PropertyAction { target: underscoreCover; property: "opacity"; value: 1 }
+            PropertyAction { target: cursor; property: "opacity"; value: 0 }
             PauseAnimation { duration: root._half }
         }
         RestartController {
             running: root.running && root._n > 0
             target: blinkSeq
-            onStopped: underscoreCover.opacity = 0
         }
     }
 
-    // ── 字符：紧随 _ 右缘逐字瞬现（打字机无淡入，位置固定不随光标移动）──
+    // ── 协议名字母：每两拍瞬现一个 ────────────────────────────────────────
     Repeater {
         id: rep
         model: root._n
@@ -84,7 +80,7 @@ AnimationBase {
             sourceSize.height: 96
             smooth: true
             mipmap: true
-            source: root._charUri(index)
+            source: root._letterUri(index)
             opacity: 0
 
             SequentialAnimation {
@@ -94,7 +90,7 @@ AnimationBase {
                 PropertyAction { target: glyphImg; property: "opacity"; value: 1 }
                 PauseAnimation {
                     duration: Math.max(0, root._period - 2 * root._half * (index + 1)
-                                             - root._clearMs)
+                                         - root._clearMs)
                 }
                 PropertyAction { target: glyphImg; property: "opacity"; value: 0 }
                 PauseAnimation { duration: root._clearMs }
@@ -112,5 +108,5 @@ AnimationBase {
             var d = rep.itemAt(i)
             if (d) d.opacity = 0
         }
-        underscoreCover.opacity = 0
-}}
+    }
+}

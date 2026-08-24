@@ -20,8 +20,12 @@ AnimationBase {
     id: root
 
     // 闪烁高亮色：onAccentPad 恒白（Palette 双主题同值）
+    readonly property var _set0: root.iconName !== ""
+        ? (Tokens.tokens.glyphBlinkSets[root.iconName] || null) : null
+    // 可选 per-set flashRole（Palette 角色名）——缺省 onAccentPad 白
     readonly property string _flashHex: {
-        var c = T.ThemeEngine.colors.onAccentPad.toString()
+        var role = (_set0 && _set0.flashRole) ? _set0.flashRole : "onAccentPad"
+        var c = T.ThemeEngine.colors[role].toString()
         return c.length > 7 ? c.slice(3) : c.slice(1)
     }
     readonly property var _set: root.iconName !== ""

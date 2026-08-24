@@ -22,6 +22,8 @@ AnimationBase {
         ? (Tokens.tokens.labelFlashSets[root.iconName] || null) : null
     readonly property int _onMs: Tokens.tokens.labelFlashOnMs
     readonly property int _offMs: Tokens.tokens.labelFlashOffMs
+    readonly property int _times: Tokens.tokens.labelFlashTimes
+    readonly property int _restMs: Tokens.tokens.labelFlashRestMs
     // 覆盖色 = 页面底色（双主题槽；缺表时回退 #007CC9/#0094F5）
     readonly property color _cover: T.ThemeEngine.isDark
         ? (_set ? _set.coverDark : "#007CC9")
@@ -37,14 +39,19 @@ AnimationBase {
         color: root._cover
         opacity: 0
 
+        // 用户裁定（2026-08-23）：闪烁恰好 5 次后长休整再循环
         SequentialAnimation {
             id: blinkSeq
             loops: Animation.Infinite
-            // 先显后隐：名称亮相 onMs 后熄灭 offMs（BlinkText 同拍序）
             PropertyAction { target: cover; property: "opacity"; value: 0 }
-            PauseAnimation { duration: root._onMs }
-            PropertyAction { target: cover; property: "opacity"; value: 1 }
-            PauseAnimation { duration: root._offMs }
+            SequentialAnimation {
+                loops: root._times
+                PauseAnimation { duration: root._onMs }
+                PropertyAction { target: cover; property: "opacity"; value: 1 }
+                PauseAnimation { duration: root._offMs }
+                PropertyAction { target: cover; property: "opacity"; value: 0 }
+            }
+            PauseAnimation { duration: root._restMs }
         }
         RestartController {
             running: root.running

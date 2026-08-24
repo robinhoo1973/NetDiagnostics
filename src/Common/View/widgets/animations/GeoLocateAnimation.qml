@@ -24,9 +24,9 @@ AnimationBase {
     // 三键从 tokens 一并扫除，本文件却仍读 Tokens.tokens.geoRadarAnchorCx
     // ——undefined 强转 real 得 0，三圈波锚到左上角且半径 0，动画整体静默
     // 消失。按 v7 教义收敛：锚点几何 QML 本地字面量（母版位移改此处）。
-    property real anchorCx: 0.71
-    property real anchorCy: 0.30
-    property real anchorMaxR: 0.29
+    property real anchorCx: 0.68
+    property real anchorCy: 0.79
+    property real anchorMaxR: 0.21
     readonly property real _cx: parent.width * root.anchorCx
     readonly property real _cy: parent.height * root.anchorCy
     // 5WHY (复核 2026-08-19 边界): 半径在 (cx,cy) 锚点上越界（无裁剪链——

@@ -45,31 +45,31 @@ static DP metricOnly(const char* field, const char* unit, int prec, DP::ChartTyp
 static const DiagnosticMeta kDiagMeta[] = {
     // ── G1  System & Adapters ────────────────────────────────────────────────
     { DiagId::G1NetworkAdapters,   "Network Adapters",   "nd-diag-g1-network-adapters", PF_All,                       DiagAnimType::Pulse,  DiagTemplateType::System, sysGrouped(),              15000 },
-    { DiagId::G1NicAdvanced,       "NIC Advanced",       "nd-diag-g1-nic-advanced", PF_Desktop|PF_Android,        DiagAnimType::Pulse,  DiagTemplateType::System, sysGrouped(),              60000 },
+    { DiagId::G1NicAdvanced,       "NIC Advanced",       "nd-diag-g1-nic-advanced", PF_Desktop|PF_Android,        DiagAnimType::BarsCycle,  DiagTemplateType::System, sysGrouped(),              60000 },
     // 5WHY (复核 2026-08-21 用户诉求 "WiFi 信息动画同款弧线"): 曾为 Pulse
     // （通用呼吸环，与图标三弧无语义锚点）——与 Internet Connectivity
     // 同用 WifiWave 弧线动画（锚点按图标名由 AnimationTokens.js
     // wifiWaveAnchorSets 分派，WiFi 信息图标有自己的同心弧几何）。
     { DiagId::G1WifiDiagnostics,   "WiFi Information",   "nd-diag-g1-wifi-info",         PF_All,                       DiagAnimType::WifiWave,  DiagTemplateType::System, sysGroupedTT(),            60000 },
-    { DiagId::G1WiredDiagnostics,  "Wired Information",  "nd-diag-g1-wired",  PF_Desktop|PF_Android,        DiagAnimType::Jiggle, DiagTemplateType::System, sysGrouped(),              60000 },
+    { DiagId::G1WiredDiagnostics,  "Wired Information",  "nd-diag-g1-wired",  PF_Desktop|PF_Android,        DiagAnimType::BarsCycle, DiagTemplateType::System, sysGrouped(),              60000 },
     { DiagId::G1DhcpStatus,        "DHCP Status",        "nd-diag-g1-dhcp",        PF_All,                       DiagAnimType::Bounce, DiagTemplateType::System, sysGrouped("leaseCount","leases",0), 60000 },
     { DiagId::G1IpConfiguration,   "IP Configuration",   "nd-diag-g1-ip-config",    PF_All,                       DiagAnimType::TypeText, DiagTemplateType::System, sysGrouped(),              60000 },
-    { DiagId::G1ActiveConnections, "Active Connections", "nd-diag-g1-active-connections",  PF_Desktop|PF_Android,        DiagAnimType::Path,   DiagTemplateType::System, sys("tcpCount","connections",0), 60000 },
+    { DiagId::G1ActiveConnections, "Active Connections", "nd-diag-g1-active-connections",  PF_Desktop|PF_Android,        DiagAnimType::PlugCycle,   DiagTemplateType::System, sys("tcpCount","connections",0), 60000 },
     { DiagId::G1CellularInfo,      "Cellular Information","nd-diag-g1-cellular",    PF_All,                       DiagAnimType::BarsCycle,  DiagTemplateType::System, sys(),              60000 },
 
     // ── G2  Connectivity & Security ──────────────────────────────────────────
-    { DiagId::G2NetworkProfile,    "Network Profile",    "nd-diag-g2-network-profile", PF_All,                    DiagAnimType::Jiggle, DiagTemplateType::System, sys(),              60000 },
+    { DiagId::G2NetworkProfile,    "Network Profile",    "nd-diag-g2-network-profile", PF_All,                    DiagAnimType::FlashContent, DiagTemplateType::System, sys(),              60000 },
     // 5WHY (复核 2026-08-20): Gateway 行曾随 grouped 改造误改 animType
     // （Converge→Jiggle）且改为 sysGrouped——但其 props 是扁平
     // gateway→interface 对（无 children），Kv 呈现才是原设计。两者还原。
     { DiagId::G2DefaultGateway,    "Default Gateway",    "nd-diag-g2-gateway",     PF_All,                       DiagAnimType::Converge, DiagTemplateType::System, sys(),              60000 },
     { DiagId::G2RoutingTable,      "Routing Table",      "nd-diag-g2-routing-table",  PF_All,                       DiagAnimType::Path,   DiagTemplateType::System, sys("routeCount","routes",0), 60000 },
-    { DiagId::G2ArpTable,          "ARP Table",          "nd-diag-g2-arp-table",    PF_Desktop|PF_Android,        DiagAnimType::Type,   DiagTemplateType::System, sys("entryCount","entries",0), 60000 },
-    { DiagId::G2ProxySettings,     "Proxy Settings",     "nd-diag-g2-proxy",        PF_Desktop|PF_Android,        DiagAnimType::Path,   DiagTemplateType::System, sys(),              60000 },
+    { DiagId::G2ArpTable,          "ARP Table",          "nd-diag-g2-arp-table",    PF_Desktop|PF_Android,        DiagAnimType::BlinkText,   DiagTemplateType::System, sys("entryCount","entries",0), 60000 },
+    { DiagId::G2ProxySettings,     "Proxy Settings",     "nd-diag-g2-proxy",        PF_Desktop|PF_Android,        DiagAnimType::ChevronCycle,   DiagTemplateType::System, sys(),              60000 },
 
     // ── G3  Internet & DNS ───────────────────────────────────────────────────
     { DiagId::G3DnsServers,        "DNS Servers",        "nd-diag-g3-dns-servers",   PF_All,                       DiagAnimType::BlinkText,  DiagTemplateType::System, sys("serverCount","servers",0), 60000 },
-    { DiagId::G3DnsCache,          "DNS Cache",          "nd-diag-g3-dns-cache",    PF_Desktop|PF_Android,        DiagAnimType::Jiggle, DiagTemplateType::System, sys("cacheEntries","entries",0), 60000 },
+    { DiagId::G3DnsCache,          "DNS Cache",          "nd-diag-g3-dns-cache",    PF_Desktop|PF_Android,        DiagAnimType::BlinkText, DiagTemplateType::System, sys("cacheEntries","entries",0), 60000 },
     // 5WHY (2026-08-23 详情页信息前置): 三大件 summaryOutline——阶段序列
     // 静态声明于 meta（动态数值仍由探针 narrative 承载），Summary 卡在
     // 结论行之上渲染过程概览；值为翻译键（QML T.tr 按语言渲染）。
@@ -103,7 +103,7 @@ static const DiagnosticMeta kDiagMeta[] = {
           return d; }(), 180000 },
 
     // ── G4  Remote Host (all platforms — NEW-1) ─────────────────────────────
-    { DiagId::G4DnsResolution,     "DNS Resolution",     "nd-diag-g4-dns-resolution",  PF_All,                       DiagAnimType::Path, DiagTemplateType::System, sys("queryTimeMs","ms",0), 60000 },
+    { DiagId::G4DnsResolution,     "DNS Resolution",     "nd-diag-g4-dns-resolution",  PF_All,                       DiagAnimType::BlinkText, DiagTemplateType::System, sys("queryTimeMs","ms",0), 60000 },
     // 5WHY (2026-08-23): Ping/Traceroute/PathPing 三动画与 G4 新母版锚定
     // （Sonar=radar 扫掠 / RouteTrace=route S 脊 / HopSample=waypoints 逐跳
     // 采样）——通用 Bounce/Path 与图形无语义锚点，见 anim/04 设计文档。
@@ -111,7 +111,7 @@ static const DiagnosticMeta kDiagMeta[] = {
     { DiagId::G4Traceroute,        "Traceroute",         "nd-diag-g4-traceroute",   PF_All,                       DiagAnimType::RouteTrace,   DiagTemplateType::Path,   metricOnly("hopCount","hops",0,DP::BarChart,"hops"), 90000 },
     { DiagId::G4PathPing,          "PathPing",           "nd-diag-g4-pathping",    PF_All,                       DiagAnimType::HopSample, DiagTemplateType::Path,   metricOnly("hopCount","hops",0,DP::BarChart,"hops"), 120000 },
     { DiagId::G4MtuDiscovery,      "MTU Discovery",      "nd-diag-g4-mtu",          PF_All,                       DiagAnimType::Measure, DiagTemplateType::System, sys(),              60000 },
-    { DiagId::G4IPv6Connectivity,  "IPv6 Connectivity",  "nd-diag-g4-ipv6",         PF_All,                       DiagAnimType::Type,   DiagTemplateType::System, sys("connectedCount","ports",0), 60000 },
+    { DiagId::G4IPv6Connectivity,  "IPv6 Connectivity",  "nd-diag-g4-ipv6",         PF_All,                       DiagAnimType::BlinkText,   DiagTemplateType::System, sys("connectedCount","ports",0), 60000 },
 
     // ── G5  Protocol ─────────────────────────────────────────────────────────
     { DiagId::G5UrlParsing,        "URL Parsing",        "nd-diag-g5-url-parsing",    PF_All,                       DiagAnimType::Type,   DiagTemplateType::System, sys(),              60000 },
@@ -120,10 +120,10 @@ static const DiagnosticMeta kDiagMeta[] = {
     { DiagId::G5CurlVerbose,       "HTTP Request",       "nd-diag-g5-curl-verbose", PF_All,                       DiagAnimType::FlashContent,   DiagTemplateType::Request, []{ DP d = metricOnly("totalMs","ms",0,DP::BarChart,"waterfall"); d.showProperties=false; return d; }(), 120000 },
     { DiagId::G5HttpHeaders,       "HTTP Headers",       "nd-diag-g5-http-headers", PF_All,                       DiagAnimType::FlashContent,   DiagTemplateType::Request, sys("headerCount","headers",0), 60000 },
     { DiagId::G5SecurityHeaders,   "Security Headers",   "nd-diag-g5-security-headers", PF_All,                   DiagAnimType::FlashContent,   DiagTemplateType::Handshake, metricOnly("score","score",0,DP::Gauge), 60000 },
-    { DiagId::G5SslCertificate,    "SSL Certificate",    "nd-diag-g5-ssl-certificate",  PF_All,                       DiagAnimType::Lock,   DiagTemplateType::Handshake, metricOnly("daysLeft","days",0,DP::Gauge), 60000 },
-    { DiagId::G5HttpRedirect,      "HTTP Redirect",      "nd-diag-g5-http-redirect",     PF_All,                       DiagAnimType::Path,   DiagTemplateType::Request, sys("redirectCount","hops",0), 60000 },
-    { DiagId::G5HttpCompression,   "HTTP Compression",   "nd-diag-g5-http-compression",  PF_All,                       DiagAnimType::Jiggle, DiagTemplateType::Request, sys("totalMs","ms",0), 60000 },
-    { DiagId::G5HttpTiming,        "HTTP Timing",        "nd-diag-g5-http-timing",  PF_All,                       DiagAnimType::Jiggle, DiagTemplateType::Request, []{ DP d = metricOnly("totalMs","ms",0,DP::BarChart,"waterfall"); d.showProperties=false; return d; }(), 90000 },
+    { DiagId::G5SslCertificate,    "SSL Certificate",    "nd-diag-g5-ssl-certificate",  PF_All,                       DiagAnimType::BlinkText,   DiagTemplateType::Handshake, metricOnly("daysLeft","days",0,DP::Gauge), 60000 },
+    { DiagId::G5HttpRedirect,      "HTTP Redirect",      "nd-diag-g5-http-redirect",     PF_All,                       DiagAnimType::FlashContent,   DiagTemplateType::Request, sys("redirectCount","hops",0), 60000 },
+    { DiagId::G5HttpCompression,   "HTTP Compression",   "nd-diag-g5-http-compression",  PF_All,                       DiagAnimType::FlashContent, DiagTemplateType::Request, sys("totalMs","ms",0), 60000 },
+    { DiagId::G5HttpTiming,        "HTTP Timing",        "nd-diag-g5-http-timing",  PF_All,                       DiagAnimType::FlashContent, DiagTemplateType::Request, []{ DP d = metricOnly("totalMs","ms",0,DP::BarChart,"waterfall"); d.showProperties=false; return d; }(), 90000 },
     { DiagId::G5FtpDiagnostics,    "FTP Diagnostics",    "nd-diag-g5-ftp",          PF_All,                       DiagAnimType::TermType,  DiagTemplateType::Query,  metricOnly("latencyMs","ms",0,DP::Gauge), 60000 },
     { DiagId::G5SshDiagnostics,    "SSH Diagnostics",    "nd-diag-g5-ssh",          PF_All,                       DiagAnimType::TermType,   DiagTemplateType::Query,  metricOnly("latencyMs","ms",0,DP::Gauge), 60000 },
     { DiagId::G5EmailDiagnostics,  "Email Diagnostics",  "nd-diag-g5-email",         PF_All,                       DiagAnimType::Jiggle, DiagTemplateType::Query,  metricOnly("latencyMs","ms",0,DP::Gauge), 60000 },

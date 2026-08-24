@@ -26,7 +26,7 @@ enum class DiagTemplateType { System, Ping, Path, Handshake, Request, Query };
 //   Tick 为 Check 原位更名——pre-commit 第 10 项 Apple 保留词，值位不变）
 enum class DiagAnimType     { Pulse, Jiggle, Bounce, Type, Path, Lock, Tick, WifiWave, Converge, GeoRadar, BarsCycle, Sonar, RouteTrace, HopSample,
                           TypeText, BlinkText, FlashContent, TermType,
-                          FlashLabel, Measure };
+                          FlashLabel, Measure, ChevronCycle, PlugCycle };
 
 inline QString diagDisplayName(DiagId id) {
     switch (id) {

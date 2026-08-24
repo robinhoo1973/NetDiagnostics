@@ -49,6 +49,16 @@ AnimationBase {
     }
 
     // ── 轴：自中线向两侧伸缩 ──────────────────────────────────────────────
+    // 用户裁定（2026-08-23 #13）：伸缩时母版静态双头箭头须隐藏——以垫底色
+    // 覆盖条盖住箭头带（轴线 y18.8 ± 翼展），停止时露出静态原样。
+    Rectangle {
+        visible: root.running
+        x: root._u * 1.5
+        y: root._u * 16.4
+        width: root._u * 21
+        height: root._u * 4.6
+        color: T.ThemeEngine.colors.surfaceContainerLow
+    }
     Rectangle {
         id: leftShaft
         x: root.width / 2 - root._len
