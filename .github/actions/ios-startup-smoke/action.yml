@@ -12,6 +12,10 @@
 #     已实证）：下载本流水线 macos-build 的 .app 产物，QT_QPA_PLATFORM=
 #     offscreen 启动，轮询 12 秒——进程提前退出或日志出现 QML 加载失败
 #     特征即 FAIL。
+#   offscreen 插件由 build-macos（testflight 模式）在 macdeployqt 后
+#     显式捆绑进 Contents/PlugIns/platforms（macdeployqt 默认只部署
+#     cocoa）——2026-09-05 "Could not find the Qt platform plugin
+#     offscreen" 的 5WHY 修复。
 # 任一闸门 FAIL → 上传双双阻断（fail-closed：无启动证据不上传）。闸门 2
 # 运行的就是 macOS 产物本身——烟测失败即 macOS 二进制启动即崩，macOS
 # 上传同样没有意义。

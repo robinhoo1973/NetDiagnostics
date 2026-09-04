@@ -86,6 +86,29 @@ runs:
           echo "[WARN] No .app bundle found; skipping macdeployqt"
         fi
 
+    # ── Gate 2 支持: 捆绑 offscreen 平台插件（testflight 模式）──────────
+    # 5WHY (2026-09-05): startup-smoke 用 QT_QPA_PLATFORM=offscreen 启动
+    # 本产物做启动烟测，但 macdeployqt 只部署 cocoa 平台插件（应用的
+    # GUI 平台），offscreen 不在默认部署集 → 烟测 Abort trap 6
+    # "Could not find the Qt platform plugin offscreen"。
+    # 修复：显式复制 brew qt@6 的 libqoffscreen.dylib 到
+    # Contents/PlugIns/platforms（与 cocoa 并列，运行时按
+    # QT_QPA_PLATFORM 选择）。fail-closed——源缺失即失败，不让下游
+    # 烟测用晦涩的 Qt 报错兜底。上传侧签名 Phase 3（find *.dylib）
+    # 覆盖本插件，Phase 5 包签名将其封入 .app 密封。
+    - name: Bundle offscreen platform plugin (Gate 2)
+      if: inputs.mode == 'testflight'
+      shell: bash
+      run: |
+        set -euo pipefail
+        QT_PREFIX="$(brew --prefix qt@6)"
+        SRC="$QT_PREFIX/share/qt/plugins/platforms/libqoffscreen.dylib"
+        DST="build/net_diagnostics.app/Contents/PlugIns/platforms"
+        [ -f "$SRC" ] || { echo "[FAIL] offscreen plugin not found at $SRC — brew Qt layout changed?"; exit 1; }
+        mkdir -p "$DST"
+        cp "$SRC" "$DST/"
+        echo "[OK] offscreen platform plugin bundled for Gate 2 smoke"
+
     # ═══ testflight mode: share the .app for upload-testflight-macos ═══
     - name: Tar .app (TestFlight)
       if: inputs.mode == 'testflight'

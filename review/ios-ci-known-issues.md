@@ -413,6 +413,24 @@ output=$(xcodebuild ... 2>&1) || { echo "$output" | tail -200; exit 1; }
 | `APPLE_TEAM_ID` | 传给 CMake 的 Team ID | `secrets.IOS_TEAM_ID` |
 | `APPSTORE_CONNECT_*` | App Store Connect API 凭证 | GitHub Secret |
 
+### 5.4 aqt 安装布局漂移 — 工具路径禁止硬编码
+
+| 项 | 说明 |
+|----|------|
+| **现象** | Gate 1 AOT 全部 QML 文件 `qmlcachegen: No such file or directory`（bash exec 报 ENOENT） |
+| **根因** | `aqtinstall` 未锁版本（`pip install aqtinstall`），3.x 的 mac desktop 布局由 `clang_64` 变为 `macos`；build-ios 中 `QMLCACHEGEN` env 硬编码旧路径，且 env 覆盖短路了 `qml-aot-gate.sh` 的 `find` 自愈兜底 |
+| **关键教训** | 同一 kit 布局在 action 内多处硬编码（QT_HOST_PATH=macos 已更新、QMLCACHEGEN=clang_64 未更新）→ 布局知识必须**单一来源**：解析一次（磁盘实际布局为事实源），导出环境变量共用；工具路径让脚本自愈发现，不要用 env 覆盖钉死 |
+| **提交溯源** | 2026-09-05 — `fix(ci): ...`（Gate 1 路径单一来源解析） |
+
+### 5.5 Qt 平台插件必须显式部署 — macdeployqt 默认只带 cocoa
+
+| 项 | 说明 |
+|----|------|
+| **现象** | startup-smoke 启动烟测 `Abort trap: 6`，日志 `Could not find the Qt platform plugin "offscreen" in ""`（可用插件仅 cocoa） |
+| **根因** | macdeployqt 只部署应用实际 GUI 平台（cocoa）的插件；烟测用 `QT_QPA_PLATFORM=offscreen` 启动时，bundle 内 `Contents/PlugIns/platforms` 没有 `libqoffscreen.dylib` |
+| **关键教训** | 无头烟测需要的平台插件是**可选部署项**，不是 Qt 运行时的隐含能力。构建侧显式复制进 bundle（与 cocoa 并列，运行时按 `QT_QPA_PLATFORM` 选择），fail-closed：源缺失即失败 |
+| **提交溯源** | 2026-09-05 — `fix(ci): ...`（build-macos testflight 模式捆绑 offscreen 插件） |
+
 ---
 
 ## 10. C++ 并发与线程安全
