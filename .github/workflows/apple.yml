@@ -8,16 +8,30 @@
 #   ├─ detect-version ──► (pkg_version / pkg_prerelease / build_number)
 #   │                     build_number = official GitHub run number
 #   │
-#   ├─ build-ios ───────────────────────────► upload-testflight-ios
-#   │   (compile iOS, unsigned .ipa artifact)    (sign + archive + upload iOS)
-#   │
-#   └─ build-macos (mode=testflight) ────────► upload-testflight-macos
-#       (build macOS .app artifact)             (sign + .pkg + upload macOS)
+#   ├─ build-ios ──────────────────────► upload-testflight-ios
+#   │   (compile iOS, unsigned .ipa)        ▲ (sign + archive + upload iOS)
+#   │                                       │ blocked unless:
+#   │   ┌───────────────────────────────────┘
+#   │   ├─ startup-smoke ◄── build-macos (mode=testflight) artifact
+#   │   │   (Gate 1: qmlcachegen AOT all QML — iOS 同版本编译器)
+#   │   │   (Gate 2: macOS .app offscreen 启动烟测 — 共享 QML 层运行时证据；
+#   │   │           烟测失败 = macOS 二进制启动即崩，macOS 上传同样阻断)
+#   │   │
+#   └─ build-macos (mode=testflight) ────► upload-testflight-macos
+#       (build macOS .app artifact)          ▲ (sign + .pkg + upload macOS)
+#                                            │ blocked unless startup-smoke
+#                                            │ (its own binary is smoke-tested)
 #
-# The two chains run in PARALLEL.  Each upload waits for its platform's
-# build (needs: ios-build / macos-build).  Version + build number come from
-# the version job; the build number is the official GitHub run number
-# (unique per run, used directly as the TestFlight build number).
+# The two build chains run in PARALLEL.  BOTH uploads wait for the
+# startup-smoke gate: Gate 1 (AOT) is iOS-committed compile evidence;
+# Gate 2 runs the actual macOS artifact (iOS device-only binary cannot run
+# in CI; the QML layer is shared — 2026-09-04 crash reproduced identically
+# on desktop).  Gate 2 failure proves the macOS binary crashes at startup,
+# so macOS upload is blocked too.
+# Fail-closed: no startup evidence → no TestFlight upload.
+# Version + build number come from the version job; the build number is the
+# official GitHub run number (unique per run, used directly as the TestFlight
+# build number).
 #
 # Triggers: tag push (v*) for automatic TestFlight uploads, or
 # workflow_dispatch.  The upload jobs use `environment: TestFlight` which
@@ -73,9 +87,27 @@ jobs:
           # Team ID is needed by the CMake -DAPPLE_TEAM_ID flag (unsigned build).
           IOS_TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
 
+  # ── 启动闪退双闸门（两个 TestFlight 上传的前置门禁）──
+  # Gate 1: qmlcachegen AOT 全量 QML（iOS 同版本 6.8.3 编译器，确定性）
+  # Gate 2: macOS 产物 offscreen 启动烟测（iOS device-only 二进制无法在 CI
+  #         运行——模拟器需 iphonesimulator SDK 构建，aqt 不提供，另行构建
+  #         工具链成本过高；macOS 与 iOS 共享同一份 QML 层，2026-09-04
+  #         桌面与 iOS 同崩已实证共享性）
+  # 任一闸门 FAIL → 两个上传全部阻断（fail-closed：无启动证据不上传）。
+  # Gate 2 跑的就是 macOS 产物本身——烟测失败即 macOS 二进制启动即崩，
+  # macOS 上传同样被阻断。
+  startup-smoke:
+    name: Startup Smoke Gate (AOT + macOS runtime)
+    needs: [macos-build]
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/ios-startup-smoke
+
   ios-upload:
     name: iOS TestFlight Upload
-    needs: [version, ios-build]
+    needs: [version, ios-build, startup-smoke]
     runs-on: macos-latest
     timeout-minutes: 60
     environment: TestFlight
@@ -115,7 +147,7 @@ jobs:
 
   macos-upload:
     name: macOS TestFlight Upload
-    needs: [version, macos-build]
+    needs: [version, macos-build, startup-smoke]
     runs-on: macos-latest
     timeout-minutes: 60
     environment: TestFlight
