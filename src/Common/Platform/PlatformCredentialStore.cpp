@@ -22,8 +22,9 @@
 #include <QDir>
 #include <QDebug>
 #include <QFile>
-#include <QSaveFile>
 #include <QStandardPaths>
+
+#include "Common/Utils/AtomicWriteFile.h"
 
 // ═══════════════════════════════════════════════════════════════════════
 // Windows — DPAPI
@@ -103,9 +104,15 @@ QByteArray xorCrypt(const QByteArray& data, const QByteArray& key) {
 namespace {
 
 QString credDir() {
-    const QString dir = QDir(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation))
-        .filePath(QStringLiteral("credentials"));
-    QDir().mkpath(dir);
+    // 5WHY (simplify 2026-09-04): 目录一次性创建——原实现每次
+    // load/save/remove 都重跑 writableLocation + mkpath（stat + 目录
+    // 遍历）。凭证目录会话内不变，函数局部 static 初始化一次。
+    static const QString dir = [] {
+        const QString d = QDir(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation))
+            .filePath(QStringLiteral("credentials"));
+        QDir().mkpath(d);
+        return d;
+    }();
     return dir;
 }
 
@@ -133,28 +140,12 @@ bool platformCredentialSave(const QString& key, const QString& value) {
 
     // 5WHY (2026-09-04 修正复核): QSaveFile 原子写——旧密文在 commit 成功
     // 前保持完好：写失败/断电不会先毁掉已存凭证再报错（open+Truncate
-    // 方案短写失败时旧文已被截断，密码两边落空）。commit 内含 flush/fsync，
-    // 持久化契约与 persistResults 同标准。
-    QSaveFile f(credPath(key));
-    if (!f.open(QIODevice::WriteOnly)) return false;
-    if (f.write(blob) != blob.size()) {
-        f.cancelWriting();   // 移除临时文件，旧密文保持原样
-        return false;
-    }
-    if (!f.commit()) {
-        qWarning("platformCredentialSave: atomic commit failed for %s",
+    // 方案短写失败时旧文已被截断，密码两边落空）。commit 内含 flush/fsync。
+    // 5WHY (simplify 2026-09-04): 序列收敛到 Common/Utils/AtomicWriteFile.h
+    // （与 persistResults 同一助手），0600 收紧 fail-closed 一并收口。
+    if (!atomicWriteFile(credPath(key), blob, /*restrictOwner=*/true)) {
+        qWarning("platformCredentialSave: atomic write failed for %s",
                  qPrintable(credPath(key)));
-        return false;
-    }
-    // 5WHY (H2 复核): QSaveFile 以默认 umask 创建新文件（0644）——其他
-    // 本地用户可读，而 XOR 密钥可由 hostname+属主 uid 公开推导，凭证
-    // 形同虚设。commit 后收紧为 0600；chmod 失败（FAT/exFAT/NFS 等）即
-    // 删除并返回 false（fail-closed，调用方显式告警）。
-    QFile chk(credPath(key));
-    if (!chk.setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner)) {
-        qWarning("platformCredentialSave: failed to set 0600 on %s",
-                 qPrintable(credPath(key)));
-        QFile::remove(credPath(key));
         return false;
     }
     return true;

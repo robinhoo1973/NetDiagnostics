@@ -77,6 +77,10 @@ QString NarrativeLocalizer::localized(const QString& key, const QVariantList& ar
     // 参数值原样拼接，插入文本不再参与占位符解析（业界标准做法）。
     QString out;
     out.reserve(tpl.size() + args.size() * 8);
+    // 5WHY (simplify 2026-09-04): 逐字符 out += QChar 每步都是增长/分离
+    // 记账（模板 ~50-200 字符 × 每次诊断结果渲染）——按"字面跨度"一次
+    // append 整段（单次 memcpy），占位符处拼接参数值后重置跨度起点。
+    int spanStart = 0;
     for (int i = 0; i < tpl.size();) {
         if (tpl.at(i) == QLatin1Char('%') && i + 1 < tpl.size()
             && tpl.at(i + 1).isDigit()) {
@@ -93,15 +97,17 @@ QString NarrativeLocalizer::localized(const QString& key, const QVariantList& ar
                 if (two >= 1 && two <= args.size()) { n = two; len = 2; }
             }
             if (n >= 1 && n <= args.size()) {
+                out.append(tpl.constData() + spanStart, i - spanStart);
                 out += args.at(n - 1).toString();
                 i += 1 + len;
+                spanStart = i;
                 continue;
             }
             // 越界占位符：保持原文（与原实现一致——无对应参数不替换）
         }
-        out += tpl.at(i);
         ++i;
     }
+    out.append(tpl.constData() + spanStart, tpl.size() - spanStart);
     return out;
 }
 

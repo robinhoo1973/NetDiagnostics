@@ -2,6 +2,9 @@
 build/
 build-*/
 dist/
+# 5WHY (simplify 2026-09-04): qmllint/qmlcachegen 在源码旁生成 .qmlc 编译
+# 缓存（Qt 6.8 解析模块导入时落盘，全库 90+ 文件）——纯运行时产物。
+*.qmlc
 !dist/to-do-list.txt
 !dist/apple-submission-reply.txt
 !dist/in-app-purchase-html2txt.txt

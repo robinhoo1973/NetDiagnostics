@@ -25,6 +25,13 @@ from pathlib import Path
 
 from palette_common import parse_palette, read_palette
 
+# 5WHY (simplify 2026-09-04): 版本守卫内置于脚本（exit 2 = 解释器过旧）——
+# CMake 侧无需单独的 sys.version_info 探针进程（每次 configure 少一次
+# python spawn），build-time/configure-time 两条链共享同一契约。
+if sys.version_info < (3, 8):
+    print("generate-appcolors.py requires Python >= 3.8", file=sys.stderr)
+    sys.exit(2)
+
 ROOT = Path(__file__).resolve().parent.parent
 APP_COLORS = ROOT / "src/Common/Utils/AppColors.h"
 
@@ -261,6 +268,11 @@ def build_header() -> str:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--check", action="store_true", help="fail (exit 1) if AppColors.h is out of date")
+    # 5WHY (simplify 2026-09-04): 只有内容变化才落盘——build-time 规则每次
+    # 构建都会运行本脚本，无条件重写会刷新 mtime 迫使所有引用者重编译。
+    # --write-if-changed 时内容一致不触碰文件（exit 0 两态皆可）。
+    ap.add_argument("--write-if-changed", action="store_true",
+                    help="regenerate only when content differs; exit 0 either way")
     args = ap.parse_args()
 
     generated = build_header()
@@ -273,6 +285,15 @@ def main() -> int:
             print("AppColors.h out of date — run: python3 scripts/generate-appcolors.py")
             return 1
         print("AppColors.h up to date ✓")
+        return 0
+
+    if args.write_if_changed:
+        current = APP_COLORS.read_text(encoding="utf-8") if APP_COLORS.exists() else None
+        if current != generated:
+            APP_COLORS.write_text(generated, encoding="utf-8")
+            print(f"wrote {APP_COLORS.relative_to(ROOT)} from Palette.js")
+        else:
+            print("AppColors.h up to date ✓")
         return 0
 
     APP_COLORS.write_text(generated, encoding="utf-8")

@@ -4,9 +4,8 @@
 #include "Configuration/Controller/ConfigurationController.h"
 #include "app/AppState.h"
 #include "Common/Platform/DeviceCapability.h"
+#include "Common/Utils/SettingsKeys.h"   // simplify: 组名单一来源（与 AppState 共用）
 #include <QSettings>
-
-static constexpr const char* kSettingsGroup = "AppSettings";
 
 ConfigurationController::ConfigurationController(AppState* appState, QObject* parent)
     : QObject(parent), m_appState(appState)

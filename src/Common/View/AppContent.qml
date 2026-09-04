@@ -69,51 +69,42 @@ Item {
             console.warn("switchToTab: page creation failed for tab " + idx)
             return
         }
-        if (typeof created.sectionAction !== "undefined")
-            created.sectionAction.connect(handlePageAction)
+        connectPageActions(created)
         stackView.push(created)
     }
 
     // 页面 action 路由（UI-10）：openDetail 推入 DetailPage；back 弹出
-    // M4 (5WHY): handlePageAction 内同步 createObject + push + 赋值 detail——
-    // 如果新 DetailPage 的 detail 属性绑定触发 sectionAction 信号回传
-    // （如 openDetail 嵌套），会在同一信号栈上递归调用。加守卫标志，
-    // 递归调用被抑制（detail 赋值已在 push 之后，不影响展示）。
-    // 5WHY (2026-09-04 修正复核): 守卫标志必须在所有路径复位——曾只有
-    // 函数尾部一处复位：createObject 失败返回 null 时（iOS 静态 Qt 组件
-    // 创建失败正是本项目头号崩溃类）访问 d.sectionAction 抛 TypeError，
-    // 函数中止、标志永远为 true——此后 openDetail/back 全部静默失效。
-    // 复位收敛为函数尾部唯一一处：null 走 if(d) 内联分支而非提前 return，
-    // 任何路径（含未来新增早退）都不可能跳过复位。
-    property bool _handlingAction: false
+    // 5WHY (simplify 2026-09-04): 原 _handlingAction 守卫标志抑制同步重入
+    // （detail 赋值触发 sectionAction 回传，同一信号栈上递归）——曾因一条
+    // 早退路径漏复位而全会话静默失效，try/catch + 尾部单点复位是补丁叠
+    // 补丁。根因是处理器在信号发射栈上被同步重入：connectPageActions 以
+    // Qt.callLater 延迟投递（项目反模式 #4 既定手法），处理器永不可能
+    // 重入自身——守卫、异常兜底、复位簿记全部删除，且并发 action 不再
+    // 被静默丢弃。
+    function connectPageActions(item) {
+        if (typeof item.sectionAction !== "undefined")
+            item.sectionAction.connect(function(scope, action, payload) {
+                Qt.callLater(handlePageAction, scope, action, payload)
+            })
+    }
     function handlePageAction(scope, action, payload) {
-        if (_handlingAction) return
-        _handlingAction = true
-        try {
-            if (action === "openDetail" && payload && payload.diagId !== undefined) {
-                var d = detailComp.createObject(stackView)
-                if (d) {
-                    if (typeof d.sectionAction !== "undefined")
-                        d.sectionAction.connect(handlePageAction)
-                    // 5WHY (复核 2026-08-19 窗口时序): 曾在 push 前赋值——hero 重放
-                    // 窗口在推入前即启动。先推入再赋值：窗口起点不早于推入开始；
-                    // 与转场的重叠（~250-400ms，低功耗板更慢）由 2400ms 窗口 +
-                    // 250ms 淡出兜底，属已接受的取舍（较屏外播完仍是改善）。
-                    stackView.push(d)
-                    d.detail = AppState.resultFor(payload.diagId)
-                } else {
-                    console.warn("handlePageAction: DetailPage creation failed")
-                }
-            } else if (action === "back") {
-                if (stackView.currentItem && stackView.currentItem.objectName === "detail")
-                    stackView.pop()
+        if (action === "openDetail" && payload && payload.diagId !== undefined) {
+            var d = detailComp.createObject(stackView)
+            if (d) {
+                connectPageActions(d)
+                // 5WHY (复核 2026-08-19 窗口时序): 曾在 push 前赋值——hero 重放
+                // 窗口在推入前即启动。先推入再赋值：窗口起点不早于推入开始；
+                // 与转场的重叠（~250-400ms，低功耗板更慢）由 2400ms 窗口 +
+                // 250ms 淡出兜底，属已接受的取舍（较屏外播完仍是改善）。
+                stackView.push(d)
+                d.detail = AppState.resultFor(payload.diagId)
+            } else {
+                console.warn("handlePageAction: DetailPage creation failed")
             }
-        } catch (e) {
-            // 5WHY (2026-09-04 修正复核): 任何异常路径都必须复位守卫——
-            // 否则 openDetail/back 全会话静默失效。catch 兜底 + 尾部单点复位。
-            console.warn("handlePageAction: " + e)
+        } else if (action === "back") {
+            if (stackView.currentItem && stackView.currentItem.objectName === "detail")
+                stackView.pop()
         }
-        _handlingAction = false
     }
 
     function currentTabIndex() {

@@ -139,17 +139,13 @@ static_assert(std::size(kDiagMeta) == 44, "kDiagMeta must cover all 44 DiagId va
 
 const DiagnosticMeta& diagnosticMeta(DiagId id) {
     const int idx = static_cast<int>(id);
+    // L4 (5WHY): 越界 id 是编程错误——摄入边界（loadCachedResults 的
+    // isValidDiagId 钳制）已保证正常路径不可达；Q_ASSERT 供开发期捕获
+    // 枚举/元数据表漂移（一次性告警在 CI 日志里不可见、断言才是失败）。
+    // release 回退首个条目避免崩溃。
+    Q_ASSERT(idx >= 0 && idx < static_cast<int>(std::size(kDiagMeta)));
     if (idx >= 0 && idx < static_cast<int>(std::size(kDiagMeta)))
         return kDiagMeta[idx];
-    // L4 (5WHY): 越界 ID 返回 kDiagMeta[0]（G1NetworkAdapters）——静默
-    // 返回错误元数据会导致 UI 显示错误图标/名称/超时。加警告日志，
-    // 开发期暴露枚举与元数据表的漂移。once 守卫：诊断循环逐 id 调用，
-    // 漂移时避免每次调用刷屏。
-    static bool s_warned = false;
-    if (!s_warned) {
-        s_warned = true;
-        qWarning("diagnosticMeta: DiagId %d out of range, returning G1NetworkAdapters fallback", idx);
-    }
     return kDiagMeta[0];
 }
 

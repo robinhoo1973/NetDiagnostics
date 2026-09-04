@@ -33,7 +33,10 @@ public:
                    std::function<DiagnosticResult(DiagId, const QString&, RunContext&)> impl,
                    int timeoutMs, QObject* parent = nullptr,
                    std::shared_ptr<RunSnapshot> snapshot = nullptr);
-    ~DiagnosticBase() override;
+    // M3 (5WHY): m_watcher/m_watchdog/m_abortGrace 均以 this 为 parent 创建，
+    // Qt 父子关系在 QObject 析构时自动 delete 子对象——析构无自管资源，
+    // = default（若有人移除 parent 参数，编译器按成员析构，无 double-delete）。
+    ~DiagnosticBase() override = default;
 
     // ── Identity / metadata ──────────────────────────────────────────────
     DiagId    diagId() const { return m_id; }

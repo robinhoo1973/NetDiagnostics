@@ -11,8 +11,11 @@
 #include "Common/Platform/PlatformCredentialStore.h"   // H2 (5WHY): 平台安全凭证存储
 #include "Common/Services/PlatformAdapter.h"
 #include "Common/Services/DnsResolver.h"   // 5WHY (2026-08-22 P1-3): 每轮 run 前清 DNS 缓存
+#include "Common/Utils/AtomicWriteFile.h"   // simplify: persistResults 原子写助手
 #include "Common/Utils/NarrativeLocalizer.h"   // 5WHY (2026-08-23): 剪贴板叙述与详情页同源本地化
+#include "Common/Utils/SettingsKeys.h"   // simplify: QSettings 组名单一来源
 #include "Configuration/Controller/ConfigurationController.h"
+#include "Configuration/Model/DiagnosticConfig.h"   // simplify: isValidDiagId 摄入边界
 #include "Diagnostics/Model/DiagnosticSuite.h"
 #include "Diagnostics/Model/GHelpers.h"   // propsDumpText（终端兜底派生单一来源）
 #include "Diagnostics/View/LegacyTerminalFormat.h"   // v0.0.3 逐字复刻层
@@ -22,6 +25,7 @@
 #include <QClipboard>
 #include <QDesktopServices>
 #include <QDir>
+#include <QPointer>   // refreshConnectivityAsync 的 this 守卫（H1）
 #include <QFile>
 #include <QFileInfo>
 #include <QGuiApplication>
@@ -32,7 +36,6 @@
 #include <QNetworkInterface>
 #include <QSettings>
 #include <QStandardPaths>
-#include <QSaveFile>
 #include <QUrl>
 #include <QVector>
 #include <QThreadPool>
@@ -182,24 +185,12 @@ void AppState::persistResults() {
     //   · 无 fsync——rename 原子性不保证数据落盘，断电仍可能得到
     //     零长/旧内容文件，"防断电"目标落空；
     //   · 错误路径 f.remove() 在文件仍打开时调用，Windows 上失败。
-    // 改用 QSaveFile：同目录临时文件 + commit() 原子替换（跨平台允许
-    // 覆盖已存在目标）+ flush/fsync 保证持久性，cancelWriting 清理。
-    const QString dir = QFileInfo(resultsCachePath()).absolutePath();
-    if (!QDir().mkpath(dir)) {
-        qWarning("persistResults: failed to create directory %s", qPrintable(dir));
-        return;
-    }
-    QSaveFile f(resultsCachePath());
-    if (!f.open(QIODevice::WriteOnly)) {
-        qWarning("persistResults: failed to open temp file for %s",
-                 qPrintable(resultsCachePath()));
-        return;
-    }
+    // 5WHY (simplify 2026-09-04): QSaveFile 序列收敛到 Common/Utils/
+    // AtomicWriteFile.h（与 platformCredentialSave 同一助手）。
     const QByteArray data = QJsonDocument(arr).toJson(QJsonDocument::Compact);
-    if (f.write(data) != data.size() || !f.commit()) {
-        qWarning("persistResults: incomplete write or failed commit to %s",
+    if (!atomicWriteFile(resultsCachePath(), data)) {
+        qWarning("persistResults: atomic write failed for %s",
                  qPrintable(resultsCachePath()));
-        f.cancelWriting();
     }
 }
 
@@ -222,7 +213,19 @@ void AppState::loadCachedResults() {
     for (const QJsonValue& v : doc.array()) {
         const QJsonObject o = v.toObject();
         DiagnosticResult r;
-        r.id = static_cast<DiagId>(o.value(QStringLiteral("id")).toInt());
+        // 5WHY (simplify 2026-09-04): 盘上 id 无范围校验——越界 id 经
+        // diagnosticMeta 的 kDiagMeta[0] 回退会以"另一个诊断项"的形态
+        // 静默复活（status 字段早已有边界钳制，id 是漏网）。摄入边界
+        // 校验：无效 id 条目整体丢弃；范围契约复用 DiagnosticConfig::
+        // isValidDiagId（单一来源）。
+        const QJsonValue idVal = o.value(QStringLiteral("id"));
+        const int rawId = idVal.isDouble() ? idVal.toInt() : -1;
+        if (!DiagnosticConfig::isValidDiagId(rawId)) {
+            qWarning("loadCachedResults: dropping cached entry with invalid "
+                     "diag id %d", rawId);
+            continue;
+        }
+        r.id = static_cast<DiagId>(rawId);
         r.displayName = diagDisplayName(r.id);
         r.group = diagGroup(r.id);
         // 5WHY (复核 2026-08-18): 盘上 int 无范围校验——旧版本枚举重排产出
@@ -941,7 +944,7 @@ void AppState::setThemeMode(int mode) {
 QVariantMap AppState::restoreWindowGeometry() const {
     QVariantMap m;
     QSettings s;
-    s.beginGroup(QStringLiteral("AppSettings"));
+    s.beginGroup(QString::fromLatin1(kSettingsGroup));
     // 5WHY (2026-08-23 P0-2 窗口几何持久化): 桌面端几何曾每次启动重置为
     // 1080×760 居中——行业标配是记住上次位置/尺寸/最大化态。缺键时返回空
     // 值（QML 侧据此走默认布局），移动端不调用。
@@ -955,7 +958,7 @@ QVariantMap AppState::restoreWindowGeometry() const {
 
 void AppState::saveWindowGeometry(int x, int y, int width, int height, bool maximized) {
     QSettings s;
-    s.beginGroup(QStringLiteral("AppSettings"));
+    s.beginGroup(QString::fromLatin1(kSettingsGroup));
     s.setValue(QStringLiteral("winX"), x);
     s.setValue(QStringLiteral("winY"), y);
     s.setValue(QStringLiteral("winW"), width);
@@ -1068,9 +1071,18 @@ bool AppState::isGroupAnyEnabled(int groupInt) const {
     return m_config && m_config->isGroupAnyEnabled(groupInt);
 }
 
+// 5WHY (simplify 2026-09-04): 明文键删除语义三处重复（迁移残留清理 /
+// 成功后清理 / 凭证清除后清理）——QSettings::remove 对缺失键是 no-op，
+// 无需 contains 预检，收敛为单一点。
+namespace {
+void removeLegacyPlaintextPassword(QSettings& s) {
+    s.remove(QStringLiteral("targetPassword"));
+}
+} // namespace
+
 void AppState::loadPreferences() {
     QSettings s;
-    s.beginGroup(QStringLiteral("AppSettings"));
+    s.beginGroup(QString::fromLatin1(kSettingsGroup));
     // activeGroups：默认全部激活（缺省键 → 全量）
     const QStringList active = s.value(QStringLiteral("activeGroups")).toStringList();
     if (active.isEmpty()) {
@@ -1105,11 +1117,11 @@ void AppState::loadPreferences() {
                 qWarning("loadPreferences: credential-store migration failed, "
                          "keeping legacy QSettings entry");
         }
-    } else if (s.contains(QStringLiteral("targetPassword"))) {
+    } else {
         // 5WHY (2026-09-04 修正复核): 安全存储已持密码时，QSettings 里的
         // 明文键只能是旧版残留或迁移失败残留——立即清除。否则用户之后
         // 清除密码（存储清空）时，迁移回退会把已清除/已更换的旧密码复活。
-        s.remove(QStringLiteral("targetPassword"));
+        removeLegacyPlaintextPassword(s);
     }
     m_targetPort = s.value(QStringLiteral("targetPort")).toString();
     // 5WHY (2026-09-04 修正复核): 显式 sync——迁移分支的明文键删除只依赖
@@ -1120,7 +1132,7 @@ void AppState::loadPreferences() {
 
 void AppState::savePreferences() {
     QSettings s;
-    s.beginGroup(QStringLiteral("AppSettings"));
+    s.beginGroup(QString::fromLatin1(kSettingsGroup));
     QStringList active;
     for (int i = 0; i < 5; ++i)
         if (m_activeGroups.contains(i))
@@ -1152,9 +1164,8 @@ void AppState::persistCredentials() {
         return;
     }
     QSettings s;
-    s.beginGroup(QStringLiteral("AppSettings"));
-    if (s.contains(QStringLiteral("targetPassword")))
-        s.remove(QStringLiteral("targetPassword"));
+    s.beginGroup(QString::fromLatin1(kSettingsGroup));
+    removeLegacyPlaintextPassword(s);
     s.endGroup();
 }
 

@@ -58,6 +58,15 @@ CFMutableDictionaryRef makeBaseQuery(const QString& key) {
     return query;
 }
 
+// 5WHY (simplify 2026-09-04): kSecValueData/kSecAttrAccessible 键对在
+// SecItemUpdate 与 SecItemAdd 两条路径重复设置——载荷语义收敛单点，
+// 两条路径不可能再漂移。
+void setValuePayload(CFMutableDictionaryRef dict, CFDataRef cfData) {
+    CFDictionarySetValue(dict, kSecValueData, cfData);
+    CFDictionarySetValue(dict, kSecAttrAccessible,
+                         kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly);
+}
+
 } // namespace
 
 bool platformCredentialSave(const QString& key, const QString& value) {
@@ -74,17 +83,13 @@ bool platformCredentialSave(const QString& key, const QString& value) {
     CFMutableDictionaryRef updates = CFDictionaryCreateMutable(
         kCFAllocatorDefault, 2,
         &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
-    CFDictionarySetValue(updates, kSecValueData, cfData);
-    CFDictionarySetValue(updates, kSecAttrAccessible,
-                         kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly);
+    setValuePayload(updates, cfData);
     OSStatus status = SecItemUpdate(query, updates);
-    CFRelease(updates);
     if (status == errSecItemNotFound) {
-        CFDictionarySetValue(query, kSecValueData, cfData);
-        CFDictionarySetValue(query, kSecAttrAccessible,
-                             kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly);
+        setValuePayload(query, cfData);
         status = SecItemAdd(query, nullptr);
     }
+    CFRelease(updates);
     CFRelease(query);
     CFRelease(cfData);
     if (status != errSecSuccess)

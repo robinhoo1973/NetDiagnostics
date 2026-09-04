@@ -13,7 +13,6 @@
 
 #include <QObject>
 #include <QHash>
-#include <QPointer>
 #include <QSet>
 #include <QString>
 #include <QStringList>

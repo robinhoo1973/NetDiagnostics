@@ -53,17 +53,24 @@ private:
     // 5WHY (verify 2026-08-17): thread-creation failure (EAGAIN) is a LOCAL
     // transient resource problem, not a DNS failure — caching it for the full
     // 30s poisons a healthy host for the rest of the run, indistinguishable
-    // from a real outage. Throttle instead: entries are backdated so they
-    // expire after this short window (re-resolve retries once resource
-    // pressure eases, without a spawn storm during exhaustion).
+    // from a real outage. Throttle instead: the entry carries this short TTL
+    // (re-resolve retries once resource pressure eases, without a spawn storm
+    // during exhaustion).
     static constexpr qint64 kSpawnFailTtlMs = 3'000;
 
     struct DnsEntry {
-        QString ip;      // resolved IP; empty = failed lookup
+        QString ip;      // resolved IP; empty = failed lookup (negative entry)
         // H4 (5WHY): 原用 QDateTime::currentMSecsSinceEpoch()（墙钟）——
-        // NTP 步进或用户手动校时导致缓存过早/过晚过期。改用 steady_clock
-        // 单调时间戳，免疫系统时钟调整。
-        qint64  ts = 0;  // cached-at time (steady_clock ms since epoch)
+        // NTP 步进或用户手动校时导致缓存过早/过晚过期。改用进程启动单调
+        // 毫秒（MonotonicClock.h，与 DiagnosticBase/AppState 同源），
+        // 免疫系统时钟调整。
+        qint64  ts = 0;     // cached-at time (ms since app start, MonotonicClock.h)
+        // 5WHY (simplify 2026-09-04): TTL 存于条目而非读侧常量——负缓存
+        // 按插入点语义各带过期时长（常规失败 kNegativeTtlMs / EAGAIN 节流
+        // kSpawnFailTtlMs），读侧统一 now-ts < ttlMs；回拨时间戳算术与
+        // "kNegativeTtlMs > kSpawnFailTtlMs"隐含不变量随之消失。正缓存
+        // 条目不按 TTL 过期（仅 LRU 驱逐），ttlMs 保持 0。
+        qint64  ttlMs = 0; // negative-entry TTL; 0 = positive (LRU-only expiry)
     };
     // 5WHY (2026-08-22 CP-2): 缓存无上限——多轮 run × 多键型（A/AAAA/PTR/
     // 负缓存）在长进程内单调增长。LRU 容量上限，超限驱逐最旧条目。
