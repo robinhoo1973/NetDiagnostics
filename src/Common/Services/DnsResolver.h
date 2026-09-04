@@ -60,7 +60,10 @@ private:
 
     struct DnsEntry {
         QString ip;      // resolved IP; empty = failed lookup
-        qint64  ts = 0;  // cached-at time (msecs since epoch)
+        // H4 (5WHY): 原用 QDateTime::currentMSecsSinceEpoch()（墙钟）——
+        // NTP 步进或用户手动校时导致缓存过早/过晚过期。改用 steady_clock
+        // 单调时间戳，免疫系统时钟调整。
+        qint64  ts = 0;  // cached-at time (steady_clock ms since epoch)
     };
     // 5WHY (2026-08-22 CP-2): 缓存无上限——多轮 run × 多键型（A/AAAA/PTR/
     // 负缓存）在长进程内单调增长。LRU 容量上限，超限驱逐最旧条目。

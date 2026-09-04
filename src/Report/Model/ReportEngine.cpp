@@ -28,6 +28,7 @@
 #include <QDesktopServices>
 #include <QProcess>
 #include <QHash>
+#include <QMutex>
 
 namespace {
 
@@ -150,16 +151,20 @@ QString reportStatusIconImg(DiagStatus s, int size, bool darkBackground) {
     // UI thread. Cache by (status, size, dark) key: icons are immutable
     // once rendered, so a memoized string is safe and thread-local to
     // this anonymous-namespace function.
-    // CONTRACT: this function must be called from ONE thread (the UI/main
-    // thread). All report generation (buildHtml/buildRichDocument, preview,
-    // PDF/HTML export) runs there today. If generation ever moves to a
-    // worker thread, guard this static cache with a QMutex.
+    // H3 (5WHY): 原代码仅靠注释约束"must be called from ONE thread"，
+    // 无编译时或运行时强制。报告生成迁移到工作线程时 QHash 并发读写
+    // 导致数据损坏。加 QMutex 保护——当前单线程场景零开销（try-lock
+    // 即过），未来多线程场景自动安全。
     static QHash<quint64, QString> cache;
+    static QMutex cacheMutex;
     const quint64 key = (quint64(statusIndex(s)) << 17)
                       | (quint64(size) << 1)
                       | quint64(darkBackground);
-    auto it = cache.constFind(key);
-    if (it != cache.constEnd()) return it.value();
+    {
+        QMutexLocker lock(&cacheMutex);
+        auto it = cache.constFind(key);
+        if (it != cache.constEnd()) return it.value();
+    }
 
     QImage img = renderStatusIcon(s, size, darkBackground);
     QByteArray pngData;
@@ -173,7 +178,10 @@ QString reportStatusIconImg(DiagStatus s, int size, bool darkBackground) {
          + QStringLiteral("' width='%1' height='%1' "
            "style='vertical-align:middle;display:inline-block' alt=''/>")
          .arg(size);
-    cache.insert(key, uri);
+    {
+        QMutexLocker lock(&cacheMutex);
+        cache.insert(key, uri);
+    }
     return uri;
 }
 

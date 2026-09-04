@@ -16,6 +16,7 @@
 
 #include <QThread>
 #include <atomic>
+#include <memory>
 
 class ProbeDatabase;
 
@@ -33,5 +34,12 @@ public:
 
 private:
     ProbeDatabase* m_db;
-    std::atomic<bool> m_stopRequested{false};
+    // M7 (5WHY): 原 worker lambda 捕获裸 this——executor 析构后线程仍在运行
+    // 时，lambda 访问停止标志/m_db 导致 use-after-free。
+    // 改用 shared_ptr 共享停止标志：executor 和 worker 线程各持一份引用，
+    // 最后一个引用释放时自动清理。worker 线程不再依赖 executor 生命周期。
+    // 5WHY (2026-09-04 修正复核): m_stopRequested 在 M7 后成为只写死状态
+    // （worker 只读共享标志）——两份标志有漂移风险，已移除，唯一真相
+    // 为 m_stopFlag。
+    std::shared_ptr<std::atomic<bool>> m_stopFlag;
 };

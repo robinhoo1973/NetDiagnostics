@@ -13,6 +13,7 @@
 
 #include <QObject>
 #include <QHash>
+#include <QPointer>
 #include <QSet>
 #include <QString>
 #include <QStringList>
@@ -175,6 +176,10 @@ private:
     QVariantMap itemFor(DiagId id, const QHash<DiagId, qint64>* startsMono = nullptr) const;
     void loadPreferences();
     void savePreferences();
+    // H2 (5WHY): 密码持久化只走平台安全存储——仅在凭证实际变更时调用
+    // （setTargetCredentials），避免每次主题/语言切换都写 Keychain/DPAPI；
+    // 成功后同步清除 QSettings 遗留明文键，防止迁移回退复活旧密码。
+    void persistCredentials();
     void bumpState();
     // 队列化语义信号广播（5WHY 复核 2026-08-19 反模式 #4：QML 点击栈上
     // 同步发射会驱动 Repeater 委托销毁；延迟一帧语义不变）
@@ -229,6 +234,14 @@ private:
     // ——首轮刷新落地前不误弹流量警告（宁可漏提不可误提）。
     std::atomic<bool> m_wifiUp{true};
     std::atomic<bool> m_cellularUp{false};
+    // H1 (5WHY): QtConcurrent::run 捕获裸 this——对象析构时线程仍在运行
+    // 导致 use-after-free。守卫在 refreshConnectivityAsync() 内以局部
+    // QPointer 创建并捕获（5WHY 2026-09-04 复核：曾加 m_selfGuard 成员
+    // 但 lambda 实际捕获的是局部变量，成员是死代码，已移除）。
+    // 5WHY (2026-09-04 修正复核): QPointer "检查后解引用"仍是 TOCTOU——对象
+    // 可在检查与写入之间被析构。写回改经 QMetaObject::invokeMethod 队列化
+    // 回主线程（上下文为 AppState，析构时挂起调用自动丢弃），工作线程
+    // 不再解引用对象。
     // 5WHY (复核 2026-08-20 去重): 队列广播待发标志——runNextGroup 的组推进
     // 路径与 runDiagnostics 主路径广播同帧双发 currentRunningGroupChanged
     // （面板双载）。主路径广播待发时组推进跳过自有发射；lambda 送达即清。

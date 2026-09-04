@@ -76,6 +76,10 @@ class AdapterRegistry {
 public:
     static void registerAdapters(DiagId id, std::initializer_list<PlatformAdapter> adapters);
     static void registerAdapters(DiagId id, const QVector<PlatformAdapter>& adapters);
+    // 选择当前平台上匹配 scheme 的适配器。返回指向内部 QVector 的指针——
+    // 调用方持有的指针在 registerAdapters() 后失效（QVector 可能重新分配）。
+    // L3 (5WHY): 当前 registerAdapters() 只在 main() 单次调用，指针稳定；
+    // 未来若支持动态注册（如热插拔适配器），需改为返回值或 shared_ptr。
     static const PlatformAdapter* select(DiagId id, const QString& schemeLower = {});
     static bool anyRunnable(DiagId id);
     static bool verifyAllDiagIds();   // DIAG-2 startup invariant (main() calls)

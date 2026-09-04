@@ -22,6 +22,10 @@
 #   · scrim / non-color tokens — 8-digit overlay / no C++ macro counterpart
 #
 # Triggered at cmake configure time via include() in CMakeLists.txt.
+# Ordering contract: CMakeLists.txt runs the configure-time auto-heal
+# (generate-appcolors.py --check → regenerate) BEFORE this include(), so
+# the FATAL_ERRORs below fire only for drift the generator itself cannot
+# heal (e.g. a new Palette.js role missing from ROLES, hand-edited macros).
 # =============================================================================
 
 set(_APP_COLORS   "${CMAKE_SOURCE_DIR}/src/Common/Utils/AppColors.h")

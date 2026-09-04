@@ -22,7 +22,11 @@ Item {
     property bool compact: ThemeEngine.isMobile
 
     // navBlocked：页面浮层开启时，导航点击/滑动先关闭浮层
+    // M5 (5WHY): 原代码直接访问 overlayVisible——新页面类型若未声明此属性，
+    // QML 返回 undefined（隐式转 false），但依赖隐式转换是脆弱的。
+    // typeof 守卫显式检查属性存在性，与 closeCurrentOverlay() 同模式。
     readonly property bool navBlocked: stackView.currentItem
+                                       && typeof stackView.currentItem.overlayVisible !== "undefined"
                                        && stackView.currentItem.overlayVisible === true
     signal closeRequested()
 
@@ -57,27 +61,59 @@ Item {
             }
         }
         var created = tabComponents[idx].createObject(stackView)
+        // 5WHY (2026-09-04 修正复核): createObject 失败返回 null（iOS 静态
+        // Qt 组件创建失败——项目头号崩溃类，与 handlePageAction M4 同源）。
+        // typeof 不保护 null 上的属性访问——created.sectionAction 会抛
+        // TypeError 中断标签页切换。显式空检查。
+        if (!created) {
+            console.warn("switchToTab: page creation failed for tab " + idx)
+            return
+        }
         if (typeof created.sectionAction !== "undefined")
             created.sectionAction.connect(handlePageAction)
         stackView.push(created)
     }
 
     // 页面 action 路由（UI-10）：openDetail 推入 DetailPage；back 弹出
+    // M4 (5WHY): handlePageAction 内同步 createObject + push + 赋值 detail——
+    // 如果新 DetailPage 的 detail 属性绑定触发 sectionAction 信号回传
+    // （如 openDetail 嵌套），会在同一信号栈上递归调用。加守卫标志，
+    // 递归调用被抑制（detail 赋值已在 push 之后，不影响展示）。
+    // 5WHY (2026-09-04 修正复核): 守卫标志必须在所有路径复位——曾只有
+    // 函数尾部一处复位：createObject 失败返回 null 时（iOS 静态 Qt 组件
+    // 创建失败正是本项目头号崩溃类）访问 d.sectionAction 抛 TypeError，
+    // 函数中止、标志永远为 true——此后 openDetail/back 全部静默失效。
+    // 复位收敛为函数尾部唯一一处：null 走 if(d) 内联分支而非提前 return，
+    // 任何路径（含未来新增早退）都不可能跳过复位。
+    property bool _handlingAction: false
     function handlePageAction(scope, action, payload) {
-        if (action === "openDetail" && payload && payload.diagId !== undefined) {
-            var d = detailComp.createObject(stackView)
-            if (typeof d.sectionAction !== "undefined")
-                d.sectionAction.connect(handlePageAction)
-            // 5WHY (复核 2026-08-19 窗口时序): 曾在 push 前赋值——hero 重放
-            // 窗口在推入前即启动。先推入再赋值：窗口起点不早于推入开始；
-            // 与转场的重叠（~250-400ms，低功耗板更慢）由 2400ms 窗口 +
-            // 250ms 淡出兜底，属已接受的取舍（较屏外播完仍是改善）。
-            stackView.push(d)
-            d.detail = AppState.resultFor(payload.diagId)
-        } else if (action === "back") {
-            if (stackView.currentItem && stackView.currentItem.objectName === "detail")
-                stackView.pop()
+        if (_handlingAction) return
+        _handlingAction = true
+        try {
+            if (action === "openDetail" && payload && payload.diagId !== undefined) {
+                var d = detailComp.createObject(stackView)
+                if (d) {
+                    if (typeof d.sectionAction !== "undefined")
+                        d.sectionAction.connect(handlePageAction)
+                    // 5WHY (复核 2026-08-19 窗口时序): 曾在 push 前赋值——hero 重放
+                    // 窗口在推入前即启动。先推入再赋值：窗口起点不早于推入开始；
+                    // 与转场的重叠（~250-400ms，低功耗板更慢）由 2400ms 窗口 +
+                    // 250ms 淡出兜底，属已接受的取舍（较屏外播完仍是改善）。
+                    stackView.push(d)
+                    d.detail = AppState.resultFor(payload.diagId)
+                } else {
+                    console.warn("handlePageAction: DetailPage creation failed")
+                }
+            } else if (action === "back") {
+                if (stackView.currentItem && stackView.currentItem.objectName === "detail")
+                    stackView.pop()
+            }
+        } catch (e) {
+            // 5WHY (2026-09-04 修正复核): 任何异常路径都必须复位守卫——
+            // 否则 openDetail/back 全会话静默失效。catch 兜底 + 尾部单点复位。
+            console.warn("handlePageAction: " + e)
         }
+        _handlingAction = false
     }
 
     function currentTabIndex() {

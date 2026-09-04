@@ -155,6 +155,7 @@ function(configure_netdiag_target TARGET)
             "-framework ReplayKit"
             "-framework AVFoundation"
             "-framework CoreMedia"
+            "-framework Security"
         )
     elseif(ANDROID)
         target_compile_definitions(${TARGET} PRIVATE PLATFORM_ANDROID PLATFORM_MOBILE)
@@ -193,6 +194,9 @@ function(configure_netdiag_target TARGET)
         # ARC required for the dispatch/NS objects in the .mm bridge.
         find_library(STOREKIT StoreKit REQUIRED)
         target_link_libraries(${TARGET} PRIVATE ${STOREKIT})
+        # 5WHY: Security used by PlatformCredentialStore.cpp (Keychain API).
+        find_library(SECURITY Security REQUIRED)
+        target_link_libraries(${TARGET} PRIVATE ${SECURITY})
         target_compile_options(${TARGET} PRIVATE -fobjc-arc)
     endif()
 

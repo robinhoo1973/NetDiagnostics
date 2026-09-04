@@ -2,6 +2,7 @@
 // DnsResolver.cpp — Shared DNS resolution with timeout
 // =============================================================================
 #include "Common/Services/DnsResolver.h"
+#include "Common/Services/MonotonicClock.h"   // H4: 单调毫秒基准（与 DiagnosticBase/AppState 同源）
 
 #if defined(__APPLE__)
 #include <dispatch/dispatch.h>
@@ -12,7 +13,6 @@
 #include <chrono>
 #include <cstring>
 #include <limits>
-#include <QDateTime>
 #include <QDebug>
 #include <QHostAddress>
 #include <QAbstractSocket>
@@ -28,9 +28,14 @@
 #endif
 
 // ── 共用辅助（非 Apple std::thread 路径）──────────────────────────────
-// 5WHY (simplify 2026-08-17): resolve() 与 resolve6() 的轮询等待与线程收尾
-// 逻辑逐字重复（仅 AF_INET/AF_INET6 与超时变量名不同），抽出共用实现。
 namespace {
+
+// H4 (5WHY): 单调时钟——复用 MonotonicClock.h（DiagnosticBase/AppState 共用
+// 的进程级单调毫秒基准），不自造第二个时钟源。不受 NTP/手动校时影响，
+// 缓存 TTL 判定免疫系统时钟调整。
+inline qint64 monotonicMsNow() {
+    return monotonicMsSinceAppStart();
+}
 
 bool waitResolveDone(const std::atomic<bool>& done,
                      std::chrono::steady_clock::time_point start, int timeoutMs) {
@@ -169,7 +174,7 @@ QString DnsResolver::resolve(const QString& host, int timeoutMs) {
         auto it = m_cache.constFind(host);
         if (it != m_cache.constEnd()) {
             if (!it->ip.isEmpty()) return it->ip;
-            const qint64 age = QDateTime::currentMSecsSinceEpoch() - it->ts;
+            const qint64 age = monotonicMsNow() - it->ts;
             if (age < DnsResolver::kNegativeTtlMs) return {};
             // expired negative entry — fall through and re-resolve
         }
@@ -233,7 +238,7 @@ QString DnsResolver::resolve(const QString& host, int timeoutMs) {
     // every subsequent lookup for the same host.
     {
         QMutexLocker locker(&m_mutex);
-        m_cache[host] = {ipOut, QDateTime::currentMSecsSinceEpoch()};
+        m_cache[host] = {ipOut, monotonicMsNow()};
         pruneCache(m_cache);
     }
     // Drop the waiter's reference; last one out frees. On timeout the still-running
@@ -257,7 +262,7 @@ QString DnsResolver::resolve(const QString& host, int timeoutMs) {
         // 区分。改短窗口节流：回拨时间戳使条目 kSpawnFailTtlMs 后过期
         // （压力缓解后重查成功），同时避免资源耗尽期的线程创建风暴。
         QMutexLocker locker(&m_mutex);
-        const qint64 backdated = QDateTime::currentMSecsSinceEpoch()
+        const qint64 backdated = monotonicMsNow()
             - (DnsResolver::kNegativeTtlMs - DnsResolver::kSpawnFailTtlMs);
         m_cache[host] = {QString(), backdated};
         pruneCache(m_cache);
@@ -276,7 +281,7 @@ QString DnsResolver::resolve(const QString& host, int timeoutMs) {
     const bool done = finishLookup(st, t, std::chrono::steady_clock::now(), timeoutMs);
     {
         QMutexLocker locker(&m_mutex);
-        m_cache[host] = {done ? st->ip : QString(), QDateTime::currentMSecsSinceEpoch()};
+        m_cache[host] = {done ? st->ip : QString(), monotonicMsNow()};
         pruneCache(m_cache);
     }
     return done ? st->ip : QString();
@@ -293,7 +298,7 @@ QString DnsResolver::resolve6(const QString& host, int timeoutMs) {
         auto it = m_cache.constFind(k);
         if (it != m_cache.constEnd()) {
             if (!it->ip.isEmpty()) return it->ip;
-            if (QDateTime::currentMSecsSinceEpoch() - it->ts < DnsResolver::kNegativeTtlMs) return {};
+            if (monotonicMsNow() - it->ts < DnsResolver::kNegativeTtlMs) return {};
         }
     }
 
@@ -344,7 +349,7 @@ QString DnsResolver::resolve6(const QString& host, int timeoutMs) {
     }
     {
         QMutexLocker locker(&m_mutex);
-        m_cache[QStringLiteral("v6:") + host] = {ipOut, QDateTime::currentMSecsSinceEpoch()};
+        m_cache[QStringLiteral("v6:") + host] = {ipOut, monotonicMsNow()};
         pruneCache(m_cache);
     }
     if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
@@ -360,7 +365,7 @@ QString DnsResolver::resolve6(const QString& host, int timeoutMs) {
     if (!t.joinable()) {
         // 同 resolve()：EAGAIN 是本地瞬时问题，短窗口节流而非 30s 负缓存
         QMutexLocker locker(&m_mutex);
-        const qint64 backdated = QDateTime::currentMSecsSinceEpoch()
+        const qint64 backdated = monotonicMsNow()
             - (DnsResolver::kNegativeTtlMs - DnsResolver::kSpawnFailTtlMs);
         m_cache[QStringLiteral("v6:") + host] = {QString(), backdated};
         pruneCache(m_cache);
@@ -372,7 +377,7 @@ QString DnsResolver::resolve6(const QString& host, int timeoutMs) {
     const bool done = finishLookup(st, t, std::chrono::steady_clock::now(), timeoutMs);
     {
         QMutexLocker l(&m_mutex);
-        m_cache[QStringLiteral("v6:") + host] = {done ? st->ip : QString(), QDateTime::currentMSecsSinceEpoch()};
+        m_cache[QStringLiteral("v6:") + host] = {done ? st->ip : QString(), monotonicMsNow()};
         pruneCache(m_cache);
     }
     return done ? st->ip : QString();
@@ -394,7 +399,7 @@ QString DnsResolver::resolvePtr(const QString& ip, int timeoutMs) {
         auto it = m_cache.constFind(k);
         if (it != m_cache.constEnd()) {
             if (!it->ip.isEmpty()) return it->ip;
-            const qint64 age = QDateTime::currentMSecsSinceEpoch() - it->ts;
+            const qint64 age = monotonicMsNow() - it->ts;
             if (age < DnsResolver::kNegativeTtlMs) return {};
         }
     }
@@ -438,7 +443,7 @@ QString DnsResolver::resolvePtr(const QString& ip, int timeoutMs) {
     // PTR 只写正缓存（见函数头注释）：空结果不落表，慢 PTR 不被毒化
     if (!nameOut.isEmpty()) {
         QMutexLocker locker(&m_mutex);
-        m_cache[QStringLiteral("ptr:") + ip] = {nameOut, QDateTime::currentMSecsSinceEpoch()};
+        m_cache[QStringLiteral("ptr:") + ip] = {nameOut, monotonicMsNow()};
         pruneCache(m_cache);
     }
     if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
@@ -468,7 +473,7 @@ QString DnsResolver::resolvePtr(const QString& ip, int timeoutMs) {
     const bool done = finishLookup(st, t, std::chrono::steady_clock::now(), timeoutMs);
     if (done && !st->ip.isEmpty()) {
         QMutexLocker l(&m_mutex);
-        m_cache[QStringLiteral("ptr:") + ip] = {st->ip, QDateTime::currentMSecsSinceEpoch()};
+        m_cache[QStringLiteral("ptr:") + ip] = {st->ip, monotonicMsNow()};
         pruneCache(m_cache);
     }
     return done ? st->ip : QString();

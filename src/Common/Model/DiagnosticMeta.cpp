@@ -141,6 +141,15 @@ const DiagnosticMeta& diagnosticMeta(DiagId id) {
     const int idx = static_cast<int>(id);
     if (idx >= 0 && idx < static_cast<int>(std::size(kDiagMeta)))
         return kDiagMeta[idx];
+    // L4 (5WHY): 越界 ID 返回 kDiagMeta[0]（G1NetworkAdapters）——静默
+    // 返回错误元数据会导致 UI 显示错误图标/名称/超时。加警告日志，
+    // 开发期暴露枚举与元数据表的漂移。once 守卫：诊断循环逐 id 调用，
+    // 漂移时避免每次调用刷屏。
+    static bool s_warned = false;
+    if (!s_warned) {
+        s_warned = true;
+        qWarning("diagnosticMeta: DiagId %d out of range, returning G1NetworkAdapters fallback", idx);
+    }
     return kDiagMeta[0];
 }
 

@@ -8,6 +8,7 @@
 #include "Common/Model/OutputContract.h"
 #include "Common/Platform/DeviceCapability.h"
 #include "Common/Platform/PlatformFlags.h"
+#include "Common/Platform/PlatformCredentialStore.h"   // H2 (5WHY): 平台安全凭证存储
 #include "Common/Services/PlatformAdapter.h"
 #include "Common/Services/DnsResolver.h"   // 5WHY (2026-08-22 P1-3): 每轮 run 前清 DNS 缓存
 #include "Common/Utils/NarrativeLocalizer.h"   // 5WHY (2026-08-23): 剪贴板叙述与详情页同源本地化
@@ -31,9 +32,10 @@
 #include <QNetworkInterface>
 #include <QSettings>
 #include <QStandardPaths>
+#include <QSaveFile>
 #include <QUrl>
 #include <QVector>
-#include <QtConcurrent/QtConcurrent>
+#include <QThreadPool>
 
 #if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
 #include "Common/Platform/PlatformShare.h"   // 移动端系统分享单
@@ -171,10 +173,34 @@ void AppState::persistResults() {
         o[QStringLiteral("data")] = QJsonObject::fromVariantMap(dataMap);
         arr.append(o);
     }
-    QDir().mkpath(QFileInfo(resultsCachePath()).absolutePath());
-    QFile f(resultsCachePath());
-    if (f.open(QIODevice::WriteOnly | QIODevice::Truncate))
-        f.write(QJsonDocument(arr).toJson(QJsonDocument::Compact));
+    // M2 (5WHY): 原代码直接写目标文件——写入中途崩溃（SIGKILL/断电）
+    // 导致 JSON 截断，loadCachedResults() 读到残缺数据。原子写入：
+    // 先写临时文件，成功后 rename 覆盖（POSIX rename 是原子操作）。
+    // 5WHY (2026-09-04 修正复核): 手写 temp+rename 三处缺陷——
+    //   · QFile::rename 文档契约是"目标已存在则返回 false"（Qt 文档
+    //     explicit 声明不覆盖），第二次及以后 persist 可能静默失败；
+    //   · 无 fsync——rename 原子性不保证数据落盘，断电仍可能得到
+    //     零长/旧内容文件，"防断电"目标落空；
+    //   · 错误路径 f.remove() 在文件仍打开时调用，Windows 上失败。
+    // 改用 QSaveFile：同目录临时文件 + commit() 原子替换（跨平台允许
+    // 覆盖已存在目标）+ flush/fsync 保证持久性，cancelWriting 清理。
+    const QString dir = QFileInfo(resultsCachePath()).absolutePath();
+    if (!QDir().mkpath(dir)) {
+        qWarning("persistResults: failed to create directory %s", qPrintable(dir));
+        return;
+    }
+    QSaveFile f(resultsCachePath());
+    if (!f.open(QIODevice::WriteOnly)) {
+        qWarning("persistResults: failed to open temp file for %s",
+                 qPrintable(resultsCachePath()));
+        return;
+    }
+    const QByteArray data = QJsonDocument(arr).toJson(QJsonDocument::Compact);
+    if (f.write(data) != data.size() || !f.commit()) {
+        qWarning("persistResults: incomplete write or failed commit to %s",
+                 qPrintable(resultsCachePath()));
+        f.cancelWriting();
+    }
 }
 
 QString AppState::redactCredentials(const QString& text) const {
@@ -291,6 +317,7 @@ void AppState::setTargetCredentials(const QString& user, const QString& password
         m_targetUser = u;
         m_targetPassword = p;
         m_targetPort = pt;
+        persistCredentials();   // H2: 凭证实际变更时才写安全存储
         savePreferences();
         bumpState();
         emit targetChanged();
@@ -1017,11 +1044,24 @@ bool AppState::isGroupAllEnabled(int groupInt) const {
 // 判定→Running 全在点击处理器栈内）。改为后台刷新 + Run 时零阻塞读
 // std::atomic 缓存；QNetworkInterface/CNCopy 均为线程安全 C API。
 void AppState::refreshConnectivityAsync() {
-    QtConcurrent::run([this] {
+    // H1 (5WHY): QPointer 防止对象销毁后 lambda 仍访问 this。
+    // isOnWifi()/hasCellularUp() 均为无副作用的纯查询，析构后跳过
+    // 不影响正确性（缓存值已是最终状态）。
+    QPointer<AppState> guard(this);
+    // 5WHY (2026-09-04 修正复核): "检查后解引用"是 TOCTOU——worker 通过
+    // guard 检查后、写入前对象仍可能被析构。isOnWifi/hasCellularUp 是
+    // 自由函数（不触 this），故 worker 只做纯查询；写回经 invokeMethod
+    // 队列化到主线程并以 guard 为上下文——AppState 析构时挂起调用自动
+    // 丢弃，窗口彻底消除。QThreadPool::start 无 QFuture 返回值，无需
+    // Q_UNUSED 哑变量。
+    QThreadPool::globalInstance()->start([guard] {
+        if (!guard) return;
         const bool w = isOnWifi();
         const bool c = hasCellularUp();
-        m_wifiUp.store(w, std::memory_order_release);
-        m_cellularUp.store(c, std::memory_order_release);
+        QMetaObject::invokeMethod(guard, [guard, w, c] {
+            guard->m_wifiUp.store(w, std::memory_order_release);
+            guard->m_cellularUp.store(c, std::memory_order_release);
+        }, Qt::QueuedConnection);
     });
 }
 bool AppState::isGroupAnyEnabled(int groupInt) const {
@@ -1048,8 +1088,33 @@ void AppState::loadPreferences() {
     // ThemeEngine.isDark 推导生效。
     m_themeMode = s.value(QStringLiteral("themeMode"), 0).toInt();
     m_targetUser = s.value(QStringLiteral("targetUser")).toString();
-    m_targetPassword = s.value(QStringLiteral("targetPassword")).toString();
+    // H2 (5WHY): 密码从平台安全存储读取——QSettings 明文存储已不安全。
+    // platformCredentialLoad 失败时返回空串（首次运行或迁移期正常）。
+    m_targetPassword = platformCredentialLoad(QStringLiteral("targetPassword"));
+    // 5WHY (2026-09-04 修正复核): 旧版用户密码仍在 QSettings 明文键中——
+    // 仅改读安全存储会 (a) 升级后静默丢失已存密码（SSH/FTP 认证失败），
+    // (b) 明文副本永远留在磁盘上，安全目标对存量安装落空。一次性迁移：
+    // 安全存储为空时回退读取旧明文 → 写入安全存储 → 删除明文键。
+    if (m_targetPassword.isEmpty()) {
+        const QString legacy = s.value(QStringLiteral("targetPassword")).toString();
+        if (!legacy.isEmpty()) {
+            m_targetPassword = legacy;
+            if (platformCredentialSave(QStringLiteral("targetPassword"), legacy))
+                s.remove(QStringLiteral("targetPassword"));
+            else
+                qWarning("loadPreferences: credential-store migration failed, "
+                         "keeping legacy QSettings entry");
+        }
+    } else if (s.contains(QStringLiteral("targetPassword"))) {
+        // 5WHY (2026-09-04 修正复核): 安全存储已持密码时，QSettings 里的
+        // 明文键只能是旧版残留或迁移失败残留——立即清除。否则用户之后
+        // 清除密码（存储清空）时，迁移回退会把已清除/已更换的旧密码复活。
+        s.remove(QStringLiteral("targetPassword"));
+    }
     m_targetPort = s.value(QStringLiteral("targetPort")).toString();
+    // 5WHY (2026-09-04 修正复核): 显式 sync——迁移分支的明文键删除只依赖
+    // 析构期 flush 的话，保存成功到落盘之间存在崩溃窗口（明文残留）。
+    s.sync();
     s.endGroup();
 }
 
@@ -1067,8 +1132,29 @@ void AppState::savePreferences() {
     // 写入版本号很便宜；读取端容缺（缺省 0 = 旧版无版本）。
     s.setValue(QStringLiteral("schemaVersion"), 1);
     s.setValue(QStringLiteral("targetUser"), m_targetUser);
-    s.setValue(QStringLiteral("targetPassword"), m_targetPassword);
+    // H2 (5WHY): 密码不在此落盘——savePreferences 被主题/语言/组开关等
+    // 高频调用，逐次写 Keychain/DPAPI 是纯浪费。密码持久化收敛到
+    // persistCredentials()（setTargetCredentials 变更时调用）。
     s.setValue(QStringLiteral("targetPort"), m_targetPort);
+    s.endGroup();
+}
+
+// H2 (5WHY): 密码持久化单一出口——只写平台安全存储（DPAPI/Keychain/机器
+// 绑定），空密码 = 删除条目而非存空值（Windows 就地覆盖失败时旧密文残留
+// 会复活旧密码）。成功后清除 QSettings 遗留明文键，防止 loadPreferences
+// 的迁移回退复活已清除/已更换的密码。
+void AppState::persistCredentials() {
+    const bool ok = m_targetPassword.isEmpty()
+        ? platformCredentialRemove(QStringLiteral("targetPassword"))
+        : platformCredentialSave(QStringLiteral("targetPassword"), m_targetPassword);
+    if (!ok) {
+        qWarning("persistCredentials: failed to persist password to credential store");
+        return;
+    }
+    QSettings s;
+    s.beginGroup(QStringLiteral("AppSettings"));
+    if (s.contains(QStringLiteral("targetPassword")))
+        s.remove(QStringLiteral("targetPassword"));
     s.endGroup();
 }
 

@@ -91,7 +91,7 @@ const char* selftestSchemeFor(DiagId id) {
     }
 }
 
-int runSelftest() {
+int runSelftest(bool verifyOk) {
     // GUI 子系统下 stdout 全缓冲：崩溃时日志会丢。selftest 改为行缓冲，
     // 保证每条结果实时落盘（也便于定位崩溃点）。
     std::setvbuf(stdout, nullptr, _IOLBF, 0);
@@ -150,7 +150,7 @@ int runSelftest() {
     }
 
     std::printf("selftest: %d results, verify=%s, contract=%s\n", total,
-                AdapterRegistry::verifyAllDiagIds() ? "PASS" : "GAPS",
+                verifyOk ? "PASS" : "GAPS",
                 contractViolations == 0 ? "PASS" : "VIOLATIONS");
     return (total > 0 && contractViolations == 0) ? 0 : 1;
 }
@@ -215,14 +215,17 @@ int main(int argc, char* argv[]) {
 
     // ── Contract/execution layer bootstrap (DIAG-2/A1, NEW-16) ────────────
     registerAllAdapters();
-    enforceStartupInvariant(AdapterRegistry::verifyAllDiagIds());
+    // L1 (5WHY): verifyAllDiagIds() 在 selftest 路径被调用两次——line 218
+    // 一次、runSelftest() 内一次。存储首次结果，selftest 复用。
+    const bool verifyOk = AdapterRegistry::verifyAllDiagIds();
+    enforceStartupInvariant(verifyOk);
 
     if (parser.isSet(selftestOption)
 #if defined(ND_TESTING)
         || parser.isSet(testOption)
 #endif
         )
-        return runSelftest();
+        return runSelftest(verifyOk);
 
     // ── 单实例锁：Windows 命名互斥量；Linux/macOS QLockFile ─────────────
 #if defined(_WIN32)

@@ -23,9 +23,11 @@ DiagnosticBase::DiagnosticBase(
 }
 
 DiagnosticBase::~DiagnosticBase() {
-    delete m_watcher;
-    delete m_watchdog;
-    delete m_abortGrace;
+    // M3 (5WHY): m_watcher/m_watchdog/m_abortGrace 均以 this 为 parent 创建
+    // （new QTimer(this), new QFutureWatcher<DiagnosticResult>(this)），
+    // Qt 父子关系在 QObject 析构时自动 delete 子对象。显式 delete
+    // 与 Qt 自动管理冲突——如果有人移除 parent 参数，double-delete 风险出现。
+    // 删除显式 delete，统一由 Qt 管理生命周期。
 }
 
 bool DiagnosticBase::runnable(DiagId id, const QString& schemeLower) {

@@ -72,6 +72,14 @@ QtObject {
         "badge-skip",  "badge-error",   "badge-info",
         "close"                                 // DiagStatus::Cancelled=6（DiagId.h 同映射）
     ]
+    // M8 (5WHY): statusColors/statusIconNames 按枚举序维护——修改一个数组
+    // 而忘记另一个会导致 Repeater 消费方索引错位（颜色与图标不匹配）。
+    // Component.onCompleted 时长度断言在开发期暴露漂移。
+    Component.onCompleted: {
+        if (statusColors.length !== statusIconNames.length)
+            console.warn("ThemeEngine: statusColors.length(" + statusColors.length
+                         + ") !== statusIconNames.length(" + statusIconNames.length + ")")
+    }
     // 5WHY (复核 2026-08-18 五表漂移): 状态展示顺序/计数键/标签键曾同时维护在
     // StatusBadgeCluster（7 行字面量）与 DashboardSummaryComp（7 行表）——
     // 加 Cancelled 时两处都改过且顺序相同纯属巧合。此处为单一来源，两个

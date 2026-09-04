@@ -22,6 +22,10 @@ static constexpr unsigned kCurrentPlatformFlag = PlatformFlag::PF_Desktop;
 // ── Meyer's singleton storage (DIAG-2: initialization-order safe) ─────────
 struct AdapterRegistry::Impl {
     QMap<DiagId, QVector<PlatformAdapter>> byId;
+    // M1 (5WHY): byId 无互斥锁保护——当前安全（只在 main() 单线程调用），
+    // 但 API 无强制约束。加注册完成标记：verifyAllDiagIds() 调用后锁定，
+    // 后续 registerAdapters() 调用触发断言（开发期暴露并发注册）。
+    bool locked = false;
 };
 AdapterRegistry::Impl& AdapterRegistry::impl() {
     static Impl s_impl;   // function-local static — no SIOF
@@ -29,11 +33,12 @@ AdapterRegistry::Impl& AdapterRegistry::impl() {
 }
 
 void AdapterRegistry::registerAdapters(DiagId id, std::initializer_list<PlatformAdapter> adapters) {
-    auto& v = impl().byId[id];
-    for (const auto& a : adapters) v.append(a);
+    // 委托 QVector 重载：Q_ASSERT 与追加逻辑单一来源（5WHY simplify）。
+    registerAdapters(id, QVector<PlatformAdapter>(adapters.begin(), adapters.end()));
 }
 
 void AdapterRegistry::registerAdapters(DiagId id, const QVector<PlatformAdapter>& adapters) {
+    Q_ASSERT(!impl().locked);   // M1: 注册必须在 verifyAllDiagIds() 之前完成
     auto& v = impl().byId[id];
     v += adapters;
 }
@@ -88,5 +93,7 @@ bool AdapterRegistry::verifyAllDiagIds() {
         Logger::instance().event(
             QStringLiteral("verifyAllDiagIds: registry overrode meta.platforms for %1 diag(s)")
                 .arg(overridden));
+    // M1: 锁定注册表——此后 registerAdapters() 调用触发断言
+    impl().locked = true;
     return ok;
 }
