@@ -57,6 +57,17 @@ QtObject {
             systemScheme = Qt.styleHints.colorScheme
             Qt.styleHints.colorSchemeChanged.connect(function (cs) { systemScheme = cs })
         }
+        // M8 (5WHY): statusColors/statusIconNames 按枚举序维护——修改一个数组
+        // 而忘记另一个会导致 Repeater 消费方索引错位（颜色与图标不匹配）。
+        // 完成时长度断言在开发期暴露漂移。
+        // 5WHY (2026-09-04 iOS 启动闪退): 此断言曾作为第二个
+        // Component.onCompleted 独立声明——同一对象重复信号处理器在
+        // Qt 6.8 编译型 QML（iOS 静态构建 qmlcachegen）下是致命编译错误
+        // （"Property value set multiple times" → ThemeEngine 加载失败 →
+        // 通用崩溃链 → 闪退）。同一信号只允许一个处理器，断言并入此处。
+        if (statusColors.length !== statusIconNames.length)
+            console.warn("ThemeEngine: statusColors.length(" + statusColors.length
+                         + ") !== statusIconNames.length(" + statusIconNames.length + ")")
     }
 
     readonly property var statusColors: [
@@ -72,14 +83,6 @@ QtObject {
         "badge-skip",  "badge-error",   "badge-info",
         "close"                                 // DiagStatus::Cancelled=6（DiagId.h 同映射）
     ]
-    // M8 (5WHY): statusColors/statusIconNames 按枚举序维护——修改一个数组
-    // 而忘记另一个会导致 Repeater 消费方索引错位（颜色与图标不匹配）。
-    // Component.onCompleted 时长度断言在开发期暴露漂移。
-    Component.onCompleted: {
-        if (statusColors.length !== statusIconNames.length)
-            console.warn("ThemeEngine: statusColors.length(" + statusColors.length
-                         + ") !== statusIconNames.length(" + statusIconNames.length + ")")
-    }
     // 5WHY (复核 2026-08-18 五表漂移): 状态展示顺序/计数键/标签键曾同时维护在
     // StatusBadgeCluster（7 行字面量）与 DashboardSummaryComp（7 行表）——
     // 加 Cancelled 时两处都改过且顺序相同纯属巧合。此处为单一来源，两个

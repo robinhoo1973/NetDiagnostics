@@ -2,7 +2,7 @@
 
 > **从 GitHub 提交历史中所有 iOS/启动闪退修复中提炼的系统性分析**
 > 覆盖 30+ 个修复提交，横跨 QML / C++ / CMake / QRC / Qt 静态构建领域
-> 最后更新：2026-08-05
+> 最后更新：2026-09-04
 
 ---
 
@@ -19,8 +19,9 @@
 9. [Category H：文本污染与编码破坏 — 1 次修复](#category-h-文本污染与编码破坏)
 10. [Category I：QtObject 无 default property — 1 次修复](#category-i-qtobject-无-default-property)
 11. [Category J：QML 文件结构性损坏 — 构建时验证缺失（2026-08-05 最新）](#category-jqml-文件结构性损坏--构建时验证缺失)
-12. [提交前自检清单（完整版）](#10-提交前自检清单完整版)
-13. [附录：全部相关提交索引](#11-附录全部相关提交索引)
+12. [Category K：同一对象重复信号处理器 — 1 次修复（2026-09-04）](#category-k同一对象重复信号处理器)
+13. [提交前自检清单（完整版）](#10-提交前自检清单完整版)
+14. [附录：全部相关提交索引](#11-附录全部相关提交索引)
 
 ---
 
@@ -749,6 +750,61 @@ QtObject {
 
 ---
 
+## Category K：同一对象重复信号处理器
+
+> **1 次修复（2026-09-04）**。qmllint 零告警放行，qmlcachegen / 加载期类型编译器致命拒绝。桌面与 iOS 同崩——属"全平台崩溃，iOS 最先被报告"。
+
+### K.1 ThemeEngine.qml 声明两个 Component.onCompleted
+
+- **提交**: (当前修复) — `fix(ios): ThemeEngine 重复 Component.onCompleted 合并 + pre-commit qmlcachegen AOT 闸门 (5WHY)`
+- **引入提交**: `a627cfe6`（M8 状态色枚举序同步——以"新增独立 onCompleted"实现长度断言）
+- **复现命令**: `QT_QPA_PLATFORM=offscreen ./net_diagnostics` →
+  `QQmlApplicationEngine failed to load component` →
+  `ThemeEngine.qml:78:5: Property value set multiple times`
+
+**5WHY 分析**:
+
+| Why | 回答 |
+|-----|------|
+| **Why 1:** iOS 为什么闪退？ | `engine.load(main.qml)` 失败 → rootObjects 空 → `objectCreationFailed` → `QCoreApplication::exit(-1)`（`app.exec()` 之前）——通用崩溃链 |
+| **Why 2:** 为什么加载失败？ | 级联类型解析失败：AppContent → DiagnosticScreen → PageDisplay → T（TranslationsProxy）→ **ThemeEngine** |
+| **Why 3:** 为什么 ThemeEngine 不可用？ | `ThemeEngine.qml:78:5: Property value set multiple times`——同一 QtObject 声明了两个 `Component.onCompleted`（48 行原有 + 78 行 M8 新增） |
+| **Why 4:** 为什么重复处理器是致命的？ | Qt 6.8 起 QML 加载期类型编译（iOS 静态构建 = qmlcachegen AOT；桌面同样执行）把每个信号处理器视为对同一 attached 属性的**单次赋值**——重复赋值是编译错误，不再有解释器时代的"后者覆盖"容错 |
+| **Why 5:** 为什么 29 项 pre-commit 检查全部漏过？ | (a) **qmllint 6.8.2 对重复 `Component.onCompleted` 零告警放行（RC=0）**——check 21 全绿；(b) 检查体系里没有 AOT 编译闸门——历史检查都是 grep 反模式 + qmllint，从未引入 qmlcachegen；(c) M8 修改者（含 AI 复核）未注意到既有 handler，以"新增独立块"而非"并入既有块"实现断言；(d) 提交后桌面构建未运行——桌面 6.8.2 加载期同样拒绝（offscreen 实测同崩），若跑了桌面就能立即发现 |
+
+**根因**: 违反 Qt 6.8 编译型 QML 的硬规则——**同一对象同一信号只允许一个处理器**。qmllint 覆盖不到这一层，唯一权威闸门是实际编译该文件的 AOT 编译器（qmlcachegen）。
+
+```qml
+// ❌ 错误 — 同一对象两个 Component.onCompleted
+QtObject {
+    Component.onCompleted: { init() }    // ← 第一个
+    // ...
+    Component.onCompleted: { assert() }  // ← 第二个：qmlcachegen error:
+                                         //   "Property value set multiple times"
+}
+
+// ✅ 正确 — 单一 handler，初始化逻辑合并
+QtObject {
+    Component.onCompleted: {
+        init()
+        assert()
+    }
+}
+```
+
+**修复**: M8 断言并入既有 `Component.onCompleted` 块（`ThemeEngine.qml:48`），独立第二个块删除。语义不变（onCompleted 在全部属性初始化后执行，断言引用 statusColors/statusIconNames 安全）。
+
+**预防（已实施）**: pre-commit **check 21b（qmlcachegen AOT 闸门）**——对每个 staged .qml 以 `qmlcachegen --bare -I src/Common/View` 运行（全库 90 文件实证通过的最小标志集），非零即 FAIL。验证矩阵：
+
+| 输入 | qmllint | qmlcachegen | pre-commit 21b |
+|------|:---:|:---:|:---:|
+| buggy（两个 onCompleted） | RC=0 放行 | RC=1 拦截（错误与运行时逐字一致） | FAIL |
+| fixed（合并） | RC=0 | RC=0 | PASS |
+
+**检测方法**: 全库 `qmlcachegen --bare -I src/Common/View <每个 .qml>`——qmllint 通过不代表 AOT 可编译，两者必须双闸门。
+
+---
+
 ## 10. 提交前自检清单（完整版）
 
 > **每次 `git commit` 前必须逐项检查。任何 FAIL 必须修复后才能提交。**
@@ -769,6 +825,8 @@ QtObject {
 - [ ] **相对 import 路径正确**: 从 QRC 路径计算层级，标准模式 `../theme`（一层）、`../widgets`（一层）。禁止 `../../`
 - [ ] **QML 文件结构完整**: 每个 `.qml` 文件的第一行非空/非注释内容必须是有效 QML 结构（`pragma Singleton`、`import` 或根类型如 `Item {`）。自动化脚本的输出不得通过此项检查
 - [ ] **qmllint 零错误**: `qmllint *.qml` 通过（pre-commit check 21 自动执行）
+- [ ] **qmlcachegen AOT 零错误**: 每个 staged .qml 过 `qmlcachegen --bare -I src/Common/View`（pre-commit check 21b 自动执行）——qmllint 通过不代表 AOT 可编译（2026-09-04 教训：重复 `Component.onCompleted` qmllint 放行、AOT 致命）
+- [ ] **同一对象无重复信号处理器**: 每对象每信号（含 `Component.onCompleted`）最多一个 handler——追加初始化逻辑必须并入既有 handler
 
 #### QML 急切编译安全
 - [ ] **无内联 Component 引用平台特定类型**: 使用 `Loader { source: "qrc:/..." }` 替代 `Component { Type {...} }` 来引用含平台特定 import 的 QML
@@ -836,6 +894,9 @@ QtObject {
 | **G** CMake 条件 | `f994f78` | elseif(IOS) 守卫 |
 | **G** CMake 条件 | `9f00cd3` | 跨平台 stub 守卫 |
 | **H** 文本污染 | `22da564` | d→i 污染清理 75+ 处 |
+| **I** QtObject 子元素 | (2026-07-30) | Timer 子元素 → Qt.callLater() |
+| **J** QML 结构损坏 | (2026-08-05) | Translations.qml 被脚本输出替换 |
+| **K** 重复信号处理器 | (2026-09-04) | ThemeEngine 两个 Component.onCompleted → 合并 + qmlcachegen 闸门 |
 
 ### 崩溃类型统计
 
@@ -849,6 +910,7 @@ QtObject {
 | 缺失模块/静默失败 | 2 | 7% |
 | CMake 平台条件 | 2 | 7% |
 | 文本污染 | 1（75+处） | 3% |
+| 同一对象重复信号处理器 | 1 | 3% |
 | 其他（CI/构建配置等） | 4 | 13% |
 
 ### 频率最高的预防检查项

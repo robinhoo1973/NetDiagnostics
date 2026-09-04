@@ -647,6 +647,44 @@ fi
 	    echo "  (no staged QML files)"
 	fi
 
+	# ── 21b. QML AOT compiler gate (qmlcachegen) ────────────────────────────────
+	# 5WHY (CRASH-2026-09-04): ThemeEngine.qml 同一 QtObject 上声明了两个
+	# Component.onCompleted（M8 断言误加第二个 handler）——qmllint 6.8.2
+	# 对此零告警放行（check 21 全绿），但 Qt 6.8 编译型 QML 在加载期拒绝
+	# "Property value set multiple times" → ThemeEngine 不可用 → T 不可用 →
+	# PageDisplay → DiagnosticScreen → AppContent 级联不可用 → main.qml
+	# rootObjects=0 → 通用崩溃链 → iOS 闪退（桌面同崩，offscreen 复现）。
+	# qmlcachegen 是 iOS 静态构建实际使用的 AOT 编译器——对 buggy 文件
+	# exit 1（错误与运行时逐字一致），fixed 文件 exit 0。qmllint 漏检的
+	# 编译期错误由本闸门兜底。
+	echo ""
+	echo "── 21b. QML AOT compile (qmlcachegen) ──"
+	if [ -n "$QML_FILES" ]; then
+	    QMLCACHEGEN=""
+	    for candidate in /usr/lib/qt6/libexec/qmlcachegen /usr/libexec/qt6/libexec/qmlcachegen \
+	                    /usr/bin/qmlcachegen /opt/homebrew/bin/qmlcachegen \
+	                    "$(which qmlcachegen 2>/dev/null || true)"; do
+	        if [ -x "$candidate" ]; then QMLCACHEGEN="$candidate"; break; fi
+	    done
+	    if [ -n "$QMLCACHEGEN" ]; then
+	        for f in $QML_FILES; do
+	            # --bare + -I src/Common/View：全库 90 文件实证通过的最小
+	            # 标志集（qmldir 模块经 -I 解析，QtQuick 等系统模块不受影响）。
+	            if "$QMLCACHEGEN" --bare -I "$ROOT/src/Common/View" "$ROOT/$f" \
+	                    > /tmp/precommit-qmlcachegen.log 2>&1; then
+	                pass "$f (AOT OK)"
+	            else
+	                fail "$f: qmlcachegen (iOS AOT compiler) rejected:"
+	                cat /tmp/precommit-qmlcachegen.log | while read -r line; do echo "       $line"; done
+	            fi
+	        done
+	    else
+	        warn "qmlcachegen not found — skipping AOT gate (qmllint-only coverage)"
+	    fi
+	else
+	    echo "  (no staged QML files)"
+	fi
+
 	# ── 22. Objective-C brace balance (PlatformStore.mm class of bug) ──────────
 	# 5WHY (macOS b21294): 74ad64b0 refactored paymentQueueRestoreCompleted-
 	# TransactionsFinished in macOS/PlatformStore.mm and left an orphaned `}`
