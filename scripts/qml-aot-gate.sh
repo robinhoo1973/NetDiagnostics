@@ -34,8 +34,11 @@ if [ -z "$QMLCACHEGEN" ]; then
 fi
 # CI 兜底：确定性 aqt 布局（/Users/runner/qt-desktop/<ver>/clang_64/bin）之外
 # 的版本升级期，find 全树兜底一次（dev 机器无此路径，开销为零）。
+# 5WHY (2026-09-05): -name qmlcachegen 会命中 qmlcachegen.dSYM 内的 DWARF
+# 调试副本（readdir 顺序不定）→ 误选不可执行路径。排除 *.dSYM/*。
 if [ -z "$QMLCACHEGEN" ]; then
-    QMLCACHEGEN=$(find /Users/runner/qt-desktop -type f -name qmlcachegen 2>/dev/null | head -1)
+    QMLCACHEGEN=$(find /Users/runner/qt-desktop -type f -name qmlcachegen \
+        -not -path '*.dSYM/*' 2>/dev/null | head -1)
 fi
 if [ -z "$QMLCACHEGEN" ]; then
     exit 2
