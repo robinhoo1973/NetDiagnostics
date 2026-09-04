@@ -88,19 +88,15 @@ jobs:
           IOS_TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
 
   # ── 启动闪退双闸门（两个 TestFlight 上传的前置门禁）──
-  # Gate 1: qmlcachegen AOT 全量 QML（iOS 同版本 6.8.3 编译器，确定性）
-  # Gate 2: macOS 产物 offscreen 启动烟测（iOS device-only 二进制无法在 CI
-  #         运行——模拟器需 iphonesimulator SDK 构建，aqt 不提供，另行构建
-  #         工具链成本过高；macOS 与 iOS 共享同一份 QML 层，2026-09-04
-  #         桌面与 iOS 同崩已实证共享性）
+  # 双闸门细节见 .github/actions/ios-startup-smoke 头注释：
+  #   Gate 1（qmlcachegen AOT 全量 QML）已内置于 build-ios（与出货 kit 同版本）；
+  #   本 job 为 Gate 2（macOS 产物 offscreen 启动烟测，macOS 与 iOS 共享 QML 层）。
   # 任一闸门 FAIL → 两个上传全部阻断（fail-closed：无启动证据不上传）。
-  # Gate 2 跑的就是 macOS 产物本身——烟测失败即 macOS 二进制启动即崩，
-  # macOS 上传同样被阻断。
   startup-smoke:
-    name: Startup Smoke Gate (AOT + macOS runtime)
+    name: Startup Smoke Gate (macOS runtime)
     needs: [macos-build]
     runs-on: macos-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/ios-startup-smoke

@@ -794,7 +794,7 @@ QtObject {
 
 **修复**: M8 断言并入既有 `Component.onCompleted` 块（`ThemeEngine.qml:48`），独立第二个块删除。语义不变（onCompleted 在全部属性初始化后执行，断言引用 statusColors/statusIconNames 安全）。
 
-**预防（已实施）**: pre-commit **check 21b（qmlcachegen AOT 闸门）**——对每个 staged .qml 以 `qmlcachegen --bare -I src/Common/View` 运行（全库 90 文件实证通过的最小标志集），非零即 FAIL。验证矩阵：
+**预防（已实施）**: 三层闸门——pre-commit **check 21b（qmlcachegen AOT 闸门）**对每个 staged .qml 以 `qmlcachegen --bare -I src/Common/View` 运行（全库 90 文件实证通过的最小标志集），非零即 FAIL；**CI 双闸门**（TestFlight 上传前置）：Gate 1 = build-ios 内 qmlcachegen 全量 QML（与出货 kit 同版本，确定性、版本钉死），Gate 2 = macOS 产物 offscreen 运行时烟测（iOS 二进制 device-only 无法在 CI 运行，macOS 与 iOS 共享 QML 层，2026-09-04 桌面同崩已实证）。标志集/工具发现单一来源：`scripts/qml-aot-gate.sh`（pre-commit 与 CI 共用，`-o /dev/null` 不落 `.qmlc`，并行编译）。验证矩阵：
 
 | 输入 | qmllint | qmlcachegen | pre-commit 21b |
 |------|:---:|:---:|:---:|

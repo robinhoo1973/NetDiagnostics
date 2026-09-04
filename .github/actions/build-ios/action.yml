@@ -74,6 +74,20 @@ runs:
       shell: bash
       run: ninja -v -C build net_diagnostics
 
+    # ── Gate 1: QML AOT 闸门（启动闪退双闸门之一）────────────────────────
+    # 5WHY (simplify 2026-09-04): 原在 startup-smoke 独立 job 内重复安装
+    # qt-desktop kit 并双份维护 qmlcachegen 调用——本 job 已安装同款
+    # qt-desktop（QT_HOST_PATH），闸门移至此处与出货构建链同 kit 同版本，
+    # 且 ios-upload 经 needs: ios-build 天然被闸门阻断。脚本单一来源：
+    # scripts/qml-aot-gate.sh（与 pre-commit check 21b 同标志集）。
+    - name: Gate 1 — QML AOT compile (qmlcachegen, all QML)
+      shell: bash
+      env:
+        QMLCACHEGEN: /Users/runner/qt-desktop/6.8.3/clang_64/bin/qmlcachegen
+      run: |
+        set -euo pipefail
+        bash scripts/qml-aot-gate.sh $(find src -name '*.qml' | sort)
+
     - name: Verify Xcode build
       shell: bash
       run: |

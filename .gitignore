@@ -61,6 +61,7 @@ scripts/*
 !scripts/ios/
 !scripts/installer/
 !scripts/pre-commit
+!scripts/qml-aot-gate.sh
 !scripts/palette_common.py
 !scripts/ci-http-server.py
 !scripts/install-hooks
