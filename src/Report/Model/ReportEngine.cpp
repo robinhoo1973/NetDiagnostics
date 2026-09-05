@@ -3,6 +3,7 @@
 // =============================================================================
 #include "Report/Model/ReportEngine.h"
 #include "Common/Utils/AppColors.h"   // 报告状态色（与 Palette.js 同步）
+#include "Common/Utils/AtomicWriteFile.h"   // 5WHY (2026-09-05): 报告导出原子写
 #include "Common/Utils/NarrativeLocalizer.h"   // 5WHY (2026-08-23): 报告叙述与详情页同表同键本地化
 #include "Common/Services/Logger.h"
 #include "Diagnostics/Model/GHelpers.h"   // propsDumpText（报告体派生与终端同源）
@@ -894,14 +895,15 @@ QImage ReportEngine::renderHtmlToImage(const QString& html, int width) {
 
 QString ReportEngine::exportHtml(const QString& filePath, const QString& html) {
     const QString path = normalizeReportPath(filePath);
-    QFile f(path);
-    if (!f.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        Logger::instance().event(QStringLiteral("exportHtml: cannot open %1").arg(path));
+    // 5WHY (2026-09-05 半截报告): 曾手写 QFile open(WriteOnly|Text)+write——
+    // 磁盘满/崩溃/强杀会把目标文件截断成半份报告，而 exportPdf 的
+    // QFile::exists 判据把半份当成功交付。与 persistResults/platformCredential
+    // Save 同门收敛到 AtomicWriteFile（QSaveFile 提交式全有或全无，失败时
+    // 旧文件完好）。
+    if (!atomicWriteFile(path, html.toUtf8())) {
+        Logger::instance().event(QStringLiteral("exportHtml: atomic write failed for %1").arg(path));
         return QString();
     }
-    QTextStream ts(&f);
-    ts << html;
-    f.close();
     return path;
 }
 
