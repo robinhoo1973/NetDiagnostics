@@ -180,9 +180,12 @@ QByteArray IconProvider::tintedXml(const QString& name, const Meta& meta,
     // 5) 柔填充 #777777
     xml.replace("#777777", kPhSoft);
     // 6) 固定多色 #B0000n（列表长度即槽位数量；超出部分保持字面）
-    for (int i = 0; i < fixed.size(); ++i) {
-        const QString slot = QStringLiteral("#B0000%1").arg(i + 1);
-        xml.replace(slot.toLatin1(), kPhFixed + QByteArray::number(i + 1));
+    // 5WHY (2026-09-05 复核): 与阶段 2 同门降序——"#B00001" 是 "#B000010"
+    // （槽 10）的前缀，升序会先吞高槽哨兵；降序高位先落位，槽位任意多
+    // 也不互相覆盖。
+    for (int i = fixed.size(); i >= 1; --i) {
+        const QString slot = QStringLiteral("#B0000%1").arg(i);
+        xml.replace(slot.toLatin1(), kPhFixed + QByteArray::number(i));
     }
 
     // ── 阶段 2：占位符 → 最终配色（缺元数据保持字面哨兵=确定回退）──

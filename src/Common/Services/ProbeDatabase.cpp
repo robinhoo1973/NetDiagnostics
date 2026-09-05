@@ -10,6 +10,7 @@ void ProbeDatabase::upsert(const QString& key, int rounds) {
     if (it == m_table.end()) {
         ProbeDatabase::Task t;
         t.key = key; t.rounds = rounds; t.status = ProbeDatabase::Task::Waiting;
+        t.generation = m_generation;   // 清表代际烙入（writeResults 防串轮写）
         m_table.insert(key, t);
         m_condition.wakeAll();   // 唤醒空闲等待的执行器
         return;
@@ -51,11 +52,16 @@ QVector<ProbeDatabase::Task> ProbeDatabase::fetchWaiting(int maxCount) {
 
 void ProbeDatabase::writeResults(const QString& key, const QVector<double>& results,
                                  const QString& country, const QStringList& regionTags,
-                                 bool forceDone) {
+                                 bool forceDone, qint64 taskGeneration) {
     QMutexLocker lock(&m_mutex);
     auto it = m_table.find(key);
     if (it == m_table.end()) return;
     ProbeDatabase::Task& t = it.value();
+    // 5WHY (2026-09-05 清表代际 串轮防护): clear() 后新一轮 upsert 会以同键
+    // 重建任务——上一轮迟到的 worker（120s 超时后仍在飞行）按 key 写回会
+    // 命中新任务、把旧轮测量混入新轮 CI/HL 表。快照代际不匹配即丢弃
+    // （taskGeneration < 0 表示调用方未携带代际，跳过校验）。
+    if (taskGeneration >= 0 && t.generation != taskGeneration) return;
     t.results.append(results);
     t.country = country;
     t.regionTags = regionTags;
@@ -90,8 +96,20 @@ void ProbeDatabase::waitForNewWork(const std::shared_ptr<std::atomic<bool>>& sto
         for (auto it = m_table.cbegin(); it != m_table.cend(); ++it) {
             if (it.value().status == ProbeDatabase::Task::Waiting) return;
         }
-        m_condition.wait(&m_mutex, timeoutMs);
+        // 5WHY (2026-09-05 复核 空闲盲轮询): timeoutMs > 0 的定时等待会以
+        // timeoutMs 周期反复全表扫描（进程余下生命周期空转）。每个 Waiting
+        // 跃迁（upsert/writeResults）与 wake() 均在持锁下唤醒，检查-等待
+        // 同锁无丢失窗口——不限时等待是安全的；timeoutMs <= 0 即不限时。
+        if (timeoutMs > 0)
+            m_condition.wait(&m_mutex, timeoutMs);
+        else
+            m_condition.wait(&m_mutex);
     }
+}
+
+void ProbeDatabase::wake() {
+    QMutexLocker lock(&m_mutex);
+    m_condition.wakeAll();
 }
 
 void ProbeDatabase::waitForCompletion(const QStringList& keys) {
@@ -104,7 +122,13 @@ void ProbeDatabase::waitForCompletion(const QStringList& keys) {
     // still bounding a wedged executor (the caller skips empty results
     // gracefully).
     QDeadlineTimer deadline(kWaitForCompletionTimeoutMs);
+    // 5WHY (2026-09-05 清表代际): 新一轮 run 的 clear() 会清掉在途键且晚到
+    // 写入被丢弃——键永久缺失、等满 120s 上限纯属空转（最坏：旧套件析构
+    // 在主线程等池线程 → UI 冻结至上限）。代际变化即立即返回（反馈层对
+    // 空结果优雅跳过）。
+    const qint64 genAtEntry = m_generation;
     while (!deadline.hasExpired()) {
+        if (m_generation != genAtEntry) return;
         bool allDone = true;
         for (const auto& key : keys) {
             auto it = m_table.find(key);
@@ -121,4 +145,8 @@ void ProbeDatabase::waitForCompletion(const QStringList& keys) {
 void ProbeDatabase::clear() {
     QMutexLocker lock(&m_mutex);
     m_table.clear();
+    // 清表代际 + 唤醒：在途 waitForCompletion 凭代际变化立即返回，
+    // idle 执行器经 wake 后重扫（表已空，继续等待）。
+    ++m_generation;
+    m_condition.wakeAll();
 }

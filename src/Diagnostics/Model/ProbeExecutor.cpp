@@ -30,6 +30,10 @@ bool ProbeExecutor::requestStop() {
     // M7: 设置共享停止标志——worker 线程通过 shared_ptr 访问，
     // 不依赖 executor 生命周期。
     m_stopFlag->store(true);
+    // 5WHY (2026-09-05 复核 停机唤醒): 执行器可能正停在 waitForNewWork 的
+    // 不限时等待上——只置标志不唤醒，停机感知延迟到下一个 timeoutMs 超时
+    // （原 500ms 轮询是唯一停机路径）。置标志后立即唤醒条件变量。
+    if (m_db) m_db->wake();
     if (isRunning()) {
         if (!wait(15000)) {
             qWarning("ProbeExecutor: thread did not stop within 15s, leaking");
@@ -65,8 +69,10 @@ void ProbeExecutor::run() {
             // 5WHY (2026-09-05 空闲轮询改事件等待): 曾 100ms 盲轮询——G3 探测
             // 完成后执行器线程在进程余下生命周期内每 10 次/秒空转（移动端
             // 电池常驻成本 + 新提交至多 100ms 延迟）。改条件变量等待：表内
-            // 有 Waiting 或 stop 置位或 500ms 超时即返回。
-            db->waitForNewWork(stopFlag, 500);
+            // 有 Waiting 或 stop 置位即返回。5WHY (2026-09-05 复核): 曾 500ms
+            // 定时等待——空闲期每 500ms 全表重扫纯属空转；每个 Waiting 跃迁
+            // 与 requestStop 的 wake() 都会唤醒，0 = 不限时等待。
+            db->waitForNewWork(stopFlag, 0);
             continue;
         }
 
@@ -89,7 +95,7 @@ void ProbeExecutor::run() {
                     db->writeResults(batch[j].key, {},
                         (itF != lookup.end()) ? itF->country : QStringLiteral("XX"),
                         (itF != lookup.end()) ? itF->regionTags : QStringList(),
-                        /*forceDone=*/true);
+                        /*forceDone=*/true, batch[j].generation);
                 }
                 break;
             }
@@ -128,12 +134,20 @@ void ProbeExecutor::run() {
                     if (ttfb >= 0) results.append(ttfb);
                 }
 
-                db->writeResults(task->key, results, country, regionTags);
+                // 5WHY (2026-09-05 复核 停机路径重入队孤儿): 停机时以部分
+                // 结果写回——writeResults 的回合数校验会把它重入 Waiting，
+                // 而执行器随即退出、无人消费（后续 waitForCompletion 等满
+                // 120s 上限）。停机置位时以终局落账（forceDone），与批次
+                // 尾部循环同门。
+                db->writeResults(task->key, results, country, regionTags,
+                                 /*forceDone=*/stopFlag->load(std::memory_order_acquire),
+                                 task->generation);
             });
             } catch (const std::system_error& e) {
                 qWarning("ProbeExecutor: thread creation failed (%s) — writing empty result for %s",
                          e.what(), qPrintable(batch[i].key));
-                db->writeResults(batch[i].key, {}, country, regionTags, /*forceDone=*/true);
+                db->writeResults(batch[i].key, {}, country, regionTags,
+                                 /*forceDone=*/true, batch[i].generation);
             }
         }
         for (auto& t : threads) t.join();

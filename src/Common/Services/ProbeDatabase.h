@@ -50,6 +50,10 @@ public:
         // 5WHY (2026-09-05 rounds 竞态修复): 写回时回合数未满足则重入队——
         // 每键重试上限（失败服务器不无限重入、waitForCompletion 仍有界）。
         int attempts = 0;
+        // 5WHY (2026-09-05 清表代际): 插入时烙上表代际——clear() 递增代际后，
+        // 上一轮迟到的执行器 worker 按 key 写回会命中新一轮同名新任务
+        // （数据串轮）。写回时校验快照代际，不匹配即丢弃。
+        qint64 generation = 0;
     };
 
     ProbeDatabase() = default;
@@ -61,18 +65,24 @@ public:
     QVector<Task> fetchWaiting(int maxCount);
     // forceDone：执行器停机/线程创建失败等终局路径——跳过回合数校验直接
     // 落 Done（否则重入队后无人消费，waitForCompletion 等满 120s 上限）。
+    // taskGeneration：fetch 快照携带的清表代际——clear() 后同名新任务拒绝
+    // 旧轮迟到写（< 0 跳过校验，兼容不带快照的调用方）。
     void writeResults(const QString& key, const QVector<double>& results,
                       const QString& country, const QStringList& regionTags,
-                      bool forceDone = false);
+                      bool forceDone = false, qint64 taskGeneration = -1);
 
     // ── Feedback API ─────────────────────────────────────────────────
     Task read(const QString& key) const;
     void waitForCompletion(const QStringList& keys);
 
     // ── Executor idle API ─────────────────────────────────────────────
-    // 条件变量等待：表内出现 Waiting 任务 / stop 置位 / timeoutMs 超时即
-    // 返回（执行器空闲期不再盲轮询，见 ProbeExecutor.cpp 5WHY 2026-09-05）。
+    // 条件变量等待：表内出现 Waiting 任务 / stop 置位 / wake() 即返回。
+    // timeoutMs <= 0 时不限时（空闲期不再盲轮询——每个 Waiting 跃迁与
+    // wake() 都会唤醒，见 ProbeExecutor.cpp 5WHY 2026-09-05）。
     void waitForNewWork(const std::shared_ptr<std::atomic<bool>>& stop, int timeoutMs);
+    // 唤醒 idle 等待的执行器（ProbeExecutor::requestStop 置 stop 标志后调用，
+    // 否则执行器要等 timeoutMs 超时才感知停机）。
+    void wake();
 
     // ── Lifecycle ────────────────────────────────────────────────────
     void clear();
@@ -81,4 +91,8 @@ private:
     QHash<QString, Task> m_table;
     mutable QMutex m_mutex;
     QWaitCondition m_condition;
+    // 5WHY (2026-09-05 清表代际): clear() 递增——在途 waitForCompletion 凭代际
+    // 变化立即返回（键已被清空且晚到写入被丢弃，等满 120s 上限纯属空转；
+    // 最坏情况旧套件析构在主线程等池线程 → UI 冻结至上限）。
+    qint64 m_generation = 0;
 };

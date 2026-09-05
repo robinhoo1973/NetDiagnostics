@@ -18,8 +18,14 @@ bool hasWifiInterface() {
     // 真实厂商 MAC（3c:22:fb:…），两个启发式都不命中 → WiFi 判 false；
     // 而 hasEthernetInterface 的 "en" 前缀命中 en0 → 有线判 true。结果：
     // MacBook 无线联网时 G1WiFi 被自动跳过、G1Wired 把 en0（WiFi）当有线
-    // 报 PASS。Qt 6 已提供权威类型（QNetworkInterface::type() 经 IOKit/
-    // sysfs/GetIfTable2 派生）——先信类型，启发式仅作类型 Unknown 时的回退。
+    // 报 PASS。Qt 6 已提供类型（QNetworkInterface::type()）——但权威性
+    // 平台相关（5WHY 2026-09-05 复核 Linux 颠倒复现）：仅 macOS IOKit 的
+    // 类型派生可靠；Linux sysfs 的 ARPHRD 类型把多数 WiFi 驱动（wlan0）报成
+    // Ethernet（ARPHRD_ETHER=1，实测本机 wlan0 即如此），若按 Ethernet 类型
+    // 守卫跳过启发式，WiFi 再次判 false 且被 hasEthernetInterface 判成有线
+    // ——macOS 颠倒原样复现于 Linux/Android。类型 Wifi 是各平台可靠的肯定
+    // 信号（先信），Ethernet 类型仅在 macOS 上作否定信号，其余平台回退
+    // 名称/MAC 启发式。
     const auto all = QNetworkInterface::allInterfaces();
     for (const auto& iface : all) {
         if (!iface.flags().testFlag(QNetworkInterface::IsRunning)) continue;
@@ -27,12 +33,18 @@ bool hasWifiInterface() {
     }
     for (const auto& iface : all) {
         if (!iface.flags().testFlag(QNetworkInterface::IsRunning)) continue;
-        // 5WHY (2026-09-05 复核): 回退启发式不得覆盖已知类型——类型已判
-        // 为 Ethernet/Loopback 的接口（如 macOS 有线 en1）不得经名称/MAC
-        // 启发式误判为 WiFi（与 hasEthernetInterface 的同类守卫对称）。
+#if defined(Q_OS_MACOS)
+        // macOS 类型权威：Ethernet/Loopback 已确证非 WiFi（如有线 en1），
+        // 不得经名称/MAC 启发式误判。
         if (iface.type() == QNetworkInterface::Ethernet
             || iface.type() == QNetworkInterface::Loopback)
             continue;
+#else
+        // Linux/Windows/Android：Ethernet 类型不可信（wlan0 报 ARPHRD_ETHER），
+        // 仅跳过 Loopback——名称/MAC 启发式是 WiFi 判定的唯一可靠信号。
+        if (iface.type() == QNetworkInterface::Loopback)
+            continue;
+#endif
         const QString hw = iface.hardwareAddress().toLower();
         // Typical WiFi MACs: locally-administered unicast on popular chips
         // (02:…, 0e:…, etc.) — combined with name hints for Windows.
@@ -47,21 +59,33 @@ bool hasWifiInterface() {
 
 bool hasEthernetInterface() {
     // 5WHY (2026-09-05): 类型权威优先——"en" 名称前缀把 macOS 无线 en0
-    // 误判为有线（见 hasWifiInterface 同款 5WHY）。仅当类型 Unknown 时
-    // 才退回名称启发式。
+    // 误判为有线。5WHY (2026-09-05 复核 Linux 颠倒复现): Ethernet 类型的
+    // 权威性同样平台相关——Linux 上 wlan0 报 ARPHRD_ETHER，类型即判有线会
+    // 把 WiFi 适配器当有线 PASS；软件网桥（docker0/br-*/veth，同为
+    // ARPHRD_ETHER）也会误报"有线存在"。仅 macOS 以类型直接判真；其余
+    // 平台保留名称启发式（与修复前的行为一致：wlan0/docker0 均不匹配
+    // eth/en 前缀，真实有线 eth0/enp3s0 命中）。
     const auto all = QNetworkInterface::allInterfaces();
+#if defined(Q_OS_MACOS)
     for (const auto& iface : all) {
         if (!iface.flags().testFlag(QNetworkInterface::IsRunning)) continue;
         if (iface.type() == QNetworkInterface::Ethernet) return true;
     }
+#endif
     for (const auto& iface : all) {
         if (!iface.flags().testFlag(QNetworkInterface::IsRunning)) continue;
-        // 5WHY (2026-09-05 复核): 回退启发式跳过已知非以太类型——类型已判
-        // 为 Wifi 的接口（macOS 无线 en0）不得经 "en" 名称前缀误判为有线
-        // （正是本修复要消除的颠倒；缺此守卫则颠倒依旧成立）。
+#if defined(Q_OS_MACOS)
+        // 回退启发式跳过已知非以太类型——类型已判为 Wifi 的接口（无线
+        // en0）不得经 "en" 名称前缀误判为有线。
         if (iface.type() == QNetworkInterface::Wifi
             || iface.type() == QNetworkInterface::Loopback)
             continue;
+#else
+        // Linux/Windows/Android：仅跳过 Loopback；类型为 Ethernet 的接口
+        // 仍须过名称启发式（wlan0 不匹配 eth/en，不判有线）。
+        if (iface.type() == QNetworkInterface::Loopback)
+            continue;
+#endif
         const QString name = iface.name();
         if (name.contains(QLatin1String("eth"), Qt::CaseInsensitive)
             || name.contains(QLatin1String("en"), Qt::CaseInsensitive)

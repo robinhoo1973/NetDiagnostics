@@ -295,22 +295,44 @@ void AppState::setTarget(const QString& host, const QString& scheme) {
     // m_targetUser（出口红线），粘贴路径的凭据在报告/HTML/落盘全带明文。
     // 提取 userinfo 入凭据槽（与凭据弹窗同一来源，持久化同门）。
     // 5WHY (2026-09-05 复核 '@' 误判): userinfo 只存在于 authority（首个
-    // '/' 或 '?' 之前）——路径/查询中的 '@'（/path/@1、?email=a@b.com）
-    // 不是凭据分隔符，误提取会把主机名截断成 "1" 且写入垃圾凭据。
+    // '/'、'?' 或 '#' 之前）——路径/查询/片段中的 '@'（/path/@1、
+    // ?email=a@b.com、#sec@2）不是凭据分隔符，误提取会把主机名截断且
+    // 写入垃圾凭据（复核: '#' 片段同样要拦，曾漏拦 → host 被截成片段
+    // 残尾、片段前缀被持久化为凭据）。
     {
         const int slash = h.indexOf(QLatin1Char('/'));
         const int query = h.indexOf(QLatin1Char('?'));
+        const int frag = h.indexOf(QLatin1Char('#'));
         int authorityEnd = h.size();
         if (slash >= 0 && slash < authorityEnd) authorityEnd = slash;
         if (query >= 0 && query < authorityEnd) authorityEnd = query;
-        const int at = h.indexOf(QLatin1Char('@'));
-        if (at > 0 && at < authorityEnd) {
+        if (frag >= 0 && frag < authorityEnd) authorityEnd = frag;
+        // 复核: 取 authority 内【最后一个】'@'——密码含原始 '@'（
+        // user:p@ss@host，浏览器/URL 库均按末 '@' 切分）时按末 '@' 切；
+        // 路径/查询/片段中的 '@' 因越界 authorityEnd 不参与。
+        int at = -1;
+        for (int pos = h.indexOf(QLatin1Char('@'));
+             pos >= 0 && pos < authorityEnd;
+             pos = h.indexOf(QLatin1Char('@'), pos + 1)) {
+            at = pos;
+        }
+        if (at > 0) {
             const QString userinfo = h.left(at);
             h = h.mid(at + 1);
             const int colon = userinfo.indexOf(QLatin1Char(':'));
-            const QString u = QUrl::fromPercentEncoding(userinfo.left(colon).toUtf8());
+            // 5WHY (2026-09-05 复核 非 UTF-8 百分号编码): 百分号解码字节按
+            // UTF-8 解释——旧编码（Latin-1 等）凭据解码出 U+FFFD 乱码并被
+            // 持久化，后续认证必失败且无报错。出现 U+FFFD 即按 Latin-1
+            // 重解（常见旧编码回退）。
+            const auto pctDecode = [](const QByteArray& raw) {
+                QString s = QUrl::fromPercentEncoding(raw);
+                if (s.contains(QChar(0xFFFD)))
+                    s = QString::fromLatin1(QByteArray::fromPercentEncoding(raw));
+                return s;
+            };
+            const QString u = pctDecode(userinfo.left(colon).toUtf8());
             const QString p = colon >= 0
-                ? QUrl::fromPercentEncoding(userinfo.mid(colon + 1).toUtf8())
+                ? pctDecode(userinfo.mid(colon + 1).toUtf8())
                 : QString();
             // 仅实际变化才落安全存储——本函数由输入框逐键调用，逐键写
             // Keychain/DPAPI 是纯浪费（与 setTargetCredentials 同门语义）。
@@ -573,7 +595,11 @@ void AppState::runNextGroup() {
         }
     }
     QString auth;
-    if (!m_targetUser.isEmpty()) {
+    // 5WHY (2026-09-05 复核 仅密码 URL): 曾仅按 m_targetUser 非空拼 auth——
+    // 粘贴 "scheme://:pass@host" 提取出 user 空/pass 非空并已持久化，却
+    // 在此被静默丢弃（探针 URL 无凭据、认证消失）。任一字段非空即拼
+    // （user 空时得到 ":pass@" 形态，与提取前 URL 语义一致）。
+    if (!m_targetUser.isEmpty() || !m_targetPassword.isEmpty()) {
         // 5WHY (2026-08-22 P2-1): 曾原始拼接 user:pass@——密码含 ':'/'@'
         // 即破坏 URL 解析。逐组件百分号编码后拼接。
         auth = QUrl::toPercentEncoding(m_targetUser) + QLatin1Char(':')
