@@ -218,13 +218,16 @@ Item {
             // Handshake / Query → Gauge (cert validity, connect latency)
             item.value = _gaugeSpec.value
             item.maxValue = _gaugeSpec.max
-            // 5WHY (2026-09-05 复核 null 守卫): data 从 Gauge 形态切到非
-            // Gauge 形态时 _gaugeSpec 重估为 null，而旧 Gauge 实例的绑定
-            // 可能先于 Loader 卸载重估——null 解引用 TypeError（绑定失效，
-            // 控制台噪声）。
-            item.unit = Qt.binding(function() { return _gaugeSpec ? T.tr(_gaugeSpec.unitKey) : "" })
+            // 5WHY (复核 2026-09-05 二轮 单次赋值): unit/emptyLabel 曾挂
+            // Qt.binding + null 守卫——_bind 已在全部变更路径重跑（onLoaded/
+            // onLangChanged/onDataChanged→callLater），绑定没有独占的新鲜度，
+            // 每次重绑反而分配/销毁 QQmlBinding；且 _source 与 _gaugeSpec
+            // 同键门控，spec 变 null 时 Gauge 实例同批卸载（分支守卫保证
+            // 此处非 null）。单次赋值等价；emptyLabel 保留兜底（部分 spec
+            // 无该键）。
+            item.unit = T.tr(_gaugeSpec.unitKey)
             item.gaugeColor = _gaugeSpec.color
-            item.emptyLabel = Qt.binding(function() { return (_gaugeSpec && _gaugeSpec.emptyLabel) || "" })
+            item.emptyLabel = _gaugeSpec.emptyLabel || ""
         }
     }
 

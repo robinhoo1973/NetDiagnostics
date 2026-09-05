@@ -24,7 +24,6 @@
         <file alias="widgets/AppBar.qml">../src/Common/View/widgets/AppBar.qml</file>
         <file alias="widgets/AppLabel.qml">../src/Common/View/widgets/AppLabel.qml</file>
         <file alias="widgets/StatusBadge.qml">../src/Common/View/widgets/StatusBadge.qml</file>
-        <file alias="widgets/Toast.qml">../src/Common/View/widgets/Toast.qml</file>
         <file alias="widgets/DiagBlock.qml">../src/Common/View/widgets/DiagBlock.qml</file>
         <file alias="widgets/DiagTileGrid.qml">../src/Common/View/widgets/DiagTileGrid.qml</file>
         <file alias="widgets/DiagnosticToolbar.qml">../src/Common/View/widgets/DiagnosticToolbar.qml</file>

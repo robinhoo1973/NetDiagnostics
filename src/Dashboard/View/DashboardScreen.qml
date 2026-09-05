@@ -433,8 +433,12 @@ PageDisplay {
 
     onSectionAction: function(scope, action, payload) {
         if (action === "share" || action === "previewShare") {
-            AppState.shareReportFile("text")
-            page.showToast(T.tr("reportCopied"))
+            // 与 ShareButtons 同一契约分支（5WHY 2026-09-05 文案与事实背离）：
+            // ok=已复制、路径=已导出打开、空=失败——失败不得提示成功。
+            const out = AppState.shareReportFile("text")
+            if (out === "ok") page.showToast(T.tr("reportCopied"))
+            else if (out !== "") page.showToast(T.tr("reportOpened"))
+            else page.showToast(T.tr("shareFailed"))
         }
         if (action === "preview") page.openPreview()
     }

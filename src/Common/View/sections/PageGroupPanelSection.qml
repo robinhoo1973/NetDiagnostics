@@ -71,7 +71,7 @@ PageSection {
         // 无分配滚动哈希（31 进制）+ 长度预检（长度变则签名必变）。
         if (newModel.length !== _activeLen) {
             _activeLen = newModel.length
-            _hashValid = false   // 5WHY (复核 2026-09-05): _activeHash 的 -1 复位是死写——唯一读点（下方门控）由 _hashValid 守卫，且 _activeHash 在任何读取前必被重赋
+            _activeHash = null   // 5WHY (复核 2026-09-05 二轮): 长度变则签名必变——null 哨兵强制跳过门控；两字段状态收敛为一，复位遗漏/死写类问题结构上不可表达
         }
         var h = 0
         for (var i = 0; i < newModel.length; ++i) {
@@ -86,16 +86,16 @@ PageSection {
         // 5WHY (2026-09-05 哨兵碰撞): 曾以 _activeHash === -1 兼作
         // "未初始化"哨兵——-1 在 31 进制滚动哈希的 int32 环绕输出域内
         // （`| 0` 强制 int32），特定 (id,status) 序列可稳定折叠到 -1 →
-        // 门控恒早退、瓦片墙永久空白且哈希滞留 -1 无法自愈。显式
-        // _hashValid 标记替代值域哨兵。
-        if (_hashValid && h === _activeHash && _activeLen === newModel.length) return
+        // 门控恒早退、瓦片墙永久空白且哈希滞留 -1 无法自愈。改用 null
+        // 哨兵（在输出域外）：_activeHash 兼作有效性标记（null=无效），
+        // 旧 _hashValid 第二字段与恒真的第三条件 _activeLen===newModel.length
+        // 一并删除。
+        if (_activeHash !== null && h === _activeHash) return
         _activeHash = h
-        _hashValid = true
         itemsModel = newModel
     }
-    property int _activeHash: -1
+    property var _activeHash: null
     property int _activeLen: -1
-    property bool _hashValid: false
     function _refreshStats() {   // UI-2：命令式赋值，绑定不调 Q_INVOKABLE
         // 5WHY (复核 2026-08-18 Reuse C3): 键归一化经 StatsUtil.js 单一来源；
         // 5WHY (复核 2026-08-19): 仅替换 _statsObj 身份——_total/_completed

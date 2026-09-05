@@ -57,16 +57,17 @@ Window {
     // 已存的正常几何保持。
     // 5WHY (2026-09-05 复核 首会话几何丢失): 仅落 max 标志时，若本会话
     // 从未以正常态关闭过（用户调尺寸 → 最大化 → 关闭），几何键从未写盘，
-    // 下次启动回默认 1080×760——用户选择的正常尺寸丢失。以 _lastNormalGeom
-    // 记录最近一次正常态几何，最大化关闭时连同 max 标志一起落盘。
-    // 记录点：进入 Windowed 的可见性跃迁（启动恢复/还原按钮）+ 最大化
-    // 按钮按下前（用户刚调过尺寸）。不挂 onWidthChanged：最大化跃迁的
-    // 几何事件可能先于 visibility 翻转到达，会把最大化帧误存进正常几何。
+    // 下次启动回默认 1080×760——用户选择的正常尺寸丢失。最大化按钮按下前
+    // 记录当前正常几何到 _lastNormalGeom，最大化关闭时连同 max 标志落盘。
+    // 5WHY (复核 2026-09-05 二轮 记录点收敛): 曾另挂 onVisibilityChanged
+    // 在 Windowed 跃迁时记录——该记录点只能捕到 (a) 启动恢复的已落盘几何
+    // （冗余）、(b) 首启 WM 尚未放置的 (0,0) 帧（下次启动钉死左上角）、
+    // (c) 还原跃迁中 visibility 翻转先于几何回退时的最大化帧（污染正常
+    // 几何）——三者无一负载，且 (b)(c) 会被最大化关闭分支持久化。记录点
+    // 收敛为唯一：最大化按钮按下前（应用内唯一最大化入口）。OS/WM 手势
+    // 最大化不更新记录，关闭时走 saveWindowMaximized fallback（只落 max
+    // 标志、几何键不动，与旧行为等价）。
     property var _lastNormalGeom: null
-    onVisibilityChanged: {
-        if (visibility === Window.Windowed && visible)
-            _lastNormalGeom = Qt.rect(x, y, width, height)
-    }
     onClosing: function(closeEvent) {
         if (ThemeEngine.isMobile) return
         if (visibility !== Window.Maximized)
