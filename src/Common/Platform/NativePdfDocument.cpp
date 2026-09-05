@@ -17,6 +17,13 @@ void NativePdfDocument::setSource(const QUrl& url) {
     emit sourceChanged();
     m_loaded = false;
     m_pageCount = 0;
+    // 5WHY (2026-09-05 NOTIFY 契约破坏): 失败路径（文件缺失/加载失败）只
+    // emit errorOccurred——loaded/pageCount 被重置为 false/0 却不发
+    // loadedChanged/pageCountChanged。QML 绑定（导航栏 visible、页码标签
+    // "1 / 5"）在成功→失败的重载后保持陈旧状态。任一结局均须发射
+    // 变更通知（Qt 不因值未变而省略，重复发射无害）。
+    emit loadedChanged();
+    emit pageCountChanged();
 
     const QString path = url.isLocalFile() ? url.toLocalFile() : url.toString();
     if (path.isEmpty() || !QFileInfo::exists(path)) {

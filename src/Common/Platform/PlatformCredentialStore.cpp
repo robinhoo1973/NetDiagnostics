@@ -124,7 +124,12 @@ QString credPath(const QString& key) {
 
 bool platformCredentialSave(const QString& key, const QString& value) {
     if (key.isEmpty()) return false;
-    const QByteArray plain = value.toUtf8();
+    // 5WHY (2026-09-05 魔数未被加密 = 校验失效): 曾把 "NDC1" 明文前缀在
+    // 密文上——XOR/DPAPI 换错密钥（主机名变更）时密文变乱码而前缀原样
+    // 可读，完整性检查恒通过，乱码密码被静默用于认证（正是校验本要防的
+    // 场景）。修正：魔数纳入加密域（NDC1+明文 一起加密），外层 "NDC2"
+    // 仅作格式版本嗅探。旧 "NDC1" 明文前缀文件按 legacy 路径解密兼容。
+    const QByteArray plain = QByteArrayLiteral("NDC1") + value.toUtf8();
     QByteArray cipher;
 
 #if defined(Q_OS_WIN32)
@@ -133,10 +138,7 @@ bool platformCredentialSave(const QString& key, const QString& value) {
     cipher = xorCrypt(plain, machineKey());
 #endif
 
-    // 完整性魔数前缀：Linux 密钥由 hostname 派生，主机名变更/文件截断/
-    // 位翻转都会让解密输出变成"乱码密码"（XOR 无 MAC 校验）——乱码会被
-    // 静默用于 SSH/FTP 认证。加载端校验魔数，不符即视为凭证丢失并告警。
-    const QByteArray blob = QByteArrayLiteral("NDC1") + cipher;
+    const QByteArray blob = QByteArrayLiteral("NDC2") + cipher;
 
     // 5WHY (2026-09-04 修正复核): QSaveFile 原子写——旧密文在 commit 成功
     // 前保持完好：写失败/断电不会先毁掉已存凭证再报错（open+Truncate
@@ -157,27 +159,39 @@ QString platformCredentialLoad(const QString& key) {
     QFile f(credPath(key));
     if (!f.open(QIODevice::ReadOnly)) return {};   // 条目不存在 = 正常空态
     const QByteArray blob = f.readAll();
-    static const QByteArray kMagic = QByteArrayLiteral("NDC1");
-    if (!blob.startsWith(kMagic)) {
-        // 主机名变更（密钥漂移）/文件截断/损坏——返回"凭证丢失"而非乱码。
-        qWarning("platformCredentialLoad: credential integrity check failed "
-                 "(hostname change or truncated file) — treating as lost");
+    static const QByteArray kMagicV2 = QByteArrayLiteral("NDC2");
+    static const QByteArray kMagicV1 = QByteArrayLiteral("NDC1");
+    if (!blob.startsWith(kMagicV2) && !blob.startsWith(kMagicV1)) {
+        // 未知格式/文件截断/损坏——返回"凭证丢失"而非乱码。
+        qWarning("platformCredentialLoad: unrecognized credential format "
+                 "(truncated or corrupted file) — treating as lost");
         return {};
     }
-    const QByteArray cipher = blob.mid(kMagic.size());
 #if defined(Q_OS_WIN32)
     QByteArray plain;
-    if (!unprotectData(cipher, &plain)) {
+    if (!unprotectData(blob.mid(4), &plain)) {
         // 5WHY (H2 复核): 主密钥丢失/用户配置文件迁移导致解密失败时，静默
         // 空串会被当成"密码未设置"——留日志区分真实失败与空态。
         qWarning("platformCredentialLoad: DPAPI unprotect failed for key, "
                  "credential unreadable");
         return {};
     }
-    return QString::fromUtf8(plain);
 #else
-    return QString::fromUtf8(xorCrypt(cipher, machineKey()));
+    QByteArray plain = xorCrypt(blob.mid(4), machineKey());
 #endif
+    if (blob.startsWith(kMagicV2)) {
+        // v2: 明文 = "NDC1" + password——内部魔数校验密钥正确性（换主机名/
+        // 密钥漂移时 XOR 输出乱码、魔数不匹配 → 按凭证丢失处理）。
+        if (!plain.startsWith(kMagicV1)) {
+            qWarning("platformCredentialLoad: credential integrity check "
+                     "failed (hostname change or bit rot) — treating as lost");
+            return {};
+        }
+        return QString::fromUtf8(plain.mid(kMagicV1.size()));
+    }
+    // v1（legacy，明文前缀魔数）: 无法验证密钥正确性——按可读内容尽力返回，
+    // 下次保存即升级为 v2 格式。
+    return QString::fromUtf8(plain);
 }
 
 bool platformCredentialRemove(const QString& key) {
