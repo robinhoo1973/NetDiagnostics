@@ -30,8 +30,10 @@ Item {
     // 即跳过 groupStats C++ 全量重建（44 项双遍 + normalize 分配）。
     property int _lastStatsVersion: -1
     function _refresh(force) {
-        if (!force && AppState.statsVersion === _lastStatsVersion) return
-        _lastStatsVersion = AppState.statsVersion
+        // 单次跨界读取（simplify 二轮：曾比较+赋值双读 C++ int）
+        var v = AppState.statsVersion
+        if (!force && v === _lastStatsVersion) return
+        _lastStatsVersion = v
         var s = W.normalize(AppState.groupStats(-1))
         if (!force && W.statsEqual(_s, s)) return
         _s = s

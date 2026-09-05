@@ -74,15 +74,30 @@ function statsEqual(a, b) {
 }
 
 // 5WHY (复核 2026-09-05 /simplify 语义身份): 瓦片墙身份门控曾用滚动哈希
-// （碰撞/哨兵/未来键三缺陷见 PageGroupPanelSection 注释）。逐元素比较：
-// 同 O(n)、无分配、无碰撞类；diagId/status 之外的未来键自动纳入比较
-// （哈希版会静默不门控）。
+// （碰撞/哨兵缺陷见 PageGroupPanelSection 注释）。逐元素比较：同 O(n)、
+// 无分配、无碰撞类。身份契约显式为 (diagId, status) 两键——瓦片其余键
+// （durationMs/label/iconName 等）为派生展示字段，随状态变化的信号同轮
+// 到达（progressChanged 单源），不参与身份判定。
 function sameTiles(a, b) {
     if (!a || !b) return a === b
     if (a.length !== b.length) return false
     for (var i = 0; i < a.length; ++i) {
         if (a[i].diagId !== b[i].diagId) return false
         if (a[i].status !== b[i].status) return false
+    }
+    return true
+}
+
+// 5WHY (复核 2026-09-05 /simplify 二轮 有损签名修正): 图表重绑去重曾用
+// 字符串签名压缩（key|长度|首尾值）——中段值变化漏检致旧数据残留。逐元素
+// 全量比较（label/value/color），≤50 元素数组在详情打开频率下可忽略。
+function seriesEqual(a, b) {
+    if (!a || !b) return a === b
+    if (a.length !== b.length) return false
+    for (var i = 0; i < a.length; ++i) {
+        if (a[i].label !== b[i].label) return false
+        if (a[i].value !== b[i].value) return false
+        if (a[i].color !== b[i].color) return false
     }
     return true
 }

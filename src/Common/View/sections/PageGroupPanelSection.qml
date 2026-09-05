@@ -87,8 +87,9 @@ PageSection {
         // 5WHY (复核 2026-08-18 Reuse C3): 键归一化经 StatsUtil.js 单一来源；
         // 5WHY (复核 2026-08-19): 仅替换 _statsObj 身份——_total/_completed
         // 为只读绑定，随身份替换自动重估（单写点，无双写分叉）。
-        if (AppState.statsVersion === _lastStatsVersion) return
-        _lastStatsVersion = AppState.statsVersion
+        var v = AppState.statsVersion   // 单次跨界读取（simplify 二轮）
+        if (v === _lastStatsVersion) return
+        _lastStatsVersion = v
         var s = W.normalize(AppState.groupStats(groupIndex))
         if (W.statsEqual(_statsObj, s)) return
         _statsObj = s

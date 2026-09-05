@@ -16,13 +16,15 @@
 //     precision: int, format: "num" | "minsec", trailing: string }
 //
 // R8 — per-template key contract (the keys each template MUST emit so the
-// metric/chart can be derived without duck-typing):
-//   Ping(0)      rttAvgMs, lossPercent, individualRtts[]
-//   Path(1)      hopCount, hops[].rttMs
-//   Handshake(2) daysLeft (chart: Gauge)
-//   Request(3)   dnsMs, connectMs, sslMs, firstByteMs, totalMs (all CUMULATIVE)
-//   Query(4)     latencyMs, connected
-//   System(5)    (no chart; properties table only)
+// metric/chart can be derived without duck-typing). 模板标识用 chartKey
+// 令牌（diagTemplateKey()，DiagNames.h 单一映射）——曾列枚举序值，序值
+// 不跨语言（枚举重排曾灭掉全部详情图表）。
+//   ping          rttAvgMs, lossPercent, individualRtts[]
+//   path          hopCount, hops[].rttMs
+//   handshake     daysLeft (chart: Gauge)
+//   request       dnsMs, connectMs, sslMs, firstByteMs, totalMs (all CUMULATIVE)
+//   query         latencyMs, connected
+//   system        (no chart; properties table only)
 // Other keys mapped here (queryTimeMs, downloadMbpsBest, overallScorePercent,
 // tcpPingMs, rowCount, connectedCount, responseTimeMs) are additive
 // conveniences — they must never conflict with the contract keys.
@@ -46,7 +48,7 @@ function formatNumber(value, precision, format) {
 }
 
 // Structured key metric for a diagnostic result.
-// data: the enriched data map (templateType injected by C++) or null/undefined.
+// data: the enriched data map (chartKey injected by C++) or null/undefined.
 // 5WHY (2026-08-19): durationMs 参数随时长兜底一并移除（hero 恒显示时长，
 // 主指标卡只承载结构化指标）。
 function keyMetric(data) {

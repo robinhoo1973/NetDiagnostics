@@ -74,15 +74,20 @@ Window {
     // 落盘（连续变更持续重启计时器，动画中间帧不会落盘；最大化态跳过，
     // 最大化帧永不当正常几何写入），onClosing 只冲刷 winMax 标志一行。
     // 直写语义：非正常退出至多丢最后 500ms；最大化关闭落 max 标志、几何键
-    // 保持最近一次稳定正常态值；关窗不再读帧，转场中间帧污染类结构性消失；
-    // (0,0) 帧（WM 尚未放置）不落盘，首启居中兜底不受污染。
+    // 保持最近一次稳定正常态值；关窗不再读帧，转场中间帧污染类结构性消失。
+    // 5WHY (simplify 二轮 2026-09-05 放置态替代坐标哨兵): 曾以 x==0&&y==0
+    // 作"WM 未放置"哨兵——合法贴角 (0,0) 的窗口会被整会话静默停用持久化。
+    // _placed 标记真实放置状态：可见后的任何几何事件即视为 WM 已放置；
+    // 启动恢复的编程赋值（visible 之前）不算——首启未放置帧不落盘、
+    // 恢复路径的冗余写回也随之消失（盘上即刚读回的值）。
+    property bool _placed: false
     Timer {
         id: geomRecorder
         interval: 500
         repeat: false
         onTriggered: {
             if (ThemeEngine.isMobile || !win.visible || win.visibility !== Window.Windowed) return
-            if (win.x === 0 && win.y === 0) return   // WM 未放置帧，不落盘
+            if (!win._placed) return
             AppState.saveWindowGeometry(win.x, win.y, win.width, win.height, false)
         }
     }
@@ -92,8 +97,8 @@ Window {
         if (ThemeEngine.isMobile) return
         geomRecorder.restart()
     }
-    onXChanged: _pokeRecorder()
-    onYChanged: _pokeRecorder()
+    onXChanged: { if (win.visible) win._placed = true; _pokeRecorder() }
+    onYChanged: { if (win.visible) win._placed = true; _pokeRecorder() }
     onWidthChanged: _pokeRecorder()
     onHeightChanged: _pokeRecorder()
     onClosing: function(closeEvent) {

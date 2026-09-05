@@ -28,6 +28,7 @@
 // =============================================================================
 import QtQuick
 import theme
+import "../widgets/StatsUtil.js" as W   // seriesEqual（重绑去重逐元素比较）
 
 Item {
     id: root
@@ -248,31 +249,27 @@ Item {
             // 折叠为空标签；未提供该键的 spec 分支仍兜底 ""。
             item.emptyLabel = _gaugeSpec.emptyLabel !== undefined ? _gaugeSpec.emptyLabel : ""
         }
-        _boundSig = _seriesSig()   // 绑定完成后记录签名（onDataChanged 去重用）
     }
 
     // 5WHY (2026-09-05 旧数据残留): Loader 仅在 _source URL 变化时重载——
     // 同一模板的第二次打开（如连续查看两个 Ping 详情）URL 相同、实例复用，
     // _bind 不再触发，图表继续显示上一次结果的数据。data 变更即重绑
     // （值数组 _series/_gaugeSpec 已随 data 重估）。
-    // 5WHY (simplify 2026-09-05 重绑去重): 曾无条件 callLater 重绑——同形
-    // 数据重开也会赋新数组并触发 BarChart 揭示动画全量重放；模板切换时
-    // onLoaded 与 callLater 双路径一帧内重绑两次。签名门控：key+长度+首尾
-    // 值+gauge 值不变即跳过；_source 变化走 Loader 重建路径（onLoaded 必绑
-    // 新实例），不再重复 callLater。
-    property string _boundSig: ""
-    function _seriesSig() {
-        var s = _series
-        var sig = root._key + "|" + s.length
-        if (s.length > 0) sig += "|" + s[0].value + "|" + s[s.length - 1].value
-        var g = _gaugeSpec
-        if (g) sig += "|g" + g.value + "|" + g.unitKey
-        return sig
-    }
+    // 5WHY (simplify 二轮 2026-09-05 有损签名修正): 曾以字符串签名
+    // （key|长度|首尾值）门控——中段值/仪表 max/颜色变化漏检，旧数据
+    // 残留类复发（与瓦片墙哈希同门教训）。逐元素比较当前派生与已绑值
+    // （item 即上绑记录，BarChart 原样保存 values）——全等跳过重绑，
+    // 同形数据重开不再触发揭示动画全量重放。
     onDataChanged: {
-        if (!chartLoader.item) return
-        if (root._source !== chartLoader.source) return   // Loader 重建路径，onLoaded 必绑
-        if (root._seriesSig() === root._boundSig) return  // 同形数据，无可见变化
+        if (!chartLoader.item) return   // Loader 重建路径，onLoaded 必绑新实例
+        var it = chartLoader.item
+        if (it.values !== undefined) {
+            if (W.seriesEqual(_series, it.values)) return
+        } else if (_gaugeSpec && it.value === _gaugeSpec.value
+                   && it.maxValue === _gaugeSpec.max
+                   && it.gaugeColor === _gaugeSpec.color) {
+            return
+        }
         Qt.callLater(function() { if (chartLoader.item) root._bind(chartLoader.item) })
     }
 }

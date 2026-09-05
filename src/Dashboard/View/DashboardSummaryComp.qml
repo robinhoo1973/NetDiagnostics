@@ -53,18 +53,26 @@ Item {
     readonly property int _count: _s.completed
 
     // 派生层（分层时长 + 墙钟）：桥每次刷新后重算；墙钟另有每秒跳动。
+    // 5WHY (simplify 二轮 2026-09-05 终态 6 全扫): 桥的 force 语义使终态
+    // 转场无条件广播——无统计增量的收尾会白付 5 × groupStats(i) 全扫。
+    // 分层时长只在结果落地时变化：statsVersion 未变即跳过 5 次全扫，
+    // 墙钟（runDurationMs 单调）照常刷新。
+    property int _lastLayerVersion: -1
     function _refreshDerived() {
         _refreshTimeOnly()
-        // 5WHY (复核 2026-08-19 身份门控): 每事件无条件换新数组 → Repeater
-        // 全量销毁重建 5 行（~50 事件/轮 × 5 行 × 6 对象）。分层时长只在
-        // 结果落地时变化——ms 数组经 assignIfChanged 比较，未变不替换
-        // _layerMs 身份（与组面板滚动哈希/两屏 assignIfChanged 同一策略）。
-        var msArr = []
-        for (var i = 0; i < 5; ++i) {
-            var gs = AppState.groupStats(i)
-            msArr.push(gs.durationMs || 0)
+        var v = AppState.statsVersion
+        if (v !== _lastLayerVersion) {
+            _lastLayerVersion = v
+            // 5WHY (复核 2026-08-19 身份门控): 每事件无条件换新数组 → Repeater
+            // 全量销毁重建 5 行。ms 数组经 assignIfChanged 比较，未变不替换
+            // _layerMs 身份（与两屏 assignIfChanged 同一策略）。
+            var msArr = []
+            for (var i = 0; i < 5; ++i) {
+                var gs = AppState.groupStats(i)
+                msArr.push(gs.durationMs || 0)
+            }
+            _layerMs = W.assignIfChanged(_layerMs, msArr)
         }
-        _layerMs = W.assignIfChanged(_layerMs, msArr)
     }
     function _refreshTimeOnly() {
         _timeText = ThemeEngine.formatDuration(AppState.runDurationMs())
