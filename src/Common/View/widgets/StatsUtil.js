@@ -50,3 +50,25 @@ function assignIfChanged(current, next) {
         if (current[i] !== next[i]) return next
     return current
 }
+
+// 5WHY (复核 2026-09-05 三轮 契约分支收敛): shareReportFile 返回值 → toast
+// 键的三态分支（ok=已复制、非空路径=已导出打开、空=失败）曾在
+// DiagnosticScreen / DashboardScreen(ShareButtons) / DashboardScreen(
+// onSectionAction) 三处逐字复制——契约漂移时漏改一处即复活"失败提示成功"
+// 的文案背离。单一 helper：AppState 返回契约的 QML 侧唯一映射点。
+function shareOutcomeToastKey(out) {
+    if (out === "ok") return "reportCopied"
+    if (out !== "") return "reportOpened"
+    return "shareFailed"
+}
+
+// 5WHY (复核 2026-09-05 三轮 空转身份门控): 统计对象曾无条件替换身份——
+// 计数未变的空转 tick 也触发 _total/_completed/徽标/表头绑定整轮重估。
+// 逐键比较（normalize 键集为单一来源，新增键自动纳入比较）：内容相同
+// 保持旧身份，跳过重估。
+function statsEqual(a, b) {
+    if (!a || !b) return a === b
+    for (var k in b)
+        if (a[k] !== b[k]) return false
+    return true
+}

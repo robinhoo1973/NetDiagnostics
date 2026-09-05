@@ -85,6 +85,15 @@ Item {
         target: T
         function onLangChanged() { if (chartLoader.item) root._bind(chartLoader.item) }
     }
+    // 5WHY (复核 2026-09-05 三轮 主题重绑): 主题切换整体替换 colors 身份，
+    // _series/_gaugeSpec 绑定随 data 重估为新主题色，但单次赋值不会自动
+    // 重跑 _bind——gaugeColor/values/unit 滞留旧主题色，与周围 UI 色相异
+    // 直至下次数据/语言重绑。modeChanged 重绑（与 onLangChanged 同机制），
+    // 补全变更路径。
+    Connections {
+        target: ThemeEngine
+        function onModeChanged() { if (chartLoader.item) root._bind(chartLoader.item) }
+    }
 
     // ── Source selection ─────────────────────────────────────────────────
     // templateType 序值 = C++ DiagTemplateType（DiagNames.h：System=0,
@@ -220,14 +229,16 @@ Item {
             item.maxValue = _gaugeSpec.max
             // 5WHY (复核 2026-09-05 二轮 单次赋值): unit/emptyLabel 曾挂
             // Qt.binding + null 守卫——_bind 已在全部变更路径重跑（onLoaded/
-            // onLangChanged/onDataChanged→callLater），绑定没有独占的新鲜度，
-            // 每次重绑反而分配/销毁 QQmlBinding；且 _source 与 _gaugeSpec
-            // 同键门控，spec 变 null 时 Gauge 实例同批卸载（分支守卫保证
-            // 此处非 null）。单次赋值等价；emptyLabel 保留兜底（部分 spec
-            // 无该键）。
+            // onLangChanged/onDataChanged→callLater/onModeChanged），绑定没有
+            // 独占的新鲜度，每次重绑反而分配/销毁 QQmlBinding；且 _source 与
+            // _gaugeSpec 同键门控，spec 变 null 时 Gauge 实例同批卸载（分支
+            // 守卫保证此处非 null）。单次赋值等价；emptyLabel 保留兜底（部分
+            // spec 无该键）。
             item.unit = T.tr(_gaugeSpec.unitKey)
             item.gaugeColor = _gaugeSpec.color
-            item.emptyLabel = _gaugeSpec.emptyLabel || ""
+            // 显式 undefined 判定替代 `|| ""`——falsy 值（0/false）不会被
+            // 折叠为空标签；未提供该键的 spec 分支仍兜底 ""。
+            item.emptyLabel = _gaugeSpec.emptyLabel !== undefined ? _gaugeSpec.emptyLabel : ""
         }
     }
 

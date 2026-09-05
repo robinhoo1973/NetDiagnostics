@@ -416,13 +416,11 @@ PageDisplay {
                             if (format === "locked") { page.showToast(T.tr("premiumRequiredMsg")); return }
                             // 5WHY (2026-09-05 文案与事实背离): 曾无条件提示
                             // "已复制"——桌面端实际是导出文件并交默认应用，
-                            // 失败时也提示成功。与 DiagnosticScreen 同一
-                            // 契约分支（5WHY 2026-08-22 UX-2）：ok=已复制、
-                            // 路径=已导出打开、空=失败。
+                            // 失败时也提示成功。契约映射经
+                            // W.shareOutcomeToastKey 单一来源（ok=已复制、
+                            // 路径=已导出打开、空=失败）。
                             const out = AppState.shareReportFile(format)
-                            if (out === "ok") page.showToast(T.tr("reportCopied"))
-                            else if (out !== "") page.showToast(T.tr("reportOpened"))
-                            else page.showToast(T.tr("shareFailed"))
+                            page.showToast(T.tr(W.shareOutcomeToastKey(out)))
                         }
                         onPremiumRequired: page.showToast(T.tr("premiumRequiredMsg"))
                     }
@@ -435,10 +433,9 @@ PageDisplay {
         if (action === "share" || action === "previewShare") {
             // 与 ShareButtons 同一契约分支（5WHY 2026-09-05 文案与事实背离）：
             // ok=已复制、路径=已导出打开、空=失败——失败不得提示成功。
+            // 契约映射经 W.shareOutcomeToastKey 单一来源（三轮收敛）。
             const out = AppState.shareReportFile("text")
-            if (out === "ok") page.showToast(T.tr("reportCopied"))
-            else if (out !== "") page.showToast(T.tr("reportOpened"))
-            else page.showToast(T.tr("shareFailed"))
+            page.showToast(T.tr(W.shareOutcomeToastKey(out)))
         }
         if (action === "preview") page.openPreview()
     }

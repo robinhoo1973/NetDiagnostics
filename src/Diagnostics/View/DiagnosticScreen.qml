@@ -84,11 +84,10 @@ PageDisplay {
                 }
                 // 5WHY (2026-08-22 UX-2): 曾无条件提示"已复制"——桌面端实际
                 // 是导出文件并交给默认应用，文案与事实不符。分支：文本=已
-                // 复制；文件=已导出并打开；失败=明确报错。
+                // 复制；文件=已导出并打开；失败=明确报错。契约映射经
+                // W.shareOutcomeToastKey 单一来源（三轮收敛）。
                 const out = AppState.shareReportFile(format)
-                if (out === "ok") page.showToast(T.tr("reportCopied"))
-                else if (out !== "") page.showToast(T.tr("reportOpened"))
-                else page.showToast(T.tr("shareFailed"))
+                page.showToast(T.tr(W.shareOutcomeToastKey(out)))
             }
         },
         Repeater {
