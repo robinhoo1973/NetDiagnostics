@@ -83,6 +83,11 @@ Item {
         target: AppState
         enabled: root.screenVisible
         function onRunElapsedChanged() { root._refreshTimeOnly() }
+        // 5WHY (复核 2026-09-05 五轮 终态墙钟): 桥的 statsEqual 门控使终态
+        // 事件（无统计增量的收尾/空轮/零结果取消）不再广播 refreshed()——
+        // 墙钟派生失去终值刷新（runElapsedChanged 仅 Running 期跳动）。
+        // 终态 runStatusChanged 直连补刷 _timeText，桥门控与墙钟派生解耦。
+        function onRunStatusChanged() { root._refreshTimeOnly() }
     }
 
     ColumnLayout {

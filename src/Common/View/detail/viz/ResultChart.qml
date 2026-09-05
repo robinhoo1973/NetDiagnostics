@@ -79,11 +79,15 @@ Item {
         Accessible.role: Accessible.Graphic
     }
 
+    // 5WHY (复核 2026-09-05 五轮 双处理器同体): 语言/主题两个 Connections
+    // 处理器曾逐字复制同一守卫体——守卫细化（如 expanded 门控）漏改一处
+    // 即单一路径失效。单一 helper 收敛。
+    function rebindIfLoaded() { if (chartLoader.item) root._bind(chartLoader.item) }
     // 5WHY: series labels/units are translated — the BarChart/Gauge received
     // them via one-shot direct assignment, so re-bind on language switch.
     Connections {
         target: T
-        function onLangChanged() { if (chartLoader.item) root._bind(chartLoader.item) }
+        function onLangChanged() { root.rebindIfLoaded() }
     }
     // 5WHY (复核 2026-09-05 三轮 主题重绑): 主题切换整体替换 colors 身份，
     // _series/_gaugeSpec 绑定随 data 重估为新主题色，但单次赋值不会自动
@@ -95,7 +99,7 @@ Item {
     // colorsChanged 覆盖全部路径（显式切换 + 跟随系统 + 未来调色板轮换）。
     Connections {
         target: ThemeEngine
-        function onColorsChanged() { if (chartLoader.item) root._bind(chartLoader.item) }
+        function onColorsChanged() { root.rebindIfLoaded() }
     }
 
     // ── Source selection ─────────────────────────────────────────────────

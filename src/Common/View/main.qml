@@ -42,17 +42,15 @@ Window {
                 win.height = g.height
                 win.x = (g.x > -32000 && g.x < 32000) ? g.x : win.x
                 win.y = (g.y > -32000 && g.y < 32000) ? g.y : win.y
-                win.visible = true   // 几何就绪后先亮相，最大化随后应用
-                if (g.maximized === true) win.showMaximized()
-                return
-            }
-            win.width = 1080
-            win.height = 760
-            // 主窗口居中于所属屏幕
-            var scr = win.screen
-            if (scr) {
-                win.x = scr.virtualX + Math.round((scr.width - win.width) / 2)
-                win.y = scr.virtualY + Math.round((scr.height - win.height) / 2)
+            } else {
+                win.width = 1080
+                win.height = 760
+                // 主窗口居中于所属屏幕
+                var scr = win.screen
+                if (scr) {
+                    win.x = scr.virtualX + Math.round((scr.width - win.width) / 2)
+                    win.y = scr.virtualY + Math.round((scr.height - win.height) / 2)
+                }
             }
         }
         win.visible = true   // 几何恢复完成后首帧亮相（UX-1）
@@ -60,6 +58,9 @@ Window {
         // （saveWindowMaximized 路径：手势最大化后 _lastNormalGeom 为空）
         // x/y=-1 哨兵进居中兜底——但 maximized 标志仍需恢复。旧条件（宽高
         // 默认值恒过）曾走恢复分支的 showMaximized，兜底分支不得丢标志。
+        // 5WHY (复核 2026-09-05 五轮 双分支漂移): 曾两分支各自 showMaximized
+        // 且守卫不对称（恢复分支无 g&&）——收敛为单一尾置，两路共用；
+        // g&& 守卫承载移动端路径（桌面块跳过时 g 为未定义函数级 var）。
         if (g && g.maximized === true) win.showMaximized()
     }
     // P0-2：正常态几何随关闭落盘。5WHY (2026-09-05 最大化几何污染):
@@ -100,6 +101,12 @@ Window {
     onVisibilityChanged: {
         if (visibility === Window.Maximized) {
             _transitioning = false
+            // 5WHY (复核 2026-09-05 五轮 watchdog 方向): watchdog 只服务最大化
+            // 方向（WM 拒绝时无翻转、geomRecorder 无事件不重启）——翻转达成即
+            // 停表，避免残留计时器在随后 <1.5s 内的还原转场中误解锁（还原方向
+            // 解锁由 geomRecorder 稳定结算负责；慢动画下 watchdog 1500ms 会
+            // 提前解锁，重新打开中间帧入库通道）。
+            transitionWatchdog.stop()
         } else if (visibility === Window.Windowed) {
             if (_prevVisibility === Window.Maximized || _prevVisibility === Window.Minimized)
                 _transitioning = true
@@ -131,28 +138,32 @@ Window {
     onYChanged: geomRecorder.restart()
     onWidthChanged: geomRecorder.restart()
     onHeightChanged: geomRecorder.restart()
+    // 5WHY (复核 2026-09-05 五轮 三处同型调用): saveWindowGeometry(record…)
+    // 曾三处逐字复制——签名扩展（如 DPI/屏幕字段）时漏改一处即静默落错。
+    // 单一 helper 收敛。
+    function saveNormalGeom(maximized) {
+        AppState.saveWindowGeometry(_lastNormalGeom.x, _lastNormalGeom.y,
+                                    _lastNormalGeom.width, _lastNormalGeom.height, maximized)
+    }
     onClosing: function(closeEvent) {
         if (ThemeEngine.isMobile) return
         if (visibility === Window.Windowed) {
             // 5WHY (复核 2026-09-05 四轮 转场关闭): 还原动画中 visibility
             // 先翻、几何后退——过渡期内关闭会把最大化中间帧写成正常几何
             // （本 commit 要消除的污染类）。过渡中落最近稳定记录。
-            if (_transitioning && _lastNormalGeom)
-                AppState.saveWindowGeometry(_lastNormalGeom.x, _lastNormalGeom.y,
-                                            _lastNormalGeom.width, _lastNormalGeom.height, false)
-            else
+            // 5WHY (复核 2026-09-05 五轮 空记录守卫): 过渡中无稳定记录
+            // （手势最大化后未结算即还原）时不再落当前中间帧——静默保留
+            // 盘上最后有效几何，宁缺毋滥。
+            if (_transitioning && _lastNormalGeom) saveNormalGeom(false)
+            else if (!_transitioning)
                 AppState.saveWindowGeometry(x, y, width, height, false)
         }
         else if (visibility === Window.Maximized) {
-            if (_lastNormalGeom)
-                AppState.saveWindowGeometry(_lastNormalGeom.x, _lastNormalGeom.y,
-                                            _lastNormalGeom.width, _lastNormalGeom.height, true)
-            else
-                AppState.saveWindowMaximized(true)
+            if (_lastNormalGeom) saveNormalGeom(true)
+            else AppState.saveWindowMaximized(true)
         } else if (_lastNormalGeom) {
             // 最小化/其他态：不读当前退化帧，落最近稳定正常几何
-            AppState.saveWindowGeometry(_lastNormalGeom.x, _lastNormalGeom.y,
-                                        _lastNormalGeom.width, _lastNormalGeom.height, false)
+            saveNormalGeom(false)
         }
     }
 
@@ -194,7 +205,10 @@ Window {
                     // 在慢动画下会提前解锁，允许点击把后退中间帧录进
                     // _lastNormalGeom。watchdog 只留给最大化方向（WM 拒绝时
                     // 无任何翻转，geomRecorder 无事件不重启）。
-                    win._transitioning = true
+                    // 5WHY (复核 2026-09-05 五轮 单一写入点): 锁由
+                    // onVisibilityChanged 的 Maximized→Windowed 跃迁布设
+                    // （按钮与手势两条还原路径共用）——此处不再重复写入，
+                    // WM 拒绝 showNormal 时（无翻转）锁也不会滞留。
                     win.showNormal()
                 } else if (!win._transitioning) {
                     // 5WHY (2026-09-05 复核 首会话几何丢失): 最大化前把当前
