@@ -23,6 +23,8 @@ namespace {
 void classifyInterfaces(bool& hasWifi, bool& hasEthernet) {
     const auto all = QNetworkInterface::allInterfaces();
     for (const auto& iface : all) {
+        // 双方为真即短路（simplify 二轮 2026-09-05）：剩余接口不会再翻转结果
+        if (hasWifi && hasEthernet) return;
         if (!iface.flags().testFlag(QNetworkInterface::IsRunning)) continue;
         if (iface.type() == QNetworkInterface::Wifi) {
             hasWifi = true;

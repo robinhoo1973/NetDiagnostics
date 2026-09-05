@@ -184,9 +184,14 @@ QByteArray IconProvider::tintedXml(const QString& name, const Meta& meta,
     // 前缀"）——两个循环被降序+注释强制的不变量约束，任何"简化"为升序的
     // 改动静默吞掉槽 10+。占位符追加 \x01 终结符（SVG 中不可能出现的
     // 控制字节），全部占位符前缀无关、两循环升序，碰撞不变式随注释消失。
+    // 5WHY (simplify 二轮 2026-09-05): 构造/匹配双循环必须产出逐字节相同
+    // 占位符——slotPh 单一来源，终结符变更只改一处。
+    const auto slotPh = [&kPhFixed](int i) {
+        return kPhFixed + QByteArray::number(i) + '\x01';
+    };
     for (int i = 1; i <= fixed.size(); ++i) {
         const QString slot = QStringLiteral("#B0000%1").arg(i);
-        xml.replace(slot.toLatin1(), kPhFixed + QByteArray::number(i) + '\x01');
+        xml.replace(slot.toLatin1(), slotPh(i));
     }
 
     // ── 阶段 2：占位符 → 最终配色（缺元数据保持字面哨兵=确定回退）──
@@ -203,8 +208,7 @@ QByteArray IconProvider::tintedXml(const QString& name, const Meta& meta,
     xml.replace(kPhSoft, soft.isEmpty()
         ? QByteArrayLiteral("#777777") : normalizeColor(soft).toLatin1());
     for (int i = 1; i <= fixed.size(); ++i) {
-        xml.replace(kPhFixed + QByteArray::number(i) + '\x01',
-                    normalizeColor(fixed.at(i - 1)).toLatin1());
+        xml.replace(slotPh(i), normalizeColor(fixed.at(i - 1)).toLatin1());
     }
 
     return xml;

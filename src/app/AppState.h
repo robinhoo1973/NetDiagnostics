@@ -202,7 +202,8 @@ private:
     // 5WHY (2026-08-22 P0-2): 出口红线——报告/剪贴板/落盘/预览统一在
     // 出口处替换 user:pass@ 为 user:***@（探针层与屏幕终端保持历史原样）。
     QString redactCredentials(const QString& text) const;
-    void updateEncodedCredentials();
+    struct CredForms { QString auth; QString masked; };
+    CredForms credentialForms() const;
 
     QString m_targetHost;
     QString m_targetPath;
@@ -212,10 +213,6 @@ private:
     QString m_targetUser;
     QString m_targetPassword;
     QString m_targetPort;
-    // 凭据编码形态缓存（updateEncodedCredentials 于 mutation 点刷新）——
-    // redactCredentials 遮罩针与 runNextGroup auth 前缀同源复用。
-    QString m_encodedAuth;
-    QString m_encodedMasked;
 
     int  m_runStatus = Idle;
     int  m_currentGroup = -1;

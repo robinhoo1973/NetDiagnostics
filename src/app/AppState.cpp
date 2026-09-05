@@ -203,15 +203,19 @@ void AppState::persistResults() {
     }
 }
 
-void AppState::updateEncodedCredentials() {
-    // 凭据编码形态缓存——mutation 点（setTarget 提取 / setTargetCredentials /
-    // loadPreferences 摄入）调用；消费方（redactCredentials 遮罩针、
-    // runNextGroup auth 前缀）同源复用。遮罩针必须逐字节匹配探针 URL 的
-    // 凭据形态——曾两处各写一份（180+ 次编码/轮 + 针与 URL 漂移即泄漏）。
-    const QString encodedUser = QUrl::toPercentEncoding(m_targetUser);
-    m_encodedAuth = encodedUser + QLatin1Char(':')
-                  + QUrl::toPercentEncoding(m_targetPassword) + QLatin1Char('@');
-    m_encodedMasked = encodedUser + QLatin1String(":***@");
+AppState::CredForms AppState::credentialForms() const {
+    // 凭据编码形态纯函数——redactCredentials 遮罩针与 runNextGroup auth
+    // 前缀同源复用，针必须逐字节匹配探针 URL 的凭据形态（曾两处各写一份，
+    // 漂移即凭据泄漏）。5WHY (simplify 二轮 2026-09-05): 曾改为成员缓存 +
+    // mutation 点刷新——缓存靠调用点纪律维持新鲜度，漏调一处即针与 URL
+    // 漂移（泄漏类复发）。纯函数无状态可陈旧；编码成本（~180 次/轮 ×
+    // 两短串）可忽略。
+    CredForms f;
+    const QString u = QUrl::toPercentEncoding(m_targetUser);
+    f.auth = u + QLatin1Char(':')
+           + QUrl::toPercentEncoding(m_targetPassword) + QLatin1Char('@');
+    f.masked = u + QLatin1String(":***@");
+    return f;
 }
 
 QString AppState::redactCredentials(const QString& text) const {
@@ -220,10 +224,11 @@ QString AppState::redactCredentials(const QString& text) const {
     // 遮罩，":pass@host" 随探针输出落盘/进报告。任一凭据字段非空即遮罩。
     if ((m_targetUser.isEmpty() && m_targetPassword.isEmpty()) || text.isEmpty())
         return text;
-    // 编码形态由 updateEncodedCredentials 缓存（simplify 2026-09-05）——
-    // 密码为空时 auth 即 "user:@"，仍须遮罩（防 user@ 形态泄漏）。
+    // 编码形态由 credentialForms 单一来源——密码为空时 auth 即 "user:"，
+    // 仍须遮罩（防 user@ 形态泄漏）。
+    const CredForms f = credentialForms();
     QString out = text;
-    out.replace(m_encodedAuth, m_encodedMasked);
+    out.replace(f.auth, f.masked);
     return out;
 }
 
@@ -342,7 +347,6 @@ void AppState::setTarget(const QString& host, const QString& scheme) {
             if (u != m_targetUser || p != m_targetPassword) {
                 m_targetUser = u;
                 m_targetPassword = p;
-                updateEncodedCredentials();
                 persistCredentials();
                 savePreferences();   // targetUser 持久化（密码走安全存储）
             }
@@ -400,7 +404,6 @@ void AppState::setTargetCredentials(const QString& user, const QString& password
         m_targetUser = u;
         m_targetPassword = p;
         m_targetPort = pt;
-        updateEncodedCredentials();
         persistCredentials();   // H2: 凭证实际变更时才写安全存储
         savePreferences();
         bumpState();
@@ -611,10 +614,10 @@ void AppState::runNextGroup() {
     // 粘贴 "scheme://:pass@host" 提取出 user 空/pass 非空并已持久化，却
     // 在此被静默丢弃（探针 URL 无凭据、认证消失）。任一字段非空即拼
     // （user 空时得到 ":pass@" 形态，与提取前 URL 语义一致）。
-    // 编码形态与 redactCredentials 遮罩针同源缓存（simplify 2026-09-05）——
-    // 针与探针 URL 逐字节一致，两处漂移即遮罩失效泄漏凭据。
+    // 编码形态与 redactCredentials 遮罩针同源（credentialForms 纯函数，
+    // simplify 二轮 2026-09-05）——针与探针 URL 逐字节一致。
     if (!m_targetUser.isEmpty() || !m_targetPassword.isEmpty())
-        auth = m_encodedAuth;
+        auth = credentialForms().auth;
     const QString target = m_targetScheme + QLatin1String("://") + auth + host + m_targetPath;
     m_suite->run(target, schemeLower);
 }
@@ -1221,7 +1224,6 @@ void AppState::loadPreferences() {
         removeLegacyPlaintextPassword(s);
     }
     m_targetPort = s.value(QStringLiteral("targetPort")).toString();
-    updateEncodedCredentials();   // 凭据摄入后刷新编码缓存（simplify 2026-09-05）
     // 5WHY (2026-09-04 修正复核): 显式 sync——迁移分支的明文键删除只依赖
     // 析构期 flush 的话，保存成功到落盘之间存在崩溃窗口（明文残留）。
     s.sync();
