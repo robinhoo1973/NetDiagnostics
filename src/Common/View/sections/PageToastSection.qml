@@ -1,10 +1,11 @@
 // =============================================================================
 // PageToastSection.qml — Unified toast (NEW-7, PageSection 派生)
 //
-// Placed in PageDisplay.floatingContent.  Page owns the trigger: set
-// toastText (or expose showToast()), keep page-local Timer/Connections for
-// multi-toast sequencing (e.g. language + restore in Settings).  Base
-// PageDisplay no longer carries a built-in toast.
+// Placed in PageDisplay.floatingContent.  Section owns the trigger AND the
+// auto-hide Timer (5WHY Reuse 2026-09-05): pages keep only a one-line
+// `function showToast(msg) { toastSection.showToast(msg) }` trigger —
+// 时序/多 toast 队列化/无障碍播报改动只落本节一处（DetailPage /
+// SettingsScreen / DiagnosticScreen / DashboardScreen 均委托至此）。
 //
 // 7-8（2026-08-13）：toast 改为 Popup 承载——Popup 渲染于窗口 overlay 层，
 // 高于 main.qml 的窗口控制按钮；原普通 Item + z:2000 仅在页面兄弟层级内

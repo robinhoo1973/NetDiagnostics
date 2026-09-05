@@ -71,8 +71,7 @@ PageSection {
         // 无分配滚动哈希（31 进制）+ 长度预检（长度变则签名必变）。
         if (newModel.length !== _activeLen) {
             _activeLen = newModel.length
-            _activeHash = -1
-            _hashValid = false
+            _hashValid = false   // 5WHY (复核 2026-09-05): _activeHash 的 -1 复位是死写——唯一读点（下方门控）由 _hashValid 守卫，且 _activeHash 在任何读取前必被重赋
         }
         var h = 0
         for (var i = 0; i < newModel.length; ++i) {

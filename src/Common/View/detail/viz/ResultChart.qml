@@ -208,15 +208,23 @@ Item {
         if (!item) return
         var tt = root.data.templateType
         if (tt === 1 || tt === 2 || tt === 4) {
-            // Ping / Path / Request → BarChart
-            if (_series.length) item.values = _series
+            // Ping / Path / Request → BarChart。
+            // 5WHY (2026-09-05 复核 旧数据残留): 曾 `if (_series.length)`
+            // 守卫——空序列（如 hops 为空的 PathPing，_source 不变、实例
+            // 复用）时跳过赋值，图表继续显示上一次结果的旧柱。无条件
+            // 赋值：空序列即空图（BarChart 对空 values 渲染显式空态）。
+            item.values = _series
         } else if ((tt === 3 || tt === 5) && _gaugeSpec) {
             // Handshake / Query → Gauge (cert validity, connect latency)
             item.value = _gaugeSpec.value
             item.maxValue = _gaugeSpec.max
-            item.unit = Qt.binding(function() { return T.tr(_gaugeSpec.unitKey) })
+            // 5WHY (2026-09-05 复核 null 守卫): data 从 Gauge 形态切到非
+            // Gauge 形态时 _gaugeSpec 重估为 null，而旧 Gauge 实例的绑定
+            // 可能先于 Loader 卸载重估——null 解引用 TypeError（绑定失效，
+            // 控制台噪声）。
+            item.unit = Qt.binding(function() { return _gaugeSpec ? T.tr(_gaugeSpec.unitKey) : "" })
             item.gaugeColor = _gaugeSpec.color
-            item.emptyLabel = Qt.binding(function() { return _gaugeSpec.emptyLabel || "" })
+            item.emptyLabel = Qt.binding(function() { return (_gaugeSpec && _gaugeSpec.emptyLabel) || "" })
         }
     }
 

@@ -94,17 +94,10 @@ PageDisplay {
         _refreshTime()
     }
 
-    // ── Toast（NEW-7：页面自持）──
-    property string toastText: ""
-    function showToast(msg) {
-        toastText = msg
-        toastTimer.restart()
-    }
-    Timer {
-        id: toastTimer
-        interval: ThemeEngine.toastDurationMs
-        onTriggered: page.toastText = ""
-    }
+    // ── Toast（NEW-7：触发点页面自持；showToast/定时收敛于
+    //    PageToastSection，5WHY Reuse 2026-09-05——与 DetailPage/
+    //    SettingsScreen/DiagnosticScreen 同门）──
+    function showToast(msg) { toastSection.showToast(msg) }
 
     function dashboardOpenDetail(diagId) {
         // UI-10：经 sectionAction 路由，AppContent 推入 DetailPage
@@ -323,7 +316,7 @@ PageDisplay {
     ]
 
     floatingContent: [
-        S.PageToastSection { toastText: page.toastText },
+        S.PageToastSection { id: toastSection },
         // 报告预览浮层（归档恢复：全窗 + 头部条 + 缩放 + 双格式分享）
         S.PageOverlaySection {
             visible: page.previewVisible

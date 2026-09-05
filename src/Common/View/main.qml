@@ -55,10 +55,25 @@ Window {
     // "还原尺寸"落盘（旧注释与事实相反），还原按钮永远回不到真实还原
     // 尺寸。最大化关闭只落 max 标志（saveWindowMaximized 不动几何键），
     // 已存的正常几何保持。
+    // 5WHY (2026-09-05 复核 首会话几何丢失): 仅落 max 标志时，若本会话
+    // 从未以正常态关闭过（用户调尺寸 → 最大化 → 关闭），几何键从未写盘，
+    // 下次启动回默认 1080×760——用户选择的正常尺寸丢失。以 _lastNormalGeom
+    // 记录最近一次正常态几何，最大化关闭时连同 max 标志一起落盘。
+    // 记录点：进入 Windowed 的可见性跃迁（启动恢复/还原按钮）+ 最大化
+    // 按钮按下前（用户刚调过尺寸）。不挂 onWidthChanged：最大化跃迁的
+    // 几何事件可能先于 visibility 翻转到达，会把最大化帧误存进正常几何。
+    property var _lastNormalGeom: null
+    onVisibilityChanged: {
+        if (visibility === Window.Windowed && visible)
+            _lastNormalGeom = Qt.rect(x, y, width, height)
+    }
     onClosing: function(closeEvent) {
         if (ThemeEngine.isMobile) return
         if (visibility !== Window.Maximized)
             AppState.saveWindowGeometry(x, y, width, height, false)
+        else if (_lastNormalGeom)
+            AppState.saveWindowGeometry(_lastNormalGeom.x, _lastNormalGeom.y,
+                                        _lastNormalGeom.width, _lastNormalGeom.height, true)
         else
             AppState.saveWindowMaximized(true)
     }
@@ -95,7 +110,13 @@ Window {
             accName: win.visibility === Window.Maximized ? T.tr("accRestoreWindow") : T.tr("accMaximizeWindow")
             onClicked: {
                 if (win.visibility === Window.Maximized) win.showNormal()
-                else win.showMaximized()
+                else {
+                    // 5WHY (2026-09-05 复核 首会话几何丢失): 最大化前把当前
+                    // 正常几何存入 _lastNormalGeom——最大化关闭时连同 max
+                    // 标志落盘，用户调过的尺寸不丢。
+                    win._lastNormalGeom = Qt.rect(win.x, win.y, win.width, win.height)
+                    win.showMaximized()
+                }
             }
         }
 
