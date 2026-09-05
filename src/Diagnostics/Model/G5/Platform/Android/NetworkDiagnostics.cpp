@@ -35,6 +35,7 @@
 #include <QCryptographicHash>
 #include <QFuture>
 #include <QtConcurrent/QtConcurrent>
+#include <QThreadPool>
 #include <ifaddrs.h>
 #include <net/if.h>
 #include <arpa/inet.h>
@@ -1054,8 +1055,22 @@ DiagnosticResult androidNetworkProfileDiag(DiagId id) {
 // 5WHY (round 2): getByName() throws UnknownHostException on NXDOMAIN — the
 // JNI exception was never cleared, poisoning later JNI calls on the thread.
 // Now every lookup clears exceptions after the call.
+// 5WHY (2026-09-05 全局池饥饿): DNS 探测曾用 QtConcurrent::run 默认全局
+// QThreadPool——超时后线程仍阻塞在 JNI InetAddress.getByName（30-120s）
+// 无法回收，不可达 DNS 下 8 个顺序查询占满全局池 → 进程内所有
+// QtConcurrent 使用者全部饥饿数分钟。改用专用 4 线程池：僵尸线程有界
+// 隔离，不再影响其余并发任务。
+static QThreadPool* androidDnsPool() {
+    static QThreadPool* pool = [] {
+        auto* p = new QThreadPool;
+        p->setMaxThreadCount(4);
+        return p;
+    }();
+    return pool;
+}
+
 static QString androidResolveOne(const QString& host, int timeoutMs) {
-    QFuture<QString> future = QtConcurrent::run([host]() -> QString {
+    QFuture<QString> future = QtConcurrent::run(androidDnsPool(), [host]() -> QString {
         QJniEnvironment env;
         QJniObject hostStr = QJniObject::fromString(host);
         QJniObject inetAddr = QJniObject::callStaticObjectMethod(
@@ -1096,7 +1111,7 @@ DiagnosticResult androidDnsDiag(DiagId id, const QString& target) {
     // returns every A + AAAA record — dig-style multi-record output.
     QStringList ips;
     {
-        QFuture<QStringList> future = QtConcurrent::run([host]() -> QStringList {
+        QFuture<QStringList> future = QtConcurrent::run(androidDnsPool(), [host]() -> QStringList {
             QStringList result;
             QJniEnvironment env;
             QJniObject hostStr = QJniObject::fromString(host);

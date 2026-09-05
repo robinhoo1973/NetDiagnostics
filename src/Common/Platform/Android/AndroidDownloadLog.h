@@ -18,6 +18,12 @@
 // =============================================================================
 #pragma once
 
+// 5WHY (Reuse 2026-09-05): 公开 Download 镜像目录单一来源——曾在本文件与
+// CrashHandler.h 各写一份 "/sdcard/Download/NetDiagnostics" 字面量。
+// 未 #if PLATFORM_ANDROID 包裹（纯常量，头文件仅声明不引 Qt 头时随处可用；
+// CrashHandler.h 在 Android 分支引用）。
+static constexpr const char* kDownloadMirrorDir = "/sdcard/Download/NetDiagnostics";
+
 #if defined(PLATFORM_ANDROID)
 #include <QString>
 #include <QDir>
@@ -38,8 +44,8 @@
 // app-scoped file still hold the data).
 static inline void androidWriteLineToDownloadNative(const QString& line) {
     // Best-effort direct write — silently skip if Download is unwritable.
-    static const char* kPath = "/sdcard/Download/NetDiagnostics/"
-                               "NetDiagnostics_startup.log";
+    static const QString kPath = QString::fromLatin1(kDownloadMirrorDir)
+                               + QStringLiteral("/NetDiagnostics_startup.log");
     // 5WHY: avoid per-line mkpath syscalls — open first; only on failure
     // (fresh-install dir gap) create the parent and retry ONCE.  After a
     // doomed attempt (API 29+ scoped storage, no grant) give up for the rest
@@ -47,9 +53,9 @@ static inline void androidWriteLineToDownloadNative(const QString& line) {
     static bool sNativeDisabled = false;
     if (sNativeDisabled)
         return;
-    QFile f(QString::fromLatin1(kPath));
+    QFile f(kPath);
     if (!f.open(QIODevice::Append | QIODevice::WriteOnly)) {
-        QDir().mkpath(QStringLiteral("/sdcard/Download/NetDiagnostics"));
+        QDir().mkpath(QString::fromLatin1(kDownloadMirrorDir));
         if (!f.open(QIODevice::Append | QIODevice::WriteOnly)) {
             sNativeDisabled = true;
             return;

@@ -26,11 +26,11 @@ inline QJniObject getQtActivity() {
     // inside the ctor while JNI is still unavailable.
     if (!androidJniReady())
         return QJniObject();
-    QJniObject ctx = QNativeInterface::QAndroidApplication::context();
-    if (ctx.isValid())
-        return ctx;
-    return QJniObject::callStaticObjectMethod(
-        "org/qtproject/qt/android/QtNative",
-        "activity",
-        "()Landroid/app/Activity;");
+    // 5WHY (2026-09-05 QtNative 回退即崩溃源): 曾以硬编码
+    // "org/qtproject/qt/android/QtNative" 静态调用兜底——AndroidLogPaths.h
+    // 的 5WHY 已归档该类名的确切崩溃模式（Qt 6.5.3 无此类：FindClass 失败
+    // 留 NoClassDefFoundError 挂起 → 下一次 JNI 调用 SIGABRT）。Qt 6.2+
+    // 的 QNativeInterface 才是版本无关入口；context 无效时返回无效对象，
+    // 全部调用方均已判空降级（权限/服务探测返回"不可用"文案）。
+    return QNativeInterface::QAndroidApplication::context();
 }

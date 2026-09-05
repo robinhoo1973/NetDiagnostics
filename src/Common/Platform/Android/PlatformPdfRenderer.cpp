@@ -50,6 +50,11 @@ bool PlatformPdfRenderer::load(const QString& filePath) {
         fd.callMethod<void>("close");
         return false;
     }
+    // 5WHY (2026-09-05 FD 泄漏): 曾仅在构造失败分支关闭 fd——PdfRenderer
+    // 构造时内部 dup 了该 fd，成功后本方持有的原始描述符无人释放：每轮
+    // PDF 重载（主题切换重生成）泄漏 1 个 fd，直至进程 FD 上限（典型
+    // 1024）耗尽、后续一切文件操作 EMFILE。成功后立即关闭原始 fd。
+    fd.callMethod<void>("close");
 
     d->renderer = env->NewGlobalRef(renderer.object<jobject>());
     d->pages = renderer.callMethod<jint>("getPageCount");
@@ -91,7 +96,15 @@ QImage PlatformPdfRenderer::renderPage(int pageIndex, int width) const {
         "android/graphics/Bitmap", "createBitmap",
         "(IILandroid/graphics/Bitmap$Config;)Landroid/graphics/Bitmap;",
         width, height, config.object<jobject>());
-    if (!bitmap.isValid()) return {};
+    // 5WHY (2026-09-05 Page 泄漏): 曾直接 return {}——已打开的
+    // PdfRenderer$Page 未关闭。Android PdfRenderer 同一时间只允许一个
+    // Page 打开，泄漏后下一次 openPage 抛 IllegalStateException → 该文档
+    // 所有页面从此空白（且原生 Page 对象泄漏）。失败路径与零宽守卫同门
+    // 关闭 Page。
+    if (!bitmap.isValid()) {
+        pdfPage.callMethod<void>("close");
+        return {};
+    }
 
     // Render page into bitmap
     pdfPage.callMethod<void>("render",
