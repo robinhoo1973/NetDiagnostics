@@ -180,12 +180,13 @@ QByteArray IconProvider::tintedXml(const QString& name, const Meta& meta,
     // 5) 柔填充 #777777
     xml.replace("#777777", kPhSoft);
     // 6) 固定多色 #B0000n（列表长度即槽位数量；超出部分保持字面）
-    // 5WHY (2026-09-05 复核): 与阶段 2 同门降序——"#B00001" 是 "#B000010"
-    // （槽 10）的前缀，升序会先吞高槽哨兵；降序高位先落位，槽位任意多
-    // 也不互相覆盖。
-    for (int i = fixed.size(); i >= 1; --i) {
+    // 5WHY (simplify 2026-09-05): 槽位占位符曾以数字收尾（"…1 是 …12 的
+    // 前缀"）——两个循环被降序+注释强制的不变量约束，任何"简化"为升序的
+    // 改动静默吞掉槽 10+。占位符追加 \x01 终结符（SVG 中不可能出现的
+    // 控制字节），全部占位符前缀无关、两循环升序，碰撞不变式随注释消失。
+    for (int i = 1; i <= fixed.size(); ++i) {
         const QString slot = QStringLiteral("#B0000%1").arg(i);
-        xml.replace(slot.toLatin1(), kPhFixed + QByteArray::number(i));
+        xml.replace(slot.toLatin1(), kPhFixed + QByteArray::number(i) + '\x01');
     }
 
     // ── 阶段 2：占位符 → 最终配色（缺元数据保持字面哨兵=确定回退）──
@@ -201,10 +202,8 @@ QByteArray IconProvider::tintedXml(const QString& name, const Meta& meta,
         ? QByteArrayLiteral("#101010") : normalizeColor(meta.second).toLatin1());
     xml.replace(kPhSoft, soft.isEmpty()
         ? QByteArrayLiteral("#777777") : normalizeColor(soft).toLatin1());
-    // 降序替换：槽位占位符以数字收尾（…1 是 …12 的前缀），高位先落位
-    // 可避免低槽占位符误吞高槽占位符。
-    for (int i = fixed.size(); i >= 1; --i) {
-        xml.replace(kPhFixed + QByteArray::number(i),
+    for (int i = 1; i <= fixed.size(); ++i) {
+        xml.replace(kPhFixed + QByteArray::number(i) + '\x01',
                     normalizeColor(fixed.at(i - 1)).toLatin1());
     }
 
