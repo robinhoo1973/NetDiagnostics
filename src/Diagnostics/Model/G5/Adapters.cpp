@@ -83,7 +83,6 @@ static int defaultPort(const QString& schemeIn) {
     if (s == QLatin1String("ftps")) return 990;
     if (s == QLatin1String("sftp") || s == QLatin1String("ssh")) return 22;
     if (s == QLatin1String("telnet")) return 23;
-    if (s == QLatin1String("rdp")) return 3389;
     if (s == QLatin1String("smtp")) return 25;
     if (s == QLatin1String("smtps")) return 465;
     if (s == QLatin1String("imap")) return 143;
@@ -94,7 +93,6 @@ static int defaultPort(const QString& schemeIn) {
     if (s == QLatin1String("postgresql")) return 5432;
     if (s == QLatin1String("redis")) return 6379;
     if (s == QLatin1String("mongodb")) return 27017;
-    if (s == QLatin1String("mssql")) return 1433;
     if (s == QLatin1String("ldap")) return 389;
     if (s == QLatin1String("ldaps")) return 636;
     if (s == QLatin1String("mqtt")) return 1883;
@@ -212,14 +210,20 @@ struct HttpResult {
 };
 
 static bool parseResponseHead(const QByteArray& head, HttpResult& r) {
-    const QList<QByteArray> lines = head.split('\r');
+    // 5WHY (2026-09-05 头部名全带换行): 曾按 '\r' 切分——CRLF 头体中除状态行
+    // 外每行均以 '\n' 开头，name 从未剥掉它（"\ncontent-type"）→ 所有按
+    // 精确名匹配的消费全部失配：SecurityHeaders 恒报 7 项缺失、Redirect
+    // 永不跟随 location、Compression 恒判未压缩、头部列表显示带内嵌换行。
+    // 按 '\n' 切分并剥行尾 '\r'（value 的 trimmed 已覆盖尾部空白）。
+    const QList<QByteArray> lines = head.split('\n');
     if (lines.isEmpty()) return false;
     r.statusLine = lines.first();
     const QList<QByteArray> parts = r.statusLine.split(' ');
     if (parts.size() < 2) return false;
     r.statusCode = parts[1].toInt();
     for (int i = 1; i < lines.size(); ++i) {
-        const QByteArray& line = lines[i];
+        QByteArray line = lines[i];
+        if (line.endsWith('\r')) line.chop(1);
         if (line.isEmpty()) continue;
         const int colon = line.indexOf(':');
         if (colon <= 0) continue;
@@ -452,6 +456,25 @@ static DiagnosticResult probeServiceBanner(DiagId id, const QString& target, Run
 // ═════════════════════════════════════════════════════════════════════════
 // G5CurlVerbose — full request/response dump + timing waterfall
 // ═════════════════════════════════════════════════════════════════════════
+// 5WHY (Reuse 2026-09-05): HTTP 计时数据键 + waterfall 5 段构造曾逐字复制于
+// probeCurlVerbose（diag-g5 §2.4）与 probeHttpTiming（§2.10）——契约键名
+// （sslMs/waterfall 阶段）两处维护，新增阶段或改名漏一处即两测试图表
+// 分叉。收敛单一助手，两个结果构建器共用。
+static void attachHttpTiming(DiagnosticResult& r, const HttpResult& hr) {
+    r.data[QStringLiteral("dnsMs")] = hr.dnsMs;
+    r.data[QStringLiteral("connectMs")] = hr.connectMs;
+    r.data[QStringLiteral("sslMs")] = hr.tlsMs;   // 契约键名 sslMs（diag-g5 §2.4/§2.10）
+    r.data[QStringLiteral("firstByteMs")] = hr.firstByteMs;
+    r.data[QStringLiteral("totalMs")] = hr.totalMs;
+    r.data[QStringLiteral("statusCode")] = hr.statusCode;
+    QVariantList waterfall;   // 5 段（DNS/Connect/SSL/FirstByte/Total）
+    waterfall.append(QVariantMap{{QStringLiteral("phase"), QStringLiteral("DNS")}, {QStringLiteral("ms"), (double)hr.dnsMs}});
+    waterfall.append(QVariantMap{{QStringLiteral("phase"), QStringLiteral("Connect")}, {QStringLiteral("ms"), (double)hr.connectMs}});
+    waterfall.append(QVariantMap{{QStringLiteral("phase"), QStringLiteral("SSL")}, {QStringLiteral("ms"), (double)hr.tlsMs}});
+    waterfall.append(QVariantMap{{QStringLiteral("phase"), QStringLiteral("FirstByte")}, {QStringLiteral("ms"), (double)hr.firstByteMs}});
+    waterfall.append(QVariantMap{{QStringLiteral("phase"), QStringLiteral("Total")}, {QStringLiteral("ms"), (double)hr.totalMs}});
+    r.data[QStringLiteral("waterfall")] = waterfall;
+}
 static DiagnosticResult probeCurlVerbose(DiagId id, const QString& target, RunContext&) {
     if (target.isEmpty()) return skippedProbe(id, QStringLiteral("No target"));
     const QUrl u = normalizeUrl(target);
@@ -481,19 +504,7 @@ static DiagnosticResult probeCurlVerbose(DiagId id, const QString& target, RunCo
 
     DiagnosticResult r = makeResult(id, DiagStatus::Pass,
         QStringLiteral("HTTP %1 — %2 ms").arg(hr.statusCode).arg(hr.totalMs), {}, out.join(QLatin1Char('\n')));
-    r.data[QStringLiteral("statusCode")] = hr.statusCode;
-    r.data[QStringLiteral("totalMs")] = hr.totalMs;
-    r.data[QStringLiteral("dnsMs")] = hr.dnsMs;
-    r.data[QStringLiteral("connectMs")] = hr.connectMs;
-    r.data[QStringLiteral("sslMs")] = hr.tlsMs;   // diag-g5 §2.4：契约键名 sslMs
-    r.data[QStringLiteral("firstByteMs")] = hr.firstByteMs;
-    QVariantList waterfall;   // 5 段（diag-g5 §2.4：DNS/Connect/SSL/FirstByte/Total）
-    waterfall.append(QVariantMap{{QStringLiteral("phase"), QStringLiteral("DNS")}, {QStringLiteral("ms"), (double)hr.dnsMs}});
-    waterfall.append(QVariantMap{{QStringLiteral("phase"), QStringLiteral("Connect")}, {QStringLiteral("ms"), (double)hr.connectMs}});
-    waterfall.append(QVariantMap{{QStringLiteral("phase"), QStringLiteral("SSL")}, {QStringLiteral("ms"), (double)hr.tlsMs}});
-    waterfall.append(QVariantMap{{QStringLiteral("phase"), QStringLiteral("FirstByte")}, {QStringLiteral("ms"), (double)hr.firstByteMs}});
-    waterfall.append(QVariantMap{{QStringLiteral("phase"), QStringLiteral("Total")}, {QStringLiteral("ms"), (double)hr.totalMs}});
-    r.data[QStringLiteral("waterfall")] = waterfall;
+    attachHttpTiming(r, hr);
     return r;
 }
 
@@ -796,19 +807,7 @@ static DiagnosticResult probeHttpTiming(DiagId id, const QString& target, RunCon
     DiagnosticResult r = makeResult(id, DiagStatus::Pass,
         QStringLiteral("TTFB %1 ms, total %2 ms").arg(hr.firstByteMs).arg(hr.totalMs),
         {}, out.join(QLatin1Char('\n')));
-    r.data[QStringLiteral("dnsMs")] = hr.dnsMs;
-    r.data[QStringLiteral("connectMs")] = hr.connectMs;
-    r.data[QStringLiteral("sslMs")] = hr.tlsMs;   // diag-g5 §2.10：契约键名 sslMs
-    r.data[QStringLiteral("firstByteMs")] = hr.firstByteMs;
-    r.data[QStringLiteral("totalMs")] = hr.totalMs;
-    r.data[QStringLiteral("statusCode")] = hr.statusCode;
-    QVariantList waterfall;   // 5 段（diag-g5 §2.10）
-    waterfall.append(QVariantMap{{QStringLiteral("phase"), QStringLiteral("DNS")}, {QStringLiteral("ms"), (double)hr.dnsMs}});
-    waterfall.append(QVariantMap{{QStringLiteral("phase"), QStringLiteral("Connect")}, {QStringLiteral("ms"), (double)hr.connectMs}});
-    waterfall.append(QVariantMap{{QStringLiteral("phase"), QStringLiteral("SSL")}, {QStringLiteral("ms"), (double)hr.tlsMs}});
-    waterfall.append(QVariantMap{{QStringLiteral("phase"), QStringLiteral("FirstByte")}, {QStringLiteral("ms"), (double)hr.firstByteMs}});
-    waterfall.append(QVariantMap{{QStringLiteral("phase"), QStringLiteral("Total")}, {QStringLiteral("ms"), (double)hr.totalMs}});
-    r.data[QStringLiteral("waterfall")] = waterfall;
+    attachHttpTiming(r, hr);
     return r;
 }
 
@@ -1037,17 +1036,29 @@ static DiagnosticResult probeMongodb(DiagId id, const QString& target, RunContex
     if (!p.connected) return r;
     const QByteArray& resp = p.banner;
     const bool responded = resp.size() >= 16;
-    // OP_REPLY: int32 flags at offset 0; BSON docs follow 20-byte header.
+    // OP_REPLY 布局（MongoDB 线协议）：MsgHeader(16) + responseFlags(4) +
+    // cursorID(8) + startingFrom(4) + numberReturned(4) = 36 字节头，首个
+    // BSON 文档从偏移 36 开始。5WHY (2026-09-05 版本恒未知): 曾按 20 字节
+    // 偏移读 docSize——字节 20-27 是 cursorID（isMaster 应答恒 0）→
+    // docSize 恒 0，版本提取从未执行。
     QString version;
     if (resp.size() > 36) {
-        // First BSON doc: total size (LE32) then elements. Look for "version" field.
-        const int docSize = (int)((quint8)resp[20]) | ((quint8)resp[21] << 8)
-                          | ((quint8)resp[22] << 16) | ((quint8)resp[23] << 24);
-        if (docSize > 0 && 20 + docSize <= resp.size()) {
-            const QByteArray doc = resp.mid(20, docSize);
+        const int docSize = (int)((quint8)resp[36]) | ((quint8)resp[37] << 8)
+                          | ((quint8)resp[38] << 16) | ((quint8)resp[39] << 24);
+        if (docSize > 0 && 36 + docSize <= resp.size()) {
+            const QByteArray doc = resp.mid(36, docSize);
             const int vPos = doc.indexOf("version");
-            if (vPos > 0 && vPos + 9 <= doc.size())
-                version = QString::fromUtf8(doc.mid(vPos + 8, doc.size() - vPos - 9).split('\0').first());
+            // BSON string 元素 = type(1) + cstring 名("version\0"=8) +
+            // int32 串长(4，含结尾 \0) + 内容。5WHY (2026-09-05 复核):
+            // indexOf("version") 命中的是元素【名】起点而非 type 字节——
+            // 串长在 vPos+8..11、内容自 vPos+12（曾按 type 字节起点计算
+            // 整体偏移 1，slen 高位混入首字符字节，边界检查恒失败）。
+            if (vPos > 0 && vPos + 12 <= doc.size()) {
+                const int slen = (int)((quint8)doc[vPos + 8]) | ((quint8)doc[vPos + 9] << 8)
+                              | ((quint8)doc[vPos + 10] << 16) | ((quint8)doc[vPos + 11] << 24);
+                if (slen > 1 && vPos + 12 + slen - 1 <= doc.size())
+                    version = QString::fromUtf8(doc.mid(vPos + 12, slen - 1));
+            }
         }
     }
     r.summary = responded ? (version.isEmpty() ? QStringLiteral("MongoDB responded (version unknown)") : QStringLiteral("MongoDB %1").arg(version))

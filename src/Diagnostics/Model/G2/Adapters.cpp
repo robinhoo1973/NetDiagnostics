@@ -47,6 +47,10 @@
 #if defined(_WIN32)
 #include <winsock2.h>
 #include <windows.h>
+#else
+#include <unistd.h>   // gethostname()（5WHY 2026-09-05 探针线程安全，替代 QHostInfo 阻塞反查）
+#endif
+#if defined(_WIN32)
 // 经典 MinGW 陷阱：netioapi.h 必须先于 iphlpapi.h——若 __IPHLPAPI_H__ 已定义，
 // netioapi.h 走 #ifdef 分支而跳过 iprtrmib.h 的包含 → MIB_IPFORWARD_TABLE2 等类型缺失。
 #include <netioapi.h>
@@ -577,7 +581,13 @@ static DiagnosticResult probeNetworkProfile(DiagId id, const QString&, RunContex
     // 首版只补了头前空行，Hostname 行紧贴头行。
     out.append(QString());
 
-    const QString hostname = QHostInfo::localHostName();
+    // 5WHY (2026-09-05 探针线程安全): QHostInfo::localHostName() 在工作
+    // 线程上阻塞反查 DNS（Qt 文档明示可阻塞）——G1 probeIpConfig 已改
+    // 纯 libc gethostname()，此处同源修正：慢 DNS 环境下本探测会占住
+    // 套件池线程直至解析超时。
+    char hostBuf[256] = {};
+    gethostname(hostBuf, sizeof(hostBuf) - 1);
+    const QString hostname = QString::fromUtf8(hostBuf);
     props.append({QStringLiteral("hostname"), hostname});
     out.append(QStringLiteral("  Hostname: %1").arg(hostname));
 

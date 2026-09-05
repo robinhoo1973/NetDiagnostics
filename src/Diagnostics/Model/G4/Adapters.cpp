@@ -22,6 +22,7 @@
 
 #include "Common/Services/PlatformAdapter.h"
 #include "Common/Services/DnsResolver.h"
+#include "Common/Utils/NetUtil.h"   // 5WHY (2026-09-05): createNonBlockingSocket（FD_SETSIZE 守卫）
 #include "Common/Services/DnsWire.h"
 #include "Common/Model/DiagnosticMeta.h"
 #include "Common/Model/DiagNames.h"
@@ -273,10 +274,19 @@ static int traceHopWindows(quint32 ip, int ttl, int& rttMs, QString& hopIp) {
 // POSIX 共享辅助：ICMP 校验和 + TCP-TTL 逐跳回退（内核可能不遵从 TTL——诚实局限）
 // ═════════════════════════════════════════════════════════════════════════
 static uint16_t icmpChecksum16(const void* data, int len) {
-    const uint16_t* w = static_cast<const uint16_t*>(data);
+    // 5WHY (2026-09-05 未对齐载入 UB): 曾以 uint16_t* 直接解引用 data——
+    // 实参是 alignof(1) 的 unsigned char 数组：未对齐载入 + 严格别名双
+    // UB（x86 幸免；UBSan/ASan 报错，严格对齐架构 SIGBUS）。逐字对
+    // memcpy 载入（合法跨类型读取），求和语义逐字保持。
+    const auto* bytes = static_cast<const unsigned char*>(data);
     uint32_t sum = 0;
-    while (len > 1) { sum += *w++; len -= 2; }
-    if (len == 1) sum += *reinterpret_cast<const uint8_t*>(w);
+    int i = 0;
+    for (; i + 1 < len; i += 2) {
+        uint16_t w = 0;
+        std::memcpy(&w, bytes + i, sizeof(w));
+        sum += w;
+    }
+    if (i < len) sum += bytes[i];   // 奇数尾字节（原语义：低字节入和）
     sum = (sum >> 16) + (sum & 0xFFFF);
     sum += (sum >> 16);
     return static_cast<uint16_t>(~sum);
@@ -1037,7 +1047,12 @@ static DiagnosticResult probePathPing(DiagId id, const QString& target, RunConte
     lines.append(QStringLiteral("Tracing route to %1 [%2]").arg(host, targetIpStr));
     lines.append(QStringLiteral("over a maximum of 30 hops:"));
     lines.append(QString());
-    lines.append(QStringLiteral("  0  %1 [%2]").arg(QHostInfo::localHostName(), QStringLiteral("127.0.0.1")));
+    // 5WHY (2026-09-05 探针线程安全): 同 G2/G1——gethostname() 即时返回，
+    // 不做反查 DNS 阻塞（QHostInfo::localHostName 可阻塞，见 Qt 文档）。
+    char localBuf[256] = {};
+    gethostname(localBuf, sizeof(localBuf) - 1);
+    lines.append(QStringLiteral("  0  %1 [%2]")
+        .arg(QString::fromUtf8(localBuf), QStringLiteral("127.0.0.1")));
     for (int i = 1; i < entries.size(); ++i) {
         const QString ip = entries[i].ip;
         if (ip.isEmpty()) continue;   // timeout 跳无 IP，不生成行
@@ -1179,7 +1194,12 @@ static DiagnosticResult probeMtuDiscovery(DiagId id, const QString& target, RunC
 #else
     if (resolvedIp) {
         // Best effort: probe TCP connect then read MSS via getsockopt (POSIX).
-        int sock = ::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+        // 5WHY (2026-09-05 FD_SETSIZE 栈溢出): 曾裸 ::socket 且无 fd 上限
+        // 守卫——本文件 Windows 分支与 tcpTtlHop 均守卫 fd < FD_SETSIZE
+        // （归档教训：fd >= FD_SETSIZE 时 FD_SET 越界写栈位图），POSIX
+        // 分支漏网。NetUtil::createNonBlockingSocket 内置该守卫 + 非阻塞
+        // 设置（同文件 tcpConnect 共用助手），直接复用。
+        int sock = createNonBlockingSocket(AF_INET);
         if (sock >= 0) {
             sockaddr_in addr; std::memset(&addr, 0, sizeof(addr));
             addr.sin_family = AF_INET;
@@ -1187,8 +1207,6 @@ static DiagnosticResult probeMtuDiscovery(DiagId id, const QString& target, RunC
             addr.sin_addr.s_addr = htonl(resolvedIp);
             // R5-7：阻塞 connect 对不可达主机可能挂数分钟（内核重传超时）；
             // 用 O_NONBLOCK + select 3s 限定，与 Windows 分支同策略。
-            const int fl = ::fcntl(sock, F_GETFL, 0);
-            ::fcntl(sock, F_SETFL, fl | O_NONBLOCK);
             QElapsedTimer t; t.start();
             const int rc = ::connect(sock, (sockaddr*)&addr, sizeof(addr));
             if (rc < 0 && errno == EINPROGRESS) {

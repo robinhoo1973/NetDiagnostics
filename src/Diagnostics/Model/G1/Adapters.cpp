@@ -603,7 +603,15 @@ static DiagnosticResult probeWifi(DiagId id, const QString&, RunContext& ctx) {
         PWLAN_INTERFACE_INFO_LIST ifList = nullptr;
         if (WlanEnumInterfaces(hClient, nullptr, &ifList) == ERROR_SUCCESS) {
             for (DWORD i = 0; i < ifList->dwNumberOfItems; i++) {
-                if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
+                // 5WHY (2026-09-05 取消泄漏): 曾直接 return——WLAN 接口列表
+                // 堆缓冲（WlanFreeMemory）与 WLAN 客户端句柄（WlanCloseHandle）
+                // 均未释放，每次取消泄漏句柄直至句柄表耗尽、后续 WlanOpenHandle
+                // 静默失败。与 GetIfTable2 分支同门：先释放再返回。
+                if (ctx.cancelled.load()) {
+                    WlanFreeMemory(ifList);
+                    WlanCloseHandle(hClient, nullptr);
+                    return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
+                }
                 auto& wi = ifList->InterfaceInfo[i];
                 ResultProperty p(QString::fromWCharArray(wi.strInterfaceDescription),
                     wi.isState == wlan_interface_state_connected ? QStringLiteral("connected") : QStringLiteral("disconnected"));
