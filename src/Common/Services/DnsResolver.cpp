@@ -97,6 +97,12 @@ bool finishLookup(const std::shared_ptr<LookupState>& st, std::thread& t,
 
 // 5WHY (2026-08-22 CP-2): 驱逐最旧条目（ts 最小）——近似 LRU。仅 DnsResolver
 // 内部（持锁上下文）调用，条目量≤512 线性扫描开销可忽略。
+void DnsResolver::storeEntry(const QString& key, const QString& ip, qint64 ttlMs) {
+    // 调用方已持 m_mutex（见头注释）。
+    m_cache[key] = {ip, monotonicMsSinceAppStart(), ttlMs};
+    pruneCache(m_cache);
+}
+
 void DnsResolver::pruneCache(QHash<QString, DnsEntry>& cache) {
     while (cache.size() > kCacheMaxEntries) {
         QString oldestKey;
@@ -233,9 +239,7 @@ QString DnsResolver::resolve(const QString& host, int timeoutMs) {
     // every subsequent lookup for the same host.
     {
         QMutexLocker locker(&m_mutex);
-        m_cache[host] = {ipOut, monotonicMsSinceAppStart(),
-                         ipOut.isEmpty() ? DnsResolver::kNegativeTtlMs : 0};
-        pruneCache(m_cache);
+        storeEntry(host, ipOut, ipOut.isEmpty() ? DnsResolver::kNegativeTtlMs : 0);
     }
     // Drop the waiter's reference; last one out frees. On timeout the still-running
     // worker keeps ctx (and the semaphore) alive until it finishes — no UAF, no
@@ -258,9 +262,7 @@ QString DnsResolver::resolve(const QString& host, int timeoutMs) {
         // 区分。改短窗口节流：条目自带 kSpawnFailTtlMs（压力缓解后重查
         // 成功），同时避免资源耗尽期的线程创建风暴。
         QMutexLocker locker(&m_mutex);
-        m_cache[host] = {QString(), monotonicMsSinceAppStart(),
-                         DnsResolver::kSpawnFailTtlMs};
-        pruneCache(m_cache);
+        storeEntry(host, QString(), DnsResolver::kSpawnFailTtlMs);
         return {};
     }
     // 5WHY: t.detach() was unconditional -- even when the thread completed
@@ -281,9 +283,8 @@ QString DnsResolver::resolve(const QString& host, int timeoutMs) {
     const bool resolved = done && !st->ip.isEmpty();
     {
         QMutexLocker locker(&m_mutex);
-        m_cache[host] = {resolved ? st->ip : QString(), monotonicMsSinceAppStart(),
-                         resolved ? 0 : DnsResolver::kNegativeTtlMs};
-        pruneCache(m_cache);
+        storeEntry(host, resolved ? st->ip : QString(),
+                   resolved ? 0 : DnsResolver::kNegativeTtlMs);
     }
     return resolved ? st->ip : QString();
 #endif
@@ -350,9 +351,8 @@ QString DnsResolver::resolve6(const QString& host, int timeoutMs) {
     }
     {
         QMutexLocker locker(&m_mutex);
-        m_cache[QStringLiteral("v6:") + host] = {ipOut, monotonicMsSinceAppStart(),
-                                                 ipOut.isEmpty() ? DnsResolver::kNegativeTtlMs : 0};
-        pruneCache(m_cache);
+        storeEntry(QStringLiteral("v6:") + host, ipOut,
+                   ipOut.isEmpty() ? DnsResolver::kNegativeTtlMs : 0);
     }
     if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
         dispatch_release(ctx->sem);
@@ -367,9 +367,7 @@ QString DnsResolver::resolve6(const QString& host, int timeoutMs) {
     if (!t.joinable()) {
         // 同 resolve()：EAGAIN 是本地瞬时问题，条目自带 kSpawnFailTtlMs 节流
         QMutexLocker locker(&m_mutex);
-        m_cache[QStringLiteral("v6:") + host] = {QString(), monotonicMsSinceAppStart(),
-                                                 DnsResolver::kSpawnFailTtlMs};
-        pruneCache(m_cache);
+        storeEntry(QStringLiteral("v6:") + host, QString(), DnsResolver::kSpawnFailTtlMs);
         return {};
     }
     // 5WHY: prefer join() when thread completed within timeout for immediate
@@ -381,10 +379,8 @@ QString DnsResolver::resolve6(const QString& host, int timeoutMs) {
     const bool resolved = done && !st->ip.isEmpty();
     {
         QMutexLocker l(&m_mutex);
-        m_cache[QStringLiteral("v6:") + host] = {resolved ? st->ip : QString(),
-                                                 monotonicMsSinceAppStart(),
-                                                 resolved ? 0 : DnsResolver::kNegativeTtlMs};
-        pruneCache(m_cache);
+        storeEntry(QStringLiteral("v6:") + host, resolved ? st->ip : QString(),
+                   resolved ? 0 : DnsResolver::kNegativeTtlMs);
     }
     return resolved ? st->ip : QString();
 #endif
@@ -448,8 +444,7 @@ QString DnsResolver::resolvePtr(const QString& ip, int timeoutMs) {
     // PTR 只写正缓存（见函数头注释）：空结果不落表，慢 PTR 不被毒化
     if (!nameOut.isEmpty()) {
         QMutexLocker locker(&m_mutex);
-        m_cache[QStringLiteral("ptr:") + ip] = {nameOut, monotonicMsSinceAppStart()};
-        pruneCache(m_cache);
+        storeEntry(QStringLiteral("ptr:") + ip, nameOut, 0);
     }
     if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
         dispatch_release(ctx->sem);
@@ -478,8 +473,7 @@ QString DnsResolver::resolvePtr(const QString& ip, int timeoutMs) {
     const bool done = finishLookup(st, t, std::chrono::steady_clock::now(), timeoutMs);
     if (done && !st->ip.isEmpty()) {
         QMutexLocker l(&m_mutex);
-        m_cache[QStringLiteral("ptr:") + ip] = {st->ip, monotonicMsSinceAppStart()};
-        pruneCache(m_cache);
+        storeEntry(QStringLiteral("ptr:") + ip, st->ip, 0);
     }
     return done ? st->ip : QString();
 #endif

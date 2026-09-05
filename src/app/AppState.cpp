@@ -203,22 +203,27 @@ void AppState::persistResults() {
     }
 }
 
+void AppState::updateEncodedCredentials() {
+    // 凭据编码形态缓存——mutation 点（setTarget 提取 / setTargetCredentials /
+    // loadPreferences 摄入）调用；消费方（redactCredentials 遮罩针、
+    // runNextGroup auth 前缀）同源复用。遮罩针必须逐字节匹配探针 URL 的
+    // 凭据形态——曾两处各写一份（180+ 次编码/轮 + 针与 URL 漂移即泄漏）。
+    const QString encodedUser = QUrl::toPercentEncoding(m_targetUser);
+    m_encodedAuth = encodedUser + QLatin1Char(':')
+                  + QUrl::toPercentEncoding(m_targetPassword) + QLatin1Char('@');
+    m_encodedMasked = encodedUser + QLatin1String(":***@");
+}
+
 QString AppState::redactCredentials(const QString& text) const {
     // 5WHY (2026-09-05 复核 仅密码 URL): 曾仅按 m_targetUser 判空——粘贴
     // "scheme://:pass@host" 只填 m_targetPassword，user 为空即整体跳过
     // 遮罩，":pass@host" 随探针输出落盘/进报告。任一凭据字段非空即遮罩。
     if ((m_targetUser.isEmpty() && m_targetPassword.isEmpty()) || text.isEmpty())
         return text;
-    // 5WHY (效率): 曾对同一不变的 m_targetUser 做两次百分号编码（auth 与
-    // masked 各一次），且 persistResults 每条结果调用 4 次（180+ 次编码/轮）。
-    // 用户名一轮内不变——单次编码复用。密码为空时 auth 即 "user:@"，仍须
-    // 遮罩（防 user@ 形态泄漏），空密码不需要遮罩值。
-    const QString encodedUser = QUrl::toPercentEncoding(m_targetUser);
-    const QString auth = encodedUser + QLatin1Char(':')
-                       + QUrl::toPercentEncoding(m_targetPassword) + QLatin1Char('@');
-    const QString masked = encodedUser + QLatin1String(":***@");
+    // 编码形态由 updateEncodedCredentials 缓存（simplify 2026-09-05）——
+    // 密码为空时 auth 即 "user:@"，仍须遮罩（防 user@ 形态泄漏）。
     QString out = text;
-    out.replace(auth, masked);
+    out.replace(m_encodedAuth, m_encodedMasked);
     return out;
 }
 
@@ -266,6 +271,7 @@ void AppState::loadCachedResults() {
         for (auto it = dataMap.cbegin(); it != dataMap.cend(); ++it)
             r.data[it.key()] = it.value();
         m_results.insert(r.id, r);
+        ++m_statsVersion;   // 统计门早退版本（simplify 2026-09-05）
     }
 }
 
@@ -310,12 +316,9 @@ void AppState::setTarget(const QString& host, const QString& scheme) {
         // 复核: 取 authority 内【最后一个】'@'——密码含原始 '@'（
         // user:p@ss@host，浏览器/URL 库均按末 '@' 切分）时按末 '@' 切；
         // 路径/查询/片段中的 '@' 因越界 authorityEnd 不参与。
-        int at = -1;
-        for (int pos = h.indexOf(QLatin1Char('@'));
-             pos >= 0 && pos < authorityEnd;
-             pos = h.indexOf(QLatin1Char('@'), pos + 1)) {
-            at = pos;
-        }
+        // (simplify 2026-09-05: lastIndexOf 内置"最后匹配"语义，替代手写
+        // 扫描循环——authorityEnd 边界只在一处出现)
+        const int at = h.lastIndexOf(QLatin1Char('@'), authorityEnd - 1);
         if (at > 0) {
             const QString userinfo = h.left(at);
             h = h.mid(at + 1);
@@ -339,6 +342,7 @@ void AppState::setTarget(const QString& host, const QString& scheme) {
             if (u != m_targetUser || p != m_targetPassword) {
                 m_targetUser = u;
                 m_targetPassword = p;
+                updateEncodedCredentials();
                 persistCredentials();
                 savePreferences();   // targetUser 持久化（密码走安全存储）
             }
@@ -370,7 +374,12 @@ void AppState::setTarget(const QString& host, const QString& scheme) {
         // 触发的 filteredDataChanged 发射点（下拉框/粘贴 URL 的输入栈）——
         // 同步发射在输入栈上驱动 5 面板 _reload（瓦片墙重建）。与其余
         // 突变点统一经队列助手延迟一帧。
-        if (schemeChanged) queueFilteredChanged();
+        if (schemeChanged) {
+            // scheme 变更改 groupStats 过滤（runnableFor）——统计形态变化，
+            // 版本门须放行（simplify 2026-09-05）。
+            ++m_statsVersion;
+            queueFilteredChanged();
+        }
     }
 }
 
@@ -391,6 +400,7 @@ void AppState::setTargetCredentials(const QString& user, const QString& password
         m_targetUser = u;
         m_targetPassword = p;
         m_targetPort = pt;
+        updateEncodedCredentials();
         persistCredentials();   // H2: 凭证实际变更时才写安全存储
         savePreferences();
         bumpState();
@@ -417,6 +427,7 @@ void AppState::runDiagnostics() {
     // 在同一轮信号派发里同步执行，残留旧值会让 visibleGroups() 把上一轮全部
     // 组在新 run 起点闪现出来（违反“先清屏，再逐组出现”）。
     m_results.clear();
+    ++m_statsVersion;   // 清屏也是统计形态变化（simplify 2026-09-05）
     m_groupDone.clear();
     m_errorMessage.clear();
     m_currentDiagLabel.clear();   // 上一轮残留的“当前测试”标签清零
@@ -560,6 +571,7 @@ void AppState::runNextGroup() {
         if (nr.displayName.isEmpty()) nr.displayName = diagDisplayName(nr.id);
         nr.group = diagGroup(nr.id);
         m_results.insert(nr.id, nr);
+        ++m_statsVersion;   // 统计门早退版本（simplify 2026-09-05）
         m_currentDiagLabel = nr.displayName;
         emit progressChanged();
         // 5WHY (2026-08-23 连通性缓存刷新): G1 WiFi/蜂窝结果落地即后台
@@ -599,12 +611,10 @@ void AppState::runNextGroup() {
     // 粘贴 "scheme://:pass@host" 提取出 user 空/pass 非空并已持久化，却
     // 在此被静默丢弃（探针 URL 无凭据、认证消失）。任一字段非空即拼
     // （user 空时得到 ":pass@" 形态，与提取前 URL 语义一致）。
-    if (!m_targetUser.isEmpty() || !m_targetPassword.isEmpty()) {
-        // 5WHY (2026-08-22 P2-1): 曾原始拼接 user:pass@——密码含 ':'/'@'
-        // 即破坏 URL 解析。逐组件百分号编码后拼接。
-        auth = QUrl::toPercentEncoding(m_targetUser) + QLatin1Char(':')
-             + QUrl::toPercentEncoding(m_targetPassword) + QLatin1Char('@');
-    }
+    // 编码形态与 redactCredentials 遮罩针同源缓存（simplify 2026-09-05）——
+    // 针与探针 URL 逐字节一致，两处漂移即遮罩失效泄漏凭据。
+    if (!m_targetUser.isEmpty() || !m_targetPassword.isEmpty())
+        auth = m_encodedAuth;
     const QString target = m_targetScheme + QLatin1String("://") + auth + host + m_targetPath;
     m_suite->run(target, schemeLower);
 }
@@ -894,10 +904,13 @@ QVariantMap AppState::resultFor(int diagIdInt) const {
         props.append(pm);
     }
     m[QStringLiteral("properties")] = props;
-    // 5WHY（图表不显示根因）：viz/ResultChart 依赖 data.templateType 选图，
+    // 5WHY（图表不显示根因）：viz/ResultChart 依赖 meta 模板类型选图，
     // 但重建的契约层不再向结果注入该字段——在此由 meta 注入（不改探针结果）。
+    // 5WHY (simplify 2026-09-05 跨语言契约): 曾以枚举序值 int 直传 QML 分派
+    // （枚举重排即全部详情页图表静默错乱——已发生一次）。下发稳定字符串
+    // 令牌：diagTemplateKey 与枚举同文件维护，是序值→令牌的唯一映射点。
     QVariantMap data = it->data;
-    data[QStringLiteral("templateType")] = static_cast<int>(diagnosticMeta(it->id).tmplType);
+    data[QStringLiteral("chartKey")] = QLatin1String(diagTemplateKey(diagnosticMeta(it->id).tmplType));
     // 5WHY (复核 2026-08-19 用户诉求 "详情页不单独列出 Duration 区块"):
     // keyMetricField 注入与 KeyMetric.js 时长兜底成对出现——失败结果以
     // 独立 Duration 大卡重复 hero 时长行。兜底已移除（详情页失败结果改
@@ -1035,7 +1048,10 @@ void AppState::saveWindowGeometry(int x, int y, int width, int height, bool maxi
     s.setValue(QStringLiteral("winY"), y);
     s.setValue(QStringLiteral("winW"), width);
     s.setValue(QStringLiteral("winH"), height);
-    s.setValue(QStringLiteral("winMax"), maximized);
+    // 5WHY (simplify 2026-09-05): winMax 键单一写入点——曾两处 setValue
+    // 同一键（restore 读的也是这第三个字面量），键名/组变更漏一处即
+    // 最大化状态静默丢失。
+    saveWindowMaximized(maximized);
 }
 
 void AppState::saveWindowMaximized(bool maximized) {
@@ -1205,6 +1221,7 @@ void AppState::loadPreferences() {
         removeLegacyPlaintextPassword(s);
     }
     m_targetPort = s.value(QStringLiteral("targetPort")).toString();
+    updateEncodedCredentials();   // 凭据摄入后刷新编码缓存（simplify 2026-09-05）
     // 5WHY (2026-09-04 修正复核): 显式 sync——迁移分支的明文键删除只依赖
     // 析构期 flush 的话，保存成功到落盘之间存在崩溃窗口（明文残留）。
     s.sync();

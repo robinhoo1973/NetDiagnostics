@@ -77,11 +77,11 @@ public:
 
     // ── Executor idle API ─────────────────────────────────────────────
     // 条件变量等待：表内出现 Waiting 任务 / stop 置位 / wake() 即返回。
-    // timeoutMs <= 0 时不限时（空闲期不再盲轮询——每个 Waiting 跃迁与
-    // wake() 都会唤醒，见 ProbeExecutor.cpp 5WHY 2026-09-05）。
-    void waitForNewWork(const std::shared_ptr<std::atomic<bool>>& stop, int timeoutMs);
+    // 不限时——每个 Waiting 跃迁（upsert/writeResults）与 wake() 均持锁
+    // 唤醒，检查-等待同锁无丢失窗口（见 ProbeExecutor.cpp 5WHY 2026-09-05）。
+    void waitForNewWork(const std::shared_ptr<std::atomic<bool>>& stop);
     // 唤醒 idle 等待的执行器（ProbeExecutor::requestStop 置 stop 标志后调用，
-    // 否则执行器要等 timeoutMs 超时才感知停机）。
+    // 否则执行器要等下一次 Waiting 跃迁才感知停机）。
     void wake();
 
     // ── Lifecycle ────────────────────────────────────────────────────

@@ -72,7 +72,7 @@ void ProbeExecutor::run() {
             // 有 Waiting 或 stop 置位即返回。5WHY (2026-09-05 复核): 曾 500ms
             // 定时等待——空闲期每 500ms 全表重扫纯属空转；每个 Waiting 跃迁
             // 与 requestStop 的 wake() 都会唤醒，0 = 不限时等待。
-            db->waitForNewWork(stopFlag, 0);
+            db->waitForNewWork(stopFlag);
             continue;
         }
 

@@ -78,6 +78,10 @@ private:
     // 5WHY (2026-08-22 CP-2): 驱逐最旧条目（ts 最小）——近似 LRU；
     // 条目量≤512 线性扫描开销可忽略，仅供本类内部调用。
     static void pruneCache(QHash<QString, DnsEntry>& cache);
+    // 5WHY (simplify 2026-09-05 八处同型写入): m_cache[key]={ip,ts,ttl};
+    // pruneCache 曾八处逐字复制——负缓存条件修复（done vs resolved）须
+    // 多站点同步应用。单一写入点；调用方需已持 m_mutex。
+    void storeEntry(const QString& key, const QString& ip, qint64 ttlMs);
     QHash<QString, DnsEntry> m_cache;
     QMutex m_mutex;
 };

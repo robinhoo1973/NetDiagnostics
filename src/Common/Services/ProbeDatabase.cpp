@@ -89,21 +89,18 @@ ProbeDatabase::Task ProbeDatabase::read(const QString& key) const {
     return m_table.value(key);
 }
 
-void ProbeDatabase::waitForNewWork(const std::shared_ptr<std::atomic<bool>>& stop,
-                                   int timeoutMs) {
+void ProbeDatabase::waitForNewWork(const std::shared_ptr<std::atomic<bool>>& stop) {
     QMutexLocker lock(&m_mutex);
     while (!stop->load(std::memory_order_acquire)) {
         for (auto it = m_table.cbegin(); it != m_table.cend(); ++it) {
             if (it.value().status == ProbeDatabase::Task::Waiting) return;
         }
-        // 5WHY (2026-09-05 复核 空闲盲轮询): timeoutMs > 0 的定时等待会以
-        // timeoutMs 周期反复全表扫描（进程余下生命周期空转）。每个 Waiting
-        // 跃迁（upsert/writeResults）与 wake() 均在持锁下唤醒，检查-等待
-        // 同锁无丢失窗口——不限时等待是安全的；timeoutMs <= 0 即不限时。
-        if (timeoutMs > 0)
-            m_condition.wait(&m_mutex, timeoutMs);
-        else
-            m_condition.wait(&m_mutex);
+        // 5WHY (2026-09-05 复核 空闲盲轮询): 曾带 timeoutMs 参数允许定时等待
+        // ——定时分支实现的正是指责的盲轮询（每 timeoutMs 全表扫描）。每个
+        // Waiting 跃迁（upsert/writeResults）与 wake() 均在持锁下唤醒，
+        // 检查-等待同锁无丢失窗口——不限时等待安全；死参数已删
+        // （simplify 2026-09-05，唯一调用方恒传 0）。
+        m_condition.wait(&m_mutex);
     }
 }
 

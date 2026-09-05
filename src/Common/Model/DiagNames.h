@@ -8,6 +8,21 @@
 
 // ── L5 template + L4 animation categories ────────────────────────────────
 enum class DiagTemplateType { System, Ping, Path, Handshake, Request, Query };
+// 5WHY (simplify 2026-09-05 跨语言契约): tmplType 序值曾以 int 直传 QML 分派
+// ——枚举重排即全部详情页图表静默错乱（已发生一次）。QML 消费稳定的字符串
+// 令牌；本函数是枚举→令牌的唯一映射点，与枚举同文件维护（新值须同步追加，
+// 与"新值一律追加尾部"惯例同源）。
+inline const char* diagTemplateKey(DiagTemplateType t) {
+    switch (t) {
+        case DiagTemplateType::System:    return "system";
+        case DiagTemplateType::Ping:      return "ping";
+        case DiagTemplateType::Path:      return "path";
+        case DiagTemplateType::Handshake: return "handshake";
+        case DiagTemplateType::Request:   return "request";
+        case DiagTemplateType::Query:     return "query";
+    }
+    return "unknown";
+}
 // L4 动画（AppState.diagAnimationUrl → qrc:/qt/qml/widgets/animations/）：
 //   Pulse 呼吸 / Jiggle 抖动 / Bounce 往返 / Type 键入 / Path 逐跳
 //   Lock 盖章落下 / Tick 盾牌打勾 / WifiWave 信号弧逐条明灭 / Converge 箭头聚拢

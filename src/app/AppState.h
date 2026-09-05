@@ -52,6 +52,11 @@ public:
 
     // ── P1：Config/语言/主题 ──
     int     stateVersion() const { return m_stateVersion; }
+    // 5WHY (simplify 2026-09-05 每 tick 双扫): QML 统计面板每 progressChanged
+    // 调用 groupStats（C++ 全量重建）再 statsEqual 判等——门付出了全量重建
+    // 才发现相等。结果插入/清屏递增版本号，QML 以 int 读取早退（无 NOTIFY，
+    // 进度信号本身即读取钩子）。
+    int     statsVersion() const { return m_statsVersion; }
     int     languageIndex() const { return m_languageIndex; }
     int     themeMode() const { return m_themeMode; }
     bool    isPremiumPlatform() const { return m_isPremiumPlatform; }
@@ -73,6 +78,7 @@ public:
     Q_PROPERTY(QString targetPort READ targetPort NOTIFY targetChanged)
     Q_PROPERTY(bool targetHasCredentials READ targetHasCredentials NOTIFY targetChanged)
     Q_PROPERTY(int stateVersion READ stateVersion NOTIFY stateVersionChanged)
+    Q_PROPERTY(int statsVersion READ statsVersion)
     Q_PROPERTY(int languageIndex READ languageIndex NOTIFY languageChanged)
     Q_PROPERTY(QStringList langItems READ langItems NOTIFY languageChanged)
     Q_PROPERTY(int themeMode READ themeMode NOTIFY themeModeChanged)
@@ -196,6 +202,7 @@ private:
     // 5WHY (2026-08-22 P0-2): 出口红线——报告/剪贴板/落盘/预览统一在
     // 出口处替换 user:pass@ 为 user:***@（探针层与屏幕终端保持历史原样）。
     QString redactCredentials(const QString& text) const;
+    void updateEncodedCredentials();
 
     QString m_targetHost;
     QString m_targetPath;
@@ -205,6 +212,10 @@ private:
     QString m_targetUser;
     QString m_targetPassword;
     QString m_targetPort;
+    // 凭据编码形态缓存（updateEncodedCredentials 于 mutation 点刷新）——
+    // redactCredentials 遮罩针与 runNextGroup auth 前缀同源复用。
+    QString m_encodedAuth;
+    QString m_encodedMasked;
 
     int  m_runStatus = Idle;
     int  m_currentGroup = -1;
@@ -216,6 +227,7 @@ private:
     PremiumStore* m_premiumStore = nullptr;   // Premium 后端（Settings 购买/恢复）
     QSet<int> m_activeGroups;      // 默认全激活，持久化
     int  m_stateVersion = 0;
+    int  m_statsVersion = 0;    // 结果插入/清屏递增（QML 统计门早退）
     int  m_languageIndex = 7;      // 与 translations.json 一致：7 = English
     int  m_themeMode = 0;          // 0 = System（跟随 OS 深浅；1=Light 2=Dark）
     bool m_isPremiumPlatform = false;
