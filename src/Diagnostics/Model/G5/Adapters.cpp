@@ -83,6 +83,12 @@ static int defaultPort(const QString& schemeIn) {
     if (s == QLatin1String("ftps")) return 990;
     if (s == QLatin1String("sftp") || s == QLatin1String("ssh")) return 22;
     if (s == QLatin1String("telnet")) return 23;
+    // 5WHY (2026-09-05 复核): rdp/mssql 虽不在下拉 scheme 列表（supportedSchemes/
+    // 映射表），但粘贴 "rdp://host" 仍会经 wildcard 适配器（G5TcpConnect/
+    // G5UrlParsing/G5ServiceBanner）执行——删除后 defaultPort 落到 80，
+    // 对 RDP/MSSQL 主机静默探测 80 端口（恒连接失败/误连无关服务）。
+    // 保留端口映射：粘贴路径的探测保持正确端口。
+    if (s == QLatin1String("rdp")) return 3389;
     if (s == QLatin1String("smtp")) return 25;
     if (s == QLatin1String("smtps")) return 465;
     if (s == QLatin1String("imap")) return 143;
@@ -93,6 +99,7 @@ static int defaultPort(const QString& schemeIn) {
     if (s == QLatin1String("postgresql")) return 5432;
     if (s == QLatin1String("redis")) return 6379;
     if (s == QLatin1String("mongodb")) return 27017;
+    if (s == QLatin1String("mssql")) return 1433;
     if (s == QLatin1String("ldap")) return 389;
     if (s == QLatin1String("ldaps")) return 636;
     if (s == QLatin1String("mqtt")) return 1883;
@@ -218,6 +225,10 @@ static bool parseResponseHead(const QByteArray& head, HttpResult& r) {
     const QList<QByteArray> lines = head.split('\n');
     if (lines.isEmpty()) return false;
     r.statusLine = lines.first();
+    // 5WHY (2026-09-05 复核): 状态行同样以 '\r' 结尾——QML Text 把裸 '\r'
+    // 当换行，终端/详情页在状态行后多一条幻影空行（且污染剪贴板）。
+    // 与头体行同门剥掉。
+    if (r.statusLine.endsWith('\r')) r.statusLine.chop(1);
     const QList<QByteArray> parts = r.statusLine.split(' ');
     if (parts.size() < 2) return false;
     r.statusCode = parts[1].toInt();
@@ -1053,7 +1064,12 @@ static DiagnosticResult probeMongodb(DiagId id, const QString& target, RunContex
             // indexOf("version") 命中的是元素【名】起点而非 type 字节——
             // 串长在 vPos+8..11、内容自 vPos+12（曾按 type 字节起点计算
             // 整体偏移 1，slen 高位混入首字符字节，边界检查恒失败）。
-            if (vPos > 0 && vPos + 12 <= doc.size()) {
+            // 5WHY (2026-09-05 复核): indexOf("version") 可能命中其它元素
+            // 字符串值内的同名子串——必须校验命中字节是 BSON string 元素
+            // 的【名】起点（前 1 字节为类型 0x02），否则用值字节当 slen
+            // 解析出垃圾版本串。
+            if (vPos > 0 && doc[vPos - 1] == static_cast<char>(0x02)
+                && vPos + 12 <= doc.size()) {
                 const int slen = (int)((quint8)doc[vPos + 8]) | ((quint8)doc[vPos + 9] << 8)
                               | ((quint8)doc[vPos + 10] << 16) | ((quint8)doc[vPos + 11] << 24);
                 if (slen > 1 && vPos + 12 + slen - 1 <= doc.size())

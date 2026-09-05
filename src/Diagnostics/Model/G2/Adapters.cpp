@@ -587,7 +587,10 @@ static DiagnosticResult probeNetworkProfile(DiagId id, const QString&, RunContex
     // 套件池线程直至解析超时。
     char hostBuf[256] = {};
     gethostname(hostBuf, sizeof(hostBuf) - 1);
-    const QString hostname = QString::fromUtf8(hostBuf);
+    // 5WHY (2026-09-05 复核 编码): gethostname 返回系统本地编码字节（Windows
+    // ANSI 码页/GBK、Linux locale 字节），fromUtf8 会把非 ASCII 主机名
+    // 解成 U+FFFD 乱码——与 G1 probeIpConfig 同用 fromLocal8Bit。
+    const QString hostname = QString::fromLocal8Bit(hostBuf);
     props.append({QStringLiteral("hostname"), hostname});
     out.append(QStringLiteral("  Hostname: %1").arg(hostname));
 

@@ -1051,8 +1051,11 @@ static DiagnosticResult probePathPing(DiagId id, const QString& target, RunConte
     // 不做反查 DNS 阻塞（QHostInfo::localHostName 可阻塞，见 Qt 文档）。
     char localBuf[256] = {};
     gethostname(localBuf, sizeof(localBuf) - 1);
+    // 5WHY (2026-09-05 复核 编码): 与 G2/G1 同源——本地编码字节用
+    // fromLocal8Bit（Windows ANSI/GBK、Linux locale），fromUtf8 会把
+    // 非 ASCII 主机名解成 U+FFFD 乱码。
     lines.append(QStringLiteral("  0  %1 [%2]")
-        .arg(QString::fromUtf8(localBuf), QStringLiteral("127.0.0.1")));
+        .arg(QString::fromLocal8Bit(localBuf), QStringLiteral("127.0.0.1")));
     for (int i = 1; i < entries.size(); ++i) {
         const QString ip = entries[i].ip;
         if (ip.isEmpty()) continue;   // timeout 跳无 IP，不生成行
