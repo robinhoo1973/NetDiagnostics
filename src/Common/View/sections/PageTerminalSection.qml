@@ -12,6 +12,7 @@ import theme
 import detail
 import core
 import widgets
+import "../widgets/StatsUtil.js" as W   // lineCount（行数计数单一来源）
 
 PageSection {
     id: root
@@ -23,7 +24,9 @@ PageSection {
 
     property var detailData: ({})
     readonly property string _terminalText: detailData.details || detailData.rawOutput || ""
-    readonly property int _terminalLines: _terminalText === "" ? 0 : _terminalText.split('\n').length
+    // (simplify 2026-09-05: W.lineCount 与 TerminalBlock 打字机计数同源，
+    // 空串语义内建——曾与 split('\n').length 双实现漂移)
+    readonly property int _terminalLines: W.lineCount(_terminalText)
     active: _terminalLines > 0 && detailData.showTerminal !== false
 
     // 折叠状态：默认收起；切换详情对象时复位（每个检测从收起开始）

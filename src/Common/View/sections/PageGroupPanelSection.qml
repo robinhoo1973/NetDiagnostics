@@ -65,45 +65,30 @@ PageSection {
                                               : AppState.allDiagsForGroup(groupIndex)
         // 5WHY (复核 2026-08-18): progress tick 无条件替换数组身份 → Repeater
         // 销毁重建全部瓦片 → 运行中瓦片的本地计时清零（圆点闪烁显示 0/1）。
-        // 签名门控：仅当瓦片集合 (id:status) 实际变化时替换模型；无变化发射
+        // 身份门控：仅当瓦片集合 (id:status) 实际变化时替换模型；无变化发射
         // （run 启动边界、suiteFinished 收尾）不再重建委托。
-        // 5WHY (复核 2026-08-18 效率): 字符串拼接签名是 O(n²) 拷贝——改用
-        // 无分配滚动哈希（33 进制双步）。
-        // 5WHY (复核 2026-09-05 三轮 长度并入签名): 曾以长度预检 + null 复位
-        // 跨长度门控——但 "长度变则签名必变" 不成立：空模型与单项
-        // {diagId:0,status:Pass}（Pass 与首个 diagId 同为枚举 0）均哈希为
-        // 0，null 复位是载荷而非冗余，注释与事实背离。长度并入哈希初值——
-        // 签名结构上含长度（真实 id/status 值域内跨长度不再碰撞），预检/
-        // _activeLen/null 复位一并删除，门控单字段单表达式。
-        var h = newModel.length
-        for (var i = 0; i < newModel.length; ++i) {
-            // 5WHY (2026-09-05 哈希碰撞换瓦片): 曾把 diagId+status 折叠为
-            // 单项相加——相邻 id 与补偿性 status 的交换（如 19+Warning ≡
-            // 18+Fail）碰撞出相同签名，换 scheme 后瓦片墙滞留旧集合且点击
-            // 打开错项详情。id/status 各自占一步（33 进制双步），
-            // 交换型碰撞结构性消除。
-            h = (h * 33 + newModel[i].diagId) | 0
-            h = (h * 33 + (newModel[i].status !== undefined ? newModel[i].status : -1)) | 0
-        }
-        // 5WHY (2026-09-05 哨兵碰撞): 曾以 _activeHash === -1 兼作
-        // "未初始化"哨兵——-1 在 33 进制滚动哈希的 int32 环绕输出域内
-        // （`| 0` 强制 int32），特定 (id,status) 序列可稳定折叠到 -1 →
-        // 门控恒早退、瓦片墙永久空白且哈希滞留 -1 无法自愈。改用 null
-        // 哨兵（在输出域外）：_activeHash 兼作有效性标记（null=无效），
-        // 旧 _hashValid 第二字段与恒真的第三条件 _activeLen===newModel.length
-        // 一并删除；-1 只是普通哈希值，不再有哨兵语义。
-        if (_activeHash !== null && h === _activeHash) return
-        _activeHash = h
+        // 5WHY (复核 2026-09-05 /simplify 语义身份): 滚动哈希（和折叠→33 进制
+        // 双步→长度并入→null 哨兵）曾四轮补丁，每条边（int32 环绕、交换
+        // 碰撞、未来键遗漏折叠）都是完整修复轮。逐元素比较是同 O(n)、无
+        // 分配、无碰撞类、无哨兵，且新模型键自动纳入比较——W.sameTiles
+        // 单一来源。
+        if (W.sameTiles(_activeModel, newModel)) return
+        _activeModel = newModel
         itemsModel = newModel
     }
-    property var _activeHash: null
+    property var _activeModel: null
+    // 5WHY (simplify 2026-09-05 每 tick 双扫): statsEqual 门付出了全量
+    // groupStats 重建（44 项 C++ 双遍 + normalize 11 键分配）才发现相等。
+    // AppState.statsVersion 于结果插入/清屏/scheme 变更递增——版本未变
+    // 整跳（连 C++ 重建都不发生）；版本变了再走 statsEqual（组边界仍可能
+    // 同值，身份保持）。
+    property int _lastStatsVersion: -1
     function _refreshStats() {   // UI-2：命令式赋值，绑定不调 Q_INVOKABLE
         // 5WHY (复核 2026-08-18 Reuse C3): 键归一化经 StatsUtil.js 单一来源；
         // 5WHY (复核 2026-08-19): 仅替换 _statsObj 身份——_total/_completed
         // 为只读绑定，随身份替换自动重估（单写点，无双写分叉）。
-        // 5WHY (复核 2026-09-05 三轮 空转门控): 计数未变的空转 tick（跨组
-        // 迟到结果、状态广播）不再替换身份——W.statsEqual 逐键比较，徽标/
-        // 表头绑定不空转重估（与 reloadModel 哈希门控同一策略）。
+        if (AppState.statsVersion === _lastStatsVersion) return
+        _lastStatsVersion = AppState.statsVersion
         var s = W.normalize(AppState.groupStats(groupIndex))
         if (W.statsEqual(_statsObj, s)) return
         _statsObj = s

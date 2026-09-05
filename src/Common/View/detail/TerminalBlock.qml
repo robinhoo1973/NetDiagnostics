@@ -16,6 +16,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import theme
+import "../widgets/StatsUtil.js" as W   // lineCount（行数计数单一来源）
 
 Item {
     id: root
@@ -52,17 +53,8 @@ Item {
     readonly property var _lines: _lineData.lines
     readonly property string _widestLine: _lineData.widest
     property int _visibleCount: 0
-
-    // 5WHY (2026-09-05 效率): 三个处理器各 split('\n') 一遍（_lineData 绑定
-    // 又一遍）——长终端输出（traceroute/curl 头部）每次文本赋值分配 3-4
-    // 个字符串数组。行数只需计数：单遍 charCodeAt 扫描零分配。
-    function _lineCount(s) {
-        if (!s || s === "") return 0
-        var n = 1
-        for (var i = 0; i < s.length; ++i)
-            if (s.charCodeAt(i) === 10) n++
-        return n
-    }
+    // 行数计数单一来源（simplify 2026-09-05）：W.lineCount 零分配单遍扫描，
+    // 与 PageTerminalSection 高度估算同源——语义漂移即卡片错高。
 
     // 5WHY: onTextChanged resets _visibleCount and restarts the typing
     // sequence.  Without this, switching from one diag's output to another
@@ -74,7 +66,7 @@ Item {
     // 行数必须直读 text（处理器运行时已是新值），不走惰性绑定。
     onTextChanged: {
         _visibleCount = 0
-        var count = root._lineCount(root.text)
+        var count = W.lineCount(root.text)
         if (typewriter && count > 0) {
             staggerTimer.start()
         } else {
@@ -85,7 +77,7 @@ Item {
     // restart the animation from zero.  When toggled off, reveal all.
     // （行数直读 text，同 onTextChanged 的惰性绑定 5WHY）
     onTypewriterChanged: {
-        var count = root._lineCount(root.text)
+        var count = W.lineCount(root.text)
         if (typewriter && count > 0 && _visibleCount >= count) {
             _visibleCount = 0
             staggerTimer.start()
@@ -99,7 +91,7 @@ Item {
     // always starts on first display.
     // （行数直读 text，同 onTextChanged 的惰性绑定 5WHY）
     Component.onCompleted: {
-        var count = root._lineCount(root.text)
+        var count = W.lineCount(root.text)
         if (typewriter && count > 0) {
             staggerTimer.start()
         } else if (!typewriter) {

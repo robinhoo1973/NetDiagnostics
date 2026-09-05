@@ -55,7 +55,8 @@ Window {
         }
         win.visible = true   // 几何恢复完成后首帧亮相（UX-1）
         // 5WHY (复核 2026-09-05 四轮 兜底丢标志): 仅 winMax 落盘的会话
-        // （saveWindowMaximized 路径：手势最大化后 _lastNormalGeom 为空）
+        // （saveWindowMaximized 路径：直写重构后若启动 500ms 内即最大化，
+        // geomRecorder 在 Maximized 态跳过、几何键可能从未写盘）
         // x/y=-1 哨兵进居中兜底——但 maximized 标志仍需恢复。旧条件（宽高
         // 默认值恒过）曾走恢复分支的 showMaximized，兜底分支不得丢标志。
         // 5WHY (复核 2026-09-05 五轮 双分支漂移): 曾两分支各自 showMaximized
@@ -63,110 +64,44 @@ Window {
         // g&& 守卫承载移动端路径（桌面块跳过时 g 为未定义函数级 var）。
         if (g && g.maximized === true) win.showMaximized()
     }
-    // P0-2：正常态几何随关闭落盘。5WHY (2026-09-05 最大化几何污染):
-    // QML 在最大化态读 x/y/width/height 得到的是最大化帧——曾把它当
-    // "还原尺寸"落盘（旧注释与事实相反），还原按钮永远回不到真实还原
-    // 尺寸。最大化关闭只落 max 标志（saveWindowMaximized 不动几何键），
-    // 已存的正常几何保持。
-    // 5WHY (2026-09-05 复核 首会话几何丢失): 仅落 max 标志时，若本会话
-    // 从未以正常态关闭过（用户调尺寸 → 最大化 → 关闭），几何键从未写盘，
-    // 下次启动回默认 1080×760——用户选择的正常尺寸丢失。最大化按钮按下前
-    // 记录当前正常几何到 _lastNormalGeom，最大化关闭时连同 max 标志落盘。
-    // 5WHY (复核 2026-09-05 二轮 记录点收敛): 曾另挂 onVisibilityChanged
-    // 在 Windowed 跃迁时记录——该记录点只能捕到 (a) 启动恢复的已落盘几何
-    // （冗余）、(b) 首启 WM 尚未放置的 (0,0) 帧（下次启动钉死左上角）、
-    // (c) 还原跃迁中 visibility 翻转先于几何回退时的最大化帧（污染正常
-    // 几何）——三者无一负载，且 (b)(c) 会被最大化关闭分支持久化。
-    // 5WHY (复核 2026-09-05 三轮 记录点补全): 按钮唯一记录点对 OS/WM 手势
-    // 路径仍有洞——(a) 按钮最大化后还原、调尺寸、手势最大化关闭时
-    // _lastNormalGeom 是过期值被落盘（还原不清记录）；(b) 首会话调尺寸后
-    // 直接手势最大化关闭时记录为 null、几何键从未写盘。geomRecorder 以
-    // 500ms 防抖在 Windowed 态几何稳定后刷新记录——连续变更持续重启计时
-    // 器，动画中间帧/未放置首帧不会落记录；最小化/其他态关闭时 x/y 可能是
-    // 退化帧（Windows 最小化窗口坐标为 -32000,-32000），关闭分支改落最近
-    // 稳定正常几何，不污染几何键。按钮按下前的同步记录保留（防抖有 500ms
-    // 滞后，按钮路径需即时值）。
-    // _transitioning 过渡锁：最大化/还原的可视化翻转有平台延迟（还原时
-    // visibility 先翻、几何后退），过渡期内点击按钮会拿到动画中间帧——
-    // 锁由 geomRecorder 的几何稳定结算解除（还原方向），或由 Maximized
-    // 翻转解除（最大化方向，该方向无记录点）；WM 拒绝过渡时由 watchdog
-    // 兜底解锁，避免锁滞留。
-    property var _lastNormalGeom: null
-    property bool _transitioning: false
-    // 5WHY (复核 2026-09-05 四轮 锁方向收敛): 曾无条件在每次 Windowed 跃迁
-    // 加锁——首启 Hidden→Windowed 无几何后退，加锁只造成启动后 500ms 内
-    // 最大化按钮静默失灵（geomRecorder 稳定结算才解锁）。仅最大化/最小化
-    // 还原方向有中间帧风险（几何后退晚于 visibility 翻转），按来向加锁。
-    property int _prevVisibility: Window.Hidden
-    onVisibilityChanged: {
-        if (visibility === Window.Maximized) {
-            _transitioning = false
-            // 5WHY (复核 2026-09-05 五轮 watchdog 方向): watchdog 只服务最大化
-            // 方向（WM 拒绝时无翻转、geomRecorder 无事件不重启）——翻转达成即
-            // 停表，避免残留计时器在随后 <1.5s 内的还原转场中误解锁（还原方向
-            // 解锁由 geomRecorder 稳定结算负责；慢动画下 watchdog 1500ms 会
-            // 提前解锁，重新打开中间帧入库通道）。
-            transitionWatchdog.stop()
-        } else if (visibility === Window.Windowed) {
-            if (_prevVisibility === Window.Maximized || _prevVisibility === Window.Minimized)
-                _transitioning = true
-            geomRecorder.restart()   // 翻转本身可能不伴随几何事件——确保一次稳定结算
-        }
-        _prevVisibility = visibility
-    }
+    // P0-2：正常态几何持久化。5WHY (2026-09-05 /simplify 直写重构):
+    // 曾为五件协作状态机（_lastNormalGeom/_transitioning/_prevVisibility/
+    // geomRecorder/transitionWatchdog）在关闭时反推几何——每轮审查都在
+    // 转场交错上发现新洞（最大化帧污染、退化坐标、看门狗误解锁……），且
+    // 非正常退出（崩溃/强杀/断电——诊断应用自身的故障形态）丢光本会话
+    // 全部几何（几何只在下一次 onClosing 才落盘）。改为稳定时直写：
+    // geomRecorder 是唯一写者——500ms 防抖在 Windowed 态几何稳定后立即
+    // 落盘（连续变更持续重启计时器，动画中间帧不会落盘；最大化态跳过，
+    // 最大化帧永不当正常几何写入），onClosing 只冲刷 winMax 标志一行。
+    // 直写语义：非正常退出至多丢最后 500ms；最大化关闭落 max 标志、几何键
+    // 保持最近一次稳定正常态值；关窗不再读帧，转场中间帧污染类结构性消失；
+    // (0,0) 帧（WM 尚未放置）不落盘，首启居中兜底不受污染。
     Timer {
         id: geomRecorder
         interval: 500
         repeat: false
         onTriggered: {
             if (ThemeEngine.isMobile || !win.visible || win.visibility !== Window.Windowed) return
-            win._lastNormalGeom = Qt.rect(win.x, win.y, win.width, win.height)
-            win._transitioning = false   // 几何稳定 = 过渡结束（解锁）
+            if (win.x === 0 && win.y === 0) return   // WM 未放置帧，不落盘
+            AppState.saveWindowGeometry(win.x, win.y, win.width, win.height, false)
         }
     }
-    Timer {
-        id: transitionWatchdog
-        interval: 1500
-        repeat: false
-        onTriggered: {
-            // 最大化被 WM 拒绝时无任何状态翻转，锁会滞留——仍处 Windowed
-            // 即视为过渡未发生，解锁恢复按钮可用。
-            if (win.visibility === Window.Windowed) win._transitioning = false
-        }
-    }
-    onXChanged: geomRecorder.restart()
-    onYChanged: geomRecorder.restart()
-    onWidthChanged: geomRecorder.restart()
-    onHeightChanged: geomRecorder.restart()
-    // 5WHY (复核 2026-09-05 五轮 三处同型调用): saveWindowGeometry(record…)
-    // 曾三处逐字复制——签名扩展（如 DPI/屏幕字段）时漏改一处即静默落错。
-    // 单一 helper 收敛。
-    function saveNormalGeom(maximized) {
-        AppState.saveWindowGeometry(_lastNormalGeom.x, _lastNormalGeom.y,
-                                    _lastNormalGeom.width, _lastNormalGeom.height, maximized)
-    }
-    onClosing: function(closeEvent) {
+    // 5WHY (复核 2026-09-05 /simplify 移动端死功): 计时器重启在移动端
+    // 100% 空转（onTriggered 首行即返回）——统一入口早退。
+    function _pokeRecorder() {
         if (ThemeEngine.isMobile) return
-        if (visibility === Window.Windowed) {
-            // 5WHY (复核 2026-09-05 四轮 转场关闭): 还原动画中 visibility
-            // 先翻、几何后退——过渡期内关闭会把最大化中间帧写成正常几何
-            // （本 commit 要消除的污染类）。过渡中落最近稳定记录。
-            // 5WHY (复核 2026-09-05 五轮 空记录守卫): 过渡中无稳定记录
-            // （手势最大化后未结算即还原）时不再落当前中间帧——静默保留
-            // 盘上最后有效几何，宁缺毋滥。
-            if (_transitioning && _lastNormalGeom) saveNormalGeom(false)
-            else if (!_transitioning)
-                AppState.saveWindowGeometry(x, y, width, height, false)
-        }
-        else if (visibility === Window.Maximized) {
-            if (_lastNormalGeom) saveNormalGeom(true)
-            else AppState.saveWindowMaximized(true)
-        } else if (_lastNormalGeom) {
-            // 最小化/其他态：不读当前退化帧，落最近稳定正常几何
-            saveNormalGeom(false)
-        }
+        geomRecorder.restart()
     }
-
+    onXChanged: _pokeRecorder()
+    onYChanged: _pokeRecorder()
+    onWidthChanged: _pokeRecorder()
+    onHeightChanged: _pokeRecorder()
+    onClosing: function(closeEvent) {
+        // 直写重构后关窗只负责 max 标志：正常几何已由 geomRecorder 稳定时
+        // 落盘（至多 500ms 滞后），最小化/还原转场等中间帧不再经关窗路径。
+        if (ThemeEngine.isMobile) return
+        AppState.saveWindowMaximized(visibility === Window.Maximized)
+    }
     // H5：字体注册——JetBrains Mono（等宽）与 DejaVu Sans Mono（box-drawing/CJK
     // 合并回退）。不注册则所有等宽标签（瓦片计时/终端/图表刻度）回退到系统代换
     // 字体，终端表格对齐破碎。
@@ -198,32 +133,10 @@ Window {
             iconName: win.visibility === Window.Maximized ? "restore" : "maximize"
             accName: win.visibility === Window.Maximized ? T.tr("accRestoreWindow") : T.tr("accMaximizeWindow")
             onClicked: {
-                if (win.visibility === Window.Maximized) {
-                    // 5WHY (复核 2026-09-05 四轮 watchdog 方向): 还原方向解锁
-                    // 由 geomRecorder 稳定结算兜底（onVisibilityChanged 必重启
-                    // 计时器，即使无几何事件也会结算）——watchdog 的 1500ms
-                    // 在慢动画下会提前解锁，允许点击把后退中间帧录进
-                    // _lastNormalGeom。watchdog 只留给最大化方向（WM 拒绝时
-                    // 无任何翻转，geomRecorder 无事件不重启）。
-                    // 5WHY (复核 2026-09-05 五轮 单一写入点): 锁由
-                    // onVisibilityChanged 的 Maximized→Windowed 跃迁布设
-                    // （按钮与手势两条还原路径共用）——此处不再重复写入，
-                    // WM 拒绝 showNormal 时（无翻转）锁也不会滞留。
-                    win.showNormal()
-                } else if (!win._transitioning) {
-                    // 5WHY (2026-09-05 复核 首会话几何丢失): 最大化前把当前
-                    // 正常几何存入 _lastNormalGeom——最大化关闭时连同 max
-                    // 标志落盘，用户调过的尺寸不丢。
-                    // 5WHY (复核 2026-09-05 三轮 过渡锁): 过渡期内重复点击
-                    // 会把动画中间帧误录进 _lastNormalGeom（还原方向几何
-                    // 后退晚于 visibility 翻转）——_transitioning 锁住过渡期
-                    // （由 geomRecorder 几何稳定结算 / Maximized 翻转 /
-                    // watchdog 三者任一解除），重复点击不重录/不重发。
-                    win._lastNormalGeom = Qt.rect(win.x, win.y, win.width, win.height)
-                    win._transitioning = true
-                    transitionWatchdog.restart()
-                    win.showMaximized()
-                }
+                // 直写重构后按钮无记录职责：几何在稳定时落盘（geomRecorder），
+                // 重复点击 showMaximized/showNormal 幂等，无需过渡锁/看门狗。
+                if (win.visibility === Window.Maximized) win.showNormal()
+                else win.showMaximized()
             }
         }
 

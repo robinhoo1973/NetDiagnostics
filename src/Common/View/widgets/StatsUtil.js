@@ -72,3 +72,30 @@ function statsEqual(a, b) {
         if (a[k] !== b[k]) return false
     return true
 }
+
+// 5WHY (复核 2026-09-05 /simplify 语义身份): 瓦片墙身份门控曾用滚动哈希
+// （碰撞/哨兵/未来键三缺陷见 PageGroupPanelSection 注释）。逐元素比较：
+// 同 O(n)、无分配、无碰撞类；diagId/status 之外的未来键自动纳入比较
+// （哈希版会静默不门控）。
+function sameTiles(a, b) {
+    if (!a || !b) return a === b
+    if (a.length !== b.length) return false
+    for (var i = 0; i < a.length; ++i) {
+        if (a[i].diagId !== b[i].diagId) return false
+        if (a[i].status !== b[i].status) return false
+    }
+    return true
+}
+
+// 5WHY (复核 2026-09-05 /simplify 行数第三实现): 行数统计曾在 TerminalBlock
+// 局部 _lineCount 与 PageTerminalSection 的 split('\n').length 各写一份——
+// 空串/尾随换行语义必须与打字机动画计数、区块高度估算一致，漂移即卡片
+// 错高/active 门控失配。单一来源：零分配单遍 charCodeAt 扫描（split 为
+// 长终端输出如 traceroute 分配 N 个字符串数组）。
+function lineCount(s) {
+    if (!s || s === "") return 0
+    var n = 1
+    for (var i = 0; i < s.length; ++i)
+        if (s.charCodeAt(i) === 10) n++
+    return n
+}
