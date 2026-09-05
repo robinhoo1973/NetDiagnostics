@@ -273,14 +273,19 @@ QString DnsResolver::resolve(const QString& host, int timeoutMs) {
     // 5WHY (review round 3): 负缓存必须写空串——超时后 detach 的线程可能仍在
     // 写 st->ip（非原子 QString 并发读写 UB）。review round 4：done 在收线程
     // 后单次载入（旧快照存在 TOCTOU——线程在快照后完成会被 join 却仍写负缓存）。
+    // 5WHY (2026-09-05 快速失败不落负缓存): 曾 `done ? 0 : kNegativeTtlMs`——
+    // done 只表示"线程在超时内结束"，最常见的失败形态（NXDOMAIN/SERVFAIL
+    // 快速返回）done==true 且 ip 空 → ttlMs=0 → 负缓存永不命中，坏主机每次
+    // 查询都重新 spawn 线程。负缓存条件 = 无有效 IP 结果（含 done-with-empty）。
     const bool done = finishLookup(st, t, std::chrono::steady_clock::now(), timeoutMs);
+    const bool resolved = done && !st->ip.isEmpty();
     {
         QMutexLocker locker(&m_mutex);
-        m_cache[host] = {done ? st->ip : QString(), monotonicMsSinceAppStart(),
-                         done ? 0 : DnsResolver::kNegativeTtlMs};
+        m_cache[host] = {resolved ? st->ip : QString(), monotonicMsSinceAppStart(),
+                         resolved ? 0 : DnsResolver::kNegativeTtlMs};
         pruneCache(m_cache);
     }
-    return done ? st->ip : QString();
+    return resolved ? st->ip : QString();
 #endif
 }
 
@@ -370,15 +375,18 @@ QString DnsResolver::resolve6(const QString& host, int timeoutMs) {
     // 5WHY: prefer join() when thread completed within timeout for immediate
     // cleanup; detach() is only needed for timeout case where getaddrinfo may
     // still be blocked for 30-120s.
+    // 5WHY (2026-09-05): 与 resolve() 同修——done 且 ip 空（快速 NXDOMAIN）
+    // 必须落负缓存，否则坏主机每次查询都重新 spawn 线程。
     const bool done = finishLookup(st, t, std::chrono::steady_clock::now(), timeoutMs);
+    const bool resolved = done && !st->ip.isEmpty();
     {
         QMutexLocker l(&m_mutex);
-        m_cache[QStringLiteral("v6:") + host] = {done ? st->ip : QString(),
+        m_cache[QStringLiteral("v6:") + host] = {resolved ? st->ip : QString(),
                                                  monotonicMsSinceAppStart(),
-                                                 done ? 0 : DnsResolver::kNegativeTtlMs};
+                                                 resolved ? 0 : DnsResolver::kNegativeTtlMs};
         pruneCache(m_cache);
     }
-    return done ? st->ip : QString();
+    return resolved ? st->ip : QString();
 #endif
 }
 

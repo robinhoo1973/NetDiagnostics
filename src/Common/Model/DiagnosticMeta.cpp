@@ -42,7 +42,15 @@ static DP metricOnly(const char* field, const char* unit, int prec, DP::ChartTyp
     return d;
 }
 
-static const DiagnosticMeta kDiagMeta[] = {
+// 5WHY (2026-09-05 SIOF): 表曾是命名空间作用域静态数组——DetailProfile 含
+// QStringList（非平凡类型），构造发生在 main() 之前且跨 TU 顺序未定义
+// （iOS 静态构建 dyld 顺序不定）；任何静态初始化期消费方读表即读未构造
+// 条目（CLAUDE.md 反模式 #3 同类）。项目惯例（DiagId.h/GeoProbe/
+// NarrativeLocalizer 均为 Meyer's function-local static）——惰性首次访问
+// 构造，SIOF 免疫，访问器返回引用语义不变。
+using MetaTable = DiagnosticMeta[44];
+const MetaTable& kDiagMeta() {
+    static const MetaTable table = {
     // ── G1  System & Adapters ────────────────────────────────────────────────
     { DiagId::G1NetworkAdapters,   "Network Adapters",   "nd-diag-g1-network-adapters", PF_All,                       DiagAnimType::Pulse,  DiagTemplateType::System, sysGrouped(),              15000 },
     { DiagId::G1NicAdvanced,       "NIC Advanced",       "nd-diag-g1-nic-advanced", PF_Desktop|PF_Android,        DiagAnimType::BarsCycle,  DiagTemplateType::System, sysGrouped(),              60000 },
@@ -134,19 +142,22 @@ static const DiagnosticMeta kDiagMeta[] = {
     { DiagId::G5Mongodb,           "MongoDB",            "nd-diag-g5-mongodb",      PF_Desktop,                 DiagAnimType::FlashLabel,  DiagTemplateType::Query,  metricOnly("latencyMs","ms",0,DP::Gauge), 60000 },
     { DiagId::G5Ldap,              "LDAP",               "nd-diag-g5-ldap",         PF_Desktop,                 DiagAnimType::Pulse,   DiagTemplateType::Query,  metricOnly("latencyMs","ms",0,DP::Gauge), 60000 },
     { DiagId::G5Mqtt,              "MQTT",               "nd-diag-g5-mqtt",         PF_Desktop,                 DiagAnimType::Bounce, DiagTemplateType::Query,  metricOnly("latencyMs","ms",0,DP::Gauge), 60000 },
-};
-static_assert(std::size(kDiagMeta) == 44, "kDiagMeta must cover all 44 DiagId values");
+    };
+    static_assert(std::size(table) == 44, "kDiagMeta must cover all 44 DiagId values");
+    return table;
+}
 
 const DiagnosticMeta& diagnosticMeta(DiagId id) {
+    const auto& table = kDiagMeta();
     const int idx = static_cast<int>(id);
     // L4 (5WHY): 越界 id 是编程错误——摄入边界（loadCachedResults 的
     // isValidDiagId 钳制）已保证正常路径不可达；Q_ASSERT 供开发期捕获
     // 枚举/元数据表漂移（一次性告警在 CI 日志里不可见、断言才是失败）。
     // release 回退首个条目避免崩溃。
-    Q_ASSERT(idx >= 0 && idx < static_cast<int>(std::size(kDiagMeta)));
-    if (idx >= 0 && idx < static_cast<int>(std::size(kDiagMeta)))
-        return kDiagMeta[idx];
-    return kDiagMeta[0];
+    Q_ASSERT(idx >= 0 && idx < static_cast<int>(std::size(table)));
+    if (idx >= 0 && idx < static_cast<int>(std::size(table)))
+        return table[idx];
+    return table[0];
 }
 
 // ── §6.1：registry 推导覆写（启动时 verifyAllDiagIds 调用）─────────────────

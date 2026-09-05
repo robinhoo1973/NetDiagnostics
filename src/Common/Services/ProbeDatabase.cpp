@@ -11,6 +11,7 @@ void ProbeDatabase::upsert(const QString& key, int rounds) {
         ProbeDatabase::Task t;
         t.key = key; t.rounds = rounds; t.status = ProbeDatabase::Task::Waiting;
         m_table.insert(key, t);
+        m_condition.wakeAll();   // 唤醒空闲等待的执行器
         return;
     }
 
@@ -23,7 +24,9 @@ void ProbeDatabase::upsert(const QString& key, int rounds) {
     if (t.status == ProbeDatabase::Task::Done && t.rounds < rounds) {
         t.rounds = rounds;
         t.results.clear();
+        t.attempts = 0;
         t.status = ProbeDatabase::Task::Waiting;
+        m_condition.wakeAll();
         return;
     }
 
@@ -47,7 +50,8 @@ QVector<ProbeDatabase::Task> ProbeDatabase::fetchWaiting(int maxCount) {
 }
 
 void ProbeDatabase::writeResults(const QString& key, const QVector<double>& results,
-                                 const QString& country, const QStringList& regionTags) {
+                                 const QString& country, const QStringList& regionTags,
+                                 bool forceDone) {
     QMutexLocker lock(&m_mutex);
     auto it = m_table.find(key);
     if (it == m_table.end()) return;
@@ -55,13 +59,39 @@ void ProbeDatabase::writeResults(const QString& key, const QVector<double>& resu
     t.results.append(results);
     t.country = country;
     t.regionTags = regionTags;
-    t.status = ProbeDatabase::Task::Done;
+    // 5WHY (2026-09-05 rounds 竞态): 执行器按 fetch 快照的旧 rounds 测量，
+    // 并发 upsert 已把 Running 任务的 rounds 抬升——旧逻辑无条件落 Done，
+    // 3 回合请求拿到 1 回合数据（CI/HL 表静默失真）且 Done 后永不重测。
+    // 回合数未满足且未达重试上限 → 重入 Waiting，执行器下轮以"缺额"续测。
+    // 终局路径（forceDone）直接落 Done 防死等。
+    // 5WHY (2026-09-05 复核 重试上限=1): 上限曾拟 3——失败服务器多轮重试
+    // 会把完成时间放大数倍并超出 kWaitForCompletionTimeoutMs 推导预算
+    // （~99s 单波最坏），反馈层在超时处静默丢数据。竞态修复只需 1 次
+    // 重入（缺额续测一轮即补足），上限 1 有界且覆盖全部修复语义。
+    static constexpr int kMaxRequeue = 1;
+    if (!forceDone && t.results.size() < t.rounds && t.attempts < kMaxRequeue) {
+        ++t.attempts;
+        t.status = ProbeDatabase::Task::Waiting;
+    } else {
+        t.status = ProbeDatabase::Task::Done;
+    }
     m_condition.wakeAll();
 }
 
 ProbeDatabase::Task ProbeDatabase::read(const QString& key) const {
     QMutexLocker lock(&m_mutex);
     return m_table.value(key);
+}
+
+void ProbeDatabase::waitForNewWork(const std::shared_ptr<std::atomic<bool>>& stop,
+                                   int timeoutMs) {
+    QMutexLocker lock(&m_mutex);
+    while (!stop->load(std::memory_order_acquire)) {
+        for (auto it = m_table.cbegin(); it != m_table.cend(); ++it) {
+            if (it.value().status == ProbeDatabase::Task::Waiting) return;
+        }
+        m_condition.wait(&m_mutex, timeoutMs);
+    }
 }
 
 void ProbeDatabase::waitForCompletion(const QStringList& keys) {

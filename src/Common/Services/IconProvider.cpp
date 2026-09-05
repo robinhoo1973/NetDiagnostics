@@ -2,7 +2,8 @@
 // IconProvider.cpp — 见 IconProvider.h
 // =============================================================================
 
-#include "IconProvider.h"
+// AGENTS.md 约定：include 一律走 src/ 根的规范路径，不用相对同目录路径。
+#include "Common/Services/IconProvider.h"
 
 #include <QColor>
 #include <QFile>
@@ -148,46 +149,60 @@ QByteArray IconProvider::tintedXml(const QString& name, const Meta& meta,
 
     const QByteArray primaryHex = primary.name().toUpper().toLatin1();
 
+    // 5WHY (2026-09-05 哨兵互相覆盖): 曾顺序盲替换——请求主色恰等于后续
+    // 哨兵（#000000/#101010/#aaaaaa/#777777）时，先写入的主色被后一轮
+    // replace 整体改写（黑图标渲染成强调色）。两阶段替换：先把所有哨兵
+    // 换成不可能出现在 SVG 中的占位符，再按最终配色落位——替换顺序无关，
+    // 任何配色组合都不再互相覆盖。
+    static const QByteArray kPhPrimary("\x01NDP1\x01", 6);
+    static const QByteArray kPhGrad("\x01NDP2\x01", 6);
+    static const QByteArray kPhAccent("\x01NDP3\x01", 6);
+    static const QByteArray kPhSecond("\x01NDP4\x01", 6);
+    static const QByteArray kPhSoft("\x01NDP5\x01", 6);
+    static const QByteArray kPhFixed("\x01NDP6\x01", 6);   // 每槽下标另附
+
+    const QString themedAccent = dark ? meta.accentDark : meta.accentLight;
+    const QString accentVal = !themedAccent.isEmpty() ? themedAccent : meta.accent;
+    const QString soft = dark ? meta.softDark : meta.softLight;
+    const QStringList fixed = dark ? meta.fixedDark : meta.fixedLight;
+
+    // ── 阶段 1：哨兵 → 唯一占位符 ─────────────────────────────────────
     // 1) 主色：渐变起点 #FFFFFF（母版统一为小写，兼容大写以防万一）
-    xml.replace("#ffffff", primaryHex);
-    xml.replace("#FFFFFF", primaryHex);
+    xml.replace("#ffffff", kPhPrimary);
+    xml.replace("#FFFFFF", kPhPrimary);
+    // 2) 渐变深端 #aaaaaa（HSL 加深 30%）
+    xml.replace("#aaaaaa", kPhGrad);
+    xml.replace("#AAAAAA", kPhGrad);
+    // 3) 语义强调 #000000
+    xml.replace("#000000", kPhAccent);
+    // 4) 第二强调 #101010
+    xml.replace("#101010", kPhSecond);
+    // 5) 柔填充 #777777
+    xml.replace("#777777", kPhSoft);
+    // 6) 固定多色 #B0000n（列表长度即槽位数量；超出部分保持字面）
+    for (int i = 0; i < fixed.size(); ++i) {
+        const QString slot = QStringLiteral("#B0000%1").arg(i + 1);
+        xml.replace(slot.toLatin1(), kPhFixed + QByteArray::number(i + 1));
+    }
 
-    // 2) 渐变深端：HSL 加深 30%
-    const QByteArray darkHex = darken30(primary).name().toUpper().toLatin1();
-    xml.replace("#aaaaaa", darkHex);
-    xml.replace("#AAAAAA", darkHex);
-
-    // 3) 语义强调 #000000（json accent 非空才替换；缺元数据时保持字面黑=确定回退）
+    // ── 阶段 2：占位符 → 最终配色（缺元数据保持字面哨兵=确定回退）──
+    xml.replace(kPhPrimary, primaryHex);
+    xml.replace(kPhGrad, darken30(primary).name().toUpper().toLatin1());
     // 5WHY (2026-08-18, loadMeta 修复后暴露): stripHash 去掉 # 前缀会生成
     // 非法 SVG 颜色（fill="38BDF8"）→ 该部分整体不渲染。替换值必须保留 #。
     // 5WHY (复核 2026-08-21 双主题徽章): 曾单一 accent 两主题共用——dark
     // 无法高亮黄色徽章。优先按主题取 accentDark/accentLight，空回退 accent。
-    const QString themedAccent = dark ? meta.accentDark : meta.accentLight;
-    const QString accentVal = !themedAccent.isEmpty() ? themedAccent : meta.accent;
-    if (!accentVal.isEmpty()) {
-        const QByteArray accentHex = normalizeColor(accentVal).toLatin1();
-        xml.replace("#000000", accentHex);
-    }
-
-    // 4) 第二强调 #101010
-    if (!meta.second.isEmpty()) {
-        const QByteArray secondHex = normalizeColor(meta.second).toLatin1();
-        xml.replace("#101010", secondHex);
-    }
-
-    // 5) 柔填充 #777777（按主题）
-    const QString soft = dark ? meta.softDark : meta.softLight;
-    if (!soft.isEmpty()) {
-        const QByteArray softHex = normalizeColor(soft).toLatin1();
-        xml.replace("#777777", softHex);
-    }
-
-    // 6) 固定多色 #B0000n（按主题；列表长度即槽位数量）
-    const QStringList fixed = dark ? meta.fixedDark : meta.fixedLight;
-    for (int i = 0; i < fixed.size(); ++i) {
-        const QString slot = QStringLiteral("#B0000%1").arg(i + 1);
-        const QByteArray slotHex = normalizeColor(fixed.at(i)).toLatin1();
-        xml.replace(slot.toLatin1(), slotHex);
+    xml.replace(kPhAccent, accentVal.isEmpty()
+        ? QByteArrayLiteral("#000000") : normalizeColor(accentVal).toLatin1());
+    xml.replace(kPhSecond, meta.second.isEmpty()
+        ? QByteArrayLiteral("#101010") : normalizeColor(meta.second).toLatin1());
+    xml.replace(kPhSoft, soft.isEmpty()
+        ? QByteArrayLiteral("#777777") : normalizeColor(soft).toLatin1());
+    // 降序替换：槽位占位符以数字收尾（…1 是 …12 的前缀），高位先落位
+    // 可避免低槽占位符误吞高槽占位符。
+    for (int i = fixed.size(); i >= 1; --i) {
+        xml.replace(kPhFixed + QByteArray::number(i),
+                    normalizeColor(fixed.at(i - 1)).toLatin1());
     }
 
     return xml;

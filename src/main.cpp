@@ -229,10 +229,21 @@ int main(int argc, char* argv[]) {
 
     // ── 单实例锁：Windows 命名互斥量；Linux/macOS QLockFile ─────────────
 #if defined(_WIN32)
-    HANDLE hMutex = CreateMutexW(nullptr, FALSE, L"Global\\NetDiagnostic_SingleInstance");
-    if (hMutex && GetLastError() == ERROR_ALREADY_EXISTS) {
-        if (hMutex) CloseHandle(hMutex);
-        return 0;
+    // 5WHY (2026-09-05 单实例锁在 Windows 静默失效): 曾用 "Global\\" 内核
+    // 命名空间——标准（非提权）用户进程无 SeCreateGlobalPrivilege，
+    // CreateMutexW 返回 NULL（ERROR_ACCESS_DENIED），`hMutex && ...` 判空
+    // 跳过整个守卫且无回退 → 普通用户可无限多开。单实例语义是"本会话内
+    // 唯一"（各登录会话互相隔离），"Local\\" 命名空间即正确作用域且无需
+    // 任何特权。失败（hMutex==NULL）也不静默：显式告警。
+    HANDLE hMutex = CreateMutexW(nullptr, FALSE, L"Local\\NetDiagnostic_SingleInstance");
+    if (hMutex) {
+        if (GetLastError() == ERROR_ALREADY_EXISTS) {
+            CloseHandle(hMutex);
+            return 0;
+        }
+    } else {
+        qWarning("CreateMutexW failed (%lu) — single-instance guard unavailable",
+                 static_cast<unsigned long>(GetLastError()));
     }
 #else
     QLockFile singleInstanceLock(

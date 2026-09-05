@@ -62,7 +62,11 @@ void ProbeExecutor::run() {
         // 2-3 bounded waves instead of one oversized burst.
         QVector<ProbeDatabase::Task> batch = db->fetchWaiting(64);
         if (batch.isEmpty()) {
-            QThread::msleep(100);  // idle: brief yield before re-check
+            // 5WHY (2026-09-05 空闲轮询改事件等待): 曾 100ms 盲轮询——G3 探测
+            // 完成后执行器线程在进程余下生命周期内每 10 次/秒空转（移动端
+            // 电池常驻成本 + 新提交至多 100ms 延迟）。改条件变量等待：表内
+            // 有 Waiting 或 stop 置位或 500ms 超时即返回。
+            db->waitForNewWork(stopFlag, 500);
             continue;
         }
 
@@ -74,7 +78,21 @@ void ProbeExecutor::run() {
         threads.reserve(batch.size());
 
         for (int i = 0; i < batch.size(); i++) {
-            if (stopFlag->load()) break;
+            if (stopFlag->load()) {
+                // 5WHY (2026-09-05 停机路径任务卡死): 曾直接 break——fetchWaiting
+                // 已把剩余任务翻为 Running，无人写回、upsert 无法复活 Running
+                // 任务 → 键永久卡 Running，下一轮 waitForCompletion 等满 120s
+                // 上限且数据缺空。停机时以空结果终局落账（forceDone），
+                // 反馈层对空结果优雅跳过。
+                for (int j = i; j < batch.size(); ++j) {
+                    const auto itF = lookup.find(batch[j].key);
+                    db->writeResults(batch[j].key, {},
+                        (itF != lookup.end()) ? itF->country : QStringLiteral("XX"),
+                        (itF != lookup.end()) ? itF->regionTags : QStringList(),
+                        /*forceDone=*/true);
+                }
+                break;
+            }
             // 5WHY (review 2026-08-17): pthread_create EAGAIN（低 RLIMIT_NPROC
             // /fd 耗尽）会以 std::system_error 逃逸 QThread::run() → 未捕获
             // 异常 → std::terminate 整进程中止。降级：写空结果完成任务流转。
@@ -90,9 +108,14 @@ void ProbeExecutor::run() {
                 int port = task->key.mid(colon + 1).toInt();
                 if (port <= 0) port = 80;
 
+                // 5WHY (2026-09-05 rounds 续测): 曾按快照的 task->rounds 满轮
+                // 测量——重入队的任务已积累部分结果，再测满轮会超出请求回合。
+                // 按缺额续测（快照含已积累 results），与 writeResults 的重入
+                // 队校验配对收敛。
+                const int need = qMax(0, task->rounds - task->results.size());
                 QVector<double> results;
-                results.reserve(task->rounds);
-                for (int r = 0; r < task->rounds; r++) {
+                results.reserve(need);
+                for (int r = 0; r < need; r++) {
                     // 5WHY: an in-flight socket call cannot be aborted
                     // safely mid-flight, but on stop we must not start any
                     // further rounds.  Without this check, a stop during a
@@ -110,7 +133,7 @@ void ProbeExecutor::run() {
             } catch (const std::system_error& e) {
                 qWarning("ProbeExecutor: thread creation failed (%s) — writing empty result for %s",
                          e.what(), qPrintable(batch[i].key));
-                db->writeResults(batch[i].key, {}, country, regionTags);
+                db->writeResults(batch[i].key, {}, country, regionTags, /*forceDone=*/true);
             }
         }
         for (auto& t : threads) t.join();

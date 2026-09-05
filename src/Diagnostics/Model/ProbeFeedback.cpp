@@ -90,8 +90,12 @@ ServerResult ProbeFeedback::computeServerStats(const ProbeDatabase::Task& task) 
     // t_0.025,df indexed by df = min(n-1, 6).  z=1.96 for n≥8.
     // df:  1      2      3      4      5      6       ≥7
     static const double T95[] = {0, 12.71, 4.30, 3.18, 2.78, 2.57, 2.45, 1.96};
-    int df = std::min(n - 1, 6);
-    double tval = (df < 7) ? T95[df] : 1.96;
+    // 5WHY (2026-09-05 z=1.96 不可达): 曾 df = min(n-1, 6)——df 上限 6 使
+    // `(df < 7) ? T95[df] : 1.96` 的 1.96 分支恒不可达，n≥8 样本全部用
+    // t(6)=2.45，95% CI 被系统性夸大 ~25%。上限 7：df 0..6 走表，df≥7
+    // 走正态近似 z=1.96（与注释语义一致）。
+    int df = std::min(n - 1, 7);
+    double tval = (df <= 6) ? T95[df] : 1.96;
     // MAD→SD consistency factor: 1.4826 under normality
     sr.ciHalf = tval * 1.4826 * sr.mad / std::sqrt(static_cast<double>(n));
 

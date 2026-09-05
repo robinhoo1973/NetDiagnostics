@@ -30,8 +30,14 @@
 #include <csignal>
 #include <exception>
 
+// 5WHY (Reuse 2026-09-05): 崩溃日志目录与启动日志共用 userVisibleLogDir()
+// 单一来源（iOS Documents / Android getExternalFilesDir / 桌面 Temp）——
+// 曾与 StartupLog.h::startupLogDir 平行维护三路路由，平台分支改动
+// 漏一处即两日志分落两目录。
+#include "Common/Utils/LogPaths.h"
 #if defined(PLATFORM_ANDROID)
 #include "Common/Platform/Android/AndroidLogPaths.h"
+#include "Common/Platform/Android/AndroidDownloadLog.h"
 #endif
 #include <typeinfo>
 
@@ -78,18 +84,9 @@ inline QString crashLogPath() {
     // 5WHY (Android b21294): same user-visibility requirement — route to
     // getExternalFilesDir (Android/data/<pkg>/files, no permission needed)
     // instead of the private TempLocation cache dir.
-#if defined(PLATFORM_IOS)
-    return QDir(QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation))
-        .filePath(QString::fromLatin1(kCrashFileName));
-#else
-#if defined(PLATFORM_ANDROID)
-    return QDir(androidUserVisibleLogDir())
-        .filePath(QString::fromLatin1(kCrashFileName));
-#else
-    return QDir(QStandardPaths::writableLocation(QStandardPaths::TempLocation))
-        .filePath(QString::fromLatin1(kCrashFileName));
-#endif
-#endif
+    // 5WHY (Reuse 2026-09-05): 路由收敛至 LogPaths.h::userVisibleLogDir()
+    // （与 StartupLog.h 同源）。
+    return QDir(userVisibleLogDir()).filePath(QString::fromLatin1(kCrashFileName));
 }
 
 #if defined(PLATFORM_ANDROID)
@@ -101,7 +98,10 @@ inline QString crashLogPath() {
 // (a MediaStore mirror from inside crash handlers is risky — the app-scoped
 // copy + startup-log mirror remain the canonical trails there).
 inline void mirrorCrashReportToDownload(const QString& path) {
-    QString downloadDir = QStringLiteral("/sdcard/Download/NetDiagnostics");
+    // 5WHY (Reuse 2026-09-05): 目录字面量曾与 AndroidDownloadLog.h 各写
+    // 一份——镜像目录改名/换主存储路径须两处同步，漂移后用户只找得到
+    // 其中一个日志。kDownloadMirrorDir 单一来源。
+    QString downloadDir = QString::fromLatin1(kDownloadMirrorDir);
     QString downloadPath = downloadDir + QLatin1Char('/')
                            + QString::fromLatin1(kCrashFileName);
     QDir().mkpath(downloadDir);
@@ -144,43 +144,15 @@ inline void writeBacktrace(QTextStream& ts) {
 #endif
 }
 
-// ── Helper: write crash report ─────────────────────────────────────────
-inline void writeCrashReport(const char* signalName, int signalNum) {
-    QString path = crashLogPath();
-    // 5WHY: Same fresh-install dir gap as StartupLog.h — on Android the
-    // NetDiagnostics/ subdir does not exist on the first launch, so the
-    // crash report would silently fail to persist.  Create it before writing.
-    QDir().mkpath(QFileInfo(path).absolutePath());
-    // 5WHY: If a qFatal/qCritical/terminate report was already written for
-    // this crash, the ensuing abort() → SIGABRT must NOT overwrite it with a
-    // useless "abort → pthread_kill" backtrace.  Append the signal instead so
-    // the real root cause (the Qt message / exception) is preserved.
-    if (g_messageCrashWritten) {
-        QFile af(path);
-        if (af.open(QIODevice::Append | QIODevice::Text)) {
-            QTextStream ats(&af);
-            ats << "--- Subsequent signal: " << signalName
-                << " (" << signalNum << ") ---\n";
-            ats.flush();
-            af.close();
-        }
-#if defined(PLATFORM_ANDROID)
-        // Re-copy so the Download mirror also carries the subsequent-signal
-        // note (the first copy was made before abort() raised SIGABRT).
-        mirrorCrashReportToDownload(path);
-#endif
-        return;
-    }
-    QFile f(path);
-    // Remove previous crash log if exists, start fresh
-    f.remove();
-    if (!f.open(QIODevice::WriteOnly | QIODevice::Text))
-        return;
-
-    QTextStream ts(&f);
+// ── Helper: write common report header (title/timestamp/event/build/platform)
+// 5WHY (Reuse 2026-09-05): 头部块曾逐字复制于 writeCrashReport 与
+// writeMessageCrashReport（~40 行）——新增诊断字段（Qt 运行时版本、QML
+// 导入路径等）须两处同步，漏一处则 qFatal 报告与 SIGSEGV 报告同构建却
+// 缺字段。收敛单点：调用方只提供差异化事件行。
+inline void writeCrashReportHeader(QTextStream& ts, const QString& eventLine) {
     ts << "=== NetDiagnostics Crash Report ===\n";
     ts << "Timestamp: " << QDateTime::currentDateTime().toString(Qt::ISODateWithMs) << "\n";
-    ts << "Signal:    " << signalName << " (" << signalNum << ")\n";
+    ts << eventLine << "\n";
 
     // Build info
 #if defined(PROJECT_VERSION)
@@ -219,6 +191,44 @@ inline void writeCrashReport(const char* signalName, int signalNum) {
 #endif
 #endif
 #endif
+}
+
+// ── Helper: write crash report ─────────────────────────────────────────
+inline void writeCrashReport(const char* signalName, int signalNum) {
+    QString path = crashLogPath();
+    // 5WHY: Same fresh-install dir gap as StartupLog.h — on Android the
+    // NetDiagnostics/ subdir does not exist on the first launch, so the
+    // crash report would silently fail to persist.  Create it before writing.
+    QDir().mkpath(QFileInfo(path).absolutePath());
+    // 5WHY: If a qFatal/qCritical/terminate report was already written for
+    // this crash, the ensuing abort() → SIGABRT must NOT overwrite it with a
+    // useless "abort → pthread_kill" backtrace.  Append the signal instead so
+    // the real root cause (the Qt message / exception) is preserved.
+    if (g_messageCrashWritten) {
+        QFile af(path);
+        if (af.open(QIODevice::Append | QIODevice::Text)) {
+            QTextStream ats(&af);
+            ats << "--- Subsequent signal: " << signalName
+                << " (" << signalNum << ") ---\n";
+            ats.flush();
+            af.close();
+        }
+#if defined(PLATFORM_ANDROID)
+        // Re-copy so the Download mirror also carries the subsequent-signal
+        // note (the first copy was made before abort() raised SIGABRT).
+        mirrorCrashReportToDownload(path);
+#endif
+        return;
+    }
+    QFile f(path);
+    // Remove previous crash log if exists, start fresh
+    f.remove();
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Text))
+        return;
+
+    QTextStream ts(&f);
+    writeCrashReportHeader(ts, QStringLiteral("Signal:    %1 (%2)")
+        .arg(QString::fromLatin1(signalName)).arg(signalNum));
 
     writeBacktrace(ts);
     ts << "====================================\n";
@@ -248,40 +258,7 @@ inline void writeMessageCrashReport(const char* kind, const QString& text) {
     if (!f.open(QIODevice::WriteOnly | QIODevice::Text))
         return;
     QTextStream ts(&f);
-    ts << "=== NetDiagnostics Crash Report ===\n";
-    ts << "Timestamp: " << QDateTime::currentDateTime().toString(Qt::ISODateWithMs) << "\n";
-    ts << "Kind:      " << kind << "\n";
-#if defined(PROJECT_VERSION)
-    ts << "Version:   " << PROJECT_VERSION << "\n";
-#endif
-#if defined(ND_BUILD_NUMBER)
-    ts << "Build:     " << ND_BUILD_NUMBER << "\n";
-#endif
-#if defined(ND_GIT_HASH)
-    ts << "Git:       " << ND_GIT_HASH << "\n";
-#endif
-#if defined(APP_EDITION)
-    ts << "Edition:   " << APP_EDITION << "\n";
-#endif
-#if defined(_WIN32)
-    ts << "Platform:  Windows\n";
-#else
-#if defined(PLATFORM_IOS)
-    ts << "Platform:  iOS\n";
-#else
-#if defined(__APPLE__)
-    ts << "Platform:  macOS\n";
-#else
-#if defined(__ANDROID__)
-    ts << "Platform:  Android\n";
-#else
-#if defined(__linux__)
-    ts << "Platform:  Linux\n";
-#endif
-#endif
-#endif
-#endif
-#endif
+    writeCrashReportHeader(ts, QStringLiteral("Kind:      %1").arg(QString::fromLatin1(kind)));
     ts << "Message:\n" << text << "\n";
     writeBacktrace(ts);
     ts << "====================================\n";

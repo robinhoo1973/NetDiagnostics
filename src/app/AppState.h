@@ -95,7 +95,8 @@ public:
     Q_INVOKABLE QVariantMap groupStats(int groupInt) const;   // -1 = 聚合
     Q_INVOKABLE QVariantList visibleGroups() const;
     Q_INVOKABLE QVariantMap resultFor(int diagIdInt) const;
-    Q_INVOKABLE QVariantMap contractFor(int diagIdInt) const;   // A3 视图（DetailPage 区块开关）
+    // 5WHY (simplify 2026-09-05): contractFor Q_INVOKABLE 删除——零调用方，
+    // 契约经 resultFor 的 DetailProfile 下发（见 AppState.cpp 同段注释）。
     Q_INVOKABLE void setTarget(const QString& host, const QString& scheme);
     Q_INVOKABLE void setTargetCredentials(const QString& user, const QString& password, const QString& port);
     Q_INVOKABLE QString targetScheme() const { return m_targetScheme; }
@@ -105,10 +106,15 @@ public:
     // {x,y,width,height,maximized}，无存档时各键缺省（QML 侧走默认布局）。
     Q_INVOKABLE QVariantMap restoreWindowGeometry() const;
     Q_INVOKABLE void saveWindowGeometry(int x, int y, int width, int height, bool maximized);
+    // 5WHY (2026-09-05 最大化几何污染): 关闭时若窗口处于最大化，QML 的
+    // x/y/width/height 读到的就是最大化帧——把它当"还原尺寸"落盘后，
+    // 还原按钮永远回到最大化尺寸。最大化关闭只落 max 标志，不动已存的
+    // 正常几何。
+    Q_INVOKABLE void saveWindowMaximized(bool maximized);
 
     // ── P1：Config 页桥接 ──
     Q_INVOKABLE QVariantList allDiagIdsForGroup(int groupInt) const;
-    Q_INVOKABLE int diagCountForGroup(int groupInt) const;
+    // 5WHY (simplify 2026-09-05): diagCountForGroup 删除——零调用方（见 .cpp 注释）。
     Q_INVOKABLE bool isDiagEnabled(int diagIdInt) const;
     Q_INVOKABLE bool setDiagEnabled(int diagIdInt, bool enabled);
     Q_INVOKABLE bool setGroupEnabled(int groupInt, bool enabled);
@@ -123,7 +129,8 @@ public:
     Q_INVOKABLE void copyDetailToClipboard(int diagIdInt);
     Q_INVOKABLE void copyReportToClipboard();
     Q_INVOKABLE QString buildReportText() const;
-    Q_INVOKABLE QString buildReportHtml() const;   // HTML 报告（ReportEngine 最小恢复）
+    // 5WHY (simplify 2026-09-05): buildReportHtml 删除——零调用方，活跃
+    // 路径为 previewReportHtml + ReportEngine（见 AppState.cpp 同段注释）。
 
     // ── 报告/分享/动画（ReportEngine + Premium 后端恢复）──
     Q_INVOKABLE QString diagAnimationUrl(int diagIdInt) const;
@@ -171,7 +178,6 @@ private:
     // 曾阻塞主线程（iOS iosCopyWiFiSSID semaphore 最长 5s）——改后台
     // 刷新 + Run 时零阻塞读缓存（m_wifiUp/m_cellularUp）。
     void refreshConnectivityAsync();
-    void updateItemModel(DiagId id, const DiagnosticResult& r);
     QVariantMap itemFor(DiagId id, const QHash<DiagId, qint64>* startsMono = nullptr) const;
     void loadPreferences();
     void savePreferences();

@@ -642,21 +642,30 @@ static const struct { const char* a2; const char* a3; const char* name; } kCount
     {"VN","VNM","Vietnam"},{"EH","ESH","Western Sahara"},{"YE","YEM","Yemen"},
     {"ZM","ZMB","Zambia"},{"ZW","ZWE","Zimbabwe"},
 };
-static const auto kCountryBy2 = []() {
-    QHash<QString, QPair<QString,QString>> m;
-    for (const auto& e : kCountryMap) m[QString::fromLatin1(e.a2)] = {QString::fromLatin1(e.a3), QString::fromLatin1(e.name)};
-    return m;
-}();
+// 5WHY (2026-09-05 SIOF): 哈希曾是命名空间作用域静态初始化（~250 条目
+// QHash 在 main() 前构造）——跨 TU 初始化顺序未定义（iOS dyld 顺序不定），
+// 静态初始化期调用 countryCode3/countryFullName 会读到未构造哈希。与
+// DiagId.h/DiagnosticMeta/GeoProbe 同惯例：Meyer's function-local static。
+const QHash<QString, QPair<QString, QString>>& countryBy2() {
+    static const QHash<QString, QPair<QString, QString>> kCountryBy2 = []() {
+        QHash<QString, QPair<QString,QString>> m;
+        for (const auto& e : kCountryMap) m[QString::fromLatin1(e.a2)] = {QString::fromLatin1(e.a3), QString::fromLatin1(e.name)};
+        return m;
+    }();
+    return kCountryBy2;
+}
 
 QString countryCode3(const QString& code2) {
-    auto it = kCountryBy2.constFind(code2);
-    return (it != kCountryBy2.cend()) ? it->first : code2;
+    const auto& by2 = countryBy2();
+    auto it = by2.constFind(code2);
+    return (it != by2.cend()) ? it->first : code2;
 }
 QString countryFullName(const QString& code2) {
     if (code2.isEmpty() || code2 == QStringLiteral("XX"))
         return QStringLiteral("Unknown");
-    auto it = kCountryBy2.constFind(code2);
-    return (it != kCountryBy2.cend()) ? it->second : code2;
+    const auto& by2 = countryBy2();
+    auto it = by2.constFind(code2);
+    return (it != by2.cend()) ? it->second : code2;
 }
 
 } // namespace SystemDiagnostics

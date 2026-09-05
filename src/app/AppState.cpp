@@ -17,6 +17,7 @@
 #include "Configuration/Controller/ConfigurationController.h"
 #include "Configuration/Model/DiagnosticConfig.h"   // simplify: isValidDiagId 摄入边界
 #include "Diagnostics/Model/DiagnosticSuite.h"
+#include "Diagnostics/Model/GeoProbe.h"   // 5WHY (2026-09-05): 每轮 run 前清探针结果表
 #include "Diagnostics/Model/GHelpers.h"   // propsDumpText（终端兜底派生单一来源）
 #include "Diagnostics/View/LegacyTerminalFormat.h"   // v0.0.3 逐字复刻层
 #include "Report/Model/ReportEngine.h"
@@ -64,6 +65,14 @@ DiagGroup groupForIndex(int idx) {
 bool runnableFor(DiagId id, const QString& schemeLower) {
     return AdapterRegistry::select(id, schemeLower) != nullptr
         && DeviceCapability::diagSupportedOnDevice(id);
+}
+
+// 5WHY (simplify 2026-09-05): 四份循环体复制同一三重过滤（diagGroup==g &&
+// isSchedulable && runnableFor）——scheme 过滤修正曾逐份补齐（resultsForGroup
+// 注释明言"补齐与 groupStats/allDiagsForGroup 相同的 scheme 过滤"），新消费
+// 方再复制必漂移。收敛单一判据。
+bool inRunSet(DiagId id, DiagGroup g, const QString& schemeLower) {
+    return diagGroup(id) == g && isSchedulable(id) && runnableFor(id, schemeLower);
 }
 
 // 5WHY (2026-08-23 弹窗误触发): 流量警告曾以 "有 target 输入" 为触发
@@ -195,11 +204,19 @@ void AppState::persistResults() {
 }
 
 QString AppState::redactCredentials(const QString& text) const {
-    if (m_targetUser.isEmpty() || text.isEmpty()) return text;
-    const QString auth = QUrl::toPercentEncoding(m_targetUser) + QLatin1Char(':')
+    // 5WHY (2026-09-05 复核 仅密码 URL): 曾仅按 m_targetUser 判空——粘贴
+    // "scheme://:pass@host" 只填 m_targetPassword，user 为空即整体跳过
+    // 遮罩，":pass@host" 随探针输出落盘/进报告。任一凭据字段非空即遮罩。
+    if ((m_targetUser.isEmpty() && m_targetPassword.isEmpty()) || text.isEmpty())
+        return text;
+    // 5WHY (效率): 曾对同一不变的 m_targetUser 做两次百分号编码（auth 与
+    // masked 各一次），且 persistResults 每条结果调用 4 次（180+ 次编码/轮）。
+    // 用户名一轮内不变——单次编码复用。密码为空时 auth 即 "user:@"，仍须
+    // 遮罩（防 user@ 形态泄漏），空密码不需要遮罩值。
+    const QString encodedUser = QUrl::toPercentEncoding(m_targetUser);
+    const QString auth = encodedUser + QLatin1Char(':')
                        + QUrl::toPercentEncoding(m_targetPassword) + QLatin1Char('@');
-    if (auth == QLatin1String("@")) return text;
-    const QString masked = QUrl::toPercentEncoding(m_targetUser) + QLatin1String(":***@");
+    const QString masked = encodedUser + QLatin1String(":***@");
     QString out = text;
     out.replace(auth, masked);
     return out;
@@ -273,6 +290,38 @@ void AppState::setTarget(const QString& host, const QString& scheme) {
         effScheme = h.left(proto).toLower();
         h = h.mid(proto + 3);
     }
+    // 5WHY (2026-09-05 粘贴 URL 凭据泄漏): 粘贴 "scheme://user:pass@host"
+    // 时 user:pass@ 曾留在 m_targetHost——redactCredentials 只看
+    // m_targetUser（出口红线），粘贴路径的凭据在报告/HTML/落盘全带明文。
+    // 提取 userinfo 入凭据槽（与凭据弹窗同一来源，持久化同门）。
+    // 5WHY (2026-09-05 复核 '@' 误判): userinfo 只存在于 authority（首个
+    // '/' 或 '?' 之前）——路径/查询中的 '@'（/path/@1、?email=a@b.com）
+    // 不是凭据分隔符，误提取会把主机名截断成 "1" 且写入垃圾凭据。
+    {
+        const int slash = h.indexOf(QLatin1Char('/'));
+        const int query = h.indexOf(QLatin1Char('?'));
+        int authorityEnd = h.size();
+        if (slash >= 0 && slash < authorityEnd) authorityEnd = slash;
+        if (query >= 0 && query < authorityEnd) authorityEnd = query;
+        const int at = h.indexOf(QLatin1Char('@'));
+        if (at > 0 && at < authorityEnd) {
+            const QString userinfo = h.left(at);
+            h = h.mid(at + 1);
+            const int colon = userinfo.indexOf(QLatin1Char(':'));
+            const QString u = QUrl::fromPercentEncoding(userinfo.left(colon).toUtf8());
+            const QString p = colon >= 0
+                ? QUrl::fromPercentEncoding(userinfo.mid(colon + 1).toUtf8())
+                : QString();
+            // 仅实际变化才落安全存储——本函数由输入框逐键调用，逐键写
+            // Keychain/DPAPI 是纯浪费（与 setTargetCredentials 同门语义）。
+            if (u != m_targetUser || p != m_targetPassword) {
+                m_targetUser = u;
+                m_targetPassword = p;
+                persistCredentials();
+                savePreferences();   // targetUser 持久化（密码走安全存储）
+            }
+        }
+    }
     QString path;
     const int slash = h.indexOf(QLatin1Char('/'));
     if (slash > 0) { path = h.mid(slash); h = h.left(slash); }
@@ -333,6 +382,11 @@ void AppState::runDiagnostics() {
     // 命周期内第二次诊断拿到陈旧解析。每轮 run 开始清空（含负缓存），
     // 新一轮探测以当前 DNS 事实为准。
     DnsResolver::instance().clearCache();
+    // 5WHY (2026-09-05 GeoProbe 陈旧结果): GeoProbe::clear() 声明"每轮开始
+    // 调用"却零调用者——第二轮 Run 时 upsert 命中 Done 且 rounds 满足的
+    // 任务直接短路，GeoIP 归属与测速表整轮复用上一轮的 TTFB 数据。与
+    // DNS 缓存同门：每轮 run 开始清空探针结果表。
+    GeoProbe::instance().clear();
     // 8-4：无目标时仅运行 G1-G3（系统/适配器、连接与安全、互联网与 DNS），
     // G4/G5 依赖目标主机。
     const bool noTarget = m_targetHost.isEmpty();
@@ -466,10 +520,13 @@ void AppState::runNextGroup() {
     const qint64 gen = ++m_runGeneration;
     m_suite = new DiagnosticSuite(g, this);
     QVector<DiagId> ids;
+    // 5WHY (2026-09-05 效率): toLower 曾在循环体逐项重算（同 allDiagsForGroup
+    // /groupStats 5WHY 修正的同一模式）——归一化一次循环外复用，末行
+    // m_suite->run 同值同源。
+    const QString schemeLower = m_targetScheme.toLower();
     for (DiagId id : allDiagIds())
-        if (diagGroup(id) == g && isSchedulable(id)
-            && (m_config == nullptr || m_config->isDiagEnabled(static_cast<int>(id)))
-            && runnableFor(id, m_targetScheme.toLower()))   // NEW-3/DIAG-4
+        if (inRunSet(id, g, schemeLower)
+            && (m_config == nullptr || m_config->isDiagEnabled(static_cast<int>(id))))
             ids.append(id);
     m_suite->setDiagIds(ids);
     connect(m_suite, &DiagnosticSuite::resultReady, this, [this, gen](const DiagnosticResult& r) {
@@ -482,7 +539,6 @@ void AppState::runNextGroup() {
         nr.group = diagGroup(nr.id);
         m_results.insert(nr.id, nr);
         m_currentDiagLabel = nr.displayName;
-        updateItemModel(nr.id, nr);
         emit progressChanged();
         // 5WHY (2026-08-23 连通性缓存刷新): G1 WiFi/蜂窝结果落地即后台
         // 刷新缓存——下一轮 Run 的弹窗判定读新鲜网络事实。
@@ -524,7 +580,7 @@ void AppState::runNextGroup() {
              + QUrl::toPercentEncoding(m_targetPassword) + QLatin1Char('@');
     }
     const QString target = m_targetScheme + QLatin1String("://") + auth + host + m_targetPath;
-    m_suite->run(target, m_targetScheme.toLower());
+    m_suite->run(target, schemeLower);
 }
 
 void AppState::onSuiteFinished() {
@@ -657,8 +713,7 @@ QVariantList AppState::allDiagsForGroup(int groupInt) const {
     const QHash<DiagId, qint64> startsMono =
         running ? m_suite->runningStartTimesMono() : QHash<DiagId, qint64>();
     for (DiagId id : allDiagIds())
-        if (diagGroup(id) == g && isSchedulable(id)
-            && runnableFor(id, schemeLower))
+        if (inRunSet(id, g, schemeLower))
             out.append(itemFor(id, running ? &startsMono : nullptr));
     return out;
 }
@@ -835,6 +890,11 @@ QVariantMap AppState::resultFor(int diagIdInt) const {
     // 同链，见 resultFor 派生链注释）——propsDump 标记已随 G1 makeResult
     // 透传化整体删除，无残留消费方。
     m[QStringLiteral("showTerminal")] = dp.showTerminal;
+    // 5WHY (2026-09-05 打字机开关死链): DetailProfile::terminalTypewriter
+    // 从未跨过 C++→QML 边界——QML 侧 typewriter 硬编码 true，meta 声明
+    // （仅 sysTT/sysGroupedTT 条目为 true）形同虚设。下发该布尔，
+    // PageTerminalSection 按契约消费。
+    m[QStringLiteral("terminalTypewriter")] = dp.terminalTypewriter;
     // 属性布局（Kv 扁平 / Grouped 分组卡）——PagePropertiesSection 渲染模式。
     // 5WHY (复核 2026-08-20 跨语言契约): 曾把枚举序值 int 直传 QML（5 处
     // 裸 === 1 直比）——枚举重排即静默错乱。只下发布尔语义（propGrouped），
@@ -850,27 +910,16 @@ QVariantMap AppState::resultFor(int diagIdInt) const {
     return m;
 }
 
-QVariantMap AppState::contractFor(int diagIdInt) const {
-    const DiagId id = static_cast<DiagId>(diagIdInt);
-    const OutputContract c = ::contractFor(id);
-    QVariantMap m;
-    m[QStringLiteral("metricField")] = c.metric.field ? QString::fromLatin1(c.metric.field) : QString();
-    m[QStringLiteral("metricUnit")] = c.metric.unit ? QString::fromLatin1(c.metric.unit) : QString();
-    m[QStringLiteral("metricPrecision")] = c.metric.precision;
-    m[QStringLiteral("chartType")] = static_cast<int>(c.chart.type);
-    m[QStringLiteral("chartField")] = c.chart.field ? QString::fromLatin1(c.chart.field) : QString();
-    m[QStringLiteral("showError")] = c.showError;
-    m[QStringLiteral("showProps")] = c.showProps;
-    m[QStringLiteral("showTerminal")] = c.showTerminal;
-    return m;
-}
+// 5WHY (simplify 2026-09-05): contractFor Q_INVOKABLE 已删除——零调用方
+// （DetailPage 经 DiagnosticBase::contract() 消费 OutputContract.h 的自由
+// 函数），保留会造成"两套契约来源"的误导；契约注入链为 resultFor 的
+// DetailProfile 下发（showErrorOutput/showProperties/showCharts/
+// showTerminal）。
 
-void AppState::updateItemModel(DiagId id, const DiagnosticResult& r) {
-    Q_UNUSED(id);
-    Q_UNUSED(r);
-    // items model 为惰性视图（allDiagsForGroup 每次由 m_results 推导），
-    // 此钩子保留给未来增量通知（progressChanged 已驱动 UI 刷新）。
-}
+// 5WHY (simplify 2026-09-05): updateItemModel 空钩子已删除——items model 为
+// 惰性视图（allDiagsForGroup 每次由 m_results 推导），progressChanged 已驱动
+// UI 刷新，每结果一次的无操作调用与"未来增量通知"的投机保留属 YAGNI。
+// （resultReady lambda 中对应调用一并移除。）
 
 // ═══════════════════════════════════════════════════════════════════════
 // P1：Config / 语言 / 主题 桥接
@@ -894,15 +943,13 @@ QVariantList AppState::allDiagIdsForGroup(int groupInt) const {
     // 修正）——归一化一次循环外复用。
     const QString schemeLower = m_targetScheme.toLower();
     for (DiagId id : allDiagIds())
-        if (diagGroup(id) == g && isSchedulable(id)
-            && runnableFor(id, schemeLower))   // NEW-3：Config 可见性同源
+        if (inRunSet(id, g, schemeLower))   // NEW-3：Config 可见性同源
             out.append(static_cast<int>(id));
     return out;
 }
 
-int AppState::diagCountForGroup(int groupInt) const {
-    return allDiagIdsForGroup(groupInt).size();
-}
+// 5WHY (simplify 2026-09-05): diagCountForGroup 已删除——零调用方，且
+// 为取计数物化整个 QVariantList；消费方直接用 allDiagIdsForGroup。
 
 QVariantList AppState::resultsForGroup(int groupInt) const {
     QVariantList out;
@@ -912,12 +959,11 @@ QVariantList AppState::resultsForGroup(int groupInt) const {
     // （m_results 过滤），itemFor 的起点注入分支不触发，无需建起点表。
     const QString schemeLower = m_targetScheme.toLower();
     for (DiagId id : allDiagIds()) {
-        if (diagGroup(id) != g || !isSchedulable(id)) continue;
         // 5WHY (复核 2026-08-18 瓦片墙/统计同源): 换 scheme 不重跑时统计已按
         // runnableFor 过滤成新集（0/0），Dashboard 完成态瓦片墙却仍显示旧
         // scheme 结果——头部/组头与瓦片可见分叉。补齐与 groupStats/
-        // allDiagsForGroup 相同的 scheme 过滤。
-        if (!runnableFor(id, schemeLower)) continue;
+        // allDiagsForGroup 相同的 scheme 过滤（inRunSet 单一判据）。
+        if (!inRunSet(id, g, schemeLower)) continue;
         const auto it = m_results.constFind(id);
         if (it != m_results.constEnd())
             out.append(itemFor(id));
@@ -963,6 +1009,12 @@ void AppState::saveWindowGeometry(int x, int y, int width, int height, bool maxi
     s.setValue(QStringLiteral("winY"), y);
     s.setValue(QStringLiteral("winW"), width);
     s.setValue(QStringLiteral("winH"), height);
+    s.setValue(QStringLiteral("winMax"), maximized);
+}
+
+void AppState::saveWindowMaximized(bool maximized) {
+    QSettings s;
+    s.beginGroup(QString::fromLatin1(kSettingsGroup));
     s.setValue(QStringLiteral("winMax"), maximized);
 }
 
@@ -1083,11 +1135,14 @@ void removeLegacyPlaintextPassword(QSettings& s) {
 void AppState::loadPreferences() {
     QSettings s;
     s.beginGroup(QString::fromLatin1(kSettingsGroup));
-    // activeGroups：默认全部激活（缺省键 → 全量）
-    const QStringList active = s.value(QStringLiteral("activeGroups")).toStringList();
-    if (active.isEmpty()) {
+    // activeGroups：默认全部激活（缺键 → 全量）。
+    // 5WHY (2026-09-05 全停用后重启复活): 曾以"空列表"当"无存档"哨兵——
+    // 空列表也是"用户停用全部组"的合法形态（INI 后端 @Invalid() 与缺键
+    // 不可区分）→ 全停用后重启 5 组静默复活。键存在性为唯一可靠哨兵。
+    if (!s.contains(QStringLiteral("activeGroups"))) {
         for (int i = 0; i < 5; ++i) m_activeGroups.insert(i);
     } else {
+        const QStringList active = s.value(QStringLiteral("activeGroups")).toStringList();
         for (const QString& str : active) {
             bool ok = false;
             const int g = str.toInt(&ok);
@@ -1219,57 +1274,11 @@ void AppState::copyReportToClipboard() {
     QGuiApplication::clipboard()->setText(buildReportText());
 }
 
-// ── HTML 报告（ReportEngine 最小恢复：快照式、纯文本输出；PDF/预览 UI 延后）──
-// 归档 ReportEngine 的 HTML 导出能力以轻量形态保留：每次调用基于当前 m_results
-// 快照生成完整 HTML，不做增量缓存。
-QString AppState::buildReportHtml() const {
-    static const QHash<DiagStatus, QString> kStatusColor = {
-        {DiagStatus::Pass,      QStringLiteral("#22c55e")},
-        {DiagStatus::Warning,   QStringLiteral("#f59e0b")},
-        {DiagStatus::Fail,      QStringLiteral("#ef4444")},
-        {DiagStatus::Skipped,   QStringLiteral("#94a3b8")},
-        {DiagStatus::Info,      QStringLiteral("#3b82f6")},
-        {DiagStatus::Error,     QStringLiteral("#ef4444")},
-        {DiagStatus::Cancelled, QStringLiteral("#94a3b8")},
-    };
-    auto esc = [](const QString& s) {
-        return s.toHtmlEscaped();
-    };
-    QStringList h;
-    h.append(QStringLiteral("<!DOCTYPE html><html><head><meta charset=\"utf-8\">"));
-    h.append(QStringLiteral("<title>NetDiagnostics Report</title><style>"));
-    h.append(QStringLiteral("body{font-family:system-ui,sans-serif;background:#0f172a;color:#e2e8f0;padding:24px}"));
-    h.append(QStringLiteral("h1{font-size:22px}h2{font-size:16px;margin-top:24px;border-bottom:1px solid #334155;padding-bottom:6px}"));
-    h.append(QStringLiteral("table{width:100%%;border-collapse:collapse;font-size:13px}"));
-    h.append(QStringLiteral("td,th{padding:6px 10px;border-bottom:1px solid #1e293b;text-align:left}"));
-    h.append(QStringLiteral("th{color:#94a3b8;font-weight:600}.st{font-weight:700}.meta{color:#94a3b8;font-size:12px}"));
-    h.append(QStringLiteral("</style></head><body>"));
-    h.append(QStringLiteral("<h1>NetDiagnostics Report</h1>"));
-    h.append(QStringLiteral("<div class=\"meta\">Target: %1 &middot; Generated: %2</div>")
-        .arg(esc(m_targetHost + m_targetPath),
-             esc(QDateTime::currentDateTime().toString(Qt::ISODate))));
-    for (int gi = 0; gi < 5; ++gi) {
-        const DiagGroup g = groupForIndex(gi);
-        QStringList rows;
-        for (DiagId id : allDiagIds()) {
-            if (diagGroup(id) != g || !isSchedulable(id)) continue;
-            const auto it = m_results.constFind(id);
-            if (it == m_results.constEnd()) continue;
-            rows.append(QStringLiteral("<tr><td class=\"st\" style=\"color:%1\">%2</td>"
-                                       "<td>%3</td><td>%4</td><td>%5 ms</td></tr>")
-                .arg(kStatusColor.value(it->status, QStringLiteral("#94a3b8")),
-                     statusToken(it->status), esc(it->displayName),
-                     esc(it->summary), QString::number(it->durationMs)));
-        }
-        if (rows.isEmpty()) continue;
-        h.append(QStringLiteral("<h2>%1</h2>").arg(esc(diagGroupLabel(g))));
-        h.append(QStringLiteral("<table><tr><th>Status</th><th>Test</th><th>Result</th><th>Time</th></tr>"));
-        h.append(rows.join(QString()));
-        h.append(QStringLiteral("</table>"));
-    }
-    h.append(QStringLiteral("</body></html>"));
-    return h.join(QLatin1Char('\n'));
-}
+// ── HTML 报告 ──
+// 5WHY (simplify 2026-09-05): buildReportHtml 已删除——零调用方的平行 HTML
+// 构建器（自持 kStatusColor/esc），与活跃路径 ReportEngine::buildHtml（经
+// previewReportHtml）双轨并存只会让状态色/标记两次维护。单一活跃源 =
+// previewReportHtml + ReportEngine。
 
 void AppState::copyDetailToClipboard(int diagIdInt) {
     const auto it = m_results.constFind(static_cast<DiagId>(diagIdInt));
@@ -1351,7 +1360,14 @@ QString AppState::previewReportHtml() const {
     d.timestamp = QDateTime::currentDateTime().toString(QStringLiteral("yyyy-MM-dd HH:mm:ss"));
     d.appVersion = QStringLiteral(PROJECT_VERSION);
     d.buildNumber = QStringLiteral(ND_BUILD_NUMBER);
+    // 5WHY (2026-09-05 报告哈希硬编码): 曾恒 "dev"——导出 HTML/PDF 头
+    // 部的构建哈希与 Settings About 显示的 AppState.gitHash()（ND_GIT_HASH
+    // 编译定义）背离，支持排障无法对照提交。与 About 同源。
+#if defined(ND_GIT_HASH)
+    d.gitHash = QStringLiteral(ND_GIT_HASH);
+#else
     d.gitHash = QStringLiteral("dev");
+#endif
     // 5WHY (2026-08-23 报告同步本地化): 叙述模板按当前语言格式化（与详情页
     // 同表同键）；缺省 7=English。
     d.languageIndex = m_languageIndex;

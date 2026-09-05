@@ -31,6 +31,8 @@
 #include <QDir>
 #include <cstdio>
 
+#include "Common/Utils/LogPaths.h"   // 5WHY (Reuse 2026-09-05): 日志目录单一来源
+
 #if defined(_WIN32)
 #include <windows.h>
 #endif
@@ -47,16 +49,10 @@
 //              via USB/MTP or file managers, no permission needed (5WHY in
 //              AndroidLogPaths.h)
 //   Desktop  → TempLocation (OS temp)
+// 5WHY (Reuse 2026-09-05): 三路路由收敛至 LogPaths.h::userVisibleLogDir()
+// （与 CrashHandler.h 同源——平台分支改动只落一处）。
 static QString startupLogDir() {
-#if defined(PLATFORM_IOS)
-    return QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
-#else
-#if defined(PLATFORM_ANDROID)
-    return androidUserVisibleLogDir();
-#else
-    return QStandardPaths::writableLocation(QStandardPaths::TempLocation);
-#endif
-#endif
+    return userVisibleLogDir();
 }
 
 // 5WHY: startup_log must be `inline` (external linkage), NOT `static`.
