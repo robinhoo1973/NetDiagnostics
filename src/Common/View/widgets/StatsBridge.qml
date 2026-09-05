@@ -21,7 +21,13 @@ Item {
     signal refreshed()
 
     function _refresh() {
-        _s = W.normalize(AppState.groupStats(-1))
+        // 5WHY (复核 2026-09-05 四轮 空转门控补全): 聚合桥曾无条件替换 _s
+        // 身份并广播 refreshed()——组边界/收尾的空转 tick 仍驱动状态头/
+        // 空态/摘要卡整轮重估（与 PageGroupPanelSection 同策略的门控漏接
+        // 在单一订阅点本身）。statsEqual 门控：内容未变保持身份、不发信号。
+        var s = W.normalize(AppState.groupStats(-1))
+        if (W.statsEqual(_s, s)) return
+        _s = s
         refreshed()
     }
 

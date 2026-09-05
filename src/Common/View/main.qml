@@ -56,6 +56,11 @@ Window {
             }
         }
         win.visible = true   // 几何恢复完成后首帧亮相（UX-1）
+        // 5WHY (复核 2026-09-05 四轮 兜底丢标志): 仅 winMax 落盘的会话
+        // （saveWindowMaximized 路径：手势最大化后 _lastNormalGeom 为空）
+        // x/y=-1 哨兵进居中兜底——但 maximized 标志仍需恢复。旧条件（宽高
+        // 默认值恒过）曾走恢复分支的 showMaximized，兜底分支不得丢标志。
+        if (g && g.maximized === true) win.showMaximized()
     }
     // P0-2：正常态几何随关闭落盘。5WHY (2026-09-05 最大化几何污染):
     // QML 在最大化态读 x/y/width/height 得到的是最大化帧——曾把它当
@@ -87,12 +92,20 @@ Window {
     // 兜底解锁，避免锁滞留。
     property var _lastNormalGeom: null
     property bool _transitioning: false
+    // 5WHY (复核 2026-09-05 四轮 锁方向收敛): 曾无条件在每次 Windowed 跃迁
+    // 加锁——首启 Hidden→Windowed 无几何后退，加锁只造成启动后 500ms 内
+    // 最大化按钮静默失灵（geomRecorder 稳定结算才解锁）。仅最大化/最小化
+    // 还原方向有中间帧风险（几何后退晚于 visibility 翻转），按来向加锁。
+    property int _prevVisibility: Window.Hidden
     onVisibilityChanged: {
-        if (visibility === Window.Maximized) _transitioning = false
-        else if (visibility === Window.Windowed) {
-            _transitioning = true
+        if (visibility === Window.Maximized) {
+            _transitioning = false
+        } else if (visibility === Window.Windowed) {
+            if (_prevVisibility === Window.Maximized || _prevVisibility === Window.Minimized)
+                _transitioning = true
             geomRecorder.restart()   // 翻转本身可能不伴随几何事件——确保一次稳定结算
         }
+        _prevVisibility = visibility
     }
     Timer {
         id: geomRecorder
@@ -120,8 +133,16 @@ Window {
     onHeightChanged: geomRecorder.restart()
     onClosing: function(closeEvent) {
         if (ThemeEngine.isMobile) return
-        if (visibility === Window.Windowed)
-            AppState.saveWindowGeometry(x, y, width, height, false)
+        if (visibility === Window.Windowed) {
+            // 5WHY (复核 2026-09-05 四轮 转场关闭): 还原动画中 visibility
+            // 先翻、几何后退——过渡期内关闭会把最大化中间帧写成正常几何
+            // （本 commit 要消除的污染类）。过渡中落最近稳定记录。
+            if (_transitioning && _lastNormalGeom)
+                AppState.saveWindowGeometry(_lastNormalGeom.x, _lastNormalGeom.y,
+                                            _lastNormalGeom.width, _lastNormalGeom.height, false)
+            else
+                AppState.saveWindowGeometry(x, y, width, height, false)
+        }
         else if (visibility === Window.Maximized) {
             if (_lastNormalGeom)
                 AppState.saveWindowGeometry(_lastNormalGeom.x, _lastNormalGeom.y,
@@ -167,8 +188,13 @@ Window {
             accName: win.visibility === Window.Maximized ? T.tr("accRestoreWindow") : T.tr("accMaximizeWindow")
             onClicked: {
                 if (win.visibility === Window.Maximized) {
+                    // 5WHY (复核 2026-09-05 四轮 watchdog 方向): 还原方向解锁
+                    // 由 geomRecorder 稳定结算兜底（onVisibilityChanged 必重启
+                    // 计时器，即使无几何事件也会结算）——watchdog 的 1500ms
+                    // 在慢动画下会提前解锁，允许点击把后退中间帧录进
+                    // _lastNormalGeom。watchdog 只留给最大化方向（WM 拒绝时
+                    // 无任何翻转，geomRecorder 无事件不重启）。
                     win._transitioning = true
-                    transitionWatchdog.restart()
                     win.showNormal()
                 } else if (!win._transitioning) {
                     // 5WHY (2026-09-05 复核 首会话几何丢失): 最大化前把当前
