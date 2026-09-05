@@ -34,17 +34,9 @@ PageDisplay {
         }
     }
 
-    // ── Toast（NEW-7）──
-    property string toastText: ""
-    function showToast(msg) {
-        toastText = msg
-        toastTimer.restart()
-    }
-    Timer {
-        id: toastTimer
-        interval: ThemeEngine.toastDurationMs
-        onTriggered: page.toastText = ""
-    }
+    // ── Toast（NEW-7：触发点页面自持；showToast/定时收敛于
+    //    PageToastSection，5WHY Reuse 2026-09-05）──
+    function showToast(msg) { toastSection.showToast(msg) }
 
     // 启动时同步主题（AppState 持久化值 → ThemeEngine）
     Component.onCompleted: ThemeEngine.mode = AppState.themeMode
@@ -294,7 +286,7 @@ PageDisplay {
     ]
 
     floatingContent: [
-        S.PageToastSection { toastText: page.toastText },
+        S.PageToastSection { id: toastSection },
         // Premium 弹窗（仅 Premium 平台实例化；无 Store 后端时按钮诚实降级）
         Loader {
             id: premiumLoader

@@ -50,6 +50,13 @@ Item {
         onTriggered: { root._revealIndex++ }
         onRunningChanged: { if (!running && root._revealIndex < 0) root._revealIndex = -1 }
     }
+    // 5WHY (2026-09-05 重建后图表空白): 曾仅 onCompleted 置 _revealIndex——
+    // values 被替换（语言切换重绑、同模板第二次打开）时 Repeater 全量重建，
+    // 新委托诞生即 revealed=true（旧 _revealIndex 残留 ≥ 数组长）→
+    // onRevealedChanged 不触发 → _animBarWidth 恒 0、值标签被 width>20
+    // 门控隐藏——图表区永久空白直到整个组件重建。数据变更即复位揭示
+    // 游标，逐条动画从头播放。
+    onValuesChanged: root._revealIndex = -1
     Component.onCompleted: { if (root.values && root.values.length > 0) root._revealIndex = 0 }
 
     // ── Derived max ──────────────────────────────────────────────────────

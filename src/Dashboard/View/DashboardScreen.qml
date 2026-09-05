@@ -386,13 +386,19 @@ PageDisplay {
                             id: previewFlick
                             anchors { fill: parent; margins: 14 }
                             clip: true
-                            contentWidth: previewImg.width * previewFlick.previewScale
-                            contentHeight: previewImg.height * previewFlick.previewScale
+                            // 5WHY (2026-09-05 预览缩放平方级): 曾 contentWidth/
+                            // contentHeight 与居中公式再乘一次 previewScale——
+                            // 而 previewImg.width 已含缩放（sourceSize × scale），
+                            // 实际内容区变成 sourceSize × scale²：缩放后图像
+                            // 贴左上角、右侧/下方出现整幅大小的空白可滚动区。
+                            // 内容尺寸即图像尺寸，居中公式同基准。
+                            contentWidth: previewImg.width
+                            contentHeight: previewImg.height
                             property real previewScale: 1.0
                             Image {
                                 id: previewImg
-                                x: Math.max(0, (previewFlick.width - width * previewFlick.previewScale) / 2)
-                                y: Math.max(0, (previewFlick.height - height * previewFlick.previewScale) / 2)
+                                x: Math.max(0, (previewFlick.width - width) / 2)
+                                y: Math.max(0, (previewFlick.height - height) / 2)
                                 width: sourceSize.width * previewFlick.previewScale
                                 height: sourceSize.height * previewFlick.previewScale
                                 source: page.previewImagePath !== "" ? "file://" + page.previewImagePath : ""
@@ -415,8 +421,15 @@ PageDisplay {
                         htmlAccent: ThemeEngine.colors.primary
                         onShareRequested: function(format) {
                             if (format === "locked") { page.showToast(T.tr("premiumRequiredMsg")); return }
-                            AppState.shareReportFile(format)
-                            page.showToast(T.tr("reportCopied"))
+                            // 5WHY (2026-09-05 文案与事实背离): 曾无条件提示
+                            // "已复制"——桌面端实际是导出文件并交默认应用，
+                            // 失败时也提示成功。与 DiagnosticScreen 同一
+                            // 契约分支（5WHY 2026-08-22 UX-2）：ok=已复制、
+                            // 路径=已导出打开、空=失败。
+                            const out = AppState.shareReportFile(format)
+                            if (out === "ok") page.showToast(T.tr("reportCopied"))
+                            else if (out !== "") page.showToast(T.tr("reportOpened"))
+                            else page.showToast(T.tr("shareFailed"))
                         }
                         onPremiumRequired: page.showToast(T.tr("premiumRequiredMsg"))
                     }

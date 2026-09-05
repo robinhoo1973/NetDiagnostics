@@ -175,7 +175,12 @@ QtObject {
     }
 
     // Translate C++ error/validation messages (same logic as the C++
-    // Translator): exact match + parameterized templates.
+    // Translator): exact match.
+    // 5WHY (2026-09-05 死解析器删除): 曾有两段"按英文格式子串切割再回填"
+    // 的模板解析（"Unsupported protocol: …" / "Port must be between …"）——
+    // 其生产端（TargetModel.cpp）只存在于历史快照、src/ 已无任何产出者，
+    // 解析器恒空转且把翻译逻辑耦合在英文字面格式上。目标校验的权威入口
+    // 应为 C++ setTarget 的结构化校验（m_targetError），QML 侧不做文案手术。
     function trMsg(en) {
         let _ = root.lang
         if (!root._loaded) root._load()
@@ -183,27 +188,6 @@ QtObject {
 
         if (root._msgExact[en] !== undefined)
             return root._pick(root._msgExact[en])
-
-        // "Unsupported protocol: <scheme>:// — supported schemes: <list>"
-        var unsupPrefix = "Unsupported protocol: "
-        var unsupSep    = ":// — supported schemes: "
-        if (en.indexOf(unsupPrefix) === 0 && root._msgTpl[0]) {
-            var sepPos = en.indexOf(unsupSep, unsupPrefix.length)
-            if (sepPos > 0) {
-                var scheme = en.substring(unsupPrefix.length, sepPos)
-                var list   = en.substring(sepPos + unsupSep.length)
-                var tpl = root._pick(root._msgTpl[0])
-                return tpl.replace("%1", scheme).replace("%2", list)
-            }
-        }
-
-        // "Port must be between 1 and 65535 (got <n>)"
-        var portPrefix = "Port must be between 1 and 65535 (got "
-        if (en.indexOf(portPrefix) === 0 && en.charAt(en.length - 1) === ")"
-                && root._msgTpl[1]) {
-            var port = en.substring(portPrefix.length, en.length - 1)
-            return root._pick(root._msgTpl[1]).replace("%1", port)
-        }
 
         return en
     }

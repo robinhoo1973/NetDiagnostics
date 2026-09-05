@@ -24,10 +24,12 @@ AnimationBase {
     readonly property int _offMs: Tokens.tokens.labelFlashOffMs
     readonly property int _times: Tokens.tokens.labelFlashTimes
     readonly property int _restMs: Tokens.tokens.labelFlashRestMs
-    // 覆盖色 = 页面底色（双主题槽；缺表时回退 #007CC9/#0094F5）
-    readonly property color _cover: T.ThemeEngine.isDark
-        ? (_set ? _set.coverDark : "#007CC9")
-        : (_set ? _set.coverLight : "#0094F5")
+    // 覆盖色 = 页面底色（双主题槽；缺表时回退主题 surface——M3 令牌
+    // 单一来源，5WHY 2026-09-05：曾硬编码 #007CC9/#0094F5，违反
+    // CLAUDE.md "QML 用 ThemeEngine.colors.<role>" 规则且双主题下漂移）
+    readonly property color _cover: _set
+        ? (T.ThemeEngine.isDark ? _set.coverDark : _set.coverLight)
+        : T.ThemeEngine.colors.surface
 
     Rectangle {
         id: cover

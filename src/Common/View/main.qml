@@ -50,12 +50,17 @@ Window {
         }
         win.visible = true   // 几何恢复完成后首帧亮相（UX-1）
     }
-    // P0-2：正常态几何随关闭落盘（最大化时记录的是还原尺寸，max 标志单独记）
+    // P0-2：正常态几何随关闭落盘。5WHY (2026-09-05 最大化几何污染):
+    // QML 在最大化态读 x/y/width/height 得到的是最大化帧——曾把它当
+    // "还原尺寸"落盘（旧注释与事实相反），还原按钮永远回不到真实还原
+    // 尺寸。最大化关闭只落 max 标志（saveWindowMaximized 不动几何键），
+    // 已存的正常几何保持。
     onClosing: function(closeEvent) {
-        if (!ThemeEngine.isMobile && visibility !== Window.Maximized)
+        if (ThemeEngine.isMobile) return
+        if (visibility !== Window.Maximized)
             AppState.saveWindowGeometry(x, y, width, height, false)
-        else if (!ThemeEngine.isMobile)
-            AppState.saveWindowGeometry(x, y, width, height, true)
+        else
+            AppState.saveWindowMaximized(true)
     }
 
     // H5：字体注册——JetBrains Mono（等宽）与 DejaVu Sans Mono（box-drawing/CJK

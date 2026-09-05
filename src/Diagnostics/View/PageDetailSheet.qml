@@ -1,6 +1,7 @@
 // =============================================================================
 // PageDetailSheet.qml — Detail 内容表单（P1 概念验证：六区块按契约装配）
 // =============================================================================
+import NetDiagnostics.App 1.0
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -18,6 +19,11 @@ PageSection {
     property var detailData: ({})
     readonly property var _data: detailData ? detailData : ({})
     signal backRequested()
+    // 5WHY (2026-09-05 复制按钮死链): 头部 copyRequested 曾无人接线——
+    // 全窗详情（DiagnosticScreen 主路径）点复制无反应；DetailPage 同款
+    // 头部已接线（AppState.copyDetailToClipboard + toast）。复制完成后
+    // 经 copyDone 通知宿主页提示（sheet 自身无 toast 设施）。
+    signal copyDone(var diagId)
 
     // 5WHY (2026-08-22, issue 2): Plain（无镀铬）后浮层无底色——scrim 半透
     // 遮罩透出下一层窗口，卡片间距可见下层内容。全窗 sheet 必须有独立
@@ -38,6 +44,13 @@ PageSection {
                 // 5WHY (review round 2, UX+PM): 头部不展示诊断图标——hero 光晕垫
                 // 是唯一身份元素（page-detail.md §2.1/§2.2）。
                 onBackRequested: root.backRequested()
+                // 5WHY (2026-09-05): 与 DetailPage 同款接线——复制详情到
+                // 剪贴板（出口红线 redactCredentials 同门）。
+                onCopyRequested: {
+                    if (root._data.diagId === undefined) return
+                    AppState.copyDetailToClipboard(root._data.diagId)
+                    root.copyDone(root._data.diagId)
+                }
             }
             // 7-5：全窗详情需滚动（内容可超视口高度）——仅内容区滚动
             Flickable {

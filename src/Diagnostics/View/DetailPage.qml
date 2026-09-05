@@ -19,17 +19,9 @@ PageDisplay {
     property var detail: ({})
     readonly property var resultData: detail ? detail : ({})
 
-    // ── Toast（NEW-7：页面自持）──
-    property string toastText: ""
-    function showToast(msg) {
-        toastText = msg
-        toastTimer.restart()
-    }
-    Timer {
-        id: toastTimer
-        interval: ThemeEngine.toastDurationMs
-        onTriggered: page.toastText = ""
-    }
+    // ── Toast（NEW-7：触发点页面自持；showToast/定时收敛于
+    //    PageToastSection，5WHY Reuse 2026-09-05）──
+    function showToast(msg) { toastSection.showToast(msg) }
 
     headerContent: [
         S.PageDetailHeaderSection {
@@ -57,7 +49,7 @@ PageDisplay {
     ]
 
     floatingContent: [
-        S.PageToastSection { toastText: page.toastText }
+        S.PageToastSection { id: toastSection }
     ]
 
     // 5WHY（C1 栈溢出）：这里曾对 "back" 再次 emitSectionAction —— emitSectionAction

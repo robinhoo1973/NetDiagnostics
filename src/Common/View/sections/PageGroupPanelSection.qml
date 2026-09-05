@@ -72,16 +72,31 @@ PageSection {
         if (newModel.length !== _activeLen) {
             _activeLen = newModel.length
             _activeHash = -1
+            _hashValid = false
         }
         var h = 0
-        for (var i = 0; i < newModel.length; ++i)
-            h = (h * 31 + newModel[i].diagId + (newModel[i].status !== undefined ? newModel[i].status : -1)) | 0
-        if (h === _activeHash && _activeLen === newModel.length) return
+        for (var i = 0; i < newModel.length; ++i) {
+            // 5WHY (2026-09-05 哈希碰撞换瓦片): 曾把 diagId+status 折叠为
+            // 单项相加——相邻 id 与补偿性 status 的交换（如 19+Warning ≡
+            // 18+Fail）碰撞出相同签名，换 scheme 后瓦片墙滞留旧集合且点击
+            // 打开错项详情。id/status 各自占一步（33 进制双步），
+            // 交换型碰撞结构性消除。
+            h = (h * 33 + newModel[i].diagId) | 0
+            h = (h * 33 + (newModel[i].status !== undefined ? newModel[i].status : -1)) | 0
+        }
+        // 5WHY (2026-09-05 哨兵碰撞): 曾以 _activeHash === -1 兼作
+        // "未初始化"哨兵——-1 在 31 进制滚动哈希的 int32 环绕输出域内
+        // （`| 0` 强制 int32），特定 (id,status) 序列可稳定折叠到 -1 →
+        // 门控恒早退、瓦片墙永久空白且哈希滞留 -1 无法自愈。显式
+        // _hashValid 标记替代值域哨兵。
+        if (_hashValid && h === _activeHash && _activeLen === newModel.length) return
         _activeHash = h
+        _hashValid = true
         itemsModel = newModel
     }
     property int _activeHash: -1
     property int _activeLen: -1
+    property bool _hashValid: false
     function _refreshStats() {   // UI-2：命令式赋值，绑定不调 Q_INVOKABLE
         // 5WHY (复核 2026-08-18 Reuse C3): 键归一化经 StatsUtil.js 单一来源；
         // 5WHY (复核 2026-08-19): 仅替换 _statsObj 身份——_total/_completed

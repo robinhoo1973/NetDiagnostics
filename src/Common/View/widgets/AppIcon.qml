@@ -29,12 +29,9 @@ Item {
     visible: name !== ""
 
     // color → 6 位大写十六进制（颜色通道转精确请求色）
+    // 5WHY (Reuse 2026-09-05): 单一来源收敛至 ThemeEngine.colorToHex。
     function _hexOf(c) {
-        function h(n) {
-            var s = Math.round(Math.max(0, Math.min(1, n)) * 255).toString(16)
-            return s.length < 2 ? "0" + s : s
-        }
-        return (h(c.r) + h(c.g) + h(c.b)).toUpperCase()
+        return ThemeEngine.colorToHex(c)
     }
 
     readonly property string _request: {

@@ -47,17 +47,9 @@ PageDisplay {
     }
     Component.onCompleted: _refreshGroups()
 
-    // ── Toast 状态（NEW-7：页面自持）──
-    property string toastText: ""
-    function showToast(msg) {
-        toastText = msg
-        toastTimer.restart()
-    }
-    Timer {
-        id: toastTimer
-        interval: ThemeEngine.toastDurationMs
-        onTriggered: page.toastText = ""
-    }
+    // ── Toast 状态（NEW-7：触发点页面自持；showToast/定时收敛于
+    //    PageToastSection，5WHY Reuse 2026-09-05）──
+    function showToast(msg) { toastSection.showToast(msg) }
 
     // ── 详情浮层状态（P0：内联展示；完整 DetailPage 后续里程碑接入）──
     property var _detail: null
@@ -129,7 +121,7 @@ PageDisplay {
     ]
 
     floatingContent: [
-        S.PageToastSection { toastText: page.toastText },
+        S.PageToastSection { id: toastSection },
         S.PageOverlaySection {
             visible: page._detailVisible
             onVisibleChanged: if (!visible) page._detailVisible = false
@@ -139,6 +131,7 @@ PageDisplay {
                 anchors.fill: parent
                 detailData: page._detail
                 onBackRequested: page._detailVisible = false
+                onCopyDone: page.showToast(T.tr("detailCopied"))
             }
         },
         // H1（page-diagnostic §3）：移动数据警告——G3 起大流量探测前暂停确认

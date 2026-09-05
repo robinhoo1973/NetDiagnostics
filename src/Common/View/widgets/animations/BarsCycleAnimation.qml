@@ -38,9 +38,10 @@ AnimationBase {
     readonly property var _bars: root._barSet || Tokens.tokens.barsCycleSets["nd-diag-g1-cellular"]
 
     // QML color.toString() 可能是 #RRGGBB 或 #AARRGGBB——统一取后 6 位。
+    // 5WHY (Reuse 2026-09-05): 收敛至 ThemeEngine.colorToHex（与
+    // WifiWaveAnimation/AppIcon 同源）。
     function _hexOf(c) {
-        var s = c.toString()
-        return s.length > 7 ? s.slice(3) : s.slice(1)
+        return T.ThemeEngine.colorToHex(c)
     }
     // 单柱 SVG 复绘：注入当前调色盘色（stroke 柱路径）。
     function _barUri(i, palIdx) {

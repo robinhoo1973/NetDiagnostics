@@ -68,7 +68,10 @@ PageSection {
                 width: termLoader.width
                 height: termLoader.height
                 text: root._terminalText
-                typewriter: true
+                // 5WHY (2026-09-05): 曾硬编码 true——meta 的 terminalTypewriter
+                // 契约（仅 sysTT/sysGroupedTT 条目开启）被无视，所有检测的
+                // 长输出首展都打字机回放。按 C++ 下发的契约值消费。
+                typewriter: root.detailData.terminalTypewriter === true
             }
         }
     }

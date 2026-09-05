@@ -20,6 +20,19 @@ PageSection {
     id: root
     property string toastText: ""
     property int durationMs: ThemeEngine.toastDurationMs
+    // 5WHY (Reuse 2026-09-05): showToast/自动隐藏 Timer 曾逐字复制于
+    // DetailPage / SettingsScreen / DiagnosticScreen 三页——toast 时序、
+    // 多 toast 队列化、无障碍播报的改动须三处同步。触发与定时收敛进
+    // section 本体，页面只保留触发点（page.showToast 一行委托）。
+    function showToast(msg) {
+        toastText = msg
+        if (msg !== "") toastTimer.restart()
+    }
+    Timer {
+        id: toastTimer
+        interval: root.durationMs
+        onTriggered: root.toastText = ""
+    }
 
     backgroundStyle: PageSection.Plain
     anchors.fill: parent   // 占据整页，供 Popup 定位（浮层容器模式）

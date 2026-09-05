@@ -52,9 +52,10 @@ AnimationBase {
         T.ThemeEngine.colors.success]
 
     // QML color.toString() 可能是 #RRGGBB 或 #AARRGGBB——统一取后 6 位。
+    // 5WHY (Reuse 2026-09-05): 收敛至 ThemeEngine.colorToHex（通道取整版，
+    // 不依赖 toString 格式；与 AppIcon 请求色同一实现）。
     function _hexOf(c) {
-        var s = c.toString()
-        return s.length > 7 ? s.slice(3) : s.slice(1)
+        return T.ThemeEngine.colorToHex(c)
     }
     // 弧线 SVG 复绘：stroke 弧（wifi-info）与 fill 弧（internet，含母版
     // scale(0.06857) 变换）两种包络；每次调用重绘一张注入指定色的 SVG。

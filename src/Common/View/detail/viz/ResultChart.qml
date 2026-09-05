@@ -2,8 +2,13 @@
 // ResultChart.qml — template-driven chart (BarChart | Gauge) for the detail page
 //
 // Owns the L5 chart wiring that previously lived inside DetailPage.qml:
-//   • template → source selection (DiagTemplateType: 0=Ping,1=Path,2=Handshake,
-//     3=Request,4=Query,5=System)
+//   • template → source selection (DiagTemplateType, C++ DiagNames.h enum:
+//     System=0, Ping=1, Path=2, Handshake=3, Request=4, Query=5)
+//   5WHY (2026-09-05 图表全灭): 曾按旧枚举序 0=Ping…5=System 分派——C++ 侧
+//   枚举重排（System 移到首位）后序值整体平移 1，QML 未同步：Ping(1) 落入
+//   Path 分支、Handshake(3) 落入 Request 分支、Query(5) 无分支——所有模板
+//   的详情图表全部静默不渲染。序值契约脆弱（跨语言无编译期校验），
+//   消费侧与 C++ 枚举对齐并留注释锚定（DiagNames.h）。
 //   • series construction with TRANSLATED labels (T.tr) and THEME colors
 //   • Gauge spec (cert validity / connect latency) with dynamic scale
 //   • Loader + bind-on-load + re-bind on language change
@@ -51,7 +56,7 @@ Item {
         }
         // Pre-load fallback — replaced on the next frame once the chart loads.
         var tt = root.data.templateType
-        if (tt === 2 || tt === 4) return root.gaugeHeight   // Gauge: compact
+        if (tt === 3 || tt === 5) return root.gaugeHeight   // Handshake/Query → Gauge: compact
         return Math.max(40, Math.min(root._maxChartHeight, _series.length * 28 + 40))
     }
 
@@ -82,25 +87,27 @@ Item {
     }
 
     // ── Source selection ─────────────────────────────────────────────────
+    // templateType 序值 = C++ DiagTemplateType（DiagNames.h：System=0,
+    // Ping=1, Path=2, Handshake=3, Request=4, Query=5）。
     readonly property string _source: {
         var tt = root.data.templateType
         // 5WHY: a failed ping still carries an EMPTY individualRtts list —
         // gating on the key alone would open an empty chart.  Require samples.
-        if (tt === 0 && root.data.individualRtts !== undefined
+        if (tt === 1 && root.data.individualRtts !== undefined
             && root.data.individualRtts.length > 0)       return "qrc:/qt/qml/detail/viz/BarChart.qml"
-        if (tt === 1 && root.data.hops !== undefined)     return "qrc:/qt/qml/detail/viz/BarChart.qml"
+        if (tt === 2 && root.data.hops !== undefined)     return "qrc:/qt/qml/detail/viz/BarChart.qml"
         // 5WHY: Handshake originally checked only daysLeft (TLS cert expiry).
         // DnsIntegrity emits overallScorePercent, SecurityHeaders emits score,
         // InternetConnectivity emits downloadMbpsBest — none of which write
         // daysLeft, so the Gauge never opened.  Accept any Gauge-compatible key.
-        if (tt === 2 && (root.data.daysLeft !== undefined
+        if (tt === 3 && (root.data.daysLeft !== undefined
                       || root.data.overallScorePercent !== undefined
                       || root.data.score !== undefined
                       || root.data.downloadMbpsBest !== undefined))
                                                          return "qrc:/qt/qml/detail/viz/Gauge.qml"
-        if (tt === 3 && root.data.dnsMs !== undefined)    return "qrc:/qt/qml/detail/viz/BarChart.qml"
-        // Query (tt=4): connect latency gauge
-        if (tt === 4 && root.data.latencyMs !== undefined) return "qrc:/qt/qml/detail/viz/Gauge.qml"
+        if (tt === 4 && root.data.dnsMs !== undefined)    return "qrc:/qt/qml/detail/viz/BarChart.qml"
+        // Query (tt=5): connect latency gauge
+        if (tt === 5 && root.data.latencyMs !== undefined) return "qrc:/qt/qml/detail/viz/Gauge.qml"
         return ""
     }
 
@@ -109,16 +116,16 @@ Item {
         var out = []
         var tt = root.data.templateType
         var P = ThemeEngine.colors.primary
-        if (tt === 0 && root.data.individualRtts) {
+        if (tt === 1 && root.data.individualRtts) {
             for (var i = 0; i < root.data.individualRtts.length; i++)
                 out.push({ label: "p" + (i + 1), value: Number(root.data.individualRtts[i]), color: P })
-        } else if (tt === 1 && root.data.hops) {
+        } else if (tt === 2 && root.data.hops) {
             for (var j = 0; j < root.data.hops.length; j++) {
                 var h = root.data.hops[j]
                 out.push({ label: String(h.ttl !== undefined ? h.ttl : j + 1),
                            value: Number(h.rttMs !== undefined ? h.rttMs : 0), color: P })
             }
-        } else if (tt === 3) {
+        } else if (tt === 4) {
             // 5WHY: curl's connect/ssl/ttfb/total timers are CUMULATIVE from
             // request start — plot per-phase deltas (clamped ≥ 0) so every
             // bar shows the actual phase duration; cached phases render 0.
@@ -136,7 +143,7 @@ Item {
             ]
             for (var k = 0; k < phases.length; k++)
                 if (phases[k].value !== undefined) out.push(phases[k])
-        } else if (tt === 4 && root.data.latencyMs !== undefined) {
+        } else if (tt === 5 && root.data.latencyMs !== undefined) {
             out.push({ label: T.tr("chartConnect"), value: Number(root.data.latencyMs),
                        color: root.data.connected ? ThemeEngine.colors.success
                                                   : ThemeEngine.colors.fail })
@@ -146,7 +153,7 @@ Item {
 
     // ── Gauge spec ───────────────────────────────────────────────────────
     readonly property var _gaugeSpec: {
-        if (root.data.templateType === 2 && root.data.daysLeft !== undefined) {
+        if (root.data.templateType === 3 && root.data.daysLeft !== undefined) {
             var dl = Number(root.data.daysLeft)
             // 5WHY: color follows the same thresholds as the C++ verdict —
             // an EXPIRED cert must render red, not green.
@@ -159,14 +166,14 @@ Item {
         // 5WHY: Handshake template now supports non-TLS data shapes:
         // DnsIntegrity(overallScorePercent 0-100), SecurityHeaders(score/totalRequired),
         // InternetConnectivity(downloadMbpsBest).
-        if (root.data.templateType === 2 && root.data.overallScorePercent !== undefined) {
+        if (root.data.templateType === 3 && root.data.overallScorePercent !== undefined) {
             var sp = Number(root.data.overallScorePercent)
             var sc = sp >= 80 ? ThemeEngine.colors.success
                    : sp >= 50 ? ThemeEngine.colors.warning
                    : ThemeEngine.colors.fail
             return { value: sp, max: 100, unitKey: "unitPercent", color: sc }
         }
-        if (root.data.templateType === 2 && root.data.score !== undefined) {
+        if (root.data.templateType === 3 && root.data.score !== undefined) {
             var sv = Number(root.data.score)
             var mx = Number(root.data.totalRequired) || 7
             var sCol = sv >= Math.ceil(mx * 0.7) ? ThemeEngine.colors.success
@@ -174,7 +181,7 @@ Item {
                      : ThemeEngine.colors.fail
             return { value: sv, max: mx, unitKey: "unitHeaders", color: sCol }
         }
-        if (root.data.templateType === 2 && root.data.downloadMbpsBest !== undefined) {
+        if (root.data.templateType === 3 && root.data.downloadMbpsBest !== undefined) {
             var bw = Number(root.data.downloadMbpsBest)
             // 5WHY: bandwidth has no "pass/fail" — show info blue.  Scale
             // with headroom (min 10 Mbps so even low speeds fill visibly).
@@ -182,7 +189,7 @@ Item {
             return { value: bw, max: bwMax, unitKey: "unitMbps",
                      color: ThemeEngine.colors.info }
         }
-        if (root.data.templateType === 4 && root.data.latencyMs !== undefined) {
+        if (root.data.templateType === 5 && root.data.latencyMs !== undefined) {
             var lat = Number(root.data.latencyMs)
             // 5WHY: a fixed 5000ms scale made real latencies (4-50ms) render
             // as an invisible sliver.  Scale with ~20% headroom (min 100ms).
@@ -200,10 +207,10 @@ Item {
     function _bind(item) {
         if (!item) return
         var tt = root.data.templateType
-        if (tt === 0 || tt === 1 || tt === 3) {
+        if (tt === 1 || tt === 2 || tt === 4) {
             // Ping / Path / Request → BarChart
             if (_series.length) item.values = _series
-        } else if ((tt === 2 || tt === 4) && _gaugeSpec) {
+        } else if ((tt === 3 || tt === 5) && _gaugeSpec) {
             // Handshake / Query → Gauge (cert validity, connect latency)
             item.value = _gaugeSpec.value
             item.maxValue = _gaugeSpec.max
@@ -211,5 +218,14 @@ Item {
             item.gaugeColor = _gaugeSpec.color
             item.emptyLabel = Qt.binding(function() { return _gaugeSpec.emptyLabel || "" })
         }
+    }
+
+    // 5WHY (2026-09-05 旧数据残留): Loader 仅在 _source URL 变化时重载——
+    // 同一模板的第二次打开（如连续查看两个 Ping 详情）URL 相同、实例复用，
+    // _bind 不再触发，图表继续显示上一次结果的数据。data 变更即重绑
+    // （值数组 _series/_gaugeSpec 已随 data 重估）。
+    onDataChanged: {
+        if (chartLoader.item)
+            Qt.callLater(function() { if (chartLoader.item) root._bind(chartLoader.item) })
     }
 }

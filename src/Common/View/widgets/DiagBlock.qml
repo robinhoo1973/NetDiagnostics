@@ -128,8 +128,15 @@ Item {
     Keys.onPressed: function(event) {
         if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter
             || event.key === Qt.Key_Space) {
-            root.clicked(root.itemData)
-            event.accepted = true
+            // 5WHY (2026-09-05 键盘路径绕过守卫): 曾无条件 clicked——指针
+            // 路径由 MouseArea.enabled（!isPending && !isDisabled）门控，
+            // 键盘/Tab（focusPolicy: Qt.TabFocus 使全部瓦片可达）绕过它
+            // 直接对未运行检测打开空详情页（resultFor 空图 → Info 徽标 +
+            // 空标题）。同门守卫，激活前拦截。
+            if (!root._isPending && !root._isDisabled) {
+                root.clicked(root.itemData)
+                event.accepted = true
+            }
         }
     }
 

@@ -138,6 +138,18 @@ QtObject {
         var sec = Math.round((ms % 60000) / 1000)
         return min + "m " + sec + "s"
     }
+    // 5WHY (Reuse 2026-09-05): color → 6 位大写十六进制曾在 AppIcon /
+    // WifiWaveAnimation / BarsCycleAnimation 三处实现且已现分歧（toString
+    // 切片 vs 通道取整）——颜色格式规则改动需三处同步。收敛单点：
+    // 通道取整版本（对 #RRGGBB/#AARRGGBB/透明色均精确，不依赖
+    // toString() 输出格式）。
+    function colorToHex(c) {
+        function h(n) {
+            var s = Math.round(Math.max(0, Math.min(1, n)) * 255).toString(16)
+            return s.length < 2 ? "0" + s : s
+        }
+        return (h(c.r) + h(c.g) + h(c.b)).toUpperCase()
+    }
     function pad2(n) { return (n < 10 ? " " : "") + n }
     // 5WHY (复核 2026-08-18 Reuse C4): "X/Y" 组合 + 零守卫曾在 StatusBadgeCluster
     // 标签与状态头两分支三处手写——格式变更（如补零、分隔符）须三处同步。
