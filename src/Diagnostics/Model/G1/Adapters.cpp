@@ -1495,12 +1495,12 @@ static DiagnosticResult probeIpConfig(DiagId id, const QString&, RunContext& ctx
     // found" 分支不可达（空栈误报 Pass）。先判空，再前置平铺行。
     if (props.isEmpty())
         return makeResult(id, DiagStatus::Info, QStringLiteral("No IP configuration found"), {}, {});
-    char hostBuf[256] = {};
-    gethostname(hostBuf, sizeof(hostBuf) - 1);
     // 5WHY (复核 2026-08-20 空行守卫): gethostname 失败（受限命名空间/
     // Android）时缓冲为空——曾仍前置 "Host Name: " 空值行。非空才前置。
-    if (hostBuf[0])
-        props.prepend({QStringLiteral("Host Name"), QString::fromLocal8Bit(hostBuf)});
+    // (simplify 2026-09-05: localHostName 单一来源，见 GHelpers.h)
+    const QString hostName = SystemDiagnostics::localHostName();
+    if (!hostName.isEmpty())
+        props.prepend({QStringLiteral("Host Name"), hostName});
     // DNS 是主机级配置（非接口级）——独立平铺行，不重复挂每个接口组。
 #if defined(__linux__) || defined(__ANDROID__)
     if (!dnsServers.isEmpty())
@@ -1525,7 +1525,7 @@ static DiagnosticResult probeIpConfig(DiagId id, const QString&, RunContext& ctx
     r.narrative = QStringLiteral("Host %1 has %2 configured interface(s) with %3 address entr(ies). "
         "Each adapter is one group below: MAC, IPv4/IPv6 addresses (CIDR), plus default gateway "
         "and DNS servers on Linux.")
-        .arg(hostBuf[0] ? QString::fromLocal8Bit(hostBuf) : QStringLiteral("(unknown)"))
+        .arg(hostName.isEmpty() ? QStringLiteral("(unknown)") : hostName)
         .arg(interfaceCount).arg(addressCount);
     return r;
 }

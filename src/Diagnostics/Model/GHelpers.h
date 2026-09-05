@@ -22,9 +22,22 @@
 #else
 #include <netinet/in.h>
 #include <arpa/inet.h>  // inet_ntop / INET_ADDRSTRLEN
+#include <unistd.h>     // gethostname
 #endif
 
 namespace SystemDiagnostics {
+
+// ── Local hostname (libc, non-blocking) ─────────────────────────────
+// 5WHY (simplify 2026-09-05 三处复制): gethostname + fromLocal8Bit 的
+// 编码/缓冲/空守卫组合曾在 G1/G2/G4 各写一份（已漂移：G2/G4 缺 G1 的
+// 空守卫；fromUtf8→fromLocal8Bit 修正曾需逐处应用）。单一来源：
+// 本地编码字节（Windows ANSI 码页/GBK、Linux locale）统一 fromLocal8Bit，
+// gethostname 即时返回不做 DNS 反查（QHostInfo::localHostName 可阻塞）。
+static QString localHostName() {
+    char buf[256] = {};
+    gethostname(buf, sizeof(buf) - 1);
+    return QString::fromLocal8Bit(buf);
+}
 
 // ── MAC address formatting ──────────────────────────────────────────
 static QString macToStr(const unsigned char* mac) {

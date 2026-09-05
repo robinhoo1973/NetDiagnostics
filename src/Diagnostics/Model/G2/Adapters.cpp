@@ -585,12 +585,9 @@ static DiagnosticResult probeNetworkProfile(DiagId id, const QString&, RunContex
     // 线程上阻塞反查 DNS（Qt 文档明示可阻塞）——G1 probeIpConfig 已改
     // 纯 libc gethostname()，此处同源修正：慢 DNS 环境下本探测会占住
     // 套件池线程直至解析超时。
-    char hostBuf[256] = {};
-    gethostname(hostBuf, sizeof(hostBuf) - 1);
-    // 5WHY (2026-09-05 复核 编码): gethostname 返回系统本地编码字节（Windows
-    // ANSI 码页/GBK、Linux locale 字节），fromUtf8 会把非 ASCII 主机名
-    // 解成 U+FFFD 乱码——与 G1 probeIpConfig 同用 fromLocal8Bit。
-    const QString hostname = QString::fromLocal8Bit(hostBuf);
+    // (simplify 2026-09-05: localHostName 单一来源——编码/缓冲/空守卫组合
+    // 不再三处复制，见 GHelpers.h)
+    const QString hostname = SystemDiagnostics::localHostName();
     props.append({QStringLiteral("hostname"), hostname});
     out.append(QStringLiteral("  Hostname: %1").arg(hostname));
 
