@@ -108,36 +108,23 @@ static DiagnosticResult makeResult(DiagId id, DiagStatus status,
 }
 
 // ── Target parsing (ported from G4Common.h) ────────────────────────────────
+// 5WHY (2026-09-26 语法/表收敛): 曾手写括号/冒号启发式 + 4 scheme 端口尾表
+// ——splitHostPort 与 SystemDiagnostics::defaultPortForScheme 单一来源
+// （三处解析曾漂移）。
 static int extractProbePort(const QString& target) {
-    QString t = target.trimmed();
-    QString scheme;
-    QString rest = t;
-    if (t.contains(QLatin1String("://"))) {
-        scheme = t.section(QLatin1String("://"), 0, 0).toLower();
-        rest = t.section(QLatin1String("://"), 1);
-    }
+    const QString t = target.trimmed();
+    const QString scheme = t.contains(QLatin1String("://"))
+        ? t.section(QLatin1String("://"), 0, 0).toLower() : QString();
+    QString rest = t.contains(QLatin1String("://")) ? t.section(QLatin1String("://"), 1) : t;
     const int slash = rest.indexOf(QLatin1Char('/'));
     if (slash >= 0) rest = rest.left(slash);
     const int at = rest.lastIndexOf(QLatin1Char('@'));
     if (at >= 0) rest = rest.mid(at + 1);
-    if (rest.startsWith(QLatin1Char('['))) {
-        const int close = rest.indexOf(QLatin1Char(']'));
-        if (close > 0 && close + 1 < rest.size() && rest.at(close + 1) == QLatin1Char(':')) {
-            const int p = rest.mid(close + 2).toInt();
-            if (p > 0) return p;
-        }
-    } else {
-        const int colon = rest.indexOf(QLatin1Char(':'));
-        if (colon > 0 && rest.indexOf(QLatin1Char(':'), colon + 1) == -1) {
-            const int p = rest.mid(colon + 1).toInt();
-            if (p > 0) return p;
-        }
-    }
-    if (scheme == QLatin1String("https")) return 443;
-    if (scheme == QLatin1String("http"))  return 80;
-    if (scheme == QLatin1String("ftp"))   return 21;
-    if (scheme == QLatin1String("ftps"))  return 990;
-    return 443;
+    QString host;
+    int port = -1;
+    SystemDiagnostics::splitHostPort(rest, &host, &port);
+    if (port > 0) return port;
+    return scheme.isEmpty() ? 443 : SystemDiagnostics::defaultPortForScheme(scheme);
 }
 
 // ── Resolution helpers ─────────────────────────────────────────────────────

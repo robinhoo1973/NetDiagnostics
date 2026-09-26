@@ -115,17 +115,6 @@ void classifyConnectivity(bool* wifiUp, bool* cellularUp) {
     if (cellularUp) *cellularUp = c;
 }
 
-bool isOnWifi() {
-    bool w = false;
-    classifyConnectivity(&w, nullptr);
-    return w;
-}
-
-bool hasCellularUp() {
-    bool c = false;
-    classifyConnectivity(nullptr, &c);
-    return c;
-}
 } // namespace
 
 AppState::AppState(QObject* parent) : QObject(parent) {
@@ -514,22 +503,14 @@ void AppState::runNextGroup() {
     // QUrl 组装：IPv6 自动加括号、端口走 setPort、路径自动百分号编码。
     QUrl assembled;
     assembled.setScheme(m_targetScheme);
-    // host 可能内嵌端口（"host:port"/"[v6]:port"）——拆给 setHost/setPort
-    QString host = m_targetHost;
-    if (host.startsWith(QLatin1Char('['))) {
-        const int close = host.indexOf(QLatin1Char(']'));
-        if (close > 0) {
-            assembled.setHost(host.mid(1, close - 1));
-            if (close + 1 < host.size() && host[close + 1] == QLatin1Char(':'))
-                assembled.setPort(host.mid(close + 2).toInt());
-        }
-    } else if (host.count(QLatin1Char(':')) == 1) {
-        const int c = host.indexOf(QLatin1Char(':'));
-        assembled.setHost(host.left(c));
-        assembled.setPort(host.mid(c + 1).toInt());
-    } else {
-        assembled.setHost(host);   // 裸 IPv6 由 setHost 处理，输出自动加括号
-    }
+    // host 可能内嵌端口（"host:port"/"[v6]:port"）——splitHostPort 单一来源
+    // 拆分（5WHY 2026-09-26 语法收敛：曾三处各写一份括号/冒号启发式）。
+    QString host;
+    int embeddedPort = -1;
+    SystemDiagnostics::splitHostPort(m_targetHost, &host, &embeddedPort);
+    assembled.setHost(host);   // 裸 IPv6 由 setHost 处理，输出自动加括号
+    if (embeddedPort > 0)
+        assembled.setPort(embeddedPort);
     if (!m_targetPort.isEmpty() && assembled.port() <= 0)
         assembled.setPort(m_targetPort.toInt());   // 独立端口槽仅内嵌端口缺失时生效
     assembled.setPath(m_targetPath);
@@ -1062,8 +1043,8 @@ bool AppState::isGroupAllEnabled(int groupInt) const {
 // std::atomic 缓存；QNetworkInterface/CNCopy 均为线程安全 C API。
 void AppState::refreshConnectivityAsync() {
     // H1 (5WHY): QPointer 防止对象销毁后 lambda 仍访问 this。
-    // isOnWifi()/hasCellularUp() 均为无副作用的纯查询，析构后跳过
-    // 不影响正确性（缓存值已是最终状态）。
+    // classifyConnectivity 为无副作用的纯查询，析构后跳过不影响正确性
+    // （缓存值已是最终状态）。
     QPointer<AppState> guard(this);
     // 5WHY (2026-09-04 修正复核): "检查后解引用"是 TOCTOU——worker 通过
     // guard 检查后、写入前对象仍可能被析构。classifyConnectivity 是
@@ -1074,14 +1055,15 @@ void AppState::refreshConnectivityAsync() {
     // 5WHY (2026-09-26 刷新代际): 曾无代际号——旧慢查询（iOS SSID 至 5s）
     // 按完成序写回可覆盖新快值（陈旧连通性驱动蜂窝警告门）。递增代际：
     // 仅最新一次刷新的结果生效，迟到快照按过期丢弃。
-    static std::atomic<qint64> s_refreshGen{0};
-    const qint64 gen = s_refreshGen.fetch_add(1, std::memory_order_relaxed);
-    QThreadPool::globalInstance()->start([guard, gen] {
+    // 5WHY (2026-09-26 简化收敛): 代际曾为进程级 static——与 m_runGeneration
+    // 同门改实例成员 m_refreshGen，实例边界与 QPointer 守卫一致。
+    const qint64 gen = m_refreshGen.fetch_add(1, std::memory_order_relaxed);
+    QThreadPool::globalInstance()->start([guard, this, gen] {
         if (!guard) return;
         bool w = false, c = false;
         classifyConnectivity(&w, &c);
-        QMetaObject::invokeMethod(guard, [guard, w, c, gen] {
-            if (s_refreshGen.load(std::memory_order_relaxed) != gen + 1) return;   // 过期快照丢弃
+        QMetaObject::invokeMethod(guard, [guard, this, w, c, gen] {
+            if (m_refreshGen.load(std::memory_order_relaxed) != gen + 1) return;   // 过期快照丢弃
             guard->m_wifiUp.store(w, std::memory_order_release);
             guard->m_cellularUp.store(c, std::memory_order_release);
         }, Qt::QueuedConnection);

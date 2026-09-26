@@ -235,6 +235,9 @@ private:
 
     // H3：跨 run 结果污染防护——每次 run 递增，迟到信号按 generation 丢弃
     qint64 m_runGeneration = 0;
+    // 连通性刷新代际（5WHY 2026-09-26 简化收敛）: 曾为进程级 static atomic——
+    // 与 m_runGeneration 同门改实例成员，实例边界与 QPointer 守卫一致。
+    std::atomic<qint64> m_refreshGen{0};
     // 8-15：运行墙钟计时（诊断运行时间）——仪表盘总览实时刷新
     QElapsedTimer m_runTimer;
     qint64 m_runElapsedMs = 0;

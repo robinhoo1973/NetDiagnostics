@@ -13,6 +13,9 @@
 #include <QFile>
 #include <QTextStream>
 #include <QUrl>   // parseHttpUrl QUrl 收敛（自包含，5WHY 2026-09-26）
+#if !defined(NO_CURL)
+#include <curl/curl.h>   // 全局作用域（5WHY 2026-09-26: 曾置于 namespace 内——include 守卫吞掉各 TU 的全局 curl 声明）
+#endif
 #include <QProcess>
 #include <QMutexLocker>
 #include <QtEndian>
@@ -92,6 +95,94 @@ static QString macToStr(const unsigned char* mac) {
         .arg(mac[3], 2, 16, QLatin1Char('0'))
         .arg(mac[4], 2, 16, QLatin1Char('0'))
         .arg(mac[5], 2, 16, QLatin1Char('0'));
+}
+
+// ── "host:port" / "[v6]:port" 拆分（单一来源）────────────────────────
+// 5WHY (2026-09-26 语法三份): 该语法曾在 extractHostname / G4 extractProbePort
+// / AppState QUrl 组装三处各写一份（冒号启发式修一处漏两处）。单一拆分：
+// 返回内嵌端口（-1 = 无）；IPv6 括号处理唯一来源。hostOut 返回裸主机
+// （IPv6 去括号）。
+static bool splitHostPort(const QString& authority, QString* hostOut, int* portOut) {
+    QString h = authority.trimmed();
+    int port = -1;
+    if (h.startsWith(QLatin1Char('['))) {
+        const int close = h.indexOf(QLatin1Char(']'));
+        if (close > 0) {
+            *hostOut = h.mid(1, close - 1);
+            if (close + 1 < h.size() && h[close + 1] == QLatin1Char(':')) {
+                bool ok = false;
+                port = h.mid(close + 2).toInt(&ok);
+                if (!ok) port = -1;
+            }
+            if (portOut) *portOut = port;
+            return true;
+        }
+        return false;   // 无闭合括号——原样返回，调用方回退
+    }
+    const int colon = h.indexOf(QLatin1Char(':'));
+    if (colon > 0 && h.indexOf(QLatin1Char(':'), colon + 1) == -1) {
+        bool ok = false;
+        const int p = h.mid(colon + 1).toInt(&ok);
+        if (ok) {
+            *hostOut = h.left(colon);
+            if (portOut) *portOut = p;
+            return true;
+        }
+    }
+    *hostOut = h;   // 裸主机名 / 裸 IPv6（≥2 冒号）
+    if (portOut) *portOut = -1;
+    return true;
+}
+
+// ── scheme → 默认端口（单一来源）────────────────────────────────────
+// 5WHY (2026-09-26 表三份): G5 defaultPort(14 scheme)/G4 extractProbePort 尾表
+// /parseHttpUrl(80/443) 三处漂移。单一表；未知 scheme 回退 80（http 语义）。
+static int defaultPortForScheme(const QString& schemeIn) {
+    const QString s = schemeIn.toLower();
+    if (s == QLatin1String("https")) return 443;
+    if (s == QLatin1String("ftp")) return 21;
+    if (s == QLatin1String("ftps")) return 990;
+    if (s == QLatin1String("sftp") || s == QLatin1String("ssh")) return 22;
+    if (s == QLatin1String("telnet")) return 23;
+    if (s == QLatin1String("rdp")) return 3389;
+    if (s == QLatin1String("smtp")) return 25;
+    if (s == QLatin1String("smtps")) return 465;
+    if (s == QLatin1String("imap")) return 143;
+    if (s == QLatin1String("imaps")) return 993;
+    if (s == QLatin1String("pop3")) return 110;
+    if (s == QLatin1String("pop3s")) return 995;
+    if (s == QLatin1String("mysql")) return 3306;
+    if (s == QLatin1String("postgresql")) return 5432;
+    if (s == QLatin1String("redis")) return 6379;
+    if (s == QLatin1String("mongodb")) return 27017;
+    if (s == QLatin1String("mssql")) return 1433;
+    if (s == QLatin1String("ldap")) return 389;
+    if (s == QLatin1String("ldaps")) return 636;
+    if (s == QLatin1String("mqtt")) return 1883;
+    if (s == QLatin1String("mqtts")) return 8883;
+    return 80;
+}
+
+// ── curl 通用基线 + RAII slist（5WHY 2026-09-26 复用收敛）───────────
+// G5 httpOnceCurl 与 GCommon 测速三函数曾各抄 6-10 个 curl_easy_setopt 基线
+// （NOSIGNAL/HTTP1.1/UA/VerifyNone/超时形态）——策略变更需 4 处同步；slist
+// 生命周期陷阱（perform 前释放 → SIGSEGV，已咬过一次）逐处重学。单一基线
+// + RAII slist：析构统一释放，生命周期错误不可能再写出来。
+struct CurlSlist {
+    curl_slist* list = nullptr;
+    ~CurlSlist() { if (list) curl_slist_free_all(list); }
+    CurlSlist() = default;
+    CurlSlist(const CurlSlist&) = delete;
+    CurlSlist& operator=(const CurlSlist&) = delete;
+};
+inline void configureCurlBasics(CURL* curl, long connectMs, long timeoutMs) {
+    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, connectMs);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, timeoutMs);
+    curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);   // 工作线程内禁用信号处理
+    curl_easy_setopt(curl, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
+    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);   // VerifyNone 对齐旧 QSslSocket 语义
+    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
+    curl_easy_setopt(curl, CURLOPT_USERAGENT, "NetDiagnostics/1.0");
 }
 
 // ── IPv4 formatting ─────────────────────────────────────────────────
@@ -351,7 +442,7 @@ inline ParsedUrl parseHttpUrl(const QString& urlStr) {
     if (scheme != QLatin1String("http") && scheme != QLatin1String("https")) return p;
     p.host = u.host();
     const int explicitPort = u.port();
-    p.port = explicitPort > 0 ? explicitPort : (scheme == QLatin1String("https") ? 443 : 80);
+    p.port = explicitPort > 0 ? explicitPort : defaultPortForScheme(scheme);
     p.path = u.path(QUrl::FullyEncoded);
     if (u.hasQuery()) p.path += QLatin1Char('?') + u.query(QUrl::FullyEncoded);
     if (p.path.isEmpty()) p.path = QStringLiteral("/");

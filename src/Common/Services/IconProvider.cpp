@@ -156,10 +156,14 @@ QByteArray IconProvider::tintedXml(const QString& name, const Meta& meta,
     // 按 (name|dark) 缓存中间产物，miss 只剩阶段 2 配色替换（并发同键
     // 计算幂等，插入即收敛）。母版 SVG 无控制字节，\x01 判别缓存命中。
     const QString phKey = name + (dark ? QLatin1String("|d") : QLatin1String("|l"));
-    {
-        QMutexLocker locker(&m_mutex);
+    bool phHit = false;   // 命中与否由查找结果直接给出（5WHY 2026-09-26 简化:
+    {                     // 曾以 xml.contains('\x01') 字节嗅探反推——无哨兵母版
+        QMutexLocker locker(&m_mutex);          // 会缓存无占位符输出且每次重算）
         const auto it = m_phCache.constFind(phKey);
-        if (it != m_phCache.constEnd()) xml = it.value();
+        if (it != m_phCache.constEnd()) {
+            xml = it.value();
+            phHit = true;
+        }
     }
 
     const QByteArray primaryHex = primary.name().toUpper().toLatin1();
@@ -190,8 +194,7 @@ QByteArray IconProvider::tintedXml(const QString& name, const Meta& meta,
     const auto slotPh = [kPhFixed](int i) {
         return kPhFixed + QByteArray::number(i) + '\x01';
     };
-    const bool cachedPh = xml.contains('\x01');   // 缓存命中：阶段 1 已做
-    if (!cachedPh) {
+    if (!phHit) {
         // ── 阶段 1：哨兵 → 唯一占位符 ─────────────────────────────────
         // 1) 主色：渐变起点 #FFFFFF（母版统一为小写，兼容大写以防万一）
         xml.replace("#ffffff", kPhPrimary);

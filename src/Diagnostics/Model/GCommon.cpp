@@ -1,18 +1,17 @@
 #include "Diagnostics/Model/GHelpers.h"
 #include "Common/Utils/NetUtil.h"
-#include <QMutex>
-#include <QMutexLocker>
 #include <QHash>
 #include <QPair>
-#include <QFuture>
-#include <QtConcurrent/QtConcurrent>
-#include <thread>
-#include <vector>
-#include <QUrl>
+#include <QUrl>   // httpDownloadCurl/httpUploadCurl 主机校验
 #if !defined(NO_CURL)
 #include <curl/curl.h>   // 5WHY (2026-09-26 铁律): 测速 HTTP 桌面路径走 curl easy API
 #endif
 namespace SystemDiagnostics {
+
+// ── Socket 兜底专用辅助（5WHY 2026-09-26 条件编译）──────────────────
+// 仅 NO_CURL 平台的 socket 实现使用——桌面 curl 构建不再编译 ~60 行死代码
+// （iOS CI 以 NO_CURL 编译提供覆盖）。
+#if defined(NO_CURL)
 
 // ── Host header with RFC 7230 §5.4 port inclusion ──────────────────
 static QString hostHeader(const QString& host, int port) {
@@ -73,6 +72,7 @@ static ssize_t recvChunk(int sock, char* buf, int bufSize) {
     }
     return n;
 }
+#endif // NO_CURL
 
 
 // ── curl 实现（桌面, !NO_CURL）───────────────────────────────────────────
@@ -80,6 +80,45 @@ static ssize_t recvChunk(int sock, char* buf, int bufSize) {
 // ">1KB 即算成功"启发式把非 HTTP 字节当有效下载、4 轮状态码提取 5WHY）由
 // libcurl 取代——成熟解析/chunked/302 处理/超时。NO_CURL（iOS/Android/无库
 // 桌面）保留原 socket 实现作兜底（GeoProbe 测速在移动端同样运行）。
+// ── 测速共享助手（5WHY 2026-09-26 双份收敛）──────────────────────────
+// 终态尾（usable 判定 + 50% 完成度门 + Mbps 换算 + 错误映射）与确定性载荷
+// 曾在 curl/socket 变体各写一份（"与原实现同门"注释靠纪律同步）。单一来源，
+// 四个变体共享；ok/error 互斥（usable 成立不再携带错误串）。
+namespace {
+QByteArray speedPayload(int targetBytes) {
+    QByteArray payload(targetBytes, 'A');
+    for (int i = 0; i < targetBytes; i += 64)
+        payload[i] = (char)('A' + (i / 64) % 26);
+    return payload;
+}
+
+SpeedResult finalizeDownloadResult(SpeedResult r, int targetBytes, bool httpOk, long statusCode) {
+    // 5WHY (复核 2026-08-21 用户 "下载测试出错"): 慢速/停滞服务器在超时前只
+    // 送达请求字节的一小部分——完成度 < 50% 判失败，把服务器问题与用户
+    // 带宽分离（业界测速惯例）。">1KB 即算成功"启发式仅对非 HTTP 二进制
+    // 响应保留（socket 兜底路径），curl 路径经 HTTP 校验不落此支。
+    const bool usable = (httpOk || r.bytes > 1000) && r.bytes > 0 && r.durationMs > 0;
+    if (!usable) {
+        if (!httpOk && r.error.isEmpty())
+            r.error = QStringLiteral("HTTP %1").arg(statusCode);
+        if (r.error.isEmpty()) {
+            if (r.bytes <= 0) r.error = QStringLiteral("No Data Received");
+            else if (r.durationMs <= 0) r.error = QStringLiteral("Transfer Duration Too Short");
+            else r.error = QStringLiteral("Insufficient Data (%1 bytes)").arg(r.bytes);
+        }
+        return r;
+    }
+    if (targetBytes > 0 && (double)r.bytes / (double)targetBytes < 0.5) {
+        r.error = QStringLiteral("Incomplete Download: %1/%2 bytes (slow server)")
+            .arg(r.bytes).arg(targetBytes);
+        return r;
+    }
+    r.mbps = (r.bytes * 8.0) / (r.durationMs / 1000.0) / 1000000.0;
+    r.ok = true;
+    return r;
+}
+} // namespace
+
 #if !defined(NO_CURL)
 namespace {
 struct SpeedCapture {
@@ -101,36 +140,35 @@ struct SpeedCapture {
     }
 };
 
-CURL* newSpeedCurl(const QString& urlStr, int connectMs, long timeoutMs, SpeedCapture* cap) {
+CURL* newSpeedCurl(const QString& urlStr, int connectMs, long timeoutMs,
+                   curl_write_callback writeCb, void* writeData) {
     CURL* curl = curl_easy_init();
     if (!curl) return nullptr;
     curl_easy_setopt(curl, CURLOPT_URL, urlStr.toUtf8().constData());
-    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, static_cast<long>(connectMs));
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, timeoutMs);
-    curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
-    curl_easy_setopt(curl, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
-    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
-    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
-    curl_easy_setopt(curl, CURLOPT_USERAGENT, "NetDiagnostics/1.0");
+    // 共享基线（NOSIGNAL/HTTP1.1/UA/VerifyNone/超时）单一来源（5WHY 2026-09-26）
+    SystemDiagnostics::configureCurlBasics(curl, static_cast<long>(connectMs), timeoutMs);
     // 5WHY (2026-09-26 重定向): 测速服务器常见 302 跳转到真实文件——旧 socket
     // 路径把重定向体当下载数据（伪 Mbps），curl 跟随重定向测真实吞吐。
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
     curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 5L);
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, SpeedCapture::writeCb);
-    curl_easy_setopt(curl, CURLOPT_WRITEDATA, cap);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writeCb);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, writeData);
     return curl;
 }
 } // namespace
 
 static SpeedResult httpDownloadCurl(const QString& urlStr, int targetBytes, int timeoutMs) {
     SpeedResult r = {0, 0, 0, false, {}};
-    ParsedUrl pu = parseHttpUrl(urlStr);
-    if (pu.host.isEmpty()) { r.error = QStringLiteral("Invalid URL"); return r; }
+    // 5WHY (2026-09-26): 曾全量 parseHttpUrl 后只取 host 判空——QUrl 解析/
+    // 端口/路径组装全部白算（curl 自行解析 URL）。仅需主机非空校验。
+    const QUrl urlCheck(urlStr.trimmed());
+    if (urlCheck.host().isEmpty()) { r.error = QStringLiteral("Invalid URL"); return r; }
     SpeedCapture cap;
     cap.bodyCap = targetBytes + 65536;   // 与原 socket 读循环同上限
     QElapsedTimer t; t.start();
     cap.timer = &t;
-    CURL* curl = newSpeedCurl(urlStr, 3000, qMin(timeoutMs, 60000), &cap);
+    CURL* curl = newSpeedCurl(urlStr, 3000, qMin(timeoutMs, 60000),
+                              SpeedCapture::writeCb, &cap);
     if (!curl) { r.error = QStringLiteral("curl_easy_init failed"); return r; }
     const CURLcode code = curl_easy_perform(curl);
     long status = 0;
@@ -147,57 +185,33 @@ static SpeedResult httpDownloadCurl(const QString& urlStr, int targetBytes, int 
     const qint64 durNs = (cap.lastBodyNs > cap.firstBodyNs) ? cap.lastBodyNs - cap.firstBodyNs : 0;
     // 5WHY: 与 socket 路径同门——任何收到的字节不得误报 durationMs=0
     r.durationMs = qMax<qint64>(1, durNs / 1000000);
-    const bool httpOk = (status == 200);
-    if (!httpOk)
-        r.error = QStringLiteral("HTTP %1").arg(status);
-    // 与原实现同门：完成度 < 50% 判失败（把服务器问题与用户带宽分离）
-    if ((httpOk || r.bytes > 1000) && r.bytes > 0 && r.durationMs > 0) {
-        if (targetBytes > 0 && (double)r.bytes / (double)targetBytes < 0.5) {
-            r.error = QStringLiteral("Incomplete Download: %1/%2 bytes (slow server)")
-                .arg(r.bytes).arg(targetBytes);
-            return r;
-        }
-        r.mbps = (r.bytes * 8.0) / (r.durationMs / 1000.0) / 1000000.0;
-        r.ok = true;
-    } else if (r.error.isEmpty()) {
-        r.error = r.bytes <= 0 ? QStringLiteral("No Data Received")
-                               : QStringLiteral("Insufficient Data (%1 bytes)").arg(r.bytes);
-    }
-    return r;
+    // 终态统一：usable 判定 + 50% 完成度门 + Mbps 换算（单一来源，5WHY 2026-09-26）
+    return finalizeDownloadResult(r, targetBytes, status == 200, status);
 }
 
 static SpeedResult httpUploadCurl(const QString& urlStr, int targetBytes, int timeoutMs) {
     SpeedResult r = {0, 0, 0, false, {}};
-    ParsedUrl pu = parseHttpUrl(urlStr);
-    if (pu.host.isEmpty()) { r.error = QStringLiteral("Invalid URL"); return r; }
-    // 与原实现同源的确定性载荷（每 64 字节轮换字母）
-    QByteArray payload(targetBytes, 'A');
-    for (int i = 0; i < targetBytes; i += 64)
-        payload[i] = (char)('A' + (i / 64) % 26);
+    const QUrl urlCheck(urlStr.trimmed());
+    if (urlCheck.host().isEmpty()) { r.error = QStringLiteral("Invalid URL"); return r; }
+    const QByteArray payload = speedPayload(targetBytes);   // 确定性载荷单一来源
 
     QElapsedTimer t; t.start();
-    CURL* curl = curl_easy_init();
+    SpeedCapture cap;   // 响应体（200 OK）截留即可；计时走 t
+    cap.bodyCap = 4096;
+    cap.timer = &t;
+    CURL* curl = newSpeedCurl(urlStr, 3000, static_cast<long>(timeoutMs),
+                              SpeedCapture::writeCb, &cap);
     if (!curl) { r.error = QStringLiteral("curl_easy_init failed"); return r; }
-    curl_easy_setopt(curl, CURLOPT_URL, urlStr.toUtf8().constData());
-    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, 3000L);
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, static_cast<long>(timeoutMs));
-    curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
-    curl_easy_setopt(curl, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
-    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
-    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
-    curl_easy_setopt(curl, CURLOPT_USERAGENT, "NetDiagnostics/1.0");
-    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-    curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 5L);
     curl_easy_setopt(curl, CURLOPT_POST, 1L);
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, payload.constData());
     curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE_LARGE, (curl_off_t)payload.size());
-    struct curl_slist* hdrs = curl_slist_append(nullptr, "Content-Type: application/octet-stream");
-    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, hdrs);
+    SystemDiagnostics::CurlSlist hdrs;   // RAII：perform 后自动释放
+    hdrs.list = curl_slist_append(nullptr, "Content-Type: application/octet-stream");
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, hdrs.list);
     const CURLcode code = curl_easy_perform(curl);
     long status = 0;
     curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &status);
     curl_easy_cleanup(curl);
-    curl_slist_free_all(hdrs);
 
     r.bytes = targetBytes;
     // 5WHY: 同 socket 路径——吞吐相关相位是发送本身（perform 含 send+recv）
@@ -220,18 +234,11 @@ static double httpTtfbCurl(const QString& host, int port, const QString& path,
     if (host.isEmpty()) return -1.0;
     const QString urlStr = QStringLiteral("http://%1:%2%3")
         .arg(host).arg(port).arg(path.isEmpty() ? QStringLiteral("/") : path);
-    CURL* curl = curl_easy_init();
-    if (!curl) return -1.0;
-    curl_easy_setopt(curl, CURLOPT_URL, urlStr.toUtf8().constData());
-    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, static_cast<long>(connectTimeoutMs));
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS,
-                     static_cast<long>(connectTimeoutMs + readTimeoutSec * 1000));
-    curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
-    curl_easy_setopt(curl, CURLOPT_USERAGENT, "NetDiagnostics/1.0");
-    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-    curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 5L);
     // 丢弃响应体——TTFB 只需 STARTTRANSFER
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, +[](char*, size_t sz, size_t n, void*) -> size_t { return sz * n; });
+    CURL* curl = newSpeedCurl(urlStr, connectTimeoutMs,
+                              static_cast<long>(connectTimeoutMs + readTimeoutSec * 1000),
+                              +[](char*, size_t sz, size_t n, void*) -> size_t { return sz * n; }, nullptr);
+    if (!curl) return -1.0;
     const CURLcode code = curl_easy_perform(curl);
     double ttfb = -1.0;
     if (code == CURLE_OK) {
@@ -244,9 +251,10 @@ static double httpTtfbCurl(const QString& host, int port, const QString& path,
 }
 #endif // !NO_CURL
 
-// HTTP download with throughput measurement
+#if defined(NO_CURL)
+// HTTP download socket 兜底（仅 NO_CURL 平台编译——iOS/Android/无库桌面）
 // SpeedResult defined in GHelpers.h
-SpeedResult httpDownloadSocket(const QString& urlStr, int targetBytes, int timeoutMs) {
+static SpeedResult httpDownloadSocket(const QString& urlStr, int targetBytes, int timeoutMs) {
     SpeedResult r = {0, 0, 0, false, {}};
     ParsedUrl pu = parseHttpUrl(urlStr);
     if (pu.host.isEmpty()) { r.error = QStringLiteral("Invalid URL"); return r; }
@@ -273,6 +281,7 @@ SpeedResult httpDownloadSocket(const QString& urlStr, int targetBytes, int timeo
     QByteArray headerBuf;
     bool headersDone = false;
     bool httpOk = false;
+    long httpStatus = 0;
     char buf[32768];
     QElapsedTimer recvGuard; recvGuard.start();
     while (body.size() < targetBytes + 65536) {
@@ -306,8 +315,8 @@ SpeedResult httpDownloadSocket(const QString& urlStr, int targetBytes, int timeo
                 int codeStart = statusLine.indexOf(' ');
                 httpOk = (codeStart > 0 && codeStart + 4 <= statusLine.size()
                           && statusLine.mid(codeStart + 1, 3) == "200");
-                if (!httpOk && codeStart > 0 && codeStart + 4 <= statusLine.size())
-                    r.error = QStringLiteral("HTTP %1").arg(QString::fromLatin1(statusLine.mid(codeStart + 1, 3)));
+                httpStatus = (codeStart > 0 && codeStart + 4 <= statusLine.size())
+                    ? statusLine.mid(codeStart + 1, 3).toLong() : 0;
                 body = headerBuf.mid(hdrEnd + 4);
                 headersDone = true;
                 startNs = t.nsecsElapsed(); // reset timer to body start
@@ -336,36 +345,14 @@ SpeedResult httpDownloadSocket(const QString& urlStr, int targetBytes, int timeo
         body = headerBuf;  // raw binary response, no HTTP parsing
         r.bytes = static_cast<int>(body.size());
     }
-    bool usable = (httpOk || r.bytes > 1000) && r.bytes > 0 && r.durationMs > 0;
-    // 5WHY (复核 2026-08-21 用户 "下载测试出错"): 慢速/停滞服务器在超时
-    // 前只送达请求字节的一小部分（独立测试实测 81KB/256KB、151KB/1MB），
-    // 旧逻辑仍标 ok → 界面出现 "OK 0.0 Mbps" 伪成功。业界测速惯例：
-    // 完成度 < 50% 判失败——把服务器问题与用户带宽分离。
-    if (usable && targetBytes > 0
-        && (double)r.bytes / (double)targetBytes < 0.5) {
-        r.ok = false;
-        r.error = QStringLiteral("Incomplete Download: %1/%2 bytes (slow server)")
-            .arg(r.bytes).arg(targetBytes);
-        return r;
-    }
-    if (usable) {
-        double bits = r.bytes * 8.0;
-        double secs = r.durationMs / 1000.0;
-        r.mbps = bits / secs / 1000000.0;
-        r.ok = true;
-    } else if (r.error.isEmpty()) {
-        if (r.bytes <= 0)
-            r.error = QStringLiteral("No Data Received");
-        else if (r.durationMs <= 0)
-            r.error = QStringLiteral("Transfer Duration Too Short");
-        else
-            r.error = QStringLiteral("Insufficient Data (%1 bytes)").arg(r.bytes);
-    }
-    return r;
+    // 终态统一（与 curl 路径同门，5WHY 2026-09-26）：usable 判定 + 50%
+    // 完成度门 + Mbps 换算 + 错误映射单一来源。httpOk=false 且 bytes>1KB
+    // 的非 HTTP 二进制响应仍按启发式接受（兜底路径语义）。
+    return finalizeDownloadResult(r, targetBytes, httpOk, httpStatus);
 }
 
-// HTTP upload with throughput measurement — POST data to server
-SpeedResult httpUploadSocket(const QString& urlStr, int targetBytes, int timeoutMs) {
+// HTTP upload socket 兜底（仅 NO_CURL 平台编译）
+static SpeedResult httpUploadSocket(const QString& urlStr, int targetBytes, int timeoutMs) {
     SpeedResult r = {0, 0, 0, false, {}};
     ParsedUrl pu = parseHttpUrl(urlStr);
     if (pu.host.isEmpty()) { r.error = QStringLiteral("Invalid URL"); return r; }
@@ -375,10 +362,7 @@ SpeedResult httpUploadSocket(const QString& urlStr, int targetBytes, int timeout
     int sock = tcpConnect(host, port, 3000);
     if (sock < 0) { r.error = QStringLiteral("TCP Connect Failed"); return r; }
 
-    // Generate random payload
-    QByteArray payload(targetBytes, 'A');
-    for (int i = 0; i < targetBytes; i += 64)
-        payload[i] = (char)('A' + (i / 64) % 26);
+    const QByteArray payload = speedPayload(targetBytes);   // 确定性载荷单一来源
 
     QByteArray req = QStringLiteral("POST %1 HTTP/1.0\r\nHost: %2\r\nUser-Agent: NetDiagnostics/1.0\r\nContent-Type: application/octet-stream\r\nContent-Length: %3\r\nConnection: close\r\n\r\n")
         .arg(pu.path.isEmpty() ? QStringLiteral("/") : pu.path, hostHeader(host, port)).arg(targetBytes).toUtf8();
@@ -440,7 +424,10 @@ SpeedResult httpUploadSocket(const QString& urlStr, int targetBytes, int timeout
     return r;
 }
 
+#endif // NO_CURL
+
 // TCP ping (simple connect RTT) — measures raw TCP handshake latency
+// （G3 Internet 探针使用；socket 语义全平台保留）
 int tcpPingMs(const QString& host, int port) {
     QElapsedTimer t; t.start();
     int sock = tcpConnect(host, port, 2000);
@@ -450,12 +437,13 @@ int tcpPingMs(const QString& host, int port) {
     return ms;
 }
 
+#if defined(NO_CURL)
 // HTTP TTFB probe — TCP connect + HTTP GET → time to first byte.
 // Returns ms (including TCP handshake), or -1.0 on failure.
 // Shared by GeoProbe (probeAllServers, selectBestServer, pickBestInCountry,
 // pickBestInRegion) and geoIPLoc Pass 2.
-double httpTtfbSocket(const QString& host, int port, const QString& path,
-                    int connectTimeoutMs, int readTimeoutSec) {
+static double httpTtfbSocket(const QString& host, int port, const QString& path,
+                          int connectTimeoutMs, int readTimeoutSec) {
     if (host.isEmpty()) return -1.0;  // guard against malformed URLs
     QElapsedTimer t; t.start();
     int sock = tcpConnect(host, port, connectTimeoutMs);
@@ -480,6 +468,8 @@ double httpTtfbSocket(const QString& host, int port, const QString& path,
     return ttfb;
 }
 
+
+#endif // NO_CURL
 
 // ── 调度：桌面 !NO_CURL → curl easy；NO_CURL → socket 兜底 ────────────────
 SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs) {

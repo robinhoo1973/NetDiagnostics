@@ -104,11 +104,15 @@ QMutex& deviceProbeCacheMutex() {
 } // namespace
 
 bool DeviceCapability::diagSupportedOnDevice(DiagId id) {
-    QMutexLocker locker(&deviceProbeCacheMutex());
     auto& cache = deviceProbeCache();
-    auto it = cache.constFind(id);
-    if (it != cache.constEnd()) return it.value();
-
+    {
+        QMutexLocker locker(&deviceProbeCacheMutex());
+        auto it = cache.constFind(id);
+        if (it != cache.constEnd()) return it.value();
+    }
+    // 5WHY (2026-09-26 双检锁): 曾全程持锁跑硬件探测（allInterfaces/netlink
+    // 枚举是慢路径）——并发查询与 invalidateCache 被慢探测阻塞。锁外探测、
+    // 锁内插入（幂等，同键并发计算收敛）。
     bool ok = true;
     switch (id) {
         case DiagId::G1WifiDiagnostics:  ok = hasWifiInterface();      break;
@@ -116,6 +120,7 @@ bool DeviceCapability::diagSupportedOnDevice(DiagId id) {
         case DiagId::G1CellularInfo:     ok = hasCellularModem();      break;
         default:                         ok = true;                    break;
     }
+    QMutexLocker locker(&deviceProbeCacheMutex());
     cache.insert(id, ok);
     return ok;
 }
