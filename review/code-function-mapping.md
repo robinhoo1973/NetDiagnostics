@@ -61,14 +61,16 @@
 ## 四、网络层复用跟进计划（铁律：禁造轮子）
 
 > 已落地零新依赖替换：QUrl（parseHttpUrl/URL 组装）、DiagnosticResult 工厂。
-> 以下为需新依赖/跨平台 CI 验证的替换，按优先级排：
+> 已落地 libcurl 桌面分支（2026-09-26）：G5 httpOnce、GCommon httpDownload/
+> httpUpload/httpTtfb 均走 curl easy API（NO_CURL 保留 socket 兜底，移动端不
+> 链接 curl 时自动回退）。以下为剩余项，按优先级排：
 
-| # | 现状（自造轮子） | 成熟开源方案 | 平台门控 |
-|---|------------------|--------------|----------|
-| 1 | G5 httpOnce/tcpProbe 手写 HTTP/1.1（无 chunked、手跟重定向） | **libcurl** easy API（项目已链接，桌面）；iOS 沿用 NSURLSession、Android 沿用 JNI | `#if !defined(NO_CURL)` 分支 |
-| 2 | GCommon httpDownload/httpUpload/httpTtfb 手写 socket HTTP（">1KB 即成功"启发式） | **libcurl**（CURLOPT_UPLOAD/CURLINFO_STARTTRANSFER_TIME） | 同上 |
-| 3 | NetUtil.h 手写 POSIX/WinSock 连接层（FD_SETSIZE 缺陷） | **QTcpSocket**（connectToHost+waitForConnected，G5 已用同模式） | 全平台（Qt 自带） |
-| 4 | DnsWire.h 手写 RFC1035 + DnsResolver 手写线程池解析 | **c-ares**（ares_search/parse_reply，非阻塞、无事件循环） | 新依赖，iOS/Android 交叉编译需评估 |
-| 5 | G5 MongoDB BSON/LDAP BER/MySQL 握手/MQTT CONNECT 手写 | **mongo-c-driver** BSON / **OpenLDAP libldap** / **QMqttClient**(Qt MQTT 模块) | 新依赖（G5 协议族 Desktop-only，移动端不编译） |
+| # | 现状（自造轮子） | 成熟开源方案 | 平台门控 | 状态 |
+|---|------------------|--------------|----------|------|
+| 1 | G5 httpOnce 手写 HTTP/1.1（无 chunked、手跟重定向） | **libcurl** easy API | `#if !defined(NO_CURL)` | ✅ 已落地（1caed0ea） |
+| 2 | GCommon httpDownload/httpUpload/httpTtfb（">1KB 即成功"启发式） | **libcurl**（FOLLOWLOCATION/CONNECTTIMEOUT_MS） | `#if !defined(NO_CURL)` | ✅ 已落地（2a407654） |
+| 3 | NetUtil.h 手写 POSIX/WinSock 连接层（FD_SETSIZE 缺陷） | **QTcpSocket**（connectToHost+waitForConnected） | 全平台（Qt 自带） | 待办 |
+| 4 | DnsWire.h 手写 RFC1035 + DnsResolver 手写线程池解析 | **c-ares**（ares_search/parse_reply，非阻塞） | 新依赖，交叉编译需评估 | 待评估 |
+| 5 | G5 MongoDB BSON/LDAP BER/MySQL 握手/MQTT CONNECT 手写 | **mongo-c-driver** BSON / **OpenLDAP libldap** / **QMqttClient**(Qt MQTT 模块) | 新依赖（G5 协议族 Desktop-only） | 待评估 |
 
 铁律执行顺序：零新依赖替换已落地（QUrl）；libcurl 桌面分支为下一优先级（NO_CURL 宏已就绪）；c-ares 与协议库需新依赖评估后单独立项。

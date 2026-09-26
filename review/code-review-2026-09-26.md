@@ -47,13 +47,14 @@
 
 | 项 | 原因 | 计划 |
 |----|------|------|
-| libcurl 桌面分支（httpOnce/httpDownload） | 双路径需 NO_CURL 分支+全平台回归 | 下一轮，NO_CURL 宏已就绪 |
+| ~~libcurl 桌面分支（httpOnce/httpDownload）~~ | — | ✅ 已落地（1caed0ea + 2a407654，NO_CURL 兜底保留） |
 | c-ares（DnsWire/DnsResolver） | 新依赖，iOS/Android 交叉编译需评估 | 立评估项 |
 | 协议族库（libldap/QMqttClient/mongo-c-driver BSON） | 新依赖；G5 协议族 Desktop-only | 立评估项 |
+| NetUtil 手写 socket 层（FD_SETSIZE） | 调用方需整体转 QTcpSocket | 效率轮 |
 | iOS/Android 平台路径取消接入（HttpDiagnostics.mm/NetworkDiagnostics.cpp） | 平台文件本地不可编译验证 | 随 CI 轮 |
 | 报告预览/导出移出主线程（QtConcurrent） | QML 调用语义变更需联调 | 效率轮 |
-| 接口枚举单趟化+刷新代际（H7/H8/C8） | 中等重构 | 效率轮 |
-| 图标 placeholder 阶段按名缓存（H4） | 中等重构 | 效率轮 |
+| 接口枚举单趟化+刷新代际（H7/H8/C8） | — | ✅ 已落地（9e1dcfb4） |
+| 图标 placeholder 阶段按名缓存（H4） | — | ✅ 已落地（de1eaeff） |
 | C++ PDF 族（NativePdfDocument/PlatformPdfRenderer）删除 | 平台文件，需 CI 验证 | 随预览栈第二轮 |
 
 ## 四、评审方法论记录
