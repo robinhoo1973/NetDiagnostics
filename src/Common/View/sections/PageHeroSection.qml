@@ -24,6 +24,9 @@ PageSection {
     // 且一处漏改即色盘与文字异色。收敛为 _status/_statusColor 单一派生。
     readonly property int _status: detailData.status !== undefined ? detailData.status : 5
     readonly property color _statusColor: ThemeEngine.statusColors[root._status] || ThemeEngine.colors.skip
+    // 状态词文字用文字级变体（5WHY 2026-09-27 对比度：light 下 Pass 2.42:1
+    // 不达 AA）；图标/光晕垫仍用图形级 _statusColor。
+    readonly property color _statusTextColor: ThemeEngine.statusTextColors[root._status] || ThemeEngine.colors.onSurface
     // 5WHY (复核 2026-08-19): 状态名经 statusRows 单一表派生（色盘读屏名 +
     // 可见状态文字共用；v0.0.3 有状态名文字行，恢复对等呈现）。
     readonly property string _statusLabel: {
@@ -133,7 +136,7 @@ PageSection {
                 font.family: ThemeEngine.fontUi
                 font.pixelSize: ThemeEngine.fontSize.caption
                 font.weight: Font.DemiBold
-                color: root._statusColor
+                color: root._statusTextColor
             }
             Label {
                 visible: text !== ""

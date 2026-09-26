@@ -31,7 +31,11 @@ Item {
     property bool expanded: false
     signal toggleRequested()
 
-    implicitHeight: headerRow.implicitHeight
+    // 5WHY (2026-09-27 命中区/键盘): 曾 implicitHeight 由 12px 字行高决定
+    // （≈17px，不达 WCAG 2.5.5 的 24px 底线）且 MouseArea 无键盘激活——
+    // 同页 IconActionButton 是 44px+键盘+读屏契约，两套标准。统一最低可
+    // 触契约：高度钳 44（视觉行保持紧凑、交互层外扩）+ 空格/回车激活。
+    implicitHeight: Math.max(headerRow.implicitHeight, 44)
 
     // ── Header row ────────────────────────────────────────────────────────
     RowLayout {
@@ -52,11 +56,16 @@ Item {
 
     // ── Tap target (overlay, not a layout child) ──────────────────────────
     MouseArea {
+        id: tapArea
         anchors.fill: parent
         onClicked: root.toggleRequested()
         cursorShape: Qt.PointingHandCursor
         Accessible.name: root.title
             + (root.expanded ? T.tr("accExpanded") : T.tr("accCollapsed"))
         Accessible.role: Accessible.Button
+        focus: true
+        Keys.onSpacePressed: root.toggleRequested()
+        Keys.onReturnPressed: root.toggleRequested()
+        Keys.onEnterPressed: root.toggleRequested()
     }
 }

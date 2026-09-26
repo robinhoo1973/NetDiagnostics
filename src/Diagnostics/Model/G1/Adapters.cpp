@@ -316,7 +316,8 @@ static DiagnosticResult probeNetworkAdapters(DiagId id, const QString&, RunConte
     QStringList parts;
     for (const auto& p : props)
         parts.append(QStringLiteral("%1 (%2)").arg(p.label, p.value));
-    DiagnosticResult r = makeResult(id, DiagStatus::Pass,
+    // 5WHY (2026-09-27 语义过载): 采集型改 Info（适配器存在≠链路健康）。
+    DiagnosticResult r = makeResult(id, DiagStatus::Info,
         QStringLiteral("%1 active adapter(s)").arg(props.size()), props, {});
     r.narrative = QStringLiteral("Detected %1 active network adapter(s): %2. "
         "Type and address entries are listed per adapter in the property cards below.")

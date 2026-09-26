@@ -299,7 +299,8 @@ static DiagnosticResult probeRoutingTable(DiagId id, const QString&, RunContext&
 
     if (routeCount == 0)
         return makeResult(id, DiagStatus::Warning, QStringLiteral("No route entries found"), props, out.join('\n'));
-    DiagnosticResult r = makeResult(id, DiagStatus::Pass,
+    // 5WHY (2026-09-27 语义过载): 采集型改 Info（路由表存在≠路由健康）。
+    DiagnosticResult r = makeResult(id, DiagStatus::Info,
         QStringLiteral("%1 route(s)").arg(routeCount), props, out.join('\n'));
     r.data[QStringLiteral("routeCount")] = routeCount;
     return r;
@@ -416,8 +417,11 @@ static DiagnosticResult probeArpTable(DiagId id, const QString&, RunContext& ctx
 
     if (entryCount == 0)
         return makeResult(id, DiagStatus::Warning, QStringLiteral("No ARP entries found"), props, out.join('\n'));
-    DiagnosticResult r = makeResult(id, DiagStatus::Pass,
-        QStringLiteral("%1 ARP entr(y/ies)").arg(entryCount), props, out.join('\n'));
+    // 5WHY (2026-09-27 语义过载): 采集型探针曾用 Pass——绿勾读作「健康」，
+    // 而采集成功≠网络健康（与 ProxySettings 的 Info 自相矛盾）。语义字典：
+    // Pass=符合预期、Info=已采集无裁决。
+    DiagnosticResult r = makeResult(id, DiagStatus::Info,
+        QStringLiteral("%1 ARP entries").arg(entryCount), props, out.join('\n'));
     r.data[QStringLiteral("entryCount")] = entryCount;
     return r;
 }
@@ -673,7 +677,8 @@ static DiagnosticResult probeNetworkProfile(DiagId id, const QString&, RunContex
         props.append({QStringLiteral("interface"), QStringLiteral("%1 (%2)").arg(i.name(), i.hardwareAddress())});
     }
 
-    return makeResult(id, DiagStatus::Pass, QStringLiteral("Network Profile Collected"), props, out.join('\n'));
+    // 5WHY (2026-09-27 语义过载): 采集型改 Info（采集成功≠网络健康）。
+    return makeResult(id, DiagStatus::Info, QStringLiteral("Network Profile Collected"), props, out.join('\n'));
 }
 
 

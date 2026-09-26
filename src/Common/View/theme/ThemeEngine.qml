@@ -78,6 +78,18 @@ QtObject {
         // 徽标相邻同色同图标，取消数不可区分。改用 outline 石板色（#64748B，
         // 两主题同值，比 skip 深一档）+ close 图标（X=中止语义）。
     ]
+    // 5WHY (2026-09-27 使用层对比度): 状态色令牌为图形用途设计（light 下
+    // Pass 2.42:1/Warning 3.40:1 不达文字 AA 4.5:1）——曾直接染状态词文字，
+    // 「越好的结果越看不清」。使用层派生文字级变体：不动 Palette.js 色板值
+    // （尊重 2026-08-17 用户色值冻结决策；先例 onSuccessContainer 同为文字
+    // 派生令牌）。Light 用深档（Pass=onSuccessContainer≈4.7:1、Warning=
+    // orange-950 #9A3412≈7:1）；dark 沿用原令牌。audit 脚本将补「令牌×
+    // 用途×表面」用法对检查。
+    readonly property var statusTextColors: ThemeEngine.isDark
+        ? [colors.success, colors.warning, colors.fail, colors.skip,
+           colors.error, colors.info, colors.outline]
+        : [colors.onSuccessContainer, "#9A3412", colors.fail, colors.skip,
+           colors.error, colors.info, colors.outline]
     readonly property var statusIconNames: [
         "badge-check", "badge-warning", "badge-close",
         "badge-skip",  "badge-error",   "badge-info",

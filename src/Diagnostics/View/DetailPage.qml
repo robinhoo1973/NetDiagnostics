@@ -38,14 +38,12 @@ PageDisplay {
         }
     ]
 
+    // 5WHY (2026-09-27): 七区块单一装配点（与 PageDetailSheet 共享）。
     bodyContent: [
-        S.PageHeroSection { detailData: page.resultData },
-        S.PageSummarySection { detailData: page.resultData },
-        S.PageMetricSection { detailData: page.resultData },
-        S.PageErrorSection { detailData: page.resultData },
-        S.PagePropertiesSection { detailData: page.resultData },
-        S.PageChartsSection { detailData: page.resultData },
-        S.PageTerminalSection { detailData: page.resultData }
+        S.DetailSections {
+            width: page.width
+            detailData: page.resultData
+        }
     ]
 
     floatingContent: [

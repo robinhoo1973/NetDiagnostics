@@ -60,39 +60,12 @@ PageSection {
                 boundsBehavior: Flickable.StopAtBounds
                 ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
                 contentHeight: sheetCol.implicitHeight
-                ColumnLayout {
+                // 5WHY (2026-09-27): 七区块单一装配点 DetailSections——曾与
+                // DetailPage 双份清单（漂移已发生一次）。
+                S.DetailSections {
                     id: sheetCol
                     width: parent.width
-                    spacing: ThemeEngine.spacing.sm
-
-                    S.PageHeroSection {
-                        Layout.fillWidth: true
-                        detailData: root._data
-                    }
-                    S.PageSummarySection {
-                        Layout.fillWidth: true
-                        detailData: root._data
-                    }
-                    S.PageMetricSection {
-                        Layout.fillWidth: true
-                        detailData: root._data
-                    }
-                    S.PageErrorSection {
-                        Layout.fillWidth: true
-                        detailData: root._data
-                    }
-                    S.PagePropertiesSection {
-                        Layout.fillWidth: true
-                        detailData: root._data
-                    }
-                    S.PageChartsSection {
-                        Layout.fillWidth: true
-                        detailData: root._data
-                    }
-                    S.PageTerminalSection {
-                        Layout.fillWidth: true
-                        detailData: root._data
-                    }
+                    detailData: root._data
                 }
             }
         }

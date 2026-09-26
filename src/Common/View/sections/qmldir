@@ -2,6 +2,7 @@
 module sections
 PageCardSection 1.0 PageCardSection.qml
 PageChartsSection 1.0 PageChartsSection.qml
+DetailSections 1.0 DetailSections.qml
 PageDetailHeaderSection 1.0 PageDetailHeaderSection.qml
 PageEmptyStateSection 1.0 PageEmptyStateSection.qml
 PageErrorSection 1.0 PageErrorSection.qml

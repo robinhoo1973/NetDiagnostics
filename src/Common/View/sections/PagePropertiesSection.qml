@@ -68,7 +68,14 @@ PageSection {
                         text: modelData.value || ""
                         font.family: ThemeEngine.monoFont
                         font.pixelSize: _isGroup ? ThemeEngine.fontSize.caption : ThemeEngine.fontSize.body
-                        color: _isGroup ? ThemeEngine.colors.textMuted : ThemeEngine.colors.onSurface
+                        // 5WHY (2026-09-27 severity 断链): C++ 侧标注的严重度
+                        // （Info=0/Warning=1/Error=2）曾下发零消费——「DNS 劫持：
+                        // 检测到」与普通行视觉等价。错误级行 fail 色、警告级
+                        // warningStrong 色，证据行可一眼定位问题根因。
+                        color: _isGroup ? ThemeEngine.colors.textMuted
+                             : Number(modelData.severity) === 2 ? ThemeEngine.colors.fail
+                             : Number(modelData.severity) === 1 ? ThemeEngine.colors.warningStrong
+                             : ThemeEngine.colors.onSurface
                         Layout.fillWidth: !_isGroup
                         wrapMode: Text.WrapAnywhere
                         visible: !_isGroup || text !== ""

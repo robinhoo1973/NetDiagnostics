@@ -211,8 +211,13 @@ static DiagnosticResult probeResultScaffold(DiagId id, const QUrl& u,
     // "Cancelled" 误报）。scaffold 单一转换，调用点不再可能漏。
     if (p.error == QLatin1String("Cancelled"))
         return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
+    // 5WHY (2026-09-27 空结论行): Pass 曾 summary=QString()——banner 空时详情页
+    // hero 无结论行且全区块静默空（违背「无条件下发终端输出」诉求）。默认
+    // 结论带目标与时延；各探针后续覆盖更具体文案者不受影响。
     DiagnosticResult r = makeResult(id, p.connected ? DiagStatus::Pass : DiagStatus::Fail,
-        p.connected ? QString() : QStringLiteral("Connection failed"), {}, {});
+        p.connected ? QStringLiteral("Connected to %1:%2 in %3ms")
+                          .arg(u.host()).arg(portForUrl(u)).arg(p.latencyMs)
+                    : QStringLiteral("Connection failed"), {}, {});
     r.durationMs = p.latencyMs;
     r.data[QStringLiteral("host")] = u.host();
     r.data[QStringLiteral("port")] = portForUrl(u);
