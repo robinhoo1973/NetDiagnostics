@@ -32,6 +32,9 @@ DiagnosticResult iosHttpDiagnostic(DiagId id, const QString& target);
 #include <QSslSocket>
 #include <QSslCertificate>
 #include <QElapsedTimer>
+#if !defined(NO_CURL)
+#include <curl/curl.h>   // 5WHY (2026-09-26 铁律): 桌面 HTTP 走成熟 curl easy API
+#endif
 #include <QDateTime>
 #include <QHostInfo>
 #include <QSet>
@@ -278,8 +281,154 @@ static QByteArray headerValue(const HttpResult& r, const char* name) {
 
 // One request (no redirects). dnsMs measured with QHostInfo for host names.
 // ctx 可为空；非空时各阻塞相位前置取消检查（5WHY 2026-09-26 原子时限）。
-static HttpResult httpOnce(RunContext* ctx, const QUrl& u, const QByteArray& method,
-                           const QByteArray& extraHeaders, int timeoutMs) {
+// 5WHY (2026-09-26 铁律禁造轮子): 桌面路径改走 libcurl easy API（项目已链接
+// curl 却从未使用，dependencies.cmake 注释 "curl (G5 HTTP diagnostics)" 落了
+// 空）——手写 HTTP/1.1 客户端曾无 chunked 解码（body 含块长行，G5CurlVerbose/
+// G5HttpCompression 对 chunked 服务器误报）、响应解析两轮 5WHY 修正、重定向
+// 手跟 6 跳。curl 提供成熟解析/TLS/超时，XFERINFO 回调保留取消语义；
+// NO_CURL（iOS/Android/无库桌面）回退 socket 实现（httpOnceSocket）。
+#if !defined(NO_CURL)
+namespace {
+struct CurlCapture {
+    QByteArray headers;
+    QByteArray body;
+    RunContext* ctx = nullptr;
+};
+
+static size_t curlHeaderCb(char* ptr, size_t size, size_t nmemb, void* ud) {
+    const size_t n = size * nmemb;
+    static_cast<CurlCapture*>(ud)->headers.append(ptr, (int)n);
+    return n;
+}
+static size_t curlWriteCb(char* ptr, size_t size, size_t nmemb, void* ud) {
+    const size_t n = size * nmemb;
+    static_cast<CurlCapture*>(ud)->body.append(ptr, (int)n);
+    return n;
+}
+// 取消回调：ctx 置位即中止传输（curl 返回 CURLE_ABORTED_BY_CALLBACK）——
+// 与 socket 路径同门的取消语义（5WHY 2026-09-26 原子时限）。
+static int curlProgressCb(void* ud, curl_off_t, curl_off_t, curl_off_t, curl_off_t) {
+    const auto* cap = static_cast<const CurlCapture*>(ud);
+    return (cap->ctx && cap->ctx->cancelled.load(std::memory_order_relaxed)) ? 1 : 0;
+}
+} // namespace
+
+static HttpResult httpOnceCurl(RunContext* ctx, const QUrl& u, const QByteArray& method,
+                               const QByteArray& extraHeaders, int timeoutMs) {
+    HttpResult r;
+    QElapsedTimer total; total.start();
+    QElapsedTimer phase; phase.start();
+    if (cancelledBy(ctx)) { r.error = QStringLiteral("Cancelled"); r.totalMs = 0; return r; }
+
+    // DNS 相位保留 DnsResolver 3s 有界语义（curl 自带解析无独立 3s 界）；
+    // 预解析结果经 CURLOPT_RESOLVE 注入——curl 不再自行解析，相位计时干净。
+    QByteArray resolveEntry;
+    QHostAddress literalCheck;
+    if (!literalCheck.setAddress(u.host())) {
+        const QString ip = DnsResolver::instance().resolve(u.host(), 3000);
+        r.dnsMs = phase.restart();
+        if (ip.isEmpty()) {
+            r.error = QStringLiteral("DNS resolution failed (3s timeout)");
+            r.totalMs = total.elapsed();
+            return r;
+        }
+        const int port = portForUrl(u);
+        resolveEntry = u.host().toUtf8() + ':' + QByteArray::number(port) + ':' + ip.toUtf8();
+    } else {
+        r.dnsMs = 0;
+    }
+
+    CURL* curl = curl_easy_init();
+    if (!curl) {
+        r.error = QStringLiteral("curl_easy_init failed");
+        r.totalMs = total.elapsed();
+        return r;
+    }
+    CurlCapture cap;
+    cap.ctx = ctx;
+
+    const QByteArray urlBytes = u.toString(QUrl::FullyEncoded).toUtf8();
+    curl_easy_setopt(curl, CURLOPT_URL, urlBytes.constData());
+    // 保持 HTTP/1.1——与 socket 路径/parseResponseHead 契约一致（不引入 h2
+    // 状态行形态变化）；chunked 由 curl 自动解码（手写版缺陷的修复点）。
+    curl_easy_setopt(curl, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
+    curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, method.constData());
+    curl_easy_setopt(curl, CURLOPT_USERAGENT, "NetDiagnostics/1.0");
+    // VerifyNone 对齐原 QSslSocket::VerifyNone 语义
+    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, static_cast<long>(timeoutMs));
+    curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);   // 工作线程内禁用信号处理
+    curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L); // 启用取消回调
+    curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, curlProgressCb);
+    curl_easy_setopt(curl, CURLOPT_XFERINFODATA, &cap);
+    curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, curlHeaderCb);
+    curl_easy_setopt(curl, CURLOPT_HEADERDATA, &cap);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curlWriteCb);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &cap);
+    // 5WHY (2026-09-26 curl slist 生命周期): CURLOPT_RESOLVE 的 slist 必须
+    // 存活至传输完成——曾 setopt 后立即 free，perform 期 curl 读已释放链表
+    // → SIGSEGV。与 HTTPHEADER 同门：perform 结束后统一释放。
+    struct curl_slist* resolveList = nullptr;
+    if (!resolveEntry.isEmpty())
+        resolveList = curl_slist_append(nullptr, resolveEntry.constData());
+    curl_easy_setopt(curl, CURLOPT_RESOLVE, resolveList);
+    struct curl_slist* headerList = nullptr;
+    if (!extraHeaders.isEmpty()) {
+        for (const QByteArray& h : extraHeaders.split('\n')) {
+            const QByteArray trimmed = h.trimmed();
+            if (!trimmed.isEmpty()) headerList = curl_slist_append(headerList, trimmed.constData());
+        }
+        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headerList);
+    }
+
+    r.verboseLines.append(QStringLiteral("> %1 %2 HTTP/1.1").arg(QString::fromUtf8(method), u.path()));
+
+    const CURLcode code = curl_easy_perform(curl);
+    curl_slist_free_all(headerList);
+    curl_slist_free_all(resolveList);
+    if (code != CURLE_OK) {
+        r.error = cancelledBy(ctx) ? QStringLiteral("Cancelled")
+                                   : QString::fromLatin1(curl_easy_strerror(code));
+        r.totalMs = total.elapsed();
+        curl_easy_cleanup(curl);
+        return r;
+    }
+    long statusCode = 0;
+    double tConnect = 0.0, tApp = 0.0, tStart = 0.0;
+    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &statusCode);
+    curl_easy_getinfo(curl, CURLINFO_CONNECT_TIME, &tConnect);
+    curl_easy_getinfo(curl, CURLINFO_APPCONNECT_TIME, &tApp);
+    curl_easy_getinfo(curl, CURLINFO_STARTTRANSFER_TIME, &tStart);
+    curl_easy_cleanup(curl);
+
+    // 相位语义与 socket 路径对齐：connectMs ≈ TCP 连接（预解析后），
+    // tlsMs = TLS 握手相位，firstByteMs 含 DNS（与旧"从函数进入到首字节"
+    // 语义一致），totalMs 为本地墙钟。
+    r.connectMs = qRound64(tConnect * 1000.0);
+    r.tlsMs = qRound64(qMax(0.0, tApp - tConnect) * 1000.0);
+    r.firstByteMs = r.dnsMs + qRound64(tStart * 1000.0);
+    r.totalMs = total.elapsed();
+    r.body = cap.body;
+    // 头部块（状态行 + 逐行头）——去掉结尾空行后复用既有解析器
+    QByteArray head = cap.headers;
+    while (head.endsWith("\r\n")) head.chop(2);
+    if (head.isEmpty() || !parseResponseHead(head, r)) {
+        r.error = QStringLiteral("Malformed HTTP response");
+        return r;
+    }
+    r.statusCode = (int)statusCode;   // parseResponseHead 亦会填，此处对齐 curl 权威值
+    r.verboseLines.append(QStringLiteral("< %1").arg(QString::fromLatin1(r.statusLine)));
+    for (const auto& kv : r.headers)
+        r.verboseLines.append(QStringLiteral("< %1: %2").arg(QString::fromLatin1(kv.first), QString::fromLatin1(kv.second)));
+    r.ok = true;
+    return r;
+}
+#endif // !NO_CURL
+
+// NO_CURL 兜底：阻塞 QSslSocket 实现（iOS/Android 不链接 curl；桌面缺库同）
+static HttpResult httpOnceSocket(RunContext* ctx, const QUrl& u, const QByteArray& method,
+                                 const QByteArray& extraHeaders, int timeoutMs) {
     HttpResult r;
     QElapsedTimer total; total.start();
     QElapsedTimer phase; phase.start();
@@ -418,6 +567,16 @@ static HttpResult httpOnce(RunContext* ctx, const QUrl& u, const QByteArray& met
         r.verboseLines.append(QStringLiteral("< %1: %2").arg(QString::fromLatin1(kv.first), QString::fromLatin1(kv.second)));
     r.ok = true;
     return r;
+}
+
+// One request（无重定向）。桌面 !NO_CURL → curl easy；NO_CURL → socket 兜底。
+static HttpResult httpOnce(RunContext* ctx, const QUrl& u, const QByteArray& method,
+                           const QByteArray& extraHeaders, int timeoutMs) {
+#if !defined(NO_CURL)
+    return httpOnceCurl(ctx, u, method, extraHeaders, timeoutMs);
+#else
+    return httpOnceSocket(ctx, u, method, extraHeaders, timeoutMs);
+#endif
 }
 
 // ═════════════════════════════════════════════════════════════════════════
