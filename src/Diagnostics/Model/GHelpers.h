@@ -12,6 +12,7 @@
 
 #include <QFile>
 #include <QTextStream>
+#include <QUrl>   // parseHttpUrl QUrl 收敛（自包含，5WHY 2026-09-26）
 #include <QProcess>
 #include <QMutexLocker>
 #include <QtEndian>
@@ -336,25 +337,24 @@ static const char* tcpStateName(int st) {
 
 // ── Shared URL parser — eliminates 5x duplicated parse logic ─────
 struct ParsedUrl { QString host; int port = 80; QString path; };
+// 5WHY (2026-09-26 QUrl 收敛): 曾手写 scheme 前缀剥离 + indexOf('/') +
+// lastIndexOf(':') 三连拆——IPv6 字面量在 lastIndexOf(':') 处被拦腰截断
+// （host "2001:db8::1" 解析成 "2001:db8:" 且端口解析失败）、userinfo
+// （user:pass@host）把 "@host" 当主机、查询串/片段不剥离。QUrl 是
+// 零新依赖的正确实现（Qt 已随处使用）：host()/port()/path() 内建 RFC
+// 语义；port() 未显式时回退 scheme 默认端口。
 inline ParsedUrl parseHttpUrl(const QString& urlStr) {
     ParsedUrl p;
-    QString u = urlStr.trimmed();
-    // 5WHY: this only recognized "http://" and returned an empty host for
-    // any other scheme (including https://) — a silent parse failure. All
-    // current callers pass http:// speed-test URLs, but a future caller
-    // passing https:// would get "Invalid URL" with no hint. Recognize both
-    // and set the scheme's default port; an explicit :port still wins.
-    int defaultPort = 80;
-    if (u.startsWith(QLatin1String("https://"))) { defaultPort = 443; u = u.mid(8); }
-    else if (u.startsWith(QLatin1String("http://"))) { u = u.mid(7); }
-    else return p;
-    p.port = defaultPort;
-    auto slash = u.indexOf('/');
-    QString hp = (slash > 0) ? u.left(slash) : u;
-    p.path = (slash > 0) ? u.mid(slash) : QStringLiteral("/");
-    auto colon = hp.lastIndexOf(':');
-    if (colon > 0) { p.host = hp.left(colon); p.port = hp.mid(colon + 1).toInt(); }
-    else { p.host = hp; }
+    const QUrl u(urlStr.trimmed());
+    if (!u.isValid()) return p;
+    const QString scheme = u.scheme().toLower();
+    if (scheme != QLatin1String("http") && scheme != QLatin1String("https")) return p;
+    p.host = u.host();
+    const int explicitPort = u.port();
+    p.port = explicitPort > 0 ? explicitPort : (scheme == QLatin1String("https") ? 443 : 80);
+    p.path = u.path(QUrl::FullyEncoded);
+    if (u.hasQuery()) p.path += QLatin1Char('?') + u.query(QUrl::FullyEncoded);
+    if (p.path.isEmpty()) p.path = QStringLiteral("/");
     return p;
 }
 

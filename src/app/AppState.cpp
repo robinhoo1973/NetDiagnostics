@@ -79,10 +79,16 @@ bool inRunSet(DiagId id, DiagGroup g, const QString& schemeLower) {
 // （用户定义）：无 WiFi 网络且蜂窝数据可用时才询问，与 target 无关。
 // 判据采用网络层事实：WiFi 接口持有非链路本地 IPv4 = 已连 WiFi；
 // iOS 另用 CoreLocation SSID（权限缺失时回退 en0 IPv4）。
-bool isOnWifi() {
+// 5WHY (2026-09-26 单趟化): isOnWifi/hasCellularUp 曾各调 allInterfaces()——
+// 每次连通性刷新 2 次全量接口枚举（QNetworkInterface 构造 + netlink 往返），
+// 每轮 ~7 次刷新 → 14+ 次枚举。单趟分类一次枚举同填两布尔；两谓词改为
+// 委托（保持既有调用点与 iOS 分支语义不变）。
+void classifyConnectivity(bool* wifiUp, bool* cellularUp) {
+    bool w = false, c = false;
 #if defined(PLATFORM_IOS)
-    if (!iosCopyWiFiSSID().isEmpty()) return true;
-    return !iosInterfaceIPv4(QStringLiteral("en0")).isEmpty();
+    if (!iosCopyWiFiSSID().isEmpty()) w = true;
+    else w = !iosInterfaceIPv4(QStringLiteral("en0")).isEmpty();
+    c = !iosCellularIPv4().isEmpty();
 #else
     const auto ifaces = QNetworkInterface::allInterfaces();
     for (const QNetworkInterface& iface : ifaces) {
@@ -92,37 +98,33 @@ bool isOnWifi() {
             || name.contains(QLatin1String("wi-fi"))
             || name.contains(QLatin1String("wl"))
             || name.startsWith(QLatin1String("en0"));   // macOS 无线 en0
-        if (!wifiLike) continue;
+        const bool cellLike = name.contains(QLatin1String("wwan"))
+            || name.contains(QLatin1String("rmnet"))
+            || name.contains(QLatin1String("pdp"))
+            || name.contains(QLatin1String("cellular"));
+        if (!wifiLike && !cellLike) continue;
         for (const QNetworkAddressEntry& e : iface.addressEntries()) {
             const QHostAddress a = e.ip();
-            if (a.protocol() == QAbstractSocket::IPv4Protocol
-                && !a.isLinkLocal() && !a.isLoopback())
-                return true;
+            if (a.protocol() != QAbstractSocket::IPv4Protocol) continue;
+            if (wifiLike && !a.isLinkLocal() && !a.isLoopback()) w = true;
+            if (cellLike && !a.isLinkLocal()) c = true;
         }
     }
-    return false;
 #endif
+    if (wifiUp) *wifiUp = w;
+    if (cellularUp) *cellularUp = c;
+}
+
+bool isOnWifi() {
+    bool w = false;
+    classifyConnectivity(&w, nullptr);
+    return w;
 }
 
 bool hasCellularUp() {
-#if defined(PLATFORM_IOS)
-    return !iosCellularIPv4().isEmpty();
-#else
-    const auto ifaces = QNetworkInterface::allInterfaces();
-    for (const QNetworkInterface& iface : ifaces) {
-        if (!iface.flags().testFlag(QNetworkInterface::IsRunning)) continue;
-        const QString name = iface.name().toLower();
-        if (!name.contains(QLatin1String("wwan")) && !name.contains(QLatin1String("rmnet"))
-            && !name.contains(QLatin1String("pdp")) && !name.contains(QLatin1String("cellular")))
-            continue;
-        for (const QNetworkAddressEntry& e : iface.addressEntries()) {
-            const QHostAddress a = e.ip();
-            if (a.protocol() == QAbstractSocket::IPv4Protocol && !a.isLinkLocal())
-                return true;
-        }
-    }
-    return false;
-#endif
+    bool c = false;
+    classifyConnectivity(nullptr, &c);
+    return c;
 }
 } // namespace
 
@@ -332,6 +334,9 @@ void AppState::runDiagnostics() {
     // 5WHY (2026-09-26): G3 国家缓存同门——每轮清空，VPN 切换/漫游后以当前
     // 网络事实重新探测，而非复用上轮归属。
     g3::clearDetectCountryCache();
+    // 5WHY (2026-09-26 枚举削减): 设备能力缓存每轮失效一次（曾每组一次——
+    // 整轮至 15 次接口枚举）；轮内硬件状态不变，每轮刷新足以捕获热插拔。
+    DeviceCapability::invalidateCache();
     // 8-4：无目标时仅运行 G1-G3（系统/适配器、连接与安全、互联网与 DNS），
     // G4/G5 依赖目标主机。
     const bool noTarget = m_targetHost.isEmpty();
@@ -503,31 +508,41 @@ void AppState::runNextGroup() {
     m_groupDone.insert(gi, false);
     // C4：scheme 拼回 target——协议探针（ftp/ssh/mysql/redis/mqtt…）依赖 scheme
     // 判定协议并选端口，丢 scheme 会让全部 G5 协议族被判 "Not X" 跳过。
-    // 目标凭据注入：user:pass@ 前綴 + 显式端口（host 已带端口时不重复追加）。
-    // 5WHY (review 2026-08-17): 显式端口对 IPv6 字面量被静默丢弃——旧守卫
-    // contains(':') 把 IPv6 冒号误判为已有端口，2001:db8::1 跳过端口注入后
-    // 所有 G4/G5 探针落在 scheme 默认端口，诊断结果误导。
+    // 5WHY (2026-09-26 QUrl 组装): 曾字符串拼接 + 冒号数启发式判 IPv6——
+    // "example.com:8443" 形态的内嵌端口从不拆分进端口槽、IPv6 端口曾静默
+    // 丢弃（review 2026-08-17 记过一轮）、路径空格/unicode 无编码保护。
+    // QUrl 组装：IPv6 自动加括号、端口走 setPort、路径自动百分号编码。
+    QUrl assembled;
+    assembled.setScheme(m_targetScheme);
+    // host 可能内嵌端口（"host:port"/"[v6]:port"）——拆给 setHost/setPort
     QString host = m_targetHost;
-    if (!m_targetPort.isEmpty()) {
-        // 已带端口：括号+端口（]：）或恰好单冒号（host:port）；IPv6 有 ≥2 冒号
-        const bool alreadyPort = host.contains(QLatin1String("]:"))
-            || host.count(QLatin1Char(':')) == 1;
-        if (!alreadyPort) {
-            if (host.contains(QLatin1Char(':')) && !host.startsWith(QLatin1Char('[')))
-                host = QLatin1Char('[') + host + QLatin1Char(']');
-            host += QLatin1Char(':') + m_targetPort;
+    if (host.startsWith(QLatin1Char('['))) {
+        const int close = host.indexOf(QLatin1Char(']'));
+        if (close > 0) {
+            assembled.setHost(host.mid(1, close - 1));
+            if (close + 1 < host.size() && host[close + 1] == QLatin1Char(':'))
+                assembled.setPort(host.mid(close + 2).toInt());
         }
+    } else if (host.count(QLatin1Char(':')) == 1) {
+        const int c = host.indexOf(QLatin1Char(':'));
+        assembled.setHost(host.left(c));
+        assembled.setPort(host.mid(c + 1).toInt());
+    } else {
+        assembled.setHost(host);   // 裸 IPv6 由 setHost 处理，输出自动加括号
     }
-    QString auth;
+    if (!m_targetPort.isEmpty() && assembled.port() <= 0)
+        assembled.setPort(m_targetPort.toInt());   // 独立端口槽仅内嵌端口缺失时生效
+    assembled.setPath(m_targetPath);
+    QString target = assembled.toString();
     // 5WHY (2026-09-05 复核 仅密码 URL): 曾仅按 m_targetUser 非空拼 auth——
     // 粘贴 "scheme://:pass@host" 提取出 user 空/pass 非空并已持久化，却
     // 在此被静默丢弃（探针 URL 无凭据、认证消失）。任一字段非空即拼
     // （user 空时得到 ":pass@" 形态，与提取前 URL 语义一致）。
-    // 编码形态与 redactCredentials 遮罩针同源（credentialForms 纯函数，
-    // simplify 二轮 2026-09-05）——针与探针 URL 逐字节一致。
+    // 5WHY (2026-09-26 字节保真插入): 遮罩针 credentialForms().auth 是预编码
+    // 形态且与探针 URL 逐字节同源——经 QUrl::setUserInfo 重编码有针/URL
+    // 分叉风险（凭据泄漏类）。改为组装后按 "://" 位置原样插入，字节零变化。
     if (!m_targetUser.isEmpty() || !m_targetPassword.isEmpty())
-        auth = credentialForms().auth;
-    const QString target = m_targetScheme + QLatin1String("://") + auth + host + m_targetPath;
+        target.insert(m_targetScheme.size() + 3, credentialForms().auth);
     m_suite->run(target, schemeLower);
 }
 
@@ -1051,16 +1066,22 @@ void AppState::refreshConnectivityAsync() {
     // 不影响正确性（缓存值已是最终状态）。
     QPointer<AppState> guard(this);
     // 5WHY (2026-09-04 修正复核): "检查后解引用"是 TOCTOU——worker 通过
-    // guard 检查后、写入前对象仍可能被析构。isOnWifi/hasCellularUp 是
+    // guard 检查后、写入前对象仍可能被析构。classifyConnectivity 是
     // 自由函数（不触 this），故 worker 只做纯查询；写回经 invokeMethod
     // 队列化到主线程并以 guard 为上下文——AppState 析构时挂起调用自动
     // 丢弃，窗口彻底消除。QThreadPool::start 无 QFuture 返回值，无需
     // Q_UNUSED 哑变量。
-    QThreadPool::globalInstance()->start([guard] {
+    // 5WHY (2026-09-26 刷新代际): 曾无代际号——旧慢查询（iOS SSID 至 5s）
+    // 按完成序写回可覆盖新快值（陈旧连通性驱动蜂窝警告门）。递增代际：
+    // 仅最新一次刷新的结果生效，迟到快照按过期丢弃。
+    static std::atomic<qint64> s_refreshGen{0};
+    const qint64 gen = s_refreshGen.fetch_add(1, std::memory_order_relaxed);
+    QThreadPool::globalInstance()->start([guard, gen] {
         if (!guard) return;
-        const bool w = isOnWifi();
-        const bool c = hasCellularUp();
-        QMetaObject::invokeMethod(guard, [guard, w, c] {
+        bool w = false, c = false;
+        classifyConnectivity(&w, &c);
+        QMetaObject::invokeMethod(guard, [guard, w, c, gen] {
+            if (s_refreshGen.load(std::memory_order_relaxed) != gen + 1) return;   // 过期快照丢弃
             guard->m_wifiUp.store(w, std::memory_order_release);
             guard->m_cellularUp.store(c, std::memory_order_release);
         }, Qt::QueuedConnection);

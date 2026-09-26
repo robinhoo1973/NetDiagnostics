@@ -37,7 +37,10 @@ void DiagnosticSuite::run(const QString& target, const QString& schemeLower) {
     // `nmcli device show` 输出（互斥惰性填充，一轮只 spawn 一次）。
     m_snapshot = std::make_shared<RunSnapshot>();
 
-    DeviceCapability::invalidateCache();   // NEW-4: refresh device probes pre-run
+    // 5WHY (2026-09-26 枚举削减): 能力缓存曾每组 run 失效——套件每组一建，
+    // 整轮 5 次失效 × 3 硬件探针各扫 allInterfaces() = 至 15 次主线程接口
+    // 枚举（netlink 往返）。失效收敛到 AppState::runDiagnostics 每轮一次
+    // （轮内秒级硬件状态不变）；独立跑套件的 harness 进程缓存为空亦正确。
 
     for (DiagId id : m_ids) {
         const PlatformAdapter* adapter = AdapterRegistry::select(id, schemeLower);

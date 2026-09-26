@@ -57,9 +57,22 @@ static DiagnosticResult skippedProbe(DiagId id, const QString& reason) {
     return makeResult(id, DiagStatus::Skipped, reason, {}, {});
 }
 
+// ── URL normalization + default ports (G5WebsiteUrl.h contract) ────────────
+static QUrl normalizeUrl(const QString& target) {
+    QString t = target.trimmed();
+    if (t.isEmpty()) return {};
+    if (!t.contains(QLatin1String("://"))) {
+        // bare host / host:port → https
+        t = QStringLiteral("https://") + t;
+    }
+    QUrl u(t);
+    return u.isValid() && !u.host().isEmpty() ? u : QUrl();
+}
+
 // 5WHY (2026-09-26 前导收敛): 21 个探针曾各抄 4 行前导（空目标/无效 URL 门）
 // 且已漂移——G5UrlParsing 说 "Invalid URL" 其余 19 处 "Invalid target"，
 // 同一坏目标两种文案。单一助手统一契约；失败结果经 out 参数返回。
+// （定义于 normalizeUrl 之后——先声明后使用。）
 static bool tryNormalizeTarget(DiagId id, const QString& target, QUrl* out,
                                DiagnosticResult* fail) {
     if (target.isEmpty()) {
@@ -73,18 +86,6 @@ static bool tryNormalizeTarget(DiagId id, const QString& target, QUrl* out,
     }
     *out = u;
     return true;
-}
-
-// ── URL normalization + default ports (G5WebsiteUrl.h contract) ────────────
-static QUrl normalizeUrl(const QString& target) {
-    QString t = target.trimmed();
-    if (t.isEmpty()) return {};
-    if (!t.contains(QLatin1String("://"))) {
-        // bare host / host:port → https
-        t = QStringLiteral("https://") + t;
-    }
-    QUrl u(t);
-    return u.isValid() && !u.host().isEmpty() ? u : QUrl();
 }
 
 static int defaultPort(const QString& schemeIn) {
