@@ -81,6 +81,8 @@ review/*
 !review/common-bug-patterns.md
 !review/icon-audit-45-2026-08-14.md
 !review/code-review-2026-08-17.md
+!review/code-function-mapping.md
+!review/code-review-2026-09-26.md
 review/theme-contrast-audit.md
 review/design-tools/
 review/history/
