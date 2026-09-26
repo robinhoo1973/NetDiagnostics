@@ -25,6 +25,10 @@
 #include <unistd.h>     // gethostname
 #endif
 
+// 5WHY (2026-09-26 陈旧国家缓存): detectCountry 国家缓存每轮 run 开始清除
+// （定义于 G3/Adapters.cpp）——VPN 切换/漫游后第二轮曾报上轮国家。
+namespace g3 { void clearDetectCountryCache(); }
+
 namespace SystemDiagnostics {
 
 // ── Local hostname (libc, non-blocking) ─────────────────────────────
@@ -173,7 +177,10 @@ inline QString cachedRunTool(RunContext& ctx, const QString& exe,
         return QString();
     };
     if (!ctx.snapshot) return runOnce();   // 无快照（harness/单探针）直跑
-    const QString key = exe + QLatin1Char(' ') + args.join(QLatin1Char(' '));
+    // 5WHY (2026-09-26 键歧义): 曾空格连接 exe+args——参数含空格时不同命令行
+    // 同键（{"-f","a b"} 与 {"-f a","b"} 均 "prog -f a b"），跨探针静默共享
+    // 错误工具输出。以单元分隔符 U+001F 连接（QString 可安全承载）。
+    const QString key = exe + QChar(0x1f) + args.join(QChar(0x1f));
     // 5WHY (复核 2026-08-21 串行化): 曾单把表锁覆盖 runOnce 全程——不同命令
     // 也被串行化（nmcli 4s + iw 3s + mmcli 3s 一轮最坏 ~10s）。改为：表锁
     // 只做命中检查/键锁注册（O(1)），进程执行在键锁下进行（同键互斥、

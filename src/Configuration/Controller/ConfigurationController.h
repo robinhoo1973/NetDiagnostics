@@ -44,9 +44,9 @@ public:
     void loadSettings();
     void saveSettings();
 
-signals:
-    void groupActiveChanged();
-
+    // 5WHY (2026-09-26 死信号清除): groupActiveChanged 曾在此声明——全树零发
+    // 射点、零绑定者（setGroupActive 经 AppState::setGroupActive 走其自有
+    // queueFilteredChanged 广播）。未来消费者若绑定此处将永远不触发。删除。
 private:
     AppState* m_appState;
     DiagnosticConfig m_config;

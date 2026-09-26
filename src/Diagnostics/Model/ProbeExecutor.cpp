@@ -150,6 +150,6 @@ void ProbeExecutor::run() {
                                  /*forceDone=*/true, batch[i].generation);
             }
         }
-        for (auto& t : threads) t.join();
+        for (auto& t : threads) if (t.joinable()) t.join();
     }
 }

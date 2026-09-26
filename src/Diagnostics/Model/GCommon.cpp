@@ -494,7 +494,11 @@ DohDnsFullResult dohQueryFull(const QString& domain, const QString& type, int ti
     // because this function may be called from within a QtConcurrent::run
     // context (parallel domains in dnsIntegrity).  QtConcurrent uses a
     // Parallel DoH: std::thread avoids QtConcurrent pool deadlock (nested callers).
-    // Exceptions caught in thread body; std::vector provides RAII join on scope exit.
+    // Exceptions caught in thread body. NOTE: std::vector<std::thread> does NOT
+    // join on destruction — a joinable thread at vector destruction calls
+    // std::terminate. The explicit join loop below is the real guarantee, and
+    // the try/catch around emplace_back keeps the vector free of unjoined
+    // threads even on resource exhaustion.
     static const int kResolverCount = sizeof(kResolvers) / sizeof(kResolvers[0]);
     DohDnsFullResult resolverResults[kResolverCount]{};
     std::vector<std::thread> resolverThreads;

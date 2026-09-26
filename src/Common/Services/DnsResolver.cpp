@@ -45,10 +45,12 @@ bool waitResolveDone(const std::atomic<bool>& done,
 
 // 5WHY: 无条件 detach 会泄漏已完成线程的内核资源；join 已完成线程是即时的。
 // 仅超时（getaddrinfo 可能仍阻塞 30-120s）时 detach，让 shared_ptr 保活。
+// 5WHY (2026-09-26 joinable 守卫): 线程创建失败时 t 为默认构造非 joinable，
+// 对其 detach/join 将抛 system_error——必须 joinable() 前置守卫。
 void finishResolveThread(std::thread& t, const std::atomic<bool>& done) {
-    if (done.load(std::memory_order_acquire))
+    if (t.joinable() && done.load(std::memory_order_acquire))
         t.join();   // completed within timeout -- immediate cleanup
-    else
+    else if (t.joinable())
         t.detach(); // still blocked in getaddrinfo; state freed by shared_ptr
 }
 
@@ -99,6 +101,11 @@ bool finishLookup(const std::shared_ptr<LookupState>& st, std::thread& t,
 // 内部（持锁上下文）调用，条目量≤512 线性扫描开销可忽略。
 void DnsResolver::storeEntry(const QString& key, const QString& ip, qint64 ttlMs) {
     // 调用方已持 m_mutex（见头注释）。
+    // 5WHY (2026-09-26 负覆盖正): 并发同主机解析时，慢超时者的负条目(30s)
+    // 曾覆盖先到的正条目——同轮后续探针读负缓存报"解析失败"。正条目永久
+    // 存活（至 clearCache），负缓存仅在无存活正条目时写入。
+    const auto it = m_cache.constFind(key);
+    if (ip.isEmpty() && it != m_cache.constEnd() && !it->ip.isEmpty()) return;
     m_cache[key] = {ip, monotonicMsSinceAppStart(), ttlMs};
     pruneCache(m_cache);
 }

@@ -7,6 +7,7 @@
 
 #include <QMap>
 #include <QVector>
+#include <QDebug>   // qWarning — 锁定后注册拒绝（M1 运行时硬检查）
 
 // ── Current platform (compile-time, DIAG-12) ───────────────────────────────
 #if defined(PLATFORM_IOS)
@@ -38,6 +39,14 @@ void AdapterRegistry::registerAdapters(DiagId id, std::initializer_list<Platform
 }
 
 void AdapterRegistry::registerAdapters(DiagId id, const QVector<PlatformAdapter>& adapters) {
+    // M1 (5WHY): 注册必须在 verifyAllDiagIds() 锁定之前完成。曾仅 Q_ASSERT——
+    // release 构建编译掉后零运行时防护：锁定后注册会并发改写 byId、令已发出
+    // 的 select() 指针随 QVector 重分配悬空。补运行时硬检查：锁定后一律拒绝。
+    if (impl().locked) {
+        qWarning("AdapterRegistry: registerAdapters(%d) refused — registry locked after verifyAllDiagIds()",
+                 static_cast<int>(id));
+        return;
+    }
     Q_ASSERT(!impl().locked);   // M1: 注册必须在 verifyAllDiagIds() 之前完成
     auto& v = impl().byId[id];
     v += adapters;

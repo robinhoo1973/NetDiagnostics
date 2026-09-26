@@ -859,12 +859,22 @@ static bool plausibleCountryCode(const QString& cc) {
     return true;
 }
 
+// 5WHY (2026-09-26 陈旧国家缓存): 缓存曾为 detectCountry 函数级静态——跨运行
+// 永不失效：VPN 切换/漫游后第二轮仍报上轮国家（同类缺陷已在 DnsResolver/
+// GeoProbe 修复，漏此一处）。提升到文件级，每轮 run 开始由 AppState 显式调
+// clearDetectCountryCache()。
+static QMutex sCountryMutex;
+static QString sCountryCached;
+
+void clearDetectCountryCache() {
+    QMutexLocker lock(&sCountryMutex);
+    sCountryCached.clear();
+}
+
 static QString detectCountry(int timeoutMs = 5000) {
-    static QString sCached;
-    static QMutex sMutex;
     {
-        QMutexLocker lock(&sMutex);
-        if (!sCached.isEmpty() && sCached != QLatin1String("XX")) return sCached;
+        QMutexLocker lock(&sCountryMutex);
+        if (!sCountryCached.isEmpty() && sCountryCached != QLatin1String("XX")) return sCountryCached;
     }
     // 5WHY (2026-08-23 用户 "国别返回 XX"): 三家提供商任一超时/限流即
     // 整体 XX——单一故障点连锁。扩展为五家异构提供商（JSON/纯文本各半），
@@ -919,14 +929,14 @@ static QString detectCountry(int timeoutMs = 5000) {
         }
         cc = cc.toUpper();   // JSON 路径原样取值，统一归一化大写（缓存键一致性）
         if (plausibleCountryCode(cc)) {
-            QMutexLocker lock(&sMutex);
-            sCached = cc;
+            QMutexLocker lock(&sCountryMutex);
+            sCountryCached = cc;
             return cc;
         }
     }
-    QMutexLocker lock(&sMutex);
-    sCached = QStringLiteral("XX");
-    return sCached;
+    QMutexLocker lock(&sCountryMutex);
+    sCountryCached = QStringLiteral("XX");
+    return sCountryCached;
 }
 
 // ── v0.0.3 复刻：Mann-Whitney U 精确置换检验 + Cliff's Delta ─────────

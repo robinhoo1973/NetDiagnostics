@@ -58,7 +58,7 @@ private:
     QByteArray masterXml(const QString& name);
     QByteArray tintedXml(const QString& name, const Meta& meta,
                          const QColor& primary, bool dark);
-    const Meta* metaFor(const QString& name) const;
+    Meta metaFor(const QString& name) const;   // 按值返回：锁外解引用悬垂防护（5WHY 2026-09-26）
     void loadMeta();
     static QColor darken30(const QColor& c);
 

@@ -16,6 +16,7 @@
 #include <QTextStream>
 #include <QTextDocument>
 #include <QPdfWriter>
+#include <QSaveFile>   // 5WHY (2026-09-26): exportPdf 原子写（半截 PDF 陷阱）
 #include <QPainter>
 #include <QImage>
 #include <QBuffer>
@@ -325,7 +326,7 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail, bool da
         "<p style=\"margin:0\"><span style=\"font-size:11px;color:%7\">%3 &middot; v%4 (build %8%9)</span></p>"
         "</td></tr></table>"
         "<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\"><tr><td height=\"12\"></td></tr></table>")
-        .arg(bgHeader, data.target, data.timestamp, data.appVersion, colorCyan,
+        .arg(bgHeader, data.target.toHtmlEscaped(), data.timestamp, data.appVersion, colorCyan,
              headerTargetColor, headerMetaColor, data.buildNumber,
              data.gitHash.isEmpty() ? QString() : QStringLiteral(" - ") + data.gitHash);
 
@@ -757,7 +758,7 @@ QString ReportEngine::buildRichDocument(const ReportData& data, bool darkBackgro
         "<p>Generated: %1</p>"
         "<p>Target: <b style=\"color:" APPC_CSS_TEXT_BRIGHT "\">%2</b></p>"
         "<p>NetDiagnostics v%3 (build %4%5)</p></div>\n")
-        .arg(data.timestamp, data.target, data.appVersion, data.buildNumber,
+        .arg(data.timestamp, data.target.toHtmlEscaped(), data.appVersion, data.buildNumber,
              data.gitHash.isEmpty() ? QString() : QStringLiteral(" - ") + data.gitHash);
 
     // 5WHY: Unicode card icons (&#10003; etc.) render inconsistently across
@@ -913,11 +914,21 @@ QString ReportEngine::exportPdf(const QString& filePath, const QString& html) {
     // px sizes render at the intended physical size.
     //   A4 = 210 mm.  5 mm margins → content = 200 mm.
     const QString path = normalizeReportPath(filePath);
-    QPdfWriter writer(path);
-    writer.setResolution(96);
-    writer.setPageSize(QPageSize(QPageSize::A4));
-    writer.setPageMargins(QMarginsF(5, 12, 5, 12), QPageLayout::Millimeter);
-    writer.setTitle(QStringLiteral("Network Diagnostic Report"));
+    // 5WHY (2026-09-26 半截 PDF): QPdfWriter 直写目标文件 + QFile::exists 判
+    // 成功——磁盘满/强杀留半份 PDF 且被当作成功交付（exportHtml 已迁原子写
+    // 而 PDF 漏修）。QPdfWriter 可写任意 QIODevice：经 QSaveFile 提交式落盘，
+    // 全有或全无，失败时旧文件完好。
+    QSaveFile f(path);
+    if (!f.open(QIODevice::WriteOnly)) {
+        Logger::instance().event(QStringLiteral("exportPdf: cannot open QSaveFile for %1").arg(path));
+        return QString();
+    }
+    {
+        QPdfWriter writer(&f);
+        writer.setResolution(96);
+        writer.setPageSize(QPageSize(QPageSize::A4));
+        writer.setPageMargins(QMarginsF(5, 12, 5, 12), QPageLayout::Millimeter);
+        writer.setTitle(QStringLiteral("Network Diagnostic Report"));
 
     // 5WHY: QTextDocument has TWO independent layout dimensions:
     //   textWidth  – line-wrapping width (default -1 → idealWidth())
@@ -942,7 +953,12 @@ QString ReportEngine::exportPdf(const QString& filePath, const QString& html) {
     doc.setTextWidth(pageWidthPx);
     doc.setHtml(html);
     doc.print(&writer);
-    return QFile::exists(path) ? path : QString();
+    }   // writer 析构写完 PDF 尾部后才 commit（QSaveFile 提交式落盘）
+    if (!f.commit()) {
+        Logger::instance().event(QStringLiteral("exportPdf: QSaveFile commit failed for %1").arg(path));
+        return QString();
+    }
+    return path;
 }
 
 // ── Path helpers ────────────────────────────────────────────────────────

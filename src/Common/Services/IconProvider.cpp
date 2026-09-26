@@ -124,11 +124,14 @@ QByteArray IconProvider::masterXml(const QString& name)
     return xml;
 }
 
-const IconProvider::Meta* IconProvider::metaFor(const QString& name) const
+// 5WHY (2026-09-26 锁外悬垂): 曾返回指向 m_meta QHash 值的裸指针并在解锁后
+// 解引用——仅靠"loadMeta 仅构造期一次"的未强制不变式保命；任何未来热重载
+// 触发 QHash 重哈希即渲染线程 use-after-rehash。按值拷贝返回（Meta 为小结构）。
+IconProvider::Meta IconProvider::metaFor(const QString& name) const
 {
     QMutexLocker locker(&m_mutex);
     const auto it = m_meta.constFind(name);
-    return it == m_meta.constEnd() ? nullptr : &it.value();
+    return it == m_meta.constEnd() ? Meta{} : it.value();
 }
 
 QColor IconProvider::darken30(const QColor& c)
@@ -274,9 +277,8 @@ QImage IconProvider::requestImage(const QString& id, QSize* size,
         }
     }
 
-    const Meta* meta = metaFor(name);
-    const Meta fallback; // 缺元数据 → 空表：主色/渐变/字面黑，确定回退
-    const QByteArray xml = tintedXml(name, meta ? *meta : fallback, primary, dark);
+    const Meta meta = metaFor(name);   // 缺元数据 → 空 Meta：主色/渐变/字面黑，确定回退
+    const QByteArray xml = tintedXml(name, meta, primary, dark);
 
     QImage img(rw, rh, QImage::Format_ARGB32_Premultiplied);
     img.fill(Qt::transparent);

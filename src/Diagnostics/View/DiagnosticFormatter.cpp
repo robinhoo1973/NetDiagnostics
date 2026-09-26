@@ -11,7 +11,12 @@
 #include "Diagnostics/View/DiagnosticFormatter.h"
 #include <QDateTime>
 
-static const QString kTblGap = QStringLiteral("  ");
+// 5WHY (SIOF): 文件级 static const QString 是跨 TU 静态初始化顺序未定义的非
+// 平凡静态（项目规则：一律函数局部惰性构造/Meyer 单例）。
+const QString& kTblGap() {
+    static const QString s = QStringLiteral("  ");
+    return s;
+}
 
 // ── Display-width helper: CJK / fullwidth / emoji = 2, ASCII = 1 ──
 // 5WHY: This function iterates QChar (UTF-16 code units), NOT full
@@ -103,12 +108,12 @@ QStringList DiagnosticFormatter::formatTable(const QVector<ColSpec>& cols,
     QStringList hdrParts;
     for (int i = 0; i < cols.size(); ++i)
         hdrParts.append(DiagnosticFormatter::padToWidth(QString::fromLatin1(cols[i].header), w[i], cols[i].rightAlign));
-    out.append(hdrParts.join(kTblGap));
+    out.append(hdrParts.join(kTblGap()));
     // Separator (dashes matching display width)
     QStringList sepParts;
     for (int i = 0; i < cols.size(); ++i)
         sepParts.append(QString(w[i], '-'));
-    out.append(sepParts.join(kTblGap));
+    out.append(sepParts.join(kTblGap()));
     // Data rows — trim to fit, pad to display width
     for (const auto& row : rows) {
         QStringList parts;
@@ -116,7 +121,7 @@ QStringList DiagnosticFormatter::formatTable(const QVector<ColSpec>& cols,
             QString val = (i < row.size()) ? trimToWidth(row[i], w[i]) : QString();
             parts.append(DiagnosticFormatter::padToWidth(val, w[i], cols[i].rightAlign));
         }
-        out.append(parts.join(kTblGap));
+        out.append(parts.join(kTblGap()));
     }
     return out;
 }

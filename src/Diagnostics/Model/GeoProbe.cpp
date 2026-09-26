@@ -20,20 +20,28 @@
     s.url=QStringLiteral("http://%1:%2").arg(h).arg(p); m[c].append(s);
 
 // ── Lazy-loaded server database ─────────────────────────────────────
-static QMap<QString, QVector<ProbeServer>> sServerDb;
-static bool sServerDbLoaded = false;
-static QMutex sServerDbMutex;
+// 5WHY (SIOF): 曾文件级 static QMap/QMutex——跨 TU 静态初始化顺序未定义
+// （项目规则：非平凡静态一律函数局部惰性构造）。
+struct ServerDbState {
+    QMap<QString, QVector<ProbeServer>> db;
+    bool loaded = false;
+    QMutex mutex;
+};
+ServerDbState& serverDbState() {
+    static ServerDbState s;   // Meyer 惰性构造（线程安全、SIOF 安全）
+    return s;
+}
 
 void GeoProbe::ensureServerDbLoaded() {
     // 5WHY: Old SpeedTest class had per-instance `m` members — concurrent
     // calls to build() only caused redundant (but safe) population of
-    // separate instances.  Refactoring to a single shared sServerDb
+    // separate instances.  Refactoring to a single shared serverDbState().db
     // introduced a data race: Executor worker thread and diagnostic thread
     // could both call allServers()/serversForCountry() before the DB was
     // loaded, writing to the same QMap without synchronization.
     // Fixed: QMutex protects the critical section.
-    QMutexLocker lock(&sServerDbMutex);
-    if (sServerDbLoaded) return;
+    QMutexLocker lock(&serverDbState().mutex);
+    if (serverDbState().loaded) return;
 
     // Step 1: optional runtime-override DB (e.g. a file dropped into
     // AppDataLocation by a future updater). The old ServerDbUpdater class
@@ -57,42 +65,42 @@ void GeoProbe::ensureServerDbLoaded() {
                     s.name    = m.captured(4);
                     s.sponsor = m.captured(5);
                     s.url = QStringLiteral("http://%1:%2").arg(s.host).arg(s.port);
-                    sServerDb[s.country].append(s);
+                    serverDbState().db[s.country].append(s);
                 }
             }
         }
     }
 
     // Step 2: fallback — compiled-in server DB
-    if (sServerDb.isEmpty()) {
+    if (serverDbState().db.isEmpty()) {
         QMap<QString, QVector<ProbeServer>> m;
         ProbeServer s;
         #include "Diagnostics/Model/G3/G3ServerDb.inc"
-        sServerDb = m;
+        serverDbState().db = m;
     }
 
-    sServerDbLoaded = true;
+    serverDbState().loaded = true;
 }
 
 QVector<ProbeServer> GeoProbe::allServers() {
     ensureServerDbLoaded();
     QVector<ProbeServer> out;
     int total = 0;
-    for (auto it = sServerDb.cbegin(); it != sServerDb.cend(); ++it)
+    for (auto it = serverDbState().db.cbegin(); it != serverDbState().db.cend(); ++it)
         total += it.value().size();
     out.reserve(total);
-    for (auto it = sServerDb.cbegin(); it != sServerDb.cend(); ++it)
+    for (auto it = serverDbState().db.cbegin(); it != serverDbState().db.cend(); ++it)
         out += it.value();
     return out;
 }
 
 QVector<ProbeServer> GeoProbe::serversForCountry(const QString& hint) {
     ensureServerDbLoaded();
-    auto it = sServerDb.constFind(hint);
-    if (it != sServerDb.cend()) return it.value();
+    auto it = serverDbState().db.constFind(hint);
+    if (it != serverDbState().db.cend()) return it.value();
     QString p = hint.left(2).toUpper();
-    it = sServerDb.constFind(p);
-    if (it != sServerDb.cend()) return it.value();
+    it = serverDbState().db.constFind(p);
+    if (it != serverDbState().db.cend()) return it.value();
 
     // Continent fallback
     static const QMap<QString, QStringList> continentFallback = {
@@ -112,8 +120,8 @@ QVector<ProbeServer> GeoProbe::serversForCountry(const QString& hint) {
         if (fit != continentFallback.cend()) {
             QVector<ProbeServer> nearby;
             for (const auto& cc : fit.value()) {
-                auto cit2 = sServerDb.constFind(cc);
-                if (cit2 != sServerDb.cend()) nearby += cit2.value();
+                auto cit2 = serverDbState().db.constFind(cc);
+                if (cit2 != serverDbState().db.cend()) nearby += cit2.value();
             }
             if (!nearby.isEmpty()) return nearby;
         }

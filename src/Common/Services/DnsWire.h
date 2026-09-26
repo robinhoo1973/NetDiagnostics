@@ -133,24 +133,29 @@ inline Answer parseResponse(const QByteArray& resp) {
         const quint16 rdlen = (quint16)((quint8)resp[pos + 8] << 8) | (quint8)resp[pos + 9];
         pos += 10;
         if (pos + rdlen > resp.size()) break;
+        // 5WHY (2026-09-26 TTL 回绕丢污染信号): quint32 wire TTL 直转 (int)——
+        // TTL ≥ 0x80000000（缓存投毒/劫持注入的典型极端 TTL 特征）回绕为负，
+        // 与 minTtl=-1 "无 TTL 数据"哨兵碰撞，污染信号静默丢失且显示垃圾负
+        // TTL。钳制到 INT_MAX：保留极端 TTL 信号，杜绝哨兵碰撞。
+        const int ttlI = (int)qMin<quint32>(ttl, 0x7FFFFFFFu);
         if (type == 1 && rdlen == 4) {      // A
             const QByteArray ip = resp.mid(pos, 4);
             const QString ipStr = QStringLiteral("%1.%2.%3.%4")
                 .arg((quint8)ip[0]).arg((quint8)ip[1]).arg((quint8)ip[2]).arg((quint8)ip[3]);
             a.aRecords.append(ipStr);
-            a.records.append({type, (int)ttl, ipStr});
-            if (a.minTtl < 0 || (int)ttl < a.minTtl) a.minTtl = (int)ttl;
+            a.records.append({type, ttlI, ipStr});
+            if (a.minTtl < 0 || ttlI < a.minTtl) a.minTtl = ttlI;
         } else if (type == 28 && rdlen == 16) {   // AAAA
             QHostAddress v6;
             v6.setAddress(resp.mid(pos, 16));
-            a.records.append({type, (int)ttl, v6.toString()});
+            a.records.append({type, ttlI, v6.toString()});
         } else if (type == 5) {             // CNAME
             int np = pos;
             const QString target = readName(resp, np);
             if (!target.isEmpty()) {
                 a.cnameChain.append(target);
                 a.hasCname = true;
-                a.records.append({type, (int)ttl, target});
+                a.records.append({type, ttlI, target});
             }
         }
         pos += rdlen;

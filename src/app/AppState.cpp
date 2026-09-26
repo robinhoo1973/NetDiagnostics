@@ -422,6 +422,9 @@ void AppState::runDiagnostics() {
     // 任务直接短路，GeoIP 归属与测速表整轮复用上一轮的 TTFB 数据。与
     // DNS 缓存同门：每轮 run 开始清空探针结果表。
     GeoProbe::instance().clear();
+    // 5WHY (2026-09-26): G3 国家缓存同门——每轮清空，VPN 切换/漫游后以当前
+    // 网络事实重新探测，而非复用上轮归属。
+    g3::clearDetectCountryCache();
     // 8-4：无目标时仅运行 G1-G3（系统/适配器、连接与安全、互联网与 DNS），
     // G4/G5 依赖目标主机。
     const bool noTarget = m_targetHost.isEmpty();
@@ -653,6 +656,10 @@ void AppState::cancel() {
         return;
     }
     if (m_suite) m_suite->cancel();
+    // 5WHY (2026-09-26 取消后迟到结果): 曾不递增代际——abort-grace 窗内完成的
+    // 真实结果通过 resultReady 代际门混入 m_results，与 persistResults 已写
+    // 快照不一致（取消后界面冒出结果）。递增后所有迟到结果按跨 run 丢弃。
+    ++m_runGeneration;
     m_pendingGroups.clear();
     persistResults();   // 取消也保存已完成部分
     m_cellularWarnAcked = false;   // 8-18：下一轮 run 重新询问

@@ -42,8 +42,12 @@ bool protectData(const QByteArray& plain, QByteArray* cipher) {
     DATA_BLOB inBlob = { static_cast<DWORD>(plain.size()),
                          reinterpret_cast<BYTE*>(const_cast<char*>(plain.data())) };
     DATA_BLOB outBlob = {};
+    // 5WHY (2026-09-26 机器级密钥泄漏): CRYPTPROTECT_LOCAL_MACHINE 用机器级
+    // 密钥——任何服务/管理员账户均可解密凭据，与头文件声明的每用户安全模型
+    // （"同一机器同一用户可解密"）矛盾；Linux 路径绑定 hostname+UID 为每用户。
+    // flag 0 = 每用户 DPAPI，与文档模型对齐。
     if (!CryptProtectData(&inBlob, L"NetDiagnostics", nullptr, nullptr,
-                          nullptr, CRYPTPROTECT_LOCAL_MACHINE, &outBlob))
+                          nullptr, 0, &outBlob))
         return false;
     cipher->assign(reinterpret_cast<const char*>(outBlob.pbData), outBlob.cbData);
     LocalFree(outBlob.pbData);

@@ -5,6 +5,8 @@
 
 #include <QNetworkInterface>
 #include <QMap>
+#include <QMutex>
+#include <QMutexLocker>   // 5WHY (2026-09-26): 能力缓存互斥（invalidate 与池线程咨询竞态）
 
 // Portable hardware detection via QNetworkInterface.  Platform-specific deep
 // probes (Windows SetupDi / Linux sysfs / macOS IOKit) are follow-up work per
@@ -92,9 +94,17 @@ QMap<DiagId, bool>& deviceProbeCache() {
     static QMap<DiagId, bool> s_cache;
     return s_cache;
 }
+// 5WHY (2026-09-26 无锁缓存): 缓存曾无互斥——今日调用者全在主线程无活竞态，
+// 但 invalidateCache 每组 run 开头 clear 恰与探针执行同时，任何池线程咨询
+// 能力即与 clear/insert 竞态（QMap 迭代器失效）。加锁封死该单步之遥的隐患。
+QMutex& deviceProbeCacheMutex() {
+    static QMutex s_mutex;
+    return s_mutex;
+}
 } // namespace
 
 bool DeviceCapability::diagSupportedOnDevice(DiagId id) {
+    QMutexLocker locker(&deviceProbeCacheMutex());
     auto& cache = deviceProbeCache();
     auto it = cache.constFind(id);
     if (it != cache.constEnd()) return it.value();
@@ -111,5 +121,6 @@ bool DeviceCapability::diagSupportedOnDevice(DiagId id) {
 }
 
 void DeviceCapability::invalidateCache() {
+    QMutexLocker locker(&deviceProbeCacheMutex());
     deviceProbeCache().clear();
 }
