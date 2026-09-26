@@ -6,6 +6,7 @@
 #pragma once
 #include "Diagnostics/Model/GBase.h"
 #include "Diagnostics/View/DiagnosticFormatter.h"
+#include "Diagnostics/View/LegacyTerminalFormat.h"   // derivedTerminalText 派生链
 #include "Common/Services/Logger.h"
 #include "Common/Services/PlatformAdapter.h"   // RunContext / RunSnapshot
 
@@ -41,6 +42,44 @@ static QString localHostName() {
     char buf[256] = {};
     gethostname(buf, sizeof(buf) - 1);
     return QString::fromLocal8Bit(buf);
+}
+
+// ── 目标串 → 主机名（剥离 scheme/userinfo/port/path，IPv6 字面量去括号）──
+// 5WHY (2026-09-26 双份收敛): G4/Adapters.cpp 与 iOS DnsResolve.mm 曾各持
+// 一份字节级相同的 40 行副本——单冒号端口剥离启发式等修一处漏一处即
+// G4 与 iOS 行为分叉。单一来源（G4/G3-iOS 共享）。
+static QString extractHostname(const QString& target) {
+    QString t = target.trimmed();
+    if (t.contains(QLatin1String("://"))) {
+        QString after = t.section(QLatin1String("://"), 1);
+        const int slash = after.indexOf(QLatin1Char('/'));
+        if (slash >= 0) after = after.left(slash);
+        if (after.startsWith(QLatin1Char('['))) {
+            const int close = after.indexOf(QLatin1Char(']'));
+            if (close > 0) after = after.mid(1, close - 1);
+        } else {
+            const int at = after.lastIndexOf(QLatin1Char('@'));
+            if (at >= 0) after = after.mid(at + 1);   // strip userinfo
+            const int colon = after.lastIndexOf(QLatin1Char(':'));
+            if (colon > 0) after = after.left(colon); // strip port
+        }
+        return after;
+    }
+    const int atIdx = t.lastIndexOf(QLatin1Char('@'));
+    if (atIdx >= 0) t = t.mid(atIdx + 1);
+    if (t.startsWith(QLatin1Char('['))) {
+        const int close = t.indexOf(QLatin1Char(']'));
+        if (close > 0) {
+            if (close + 1 < t.size() && t[close + 1] == QLatin1Char(':'))
+                t = t.left(close + 1);
+            t = t.mid(1, close - 1);
+        }
+    } else {
+        const int colon = t.indexOf(QLatin1Char(':'));
+        if (colon > 0 && t.indexOf(QLatin1Char(':'), colon + 1) == -1)
+            t = t.left(colon);
+    }
+    return t;
 }
 
 // ── MAC address formatting ──────────────────────────────────────────
@@ -82,6 +121,24 @@ static QString propsDumpText(const QVector<ResultProperty>& props) {
             lines.append(QStringLiteral("  %1: %2").arg(c.label, c.value));
     }
     return lines.join(QLatin1Char('\n'));
+}
+
+// ── 终端文本派生链（详情页/剪贴板/报告体同源）────────────────────────
+// 5WHY (复核 2026-08-21 三份同源): 派生链 details → rawOutput →
+// legacyTerminalLines → propsDumpText 曾在 AppState::resultFor、剪贴板、
+// ReportEngine::reportBody 三处手抄——rawOutput 优先与"取消/异常误妆"门
+// 每处单独打补丁，逐字同步。2026-09-26 收敛为单一 helper（不含 summary
+// 兜底：消费方语义不同——resultFor/reportBody 兜底 summary，剪贴板不附
+// 摘要行）。
+static QString derivedTerminalText(const DiagnosticResult& r) {
+    if (!r.details.isEmpty()) return r.details;
+    if (!r.rawOutput.isEmpty()) return r.rawOutput;
+    if (r.status != DiagStatus::Cancelled && r.status != DiagStatus::Error) {
+        const QStringList legacy = legacyTerminalLines(r.id, r.properties, r.data);
+        if (!legacy.isEmpty()) return legacy.join(QLatin1Char('\n'));
+        return propsDumpText(r.properties);
+    }
+    return {};
 }
 
 // ── 中心频率(MHz) → WiFi 信道号 ─────────────────────────────────────────
@@ -331,33 +388,6 @@ int      tcpPingMs(const QString& host, int port);
 struct SpeedResult { double mbps; int bytes; int durationMs; bool ok; QString error; };
 SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs);
 SpeedResult httpUpload(const QString& urlStr, int targetBytes, int timeoutMs);
-
-// HTTPS GET — uses QNetworkAccessManager for TLS.  Returns response body.
-// Synchronous (local QEventLoop).  Used by G3GeoIPLoc for GeoIP providers.
-QByteArray httpsGet(const QString& url, int timeoutMs = 5000);
-
-// ── DoH DNS records ────────────────────────────────────────────────
-struct DohDnsRecord {
-    QString name;     // owner name (e.g. "www.google.com.")
-    int     type = 0;  // 1=A, 5=CNAME, 2=NS, 28=AAAA
-    int     ttl  = 0;
-    QString data;     // IP for A/AAAA, target for CNAME/NS
-};
-
-struct DohDnsFullResult {
-    QStringList     aRecords;    // A-record IPs (backward compat)
-    QStringList     cnameChain;  // CNAME targets in order
-    bool            hasCname = false;
-    int             minTtl = -1;   // -1 = no TTL data sentinel; 0 = real TTL=0 (pollution signal)
-};
-
-// DoH (DNS-over-HTTPS) full-record query — returns A records, CNAME chain, TTL.
-// Same 4-resolver majority logic as dohQuery(), but preserves record metadata.
-// 5WHY: DoH timeout was 4000ms, but typical response is 50-500ms.
-// 2000ms provides 4× headroom for congested networks while halving
-// the worst-case wait for unreachable resolvers.
-DohDnsFullResult dohQueryFull(const QString& domain,
-                           const QString& type = QStringLiteral("A"), int timeoutMs = 2000);
 
 // HTTP TTFB probe — TCP connect + HTTP GET → time to first byte (ms).
 // Returns -1.0 on failure. Shared by GeoProbe and geoIPLoc.

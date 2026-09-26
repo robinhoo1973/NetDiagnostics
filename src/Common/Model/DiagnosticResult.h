@@ -50,4 +50,10 @@ struct DiagnosticResult {
     static DiagnosticResult error(DiagId id, const QString& msg);
     static DiagnosticResult timeout(DiagId id, qint64 durationMs);
     static DiagnosticResult cancelled(DiagId id, const QString& reason); // NEW-17
+    // 5WHY (2026-09-26 五份复制收敛): 探针通用结果构造单一来源——G1-G5 曾各
+    // 写一份且已漂移（仅 G4/G5 回填 errorOutput）。
+    static DiagnosticResult makeResult(DiagId id, DiagStatus status,
+                                       const QString& summary,
+                                       const QVector<ResultProperty>& props,
+                                       const QString& details);
 };

@@ -80,12 +80,9 @@ static DiagnosticResult makeResult(DiagId id, DiagStatus status,
                                    const QString& summary,
                                    const QVector<ResultProperty>& props,
                                    const QString& details) {
-    DiagnosticResult r;
-    r.id = id; r.displayName = diagDisplayName(id); r.group = diagGroup(id);
-    r.status = status; r.summary = summary; r.properties = props;
-    r.details = details; r.rawOutput = details;
-    r.timestamp = QDateTime::currentDateTime();
-    return r;
+    // 5WHY (2026-09-26 单一工厂): 委托 DiagnosticResult::makeResult——五份副本
+    // 曾漂移（G1/G2/G3 不回填 errorOutput -> 失败结果错误区空白）。统一契约。
+    return DiagnosticResult::makeResult(id, status, summary, props, details);
 }
 
 // Raw-DNS wire helpers now live in the shared service DnsWire.h (R5-6)：
@@ -135,42 +132,71 @@ static QByteArray httpsGetSync(const QString& url, int timeoutMs,
 }
 
 // ── DoH (trusted resolver) query — JSON API, Cloudflare → Google → AliDNS ─
-static dnsWire::Answer dohQueryFull(const QString& domain, int timeoutMs = 4000) {
+// 5WHY (2026-09-26 死共享栈收敛): GCommon.cpp 的共享 dohQueryFull（4 解析器
+// 并行 + 2000ms）曾是零调用者死代码——5WHY 超时修正只落在死副本，活代码仍
+// 4000ms×3 串行 = 最坏 12s/域。死栈已删；此处按同法收敛：三解析器并行
+// （最坏 max(2000ms)），按优先级序取首个有 A 记录者——保持 Cloudflare →
+// Google → AliDNS 偏好语义。
+static dnsWire::Answer parseDohJsonBody(const QByteArray& body) {
     dnsWire::Answer a;
+    const QJsonDocument doc = QJsonDocument::fromJson(body);
+    if (!doc.isObject()) return a;
+    const QJsonArray answers = doc.object().value(QStringLiteral("Answer")).toArray();
+    if (answers.isEmpty()) return a;
+    for (const auto& v : answers) {
+        if (!v.isObject()) continue;
+        const QJsonObject o = v.toObject();
+        const int type = o.value(QStringLiteral("type")).toInt();
+        const int ttl  = o.value(QStringLiteral("TTL")).toInt();
+        if (type == 1) {
+            a.aRecords.append(o.value(QStringLiteral("data")).toString());
+            if (a.minTtl < 0 || ttl < a.minTtl) a.minTtl = ttl;
+        } else if (type == 5) {
+            a.cnameChain.append(o.value(QStringLiteral("data")).toString());
+            a.hasCname = true;
+        }
+    }
+    return a;
+}
+
+static dnsWire::Answer dohQueryFull(const QString& domain, int timeoutMs = 2000) {
     static const char* kUrls[] = {
         "https://1.1.1.1/dns-query?name=%1&type=A",
         "https://8.8.8.8/resolve?name=%1&type=A",
         "https://223.5.5.5/resolve?name=%1&type=A",   // AliDNS DoH (CN reachable)
     };
-    for (const char* fmt : kUrls) {
-        const QString url = QString::fromLatin1(fmt).arg(domain);
-        QElapsedTimer t; t.start();
-        const QByteArray body = httpsGetSync(url, timeoutMs,
-            QByteArrayLiteral("application/dns-json"));
-        a.elapsedMs = (int)t.elapsed();
-        if (body.isEmpty()) continue;
-        const QJsonDocument doc = QJsonDocument::fromJson(body);
-        if (!doc.isObject()) continue;
-        const QJsonArray answers = doc.object().value(QStringLiteral("Answer")).toArray();
-        if (answers.isEmpty()) continue;
-        bool hasA = false;
-        for (const auto& v : answers) {
-            if (!v.isObject()) continue;
-            const QJsonObject o = v.toObject();
-            const int type = o.value(QStringLiteral("type")).toInt();
-            const int ttl  = o.value(QStringLiteral("TTL")).toInt();
-            if (type == 1) {
-                a.aRecords.append(o.value(QStringLiteral("data")).toString());
-                if (a.minTtl < 0 || ttl < a.minTtl) a.minTtl = ttl;
-                hasA = true;
-            } else if (type == 5) {
-                a.cnameChain.append(o.value(QStringLiteral("data")).toString());
-                a.hasCname = true;
-            }
-        }
-        if (hasA) return a;
+    constexpr int kCount = (int)(sizeof(kUrls) / sizeof(kUrls[0]));
+    struct Partial { dnsWire::Answer ans; int elapsedMs = 0; };
+    Partial results[kCount];
+    std::vector<std::thread> threads;
+    threads.reserve(kCount);
+    for (int i = 0; i < kCount; ++i) {
+        try {
+            threads.emplace_back([i, &results, domain, timeoutMs]() {
+                const QString url = QString::fromLatin1(kUrls[i]).arg(domain);
+                QElapsedTimer t; t.start();
+                const QByteArray body = httpsGetSync(url, timeoutMs,
+                    QByteArrayLiteral("application/dns-json"));
+                Partial pr;
+                pr.elapsedMs = (int)t.elapsed();
+                pr.ans = parseDohJsonBody(body);
+                results[i] = pr;
+            });
+        } catch (const std::system_error&) { break; }
     }
-    return a;   // empty aRecords = query failed
+    for (auto& th : threads) {
+        try { if (th.joinable()) th.join(); } catch (...) {}
+    }
+    // 优先级序取首个有 A 记录者（与旧串行语义一致：先云后谷歌再阿里）
+    for (int i = 0; i < kCount; ++i) {
+        if (!results[i].ans.aRecords.isEmpty()) {
+            results[i].ans.elapsedMs = results[i].elapsedMs;
+            return results[i].ans;
+        }
+    }
+    dnsWire::Answer empty;
+    empty.elapsedMs = results[0].elapsedMs;   // 全败仍报首解析器耗时
+    return empty;   // empty aRecords = query failed
 }
 
 // ── TLS certificate domain check (definitive hijack signal) ───────────────
@@ -593,7 +619,7 @@ static DiagnosticResult probeDnsIntegrity(DiagId id, const QString&, RunContext&
             QCryptographicHash::hash(seed, QCryptographicHash::Md5).toHex().left(4));
         static const char* tlds[] = {"com", "org", "net"};
         const QString domain = QStringLiteral("%1-%2-dns-test.%3").arg(datePrefix, hex, tlds[i]);
-        const dnsWire::Answer ans = dnsWire::udpQuery(domain, 1, testServer, 3000);
+        const dnsWire::Answer ans = dnsWire::udpQuery(domain, 1, testServer, 2000);
         if (!ans.aRecords.isEmpty()) {
             out.append(QStringLiteral("  %1 → HIJACKED: %2 (%3ms)")
                 .arg(domain, ans.aRecords.first()).arg(ans.elapsedMs));

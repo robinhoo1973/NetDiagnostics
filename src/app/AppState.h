@@ -197,8 +197,6 @@ private:
     void queueFilteredChanged();
     void queueStateBroadcast();
     // 结果持久化（ProbeDatabase 磁盘缓存能力恢复：重启后保留上次结果）
-    void persistResults();
-    void loadCachedResults();
     // 5WHY (2026-08-22 P0-2): 出口红线——报告/剪贴板/落盘/预览统一在
     // 出口处替换 user:pass@ 为 user:***@（探针层与屏幕终端保持历史原样）。
     QString redactCredentials(const QString& text) const;

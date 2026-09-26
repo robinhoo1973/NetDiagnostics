@@ -19,7 +19,6 @@
 #include "Diagnostics/Model/G1/Platform/IOS/IosNetworkInfo.h"   // iosRequestWiFiAuthorization
 #endif
 #if defined(PLATFORM_IOS) || defined(Q_OS_MACOS)
-#include "Common/Platform/NativePdfDocument.h"
 #endif
 
 #include <QGuiApplication>
@@ -266,13 +265,6 @@ int main(int argc, char* argv[]) {
     // 恢复启动序请求（提示仅出现一次，后续调用为 no-op）。
     iosRequestWiFiAuthorization();
 #endif
-#if defined(PLATFORM_IOS) || defined(Q_OS_MACOS)
-    // 5WHY (review 2026-08-17): NativePdfDocument 从未注册到 QML 引擎——
-    // NativePdfPageView.qml 的 typeof 守卫恒为 false，iOS/macOS 原生 PDF
-    // 渲染栈是不可达死代码。
-    qmlRegisterType<NativePdfDocument>("NetDiagnostics", 1, 0, "NativePdfDocument");
-#endif
-
     QQmlApplicationEngine engine;
     // qrc 目录导入在 Qt6 不可用：统一走 /qt/qml 导入路径下的 qmldir 模块
     engine.addImportPath(QStringLiteral("qrc:/qt/qml"));
@@ -281,22 +273,9 @@ int main(int argc, char* argv[]) {
     // Qt 接管 provider 生命周期；注册须在 engine.load 之前。
     engine.addImageProvider(QStringLiteral("icon"), new IconProvider());
 
-    // 条件预览组件标志（hasWebView/hasQtPdf/hasNativePdf——归档语义恢复）
-#if defined(HAS_QTWEBVIEW)
-    engine.rootContext()->setContextProperty("hasWebView", true);
-#else
-    engine.rootContext()->setContextProperty("hasWebView", false);
-#endif
-#if defined(HAS_QTPDF)
-    engine.rootContext()->setContextProperty("hasQtPdf", true);
-#else
-    engine.rootContext()->setContextProperty("hasQtPdf", false);
-#endif
-#if defined(PLATFORM_IOS) || defined(Q_OS_MACOS)
-    engine.rootContext()->setContextProperty("hasNativePdf", true);
-#else
-    engine.rootContext()->setContextProperty("hasNativePdf", false);
-#endif
+    // 5WHY (2026-09-26 死预览栈清除): hasWebView/hasQtPdf/hasNativePdf 上下文
+    // 属性曾在此下发——零 QML/JS 读者（三查看器组件已删），归档语义从未被
+    // 恢复消费。已删。
 
     // 翻译数据：同步 XHR 在 qrc:/ 上被 Qt 6.8 阻断（"Invalid state"），
     // 由 C++ 读取 :/translations.json 以 TJson context property 暴露给 T 代理。

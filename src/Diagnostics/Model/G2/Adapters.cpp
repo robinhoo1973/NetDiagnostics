@@ -75,12 +75,9 @@ static DiagnosticResult makeResult(DiagId id, DiagStatus status,
                                    const QString& summary,
                                    const QVector<ResultProperty>& props,
                                    const QString& details) {
-    DiagnosticResult r;
-    r.id = id; r.displayName = diagDisplayName(id); r.group = diagGroup(id);
-    r.status = status; r.summary = summary; r.properties = props;
-    r.details = details; r.rawOutput = details;
-    r.timestamp = QDateTime::currentDateTime();
-    return r;
+    // 5WHY (2026-09-26 单一工厂): 委托 DiagnosticResult::makeResult——五份副本
+    // 曾漂移（G1/G2/G3 不回填 errorOutput -> 失败结果错误区空白）。统一契约。
+    return DiagnosticResult::makeResult(id, status, summary, props, details);
 }
 
 static QString macToStr(const unsigned char* mac, int len = 6) {

@@ -36,7 +36,6 @@
         <file alias="widgets/ZoomBar.qml">../src/Common/View/widgets/ZoomBar.qml</file>
         <file alias="widgets/IconPad.qml">../src/Common/View/widgets/IconPad.qml</file>
         <file alias="widgets/IconActionButton.qml">../src/Common/View/widgets/IconActionButton.qml</file>
-        <file alias="widgets/NavArrowButton.qml">../src/Common/View/widgets/NavArrowButton.qml</file>
         <file alias="widgets/WindowButton.qml">../src/Common/View/widgets/WindowButton.qml</file>
         <!-- animations（十动画：六基础 Pulse/Jiggle/Bounce/Type/Path/Lock +
              四检测专属 Check/WifiWave/Converge/GeoLocate；清单与

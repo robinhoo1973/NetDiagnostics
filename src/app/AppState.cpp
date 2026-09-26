@@ -11,7 +11,6 @@
 #include "Common/Platform/PlatformCredentialStore.h"   // H2 (5WHY): 平台安全凭证存储
 #include "Common/Services/PlatformAdapter.h"
 #include "Common/Services/DnsResolver.h"   // 5WHY (2026-08-22 P1-3): 每轮 run 前清 DNS 缓存
-#include "Common/Utils/AtomicWriteFile.h"   // simplify: persistResults 原子写助手
 #include "Common/Utils/NarrativeLocalizer.h"   // 5WHY (2026-08-23): 剪贴板叙述与详情页同源本地化
 #include "Common/Utils/SettingsKeys.h"   // simplify: QSettings 组名单一来源
 #include "Configuration/Controller/ConfigurationController.h"
@@ -133,8 +132,10 @@ AppState::AppState(QObject* parent) : QObject(parent) {
 #endif
     loadPreferences();
     // 8-1：启动不恢复上次结果——诊断页与仪表板启动时保持一致的空态
-    // （重构前行为）。persistResults 保留：完成/取消时落盘供后续需要时恢复。
-    // loadCachedResults();
+    // （重构前行为）。5WHY (2026-09-26): persistResults/loadCachedResults 曾
+    // 只写不读（恢复调用已注释多年，摄入校验 5WHY 修的是永不执行代码）且
+    // 完成/取消路径主线程同步 fsync——死代码已删；如需重启恢复特性须从
+    // 头设计摄入校验。
     m_config = new ConfigurationController(this, this);
     m_config->loadSettings();
     m_premiumStore = new PremiumStore(this);   // Premium 后端恢复（StoreKit/持久化）
@@ -155,53 +156,6 @@ qint64 AppState::runDurationMs() const {
     return m_runElapsedMs;
 }
 
-// ── 结果持久化（重启后保留上次结果；JSON 快照）──
-static QString resultsCachePath() {
-    return QDir(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation))
-        .filePath(QStringLiteral("last_results.json"));
-}
-
-void AppState::persistResults() {
-    if (m_results.isEmpty()) return;
-    QJsonArray arr;
-    for (const DiagnosticResult& r : m_results) {
-        QJsonObject o;
-        o[QStringLiteral("id")] = static_cast<int>(r.id);
-        o[QStringLiteral("status")] = static_cast<int>(r.status);
-        o[QStringLiteral("summary")] = r.summary;
-        // 5WHY (2026-08-22 P0-2): 落盘前出口红线——details/rawOutput/
-        // errorOutput 均可能含 user:pass@ 形态目标串。
-        o[QStringLiteral("details")] = redactCredentials(r.details);
-        o[QStringLiteral("rawOutput")] = redactCredentials(r.rawOutput);
-        o[QStringLiteral("errorOutput")] = redactCredentials(r.errorOutput);
-        o[QStringLiteral("durationMs")] = r.durationMs;
-        o[QStringLiteral("timestamp")] = r.timestamp.toString(Qt::ISODate);
-        // 5WHY (2026-08-23 恢复保真): 叙述与 data（含 narrativeKey/Args）
-        // 落盘——恢复后详情页仍可本地化渲染，剪贴板/报告同源。
-        o[QStringLiteral("narrative")] = redactCredentials(r.narrative);
-        QVariantMap dataMap;
-        for (auto it = r.data.cbegin(); it != r.data.cend(); ++it)
-            dataMap[it.key()] = it.value();
-        o[QStringLiteral("data")] = QJsonObject::fromVariantMap(dataMap);
-        arr.append(o);
-    }
-    // M2 (5WHY): 原代码直接写目标文件——写入中途崩溃（SIGKILL/断电）
-    // 导致 JSON 截断，loadCachedResults() 读到残缺数据。原子写入：
-    // 先写临时文件，成功后 rename 覆盖（POSIX rename 是原子操作）。
-    // 5WHY (2026-09-04 修正复核): 手写 temp+rename 三处缺陷——
-    //   · QFile::rename 文档契约是"目标已存在则返回 false"（Qt 文档
-    //     explicit 声明不覆盖），第二次及以后 persist 可能静默失败；
-    //   · 无 fsync——rename 原子性不保证数据落盘，断电仍可能得到
-    //     零长/旧内容文件，"防断电"目标落空；
-    //   · 错误路径 f.remove() 在文件仍打开时调用，Windows 上失败。
-    // 5WHY (simplify 2026-09-04): QSaveFile 序列收敛到 Common/Utils/
-    // AtomicWriteFile.h（与 platformCredentialSave 同一助手）。
-    const QByteArray data = QJsonDocument(arr).toJson(QJsonDocument::Compact);
-    if (!atomicWriteFile(resultsCachePath(), data)) {
-        qWarning("persistResults: atomic write failed for %s",
-                 qPrintable(resultsCachePath()));
-    }
-}
 
 AppState::CredForms AppState::credentialForms() const {
     // 凭据编码形态纯函数——redactCredentials 遮罩针与 runNextGroup auth
@@ -232,53 +186,6 @@ QString AppState::redactCredentials(const QString& text) const {
     return out;
 }
 
-void AppState::loadCachedResults() {
-    QFile f(resultsCachePath());
-    if (!f.open(QIODevice::ReadOnly)) return;
-    const QJsonDocument doc = QJsonDocument::fromJson(f.readAll());
-    if (!doc.isArray()) return;
-    for (const QJsonValue& v : doc.array()) {
-        const QJsonObject o = v.toObject();
-        DiagnosticResult r;
-        // 5WHY (simplify 2026-09-04): 盘上 id 无范围校验——越界 id 经
-        // diagnosticMeta 的 kDiagMeta[0] 回退会以"另一个诊断项"的形态
-        // 静默复活（status 字段早已有边界钳制，id 是漏网）。摄入边界
-        // 校验：无效 id 条目整体丢弃；范围契约复用 DiagnosticConfig::
-        // isValidDiagId（单一来源）。
-        const QJsonValue idVal = o.value(QStringLiteral("id"));
-        const int rawId = idVal.isDouble() ? idVal.toInt() : -1;
-        if (!DiagnosticConfig::isValidDiagId(rawId)) {
-            qWarning("loadCachedResults: dropping cached entry with invalid "
-                     "diag id %d", rawId);
-            continue;
-        }
-        r.id = static_cast<DiagId>(rawId);
-        r.displayName = diagDisplayName(r.id);
-        r.group = diagGroup(r.id);
-        // 5WHY (复核 2026-08-18): 盘上 int 无范围校验——旧版本枚举重排产出
-        // 越界值时 completed 计数了、7 状态 switch 不落账，X/Y 与徽标分叉。
-        // 摄入边界钳制：未知状态按 Error 呈现（可见且可计数）。
-        // 5WHY (复核 2026-08-18 缺失键洞): toInt() 对缺失/非数值键返回 0=Pass
-        // ——残缺缓存条目会以最误导的"全通过"形态摄入。显式判键存在+数值型。
-        const QJsonValue statusVal = o.value(QStringLiteral("status"));
-        const int rawStatus = statusVal.isDouble() ? statusVal.toInt() : -1;
-        r.status = isValidDiagStatus(rawStatus)
-            ? static_cast<DiagStatus>(rawStatus) : DiagStatus::Error;
-        r.summary = o.value(QStringLiteral("summary")).toString();
-        r.details = o.value(QStringLiteral("details")).toString();
-        r.rawOutput = o.value(QStringLiteral("rawOutput")).toString();
-        r.errorOutput = o.value(QStringLiteral("errorOutput")).toString();
-        r.durationMs = o.value(QStringLiteral("durationMs")).toDouble();
-        r.timestamp = QDateTime::fromString(o.value(QStringLiteral("timestamp")).toString(), Qt::ISODate);
-        r.narrative = o.value(QStringLiteral("narrative")).toString();
-        // 5WHY (2026-08-23 恢复保真): data（含 narrativeKey/Args）还原。
-        const QVariantMap dataMap = o.value(QStringLiteral("data")).toObject().toVariantMap();
-        for (auto it = dataMap.cbegin(); it != dataMap.cend(); ++it)
-            r.data[it.key()] = it.value();
-        m_results.insert(r.id, r);
-        ++m_statsVersion;   // 统计门早退版本（simplify 2026-09-05）
-    }
-}
 
 QStringList AppState::supportedSchemes() const {
     // diag-g5 §2.21 映射表的全部合法 target scheme（下拉框与映射表单一来源）。
@@ -517,7 +424,6 @@ void AppState::runNextGroup() {
         m_runElapsedMs = m_runTimer.isValid() ? m_runTimer.elapsed() : m_runElapsedMs;
         if (m_elapsedTicker) m_elapsedTicker->stop();
         m_cellularWarnAcked = false;   // 8-18：下一轮 run 重新询问
-        persistResults();   // 运行完成：落盘结果快照（重启恢复）
         // 5WHY (复核 2026-08-20 同步发射残余): 曾同步发射三信号——全组自动
         // 跳过（无适配器/能力不符）时本分支经 onSuiteFinished 在 QML Run
         // 按钮点击栈上可达：同步驱动 _refreshGroups/面板重载在栈未退栈时
@@ -662,11 +568,10 @@ void AppState::cancel() {
     // 优雅跳过），套件排空缩短到秒级；探针侧据此转 Cancelled 终态。
     GeoProbe::instance().clear();
     // 5WHY (2026-09-26 取消后迟到结果): 曾不递增代际——abort-grace 窗内完成的
-    // 真实结果通过 resultReady 代际门混入 m_results，与 persistResults 已写
-    // 快照不一致（取消后界面冒出结果）。递增后所有迟到结果按跨 run 丢弃。
+    // 真实结果通过 resultReady 代际门混入 m_results，取消后界面冒出结果。
+    // 递增后所有迟到结果按跨 run 丢弃。
     ++m_runGeneration;
     m_pendingGroups.clear();
-    persistResults();   // 取消也保存已完成部分
     m_cellularWarnAcked = false;   // 8-18：下一轮 run 重新询问
     if (m_cellularWarnVisible) {
         m_cellularWarnVisible = false;
@@ -875,26 +780,11 @@ QVariantMap AppState::resultFor(int diagIdInt) const {
     // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): 第 3 步曾为 propsDumpText
     // 平铺——改为 legacyTerminalLines（v0.0.3 逐探针 ipconfig 风格头 +
     // 列对齐表，数据由结构化 props 重建）；无复刻层的 id 回退平铺。
-    QString details = it->details;
-    if (details.isEmpty()) {
-        // 5WHY (复核 2026-08-21 屏幕/剪贴板同源): rawOutput 有值而 details
-        // 空时曾落 summary——QML 端 details||rawOutput 取到 summary、剪贴板
-        // 追加 rawOutput，两者背离。rawOutput 优先于派生（避免派生转储
-        // 遮蔽真实原始输出）。
-        // 5WHY (复核 2026-08-21 取消/异常误妆): Cancelled/Error 结果
-        // details/rawOutput/properties 皆空——曾仍派生 v0.0.3 空态恒文
-        // （如 "Active Connections … (no active connections)"），把"已取消"
-        // 妆成"扫描完成且零连接"；且本链设计意图的 summary 兜底被复刻层
-        // 拦截成死代码。取消/异常直接落 summary（"Cancelled"/错误文案），
-        // 不派生任何 v0.0.3 空态文本（剪贴板/报告体同门）。
-        if (!it->rawOutput.isEmpty()) {
-            details = it->rawOutput;
-        } else if (it->status != DiagStatus::Cancelled && it->status != DiagStatus::Error) {
-            const QStringList legacy = SystemDiagnostics::legacyTerminalLines(it->id, it->properties, it->data);
-            if (!legacy.isEmpty()) details = legacy.join(QLatin1Char('\n'));
-            if (details.isEmpty()) details = SystemDiagnostics::propsDumpText(it->properties);
-        }
-    }
+    // 5WHY (2026-09-26 三份收敛): 派生链（details → rawOutput →
+    // legacyTerminalLines → propsDumpText，rawOutput 优先 + 取消/异常误妆
+    // 门）单一来源 SystemDiagnostics::derivedTerminalText——曾与剪贴板、
+    // 报告体三处手抄逐字同步；链空时兜底 summary。
+    QString details = SystemDiagnostics::derivedTerminalText(*it);
     if (details.isEmpty())
         details = it->summary;
     m[QStringLiteral("details")] = details;
@@ -1352,18 +1242,11 @@ void AppState::copyDetailToClipboard(int diagIdInt) {
     // 逐字相同——曾双双追加，粘贴的票据每条属性出现两次。
     // 5WHY (复核 2026-08-21 呈现层同源): details 为空时与 resultFor 同链
     // 派生（legacyTerminalLines → propsDumpText），剪贴板与屏幕终端逐字一致。
-    if (!it->details.isEmpty()) lines.append(it->details);
-    else if (!it->rawOutput.isEmpty()) lines.append(it->rawOutput);
-    // 5WHY (复核 2026-08-21 取消/异常误妆): Cancelled/Error 结果不派生
-    // v0.0.3 空态恒文（与 resultFor 同门）——摘要行已含 "Cancelled"，
-    // 剪贴板不再附误导性的空态表文。
-    else if (it->status != DiagStatus::Cancelled && it->status != DiagStatus::Error) {
-        QString derived;
-        const QStringList legacy = SystemDiagnostics::legacyTerminalLines(it->id, it->properties, it->data);
-        if (!legacy.isEmpty()) derived = legacy.join(QLatin1Char('\n'));
-        if (derived.isEmpty()) derived = SystemDiagnostics::propsDumpText(it->properties);
-        if (!derived.isEmpty()) lines.append(derived);
-    }
+    // 5WHY (2026-09-26 三份收敛): 与 resultFor/报告体同链——派生链单一来源
+    // derivedTerminalText（取消/异常误妆门已内含）；剪贴板不附 summary
+    // 兜底（摘要行已在前文追加）。
+    const QString derived = SystemDiagnostics::derivedTerminalText(*it);
+    if (!derived.isEmpty()) lines.append(derived);
     // 5WHY (2026-08-22 P0-2): 剪贴板出口红线（单检测项详情粘贴）。
     QGuiApplication::clipboard()->setText(redactCredentials(lines.join(QLatin1Char('\n'))));
 }

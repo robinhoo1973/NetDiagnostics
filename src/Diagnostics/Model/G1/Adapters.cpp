@@ -161,23 +161,9 @@ static DiagnosticResult makeResult(DiagId id, DiagStatus status,
                                    const QString& summary,
                                    const QVector<ResultProperty>& props,
                                    const QString& details) {
-    DiagnosticResult r;
-    r.id = id;
-    r.displayName = diagDisplayName(id);
-    r.group = diagGroup(id);
-    r.status = status;
-    r.summary = summary;
-    r.properties = props;
-    // 5WHY (复核 2026-08-21 v0.0.3 逐字复刻): 曾于探针层以 propsDumpText
-    // 派生 details（propsDump 标记）——"label: value" 平铺与 v0.0.3 逐
-    // 探针格式化文本（ipconfig 风格头 + 列对齐表）不符，且与呈现层派生
-    // 构成双路径。派生统一收敛到呈现层：resultFor 对空 details 以
-    // LegacyTerminalFormat 逐字复刻；本层原样透传（propsDump 标记删除，
-    // 剪贴板与终端共用呈现层同源派生）。
-    r.details = details;
-    r.rawOutput = details;
-    r.timestamp = QDateTime::currentDateTime();
-    return r;
+    // 5WHY (2026-09-26 单一工厂): 委托 DiagnosticResult::makeResult——五份副本
+    // 曾漂移（G1/G2/G3 不回填 errorOutput -> 失败结果错误区空白）。统一契约。
+    return DiagnosticResult::makeResult(id, status, summary, props, details);
 }
 
 static QVector<QNetworkInterface> runningInterfaces() {

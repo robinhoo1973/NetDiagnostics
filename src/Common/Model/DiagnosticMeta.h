@@ -51,9 +51,11 @@ struct DetailProfile {
 };
 
 // ── Per-test metadata ────────────────────────────────────────────────────
+// 5WHY (2026-09-26 单一事实源): displayName 列曾与 DiagNames.h 的
+// diagDisplayName() switch 逐字重复（44+44 处手工同步）且零读者——删列，
+// 显示名一律经 diagDisplayName(id) 派生。
 struct DiagnosticMeta {
     DiagId       id;
-    const char*  displayName;
     const char*  iconName;
     unsigned     platforms;       // PlatformFlag::Flag（NEW-1 代码实证值）
     DiagAnimType animType;

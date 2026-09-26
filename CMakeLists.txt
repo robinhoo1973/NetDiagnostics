@@ -112,16 +112,10 @@ set(QML_RESOURCES
     resources/resources_core.qrc
     resources/resources_icons.qrc
 )
-# 条件预览组件（模块可用才编入；HAS_* 宏由 netdiag-target 定义）
-if(TARGET Qt6::WebView)
-    list(APPEND QML_RESOURCES resources/resources_webview.qrc)
-endif()
-if(TARGET Qt6::Pdf AND TARGET Qt6::PdfQuick)
-    list(APPEND QML_RESOURCES resources/resources_qtpdf.qrc)
-endif()
-if(IOS OR APPLE)
-    list(APPEND QML_RESOURCES resources/resources_nativepdf.qrc)
-endif()
+# 5WHY (2026-09-26 死预览栈清除): 条件预览组件（WebView/QtPdf/NativePdf 三
+# 查看器 + 三 QRC）曾被条件编入——零 QML 实例化点、hasWebView/hasQtPdf/
+# hasNativePdf 上下文属性零读者，~600 行只养一条不存在的预览路径。已删。
+
 
 # ── Production target ──────────────────────────────────────────────────
 qt_add_executable(net_diagnostics WIN32 MANUAL_FINALIZATION ${SOURCES} ${QML_RESOURCES})

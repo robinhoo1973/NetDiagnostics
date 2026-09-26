@@ -102,56 +102,12 @@ static DiagnosticResult makeResult(DiagId id, DiagStatus status,
                                    const QString& summary,
                                    const QVector<ResultProperty>& props,
                                    const QString& details) {
-    DiagnosticResult r;
-    r.id = id; r.displayName = diagDisplayName(id); r.group = diagGroup(id);
-    r.status = status; r.summary = summary; r.properties = props;
-    r.details = details; r.rawOutput = details;
-    r.timestamp = QDateTime::currentDateTime();
-    // 5WHY (复核 2026-08-19 错误区块缺失): G5 的 makeResult 对 Fail/Warning/
-    // Error 自动回填 errorOutput（摘要入错误区块），G4 无此行——失败的
-    // Ping/Traceroute/MTU 等错误区块永不渲染（showError=true 契约落空）。
-    // 对齐 G5 同一规则。
-    if ((status == DiagStatus::Fail || status == DiagStatus::Warning
-         || status == DiagStatus::Error) && r.errorOutput.isEmpty())
-        r.errorOutput = summary;
-    return r;
+    // 5WHY (2026-09-26 单一工厂): 委托 DiagnosticResult::makeResult——五份副本
+    // 曾漂移（G1/G2/G3 不回填 errorOutput -> 失败结果错误区空白）。统一契约。
+    return DiagnosticResult::makeResult(id, status, summary, props, details);
 }
 
 // ── Target parsing (ported from G4Common.h) ────────────────────────────────
-static QString extractHostname(const QString& target) {
-    QString t = target.trimmed();
-    if (t.contains(QLatin1String("://"))) {
-        QString after = t.section(QLatin1String("://"), 1);
-        const int slash = after.indexOf(QLatin1Char('/'));
-        if (slash >= 0) after = after.left(slash);
-        if (after.startsWith(QLatin1Char('['))) {
-            const int close = after.indexOf(QLatin1Char(']'));
-            if (close > 0) after = after.mid(1, close - 1);
-        } else {
-            const int at = after.lastIndexOf(QLatin1Char('@'));
-            if (at >= 0) after = after.mid(at + 1);   // strip userinfo
-            const int colon = after.lastIndexOf(QLatin1Char(':'));
-            if (colon > 0) after = after.left(colon); // strip port
-        }
-        return after;
-    }
-    const int atIdx = t.lastIndexOf(QLatin1Char('@'));
-    if (atIdx >= 0) t = t.mid(atIdx + 1);
-    if (t.startsWith(QLatin1Char('['))) {
-        const int close = t.indexOf(QLatin1Char(']'));
-        if (close > 0) {
-            if (close + 1 < t.size() && t[close + 1] == QLatin1Char(':'))
-                t = t.left(close + 1);
-            t = t.mid(1, close - 1);
-        }
-    } else {
-        const int colon = t.indexOf(QLatin1Char(':'));
-        if (colon > 0 && t.indexOf(QLatin1Char(':'), colon + 1) == -1)
-            t = t.left(colon);
-    }
-    return t;
-}
-
 static int extractProbePort(const QString& target) {
     QString t = target.trimmed();
     QString scheme;
@@ -580,7 +536,7 @@ static QString rcodeText(int rcode) {
 // G4DnsResolution — dig-like output (A/AAAA/CNAME)
 // ═════════════════════════════════════════════════════════════════════════
 static DiagnosticResult probeDnsResolution(DiagId id, const QString& target, RunContext& ctx) {
-    const QString host = extractHostname(target.isEmpty() ? QStringLiteral("example.com") : target);
+    const QString host = SystemDiagnostics::extractHostname(target.isEmpty() ? QStringLiteral("example.com") : target);
     const QString server = systemDnsServer();
     const dnsWire::Answer ans = dnsWire::udpQuery(host, 1, server, 3000);
     const int ms = ans.elapsedMs;
@@ -696,7 +652,7 @@ static DiagnosticResult probeDnsResolution(DiagId id, const QString& target, Run
 // G4Ping — ICMP echo (Windows) + TCP fallback, 4 probes, loss/jitter stats
 // ═════════════════════════════════════════════════════════════════════════
 static DiagnosticResult probePing(DiagId id, const QString& target, RunContext& ctx) {
-    const QString host = extractHostname(target.isEmpty() ? QStringLiteral("example.com") : target);
+    const QString host = SystemDiagnostics::extractHostname(target.isEmpty() ? QStringLiteral("example.com") : target);
     const quint32 resolvedIp = resolveIPv4(host);
     QString ipStr;
     if (resolvedIp) ipStr = ip4ToStr(resolvedIp);
@@ -852,7 +808,7 @@ static QString fmtRtt(int ms) {
 }
 
 static DiagnosticResult probeTraceroute(DiagId id, const QString& target, RunContext& ctx) {
-    const QString host = extractHostname(target.isEmpty() ? QStringLiteral("example.com") : target);
+    const QString host = SystemDiagnostics::extractHostname(target.isEmpty() ? QStringLiteral("example.com") : target);
     const quint32 targetIp = resolveIPv4(host);
     if (!targetIp) {
         return makeResult(id, DiagStatus::Fail, QStringLiteral("DNS resolution failed"), {}, {});
@@ -1002,7 +958,7 @@ static DiagnosticResult probeTraceroute(DiagId id, const QString& target, RunCon
 // G4PathPing — traceroute + per-hop loss statistics on the final hop
 // ═════════════════════════════════════════════════════════════════════════
 static DiagnosticResult probePathPing(DiagId id, const QString& target, RunContext& ctx) {
-    const QString host = extractHostname(target.isEmpty() ? QStringLiteral("example.com") : target);
+    const QString host = SystemDiagnostics::extractHostname(target.isEmpty() ? QStringLiteral("example.com") : target);
     const quint32 targetIp = resolveIPv4(host);
     if (!targetIp)
         return makeResult(id, DiagStatus::Fail, QStringLiteral("DNS Resolution Failed"), {}, {});
@@ -1142,7 +1098,7 @@ static DiagnosticResult probePathPing(DiagId id, const QString& target, RunConte
 // G4MtuDiscovery — path MTU via TCP_MAXSEG (Windows) / sysfs (Linux)
 // ═════════════════════════════════════════════════════════════════════════
 static DiagnosticResult probeMtuDiscovery(DiagId id, const QString& target, RunContext& ctx) {
-    const QString host = extractHostname(target.isEmpty() ? QStringLiteral("example.com") : target);
+    const QString host = SystemDiagnostics::extractHostname(target.isEmpty() ? QStringLiteral("example.com") : target);
     const int probePort = extractProbePort(target);
     const quint32 resolvedIp = resolveIPv4(host);
     const bool targetResolved = (resolvedIp != 0);
@@ -1316,7 +1272,7 @@ static DiagnosticResult probeMtuDiscovery(DiagId id, const QString& target, RunC
 // G4IPv6Connectivity — AAAA resolution + TCP connect over IPv6
 // ═════════════════════════════════════════════════════════════════════════
 static DiagnosticResult probeIPv6Connectivity(DiagId id, const QString& target, RunContext& ctx) {
-    const QString host = extractHostname(target.isEmpty() ? QStringLiteral("ipv6.google.com") : target);
+    const QString host = SystemDiagnostics::extractHostname(target.isEmpty() ? QStringLiteral("ipv6.google.com") : target);
     QStringList out;
     out.append(QStringLiteral("IPv6 Connectivity Test"));
     out.append(QStringLiteral("Target: %1").arg(host));
