@@ -677,13 +677,9 @@ static void attachHttpTiming(DiagnosticResult& r, const HttpResult& hr) {
     r.data[QStringLiteral("firstByteMs")] = hr.firstByteMs;
     r.data[QStringLiteral("totalMs")] = hr.totalMs;
     r.data[QStringLiteral("statusCode")] = hr.statusCode;
-    QVariantList waterfall;   // 5 段（DNS/Connect/SSL/FirstByte/Total）
-    waterfall.append(QVariantMap{{QStringLiteral("phase"), QStringLiteral("DNS")}, {QStringLiteral("ms"), (double)hr.dnsMs}});
-    waterfall.append(QVariantMap{{QStringLiteral("phase"), QStringLiteral("Connect")}, {QStringLiteral("ms"), (double)hr.connectMs}});
-    waterfall.append(QVariantMap{{QStringLiteral("phase"), QStringLiteral("SSL")}, {QStringLiteral("ms"), (double)hr.tlsMs}});
-    waterfall.append(QVariantMap{{QStringLiteral("phase"), QStringLiteral("FirstByte")}, {QStringLiteral("ms"), (double)hr.firstByteMs}});
-    waterfall.append(QVariantMap{{QStringLiteral("phase"), QStringLiteral("Total")}, {QStringLiteral("ms"), (double)hr.totalMs}});
-    r.data[QStringLiteral("waterfall")] = waterfall;
+    // 5WHY (2026-09-27 死发射删除): waterfall 数组曾构造并落 data——meta 已
+    // 删 chartField 声明（verify-keymetrics.py 对账），且全仓无消费方
+    // （ResultChart request 模板读标量相位键）。标量键已齐备，数组不再构造。
 }
 static DiagnosticResult probeCurlVerbose(DiagId id, const QString& target, RunContext& ctx) {
     QUrl u;

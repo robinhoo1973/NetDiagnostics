@@ -130,13 +130,21 @@ const MetaTable& kDiagMeta() {
     { DiagId::G5UrlParsing,        "nd-diag-g5-url-parsing",    PF_All,                       DiagAnimType::Type,   DiagTemplateType::System, sys(),              60000 },
     { DiagId::G5TcpConnect,        "nd-diag-g5-tcp-connect",  PF_All,                       DiagAnimType::Path,   DiagTemplateType::Query,  metricOnly("latencyMs","ms",0,DP::Gauge), 60000 },
     { DiagId::G5ServiceBanner,     "nd-diag-g5-service-banner", PF_All,                       DiagAnimType::Type,   DiagTemplateType::Query,  metricOnly("latencyMs","ms",0,DP::Gauge), 60000 },
-    { DiagId::G5CurlVerbose,       "nd-diag-g5-curl-verbose", PF_All,                       DiagAnimType::FlashContent,   DiagTemplateType::Request, []{ DP d = metricOnly("totalMs","ms",0,DP::BarChart,"waterfall"); d.showProperties=false; return d; }(), 120000 },
+    { DiagId::G5CurlVerbose,       "nd-diag-g5-curl-verbose", PF_All,                       DiagAnimType::FlashContent,   DiagTemplateType::Request, []{ DP d = // 5WHY (2026-09-27 死键删除): 曾声明 chartField="waterfall" 且 G5 发射
+// waterfall 数组，但 ResultChart 的 request 模板只消费标量相位键
+// （dnsMs/connectMs/sslMs/firstByteMs/totalMs）——声明、发射、消费三方中
+// 两方指向死键（verify-keymetrics.py 对账抓获）。删除死声明。
+metricOnly("totalMs","ms",0,DP::BarChart); d.showProperties=false; return d; }(), 120000 },
     { DiagId::G5HttpHeaders,       "nd-diag-g5-http-headers", PF_All,                       DiagAnimType::FlashContent,   DiagTemplateType::Request, sys("headerCount","headers",0), 60000 },
     { DiagId::G5SecurityHeaders,   "nd-diag-g5-security-headers", PF_All,                   DiagAnimType::FlashContent,   DiagTemplateType::Handshake, metricOnly("score","score",0,DP::Gauge), 60000 },
     { DiagId::G5SslCertificate,    "nd-diag-g5-ssl-certificate",  PF_All,                       DiagAnimType::BlinkText,   DiagTemplateType::Handshake, metricOnly("daysLeft","days",0,DP::Gauge), 60000 },
     { DiagId::G5HttpRedirect,      "nd-diag-g5-http-redirect",     PF_All,                       DiagAnimType::FlashContent,   DiagTemplateType::Request, sys("redirectCount","hops",0), 60000 },
     { DiagId::G5HttpCompression,   "nd-diag-g5-http-compression",  PF_All,                       DiagAnimType::FlashContent, DiagTemplateType::Request, sys("totalMs","ms",0), 60000 },
-    { DiagId::G5HttpTiming,        "nd-diag-g5-http-timing",  PF_All,                       DiagAnimType::FlashContent, DiagTemplateType::Request, []{ DP d = metricOnly("totalMs","ms",0,DP::BarChart,"waterfall"); d.showProperties=false; return d; }(), 90000 },
+    { DiagId::G5HttpTiming,        "nd-diag-g5-http-timing",  PF_All,                       DiagAnimType::FlashContent, DiagTemplateType::Request, []{ DP d = // 5WHY (2026-09-27 死键删除): 曾声明 chartField="waterfall" 且 G5 发射
+// waterfall 数组，但 ResultChart 的 request 模板只消费标量相位键
+// （dnsMs/connectMs/sslMs/firstByteMs/totalMs）——声明、发射、消费三方中
+// 两方指向死键（verify-keymetrics.py 对账抓获）。删除死声明。
+metricOnly("totalMs","ms",0,DP::BarChart); d.showProperties=false; return d; }(), 90000 },
     { DiagId::G5FtpDiagnostics,    "nd-diag-g5-ftp",          PF_All,                       DiagAnimType::TermType,  DiagTemplateType::Query,  metricOnly("latencyMs","ms",0,DP::Gauge), 60000 },
     { DiagId::G5SshDiagnostics,    "nd-diag-g5-ssh",          PF_All,                       DiagAnimType::TermType,   DiagTemplateType::Query,  metricOnly("latencyMs","ms",0,DP::Gauge), 60000 },
     { DiagId::G5EmailDiagnostics,  "nd-diag-g5-email",         PF_All,                       DiagAnimType::Jiggle, DiagTemplateType::Query,  metricOnly("latencyMs","ms",0,DP::Gauge), 60000 },

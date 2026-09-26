@@ -1006,6 +1006,19 @@ PYEOF
 	    pass "theme tooling consistent"
 	fi
 
+	# ── 26. 指标契约跨语言对账（meta ↔ KeyMetric.js ↔ ResultChart）────────
+	# 5WHY (2026-09-27 指标三源漂移): 指标卡实际渲染走 KeyMetric.js 硬编码表、
+	# 图表走 ResultChart 模板分派——meta.keyMetricField/chartField 与渲染分属
+	# C++/JS 两语言，已漂移两次（score 处理器缺失、8 个 count 键落时长兜底）
+	# 且 selftest 只测得到 C++ 侧。对账脚本做双向存在性检查，漂移即 fail。
+	echo ""
+	echo "── 26. KeyMetric cross-language reconciliation ──"
+	if python3 "$ROOT/scripts/verify-keymetrics.py"; then
+	    pass "keyMetric meta ↔ KeyMetric.js ↔ ResultChart in sync"
+	else
+	    fail "keyMetric declaration/render drift — fix meta, KeyMetric.js or ResultChart.qml"
+	fi
+
 	# ── Summary ────────────────────────────────────────────────────────────────
 	echo ""
 	echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
