@@ -26,6 +26,9 @@ on:
     branches: [master]
   push:
     tags: ['v[0-9]*.[0-9]*.[0-9]*']
+    branches: [master]   # 5WHY (2026-09-26 直推盲区): 曾仅 tag/PR 触发——直推
+                         # master 的提交零 CI 覆盖。主推只跑 version+selftest
+                         # 廉价验证；重构建由下方 job 级条件跳过。
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
@@ -45,7 +48,7 @@ jobs:
       pkg_prerelease: ${{ steps.v.outputs.pkg_prerelease }}
       build_number: ${{ steps.v.outputs.build_number }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           fetch-tags: true
@@ -62,7 +65,7 @@ jobs:
     needs: [version]
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install dependencies
         run: |
           sudo apt-get update
@@ -77,10 +80,23 @@ jobs:
         run: ninja -C build-test net_diagnostics
       - name: Run selftest
         run: QT_QPA_PLATFORM=offscreen ./build-test/net_diagnostics --test
+      # ── 5WHY (2026-09-26 NO_CURL 覆盖缺口): iOS/Android 强制 NO_CURL——
+      # 其编译路径（GHelpers.h 守卫区、GCommon socket 兜底族、G5 httpOnceSocket）
+      # 此前只有 Apple CI 能看到，守卫丢失/静态捕获等错误到 iOS 构建才炸。
+      # 桌面以 NO_CURL=ON 双构建同一代码路径：兜底实现获得与主路径同等的
+      # 每次推送编译+运行覆盖（44 探针走 socket 实现）。
+      - name: Configure (NO_CURL fallback)
+        run: cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DND_TESTING=ON -DNO_CURL=ON -B build-nocurl -S .
+      - name: Build (NO_CURL fallback)
+        run: ninja -C build-nocurl net_diagnostics
+      - name: Run selftest (NO_CURL fallback)
+        run: QT_QPA_PLATFORM=offscreen ./build-nocurl/net_diagnostics --test
 
   # ═══ Linux — build-linux action (arch matrix) ═══
   linux:
-    name: Linux ${{ matrix.arch }}
+
+    # 主推 master 仅跑 version+selftest；重构建/发布只在 tag/PR/dispatch 执行
+    if: ${{ github.event_name != 'push' || startsWith(github.ref, 'refs/tags/') }}    name: Linux ${{ matrix.arch }}
     needs: [version]
     strategy:
       fail-fast: false
@@ -89,7 +105,7 @@ jobs:
     runs-on: ${{ matrix.arch == 'x86_64' && 'ubuntu-latest' || 'ubuntu-24.04-arm' }}
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/build-linux
         with:
           arch: ${{ matrix.arch }}
@@ -101,7 +117,9 @@ jobs:
   # 5WHY: static (150 min Qt source build) and dynamic (30 min NSIS) need
   # different timeouts, so they are separate jobs instead of a matrix cell.
   windows-static:
-    name: Windows x86_64 Static
+
+    # 主推 master 仅跑 version+selftest；重构建/发布只在 tag/PR/dispatch 执行
+    if: ${{ github.event_name != 'push' || startsWith(github.ref, 'refs/tags/') }}    name: Windows x86_64 Static
     needs: [version]
     runs-on: windows-2022
     # 5WHY: 90 min was insufficient — Qt 6.11.1 source build on a 2-core
@@ -109,7 +127,7 @@ jobs:
     # provides safe headroom for the full pipeline (curl → Qt → app).
     timeout-minutes: 150
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/build-windows
         with:
           variant: static
@@ -118,12 +136,14 @@ jobs:
           git_hash: ${{ github.sha }}
 
   windows-dynamic:
-    name: Windows x86_64 Dynamic
+
+    # 主推 master 仅跑 version+selftest；重构建/发布只在 tag/PR/dispatch 执行
+    if: ${{ github.event_name != 'push' || startsWith(github.ref, 'refs/tags/') }}    name: Windows x86_64 Dynamic
     needs: [version]
     runs-on: windows-2022
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/build-windows
         with:
           variant: dynamic
@@ -135,12 +155,14 @@ jobs:
   # 5WHY: build.yml only produces Release-download files.  TestFlight uploads
   # (iOS + macOS) run in apple.yml as two parallel standalone tasks.
   macos:
-    name: macOS (release download)
+
+    # 主推 master 仅跑 version+selftest；重构建/发布只在 tag/PR/dispatch 执行
+    if: ${{ github.event_name != 'push' || startsWith(github.ref, 'refs/tags/') }}    name: macOS (release download)
     needs: [version]
     runs-on: macos-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/build-macos
         with:
           mode: release
@@ -154,7 +176,9 @@ jobs:
   # design — the upload lives in the standalone deploy-google-play action,
   # run manually when a release is ready for the store).
   android:
-    name: Android ${{ matrix.arch }} (${{ matrix.format }})
+
+    # 主推 master 仅跑 version+selftest；重构建/发布只在 tag/PR/dispatch 执行
+    if: ${{ github.event_name != 'push' || startsWith(github.ref, 'refs/tags/') }}    name: Android ${{ matrix.arch }} (${{ matrix.format }})
     needs: [version]
     strategy:
       fail-fast: false
@@ -167,7 +191,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/build-android
         with:
           arch: ${{ matrix.arch }}
@@ -188,7 +212,9 @@ jobs:
 
   # ═══ Release — collect all artifacts → GitHub Release ═══
   release:
-    name: Create Release
+
+    # 主推 master 仅跑 version+selftest；重构建/发布只在 tag/PR/dispatch 执行
+    if: ${{ github.event_name != 'push' || startsWith(github.ref, 'refs/tags/') }}    name: Create Release
     needs: [version, linux, windows-static, windows-dynamic, macos, android]
     # 5WHY: on pull_request the release job would create/overwrite real GitHub
     # Releases (e.g. v0.0.1 when no tags exist).  Gating on event_name ensures
@@ -200,7 +226,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Compute release tag
         id: version

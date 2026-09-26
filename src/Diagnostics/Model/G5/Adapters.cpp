@@ -33,6 +33,24 @@ DiagnosticResult iosHttpDiagnostic(DiagId id, const QString& target);
 #include <QSslSocket>
 #include <QSslCertificate>
 #include <QElapsedTimer>
+// 5WHY (2026-09-26 双份收敛): httpOnceCurl/httpOnceSocket 各持一份字面量判
+// 定 + DnsResolver 3s 解析块——dnsMs 语义（字面量=0 诚实无查询）与失败串须
+// 手工同步。单一助手：字面量返回 true 且 ip 空；解析失败返回 false。
+// （定义于 NO_CURL 守卫外——socket 兜底路径同样使用，5WHY 2026-09-26）
+static bool resolveHostForProbe(const QUrl& u, QElapsedTimer* phase,
+                                qint64* dnsMsOut, QString* ipOut) {
+    QHostAddress literalCheck;
+    if (literalCheck.setAddress(u.host())) {
+        *dnsMsOut = 0;
+        ipOut->clear();
+        return true;
+    }
+    const QString ip = DnsResolver::instance().resolve(u.host(), 3000);
+    *dnsMsOut = phase->restart();
+    *ipOut = ip;
+    return !ip.isEmpty();
+}
+
 #if !defined(NO_CURL)
 #include <curl/curl.h>   // 5WHY (2026-09-26 铁律): 桌面 HTTP 走成熟 curl easy API
 #endif
@@ -294,23 +312,6 @@ static int curlProgressCb(void* ud, curl_off_t, curl_off_t, curl_off_t, curl_off
     return (cap->ctx && cap->ctx->cancelled.load(std::memory_order_relaxed)) ? 1 : 0;
 }
 } // namespace
-
-// 5WHY (2026-09-26 双份收敛): httpOnceCurl/httpOnceSocket 各持一份字面量判
-// 定 + DnsResolver 3s 解析块——dnsMs 语义（字面量=0 诚实无查询）与失败串须
-// 手工同步。单一助手：字面量返回 true 且 ip 空；解析失败返回 false。
-static bool resolveHostForProbe(const QUrl& u, QElapsedTimer* phase,
-                                qint64* dnsMsOut, QString* ipOut) {
-    QHostAddress literalCheck;
-    if (literalCheck.setAddress(u.host())) {
-        *dnsMsOut = 0;
-        ipOut->clear();
-        return true;
-    }
-    const QString ip = DnsResolver::instance().resolve(u.host(), 3000);
-    *dnsMsOut = phase->restart();
-    *ipOut = ip;
-    return !ip.isEmpty();
-}
 
 static HttpResult httpOnceCurl(RunContext* ctx, const QUrl& u, const QByteArray& method,
                                const QByteArray& extraHeaders, int timeoutMs) {

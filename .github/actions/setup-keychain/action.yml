@@ -57,8 +57,31 @@ runs:
           TOOL_ARGS="$TOOL_ARGS -T $tool"
         done
 
+        # ── 5WHY (2026-09-26 证书临期盲区): 管线仅在手动触发/打 tag 时运行
+        # （实测间隔可长达数周）——证书/Profile 过期要到发布时刻才暴露，成为
+        # 发布阻塞。临期硬门：p12 导入前先解出证书到期日，< 30 天即 FAIL——
+        # 把"发布时阻塞"转化为"构建期硬信号"，留足换证窗口（业界最佳实践）。
+        cert_expiry_check() {
+          local p12_file="$1" p12_pass="$2" label="$3"
+          local enddate
+          enddate=$(openssl pkcs12 -in "$p12_file" -passin "pass:${p12_pass}" -clcerts -nokeys 2>/dev/null \
+            | openssl x509 -noout -enddate 2>/dev/null | sed 's/notAfter=//')
+          [ -z "$enddate" ] && { echo "::error::$label: cannot parse certificate expiry from p12"; exit 1; }
+          local epoch end_epoch days_left
+          end_epoch=$(date -j -f "%b %e %T %Y %Z" "$enddate" +%s 2>/dev/null \
+            || date -d "$enddate" +%s 2>/dev/null || { echo "::error::$label: cannot parse date '$enddate'"; exit 1; })
+          epoch=$(date +%s)
+          days_left=$(( (end_epoch - epoch) / 86400 ))
+          if [ "$days_left" -lt 30 ]; then
+            echo "::error::$label certificate expires in $days_left days ($enddate) — rotate now, releases will be blocked"
+            exit 1
+          fi
+          echo "::notice::$label certificate valid until $enddate ($days_left days left)"
+        }
+
         # ── Import primary cert ──
         printf '%s' "$PRIMARY_CERT_BASE64" | base64 -d > "$RUNNER_TEMP/signing-cert.p12"
+        cert_expiry_check "$RUNNER_TEMP/signing-cert.p12" "$PRIMARY_CERT_PASSWORD" "Primary signing certificate"
         security import "$RUNNER_TEMP/signing-cert.p12" \
           -k "$KEYCHAIN_PATH" \
           -P "$PRIMARY_CERT_PASSWORD" \
@@ -69,6 +92,7 @@ runs:
         # ── Import secondary cert (optional) ──
         if [ -n "${SECONDARY_CERT_BASE64:-}" ]; then
           printf '%s' "$SECONDARY_CERT_BASE64" | base64 -d > "$RUNNER_TEMP/signing-cert-secondary.p12"
+          cert_expiry_check "$RUNNER_TEMP/signing-cert-secondary.p12" "${SECONDARY_CERT_PASSWORD:-}" "Secondary signing certificate"
           security import "$RUNNER_TEMP/signing-cert-secondary.p12" \
             -k "$KEYCHAIN_PATH" \
             -P "${SECONDARY_CERT_PASSWORD:-}" \

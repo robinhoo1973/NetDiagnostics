@@ -168,6 +168,10 @@ static int defaultPortForScheme(const QString& schemeIn) {
 // （NOSIGNAL/HTTP1.1/UA/VerifyNone/超时形态）——策略变更需 4 处同步；slist
 // 生命周期陷阱（perform 前释放 → SIGSEGV，已咬过一次）逐处重学。单一基线
 // + RAII slist：析构统一释放，生命周期错误不可能再写出来。
+// 5WHY (2026-09-26 NO_CURL 守卫): 曾因 include 外移误删本守卫——iOS/Android
+// 定义 NO_CURL 却编译 curl 类型代码（Apple CI 首炸）。守卫必须覆盖类型与
+// 函数本体，与使用方（均处 #if !NO_CURL 内）一致。
+#if !defined(NO_CURL)
 struct CurlSlist {
     curl_slist* list = nullptr;
     ~CurlSlist() { if (list) curl_slist_free_all(list); }
@@ -184,6 +188,7 @@ inline void configureCurlBasics(CURL* curl, long connectMs, long timeoutMs) {
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
     curl_easy_setopt(curl, CURLOPT_USERAGENT, "NetDiagnostics/1.0");
 }
+#endif // !NO_CURL
 
 // ── IPv4 formatting ─────────────────────────────────────────────────
 static QString ip4ToStr(struct in_addr a) {

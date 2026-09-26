@@ -163,10 +163,29 @@ runs:
       env:
         IOS_PROFILE_B64: ${{ env.IOS_PROVISIONING_PROFILE_BASE64 }}
       run: |
+        # ── 5WHY (2026-09-26 Profile 临期盲区): 与签名证书同门——Profile 一年
+        # 到期，管线数周才跑一次，过期到发布时刻才暴露。临期硬门：< 30 天
+        # 即 FAIL（业界最佳实践：把发布阻塞转化为构建期硬信号）。
+        profile_expiry_check() {
+          local expiry="$1" epoch end_epoch days_left
+          [ -z "$expiry" ] && { echo "::error::Provisioning profile has no ExpirationDate"; exit 1; }
+          end_epoch=$(date -j -f "%Y-%m-%dT%H:%M:%SZ" "$expiry" +%s 2>/dev/null \
+            || date -d "$expiry" +%s 2>/dev/null \
+            || { echo "::error::Cannot parse profile expiry '$expiry'"; exit 1; })
+          epoch=$(date +%s)
+          days_left=$(( (end_epoch - epoch) / 86400 ))
+          if [ "$days_left" -lt 30 ]; then
+            echo "::error::Provisioning profile expires in $days_left days ($expiry) — rotate now, releases will be blocked"
+            exit 1
+          fi
+          echo "::notice::Provisioning profile valid until $expiry ($days_left days left)"
+        }
         if [ -n "$IOS_PROFILE_B64" ]; then
           echo -n "$IOS_PROFILE_B64" | base64 -d > "$RUNNER_TEMP/profile.mobileprovision"
           PROFILE_UUID=$(/usr/libexec/PlistBuddy -c "Print UUID" /dev/stdin <<< "$(security cms -D -i "$RUNNER_TEMP/profile.mobileprovision")" 2>/dev/null || echo "")
+          PROFILE_EXPIRY=$(/usr/libexec/PlistBuddy -c "Print ExpirationDate" /dev/stdin <<< "$(security cms -D -i "$RUNNER_TEMP/profile.mobileprovision")" 2>/dev/null || echo "")
           if [ -n "$PROFILE_UUID" ]; then
+            profile_expiry_check "$PROFILE_EXPIRY"
             mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
             cp "$RUNNER_TEMP/profile.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/${PROFILE_UUID}.mobileprovision"
             echo "profile_uuid=${PROFILE_UUID}" >> "$GITHUB_OUTPUT"
@@ -182,7 +201,9 @@ runs:
             if [ -n "$PROFILE_B64" ]; then
               echo -n "$PROFILE_B64" | base64 -d > "$RUNNER_TEMP/profile.mobileprovision"
               PROFILE_UUID=$(/usr/libexec/PlistBuddy -c "Print UUID" /dev/stdin <<< "$(security cms -D -i "$RUNNER_TEMP/profile.mobileprovision")" 2>/dev/null || echo "")
+              PROFILE_EXPIRY=$(/usr/libexec/PlistBuddy -c "Print ExpirationDate" /dev/stdin <<< "$(security cms -D -i "$RUNNER_TEMP/profile.mobileprovision")" 2>/dev/null || echo "")
               if [ -n "$PROFILE_UUID" ]; then
+                profile_expiry_check "$PROFILE_EXPIRY"
                 mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
                 cp "$RUNNER_TEMP/profile.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/${PROFILE_UUID}.mobileprovision"
                 echo "profile_uuid=${PROFILE_UUID}" >> "$GITHUB_OUTPUT"

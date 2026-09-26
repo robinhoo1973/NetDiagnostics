@@ -191,7 +191,7 @@ QByteArray IconProvider::tintedXml(const QString& name, const Meta& meta,
     // 控制字节），全部占位符前缀无关、两循环升序，碰撞不变式随注释消失。
     // 5WHY (simplify 二轮 2026-09-05): 构造/匹配双循环必须产出逐字节相同
     // 占位符——slotPh 单一来源，终结符变更只改一处。
-    const auto slotPh = [kPhFixed](int i) {
+    const auto slotPh = [](int i) {   // 静态无需捕获（5WHY 2026-09-26: 捕获静态被 Apple Clang 硬拒）
         return kPhFixed + QByteArray::number(i) + '\x01';
     };
     if (!phHit) {
