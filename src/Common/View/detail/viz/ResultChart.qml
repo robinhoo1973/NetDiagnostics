@@ -28,7 +28,10 @@
 // =============================================================================
 import QtQuick
 import theme
-import "../widgets/StatsUtil.js" as W   // seriesEqual（重绑去重逐元素比较）
+import "../../widgets/StatsUtil.js" as W   // seriesEqual（重绑去重逐元素比较）
+// 5WHY (2026-09-26 路径错位): 曾 ../widgets/——本文件在 detail/viz/ 下，
+// ../ 到 detail/，JS 实际注册于 widgets/ 别名（差一层目录，运行时 No such
+// file or directory → 启动即崩，烟测闸门抓获）
 
 Item {
     id: root

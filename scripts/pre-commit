@@ -555,6 +555,80 @@ fi
 	    pass "QML URLs registered"
 	fi
 
+	# ── 18c. QML relative JS imports ↔ qrc aliases ─────────────────────────
+	# 5WHY (2026-09-26 ResultChart 启动崩): import "../widgets/StatsUtil.js"
+	# 相对路径差一层目录——qmlcachegen(AOT) 不解析 .js import，运行时才
+	# "No such file or directory" → 启动即崩（烟测闸门抓获）。qrc:/qt/qml
+	# 字面量检查(18b)覆盖不到相对 import。此检查以 qrc 别名为唯一事实源
+	# 解析每个 QML 的相对 .js import，缺口即 fail（fail-closed）。
+	echo ""
+	echo "── 18c. QML relative JS imports ↔ qrc aliases ──"
+	JSIMP_MISSING=""
+	if [ ! -d "$ROOT/src/Common/View" ] || [ ! -f "$ROOT/resources/resources_core.qrc" ]; then
+	    JSIMP_MISSING="<scan-source-missing>"
+	else
+	    set +e
+	    JSIMP_OUT=$(python3 - "$ROOT" <<'PYEOF'
+import os, re, sys, xml.etree.ElementTree as ET
+root = sys.argv[1]
+alias_map = {}
+for qrc in ['resources/resources_core.qrc', 'resources/resources_icons.qrc']:
+    try:
+        tree = ET.parse(os.path.join(root, qrc))
+    except Exception:
+        continue
+    for f in tree.iter('file'):
+        alias = f.get('alias') or os.path.basename(f.text or '')
+        alias_map[alias.replace('\\', '/')] = 1
+missing = []
+view = os.path.join(root, 'src/Common/View')
+for dirpath, _dirs, files in os.walk(view):
+    for fn in files:
+        if not fn.endswith('.qml'):
+            continue
+        p = os.path.join(dirpath, fn)
+        try:
+            lines = open(p, encoding='utf-8', errors='replace').read().splitlines()
+        except OSError:
+            continue
+        for i, line in enumerate(lines, 1):
+            m = re.search(r'import "([^"]+\.js)"', line)
+            if not m:
+                continue
+            rel = m.group(1)
+            if rel.startswith('qrc:'):
+                target = rel[len('qrc:/qt/qml/'):] if rel.startswith('qrc:/qt/qml/') else rel[4:]
+            else:
+                parts = ['qrc:/qt/qml'] + os.path.relpath(dirpath, view).replace('\\', '/').split('/')
+                for seg in rel.split('/'):
+                    if seg == '..':
+                        if len(parts) > 1:
+                            parts.pop()
+                    elif seg not in ('', '.'):
+                        parts.append(seg)
+                target = '/'.join(parts)[len('qrc:/qt/qml/'):]
+            if target not in alias_map:
+                missing.append(f"{os.path.relpath(p, root)}:{i}: {rel} -> {target}")
+for m in missing:
+    print(m)
+PYEOF
+)
+	    JSIMP_RC=$?
+	    set -e
+	    if [ "$JSIMP_RC" -ge 2 ]; then
+	        fail "18c: cannot scan relative JS imports (exit $JSIMP_RC)"
+	        JSIMP_MISSING="<scan-error>"
+	    elif [ -n "$JSIMP_OUT" ]; then
+	        JSIMP_MISSING="$JSIMP_OUT"
+	    fi
+	fi
+	if [ -n "$JSIMP_MISSING" ]; then
+	    fail "QML relative .js import does not resolve to a qrc alias:"
+	    echo "$JSIMP_MISSING" | while read -r line; do echo "       $line"; done
+	else
+	    pass "QML JS imports resolve"
+	fi
+
 	# ── 19. Icon pipeline outputs: staleness check ──────────────────────────
 	# v4 (方案 B): AppIcon requests image://icon/<hex>/<name>?theme=..&dpr=..
 	# — the C++ IconProvider tints the single master at runtime.  Master
