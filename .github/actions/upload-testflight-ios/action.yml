@@ -163,17 +163,18 @@ runs:
       env:
         IOS_PROFILE_B64: ${{ env.IOS_PROVISIONING_PROFILE_BASE64 }}
       run: |
-        # 5WHY (2026-09-26 静默死亡取证): 曾 66ms 零输出 exit 1（decode 后即
-        # 死）。临时 set -x 逐命令跟踪 + EXIT trap 记录退出码，定位后移除。
-        set -x
-        trap 'echo "[TRACE] step exited rc=$?"' EXIT
         # ── 5WHY (2026-09-26 Profile 临期盲区): 与签名证书同门——Profile 一年
         # 到期，管线数周才跑一次，过期到发布时刻才暴露。临期硬门：< 30 天
         # 即 FAIL（业界最佳实践：把发布阻塞转化为构建期硬信号）。
         profile_expiry_check() {
           local expiry="$1" epoch end_epoch days_left
           [ -z "$expiry" ] && { echo "::error::Provisioning profile has no ExpirationDate"; exit 1; }
+          # 5WHY (2026-09-26 格式取证): PlistBuddy 输出的 <date> 是 ctime 形态
+          # （实测 'Thu Jun 24 07:54:55 UTC 2027'），曾按 ISO-8601 解析——
+          # 健康 Profile 被误判解析失败 exit 1（xtrace 取证确认）。多格式
+          # 容错：ISO → ctime → GNU fallback。
           end_epoch=$(date -j -f "%Y-%m-%dT%H:%M:%SZ" "$expiry" +%s 2>/dev/null \
+            || date -j -f "%a %b %e %T %Z %Y" "$expiry" +%s 2>/dev/null \
             || date -d "$expiry" +%s 2>/dev/null \
             || { echo "::error::Cannot parse profile expiry '$expiry'"; exit 1; })
           epoch=$(date +%s)
