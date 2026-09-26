@@ -150,6 +150,18 @@ QByteArray IconProvider::tintedXml(const QString& name, const Meta& meta,
     if (xml.isEmpty())
         return xml;
 
+    // 5WHY (2026-09-26 中间产物缓存): 阶段 1（哨兵→占位符）仅依赖母版 XML
+    // 与 fixed 槽数——与颜色无关。曾每次渲染 miss 重付母版复制 + ~15 次
+    // 全文 scan + SVG 解析；主题切换/缩放/DPR 变化时 ~45 图标同批 miss。
+    // 按 (name|dark) 缓存中间产物，miss 只剩阶段 2 配色替换（并发同键
+    // 计算幂等，插入即收敛）。母版 SVG 无控制字节，\x01 判别缓存命中。
+    const QString phKey = name + (dark ? QLatin1String("|d") : QLatin1String("|l"));
+    {
+        QMutexLocker locker(&m_mutex);
+        const auto it = m_phCache.constFind(phKey);
+        if (it != m_phCache.constEnd()) xml = it.value();
+    }
+
     const QByteArray primaryHex = primary.name().toUpper().toLatin1();
 
     // 5WHY (2026-09-05 哨兵互相覆盖): 曾顺序盲替换——请求主色恰等于后续
@@ -169,32 +181,37 @@ QByteArray IconProvider::tintedXml(const QString& name, const Meta& meta,
     const QString soft = dark ? meta.softDark : meta.softLight;
     const QStringList fixed = dark ? meta.fixedDark : meta.fixedLight;
 
-    // ── 阶段 1：哨兵 → 唯一占位符 ─────────────────────────────────────
-    // 1) 主色：渐变起点 #FFFFFF（母版统一为小写，兼容大写以防万一）
-    xml.replace("#ffffff", kPhPrimary);
-    xml.replace("#FFFFFF", kPhPrimary);
-    // 2) 渐变深端 #aaaaaa（HSL 加深 30%）
-    xml.replace("#aaaaaa", kPhGrad);
-    xml.replace("#AAAAAA", kPhGrad);
-    // 3) 语义强调 #000000
-    xml.replace("#000000", kPhAccent);
-    // 4) 第二强调 #101010
-    xml.replace("#101010", kPhSecond);
-    // 5) 柔填充 #777777
-    xml.replace("#777777", kPhSoft);
-    // 6) 固定多色 #B0000n（列表长度即槽位数量；超出部分保持字面）
     // 5WHY (simplify 2026-09-05): 槽位占位符曾以数字收尾（"…1 是 …12 的
     // 前缀"）——两个循环被降序+注释强制的不变量约束，任何"简化"为升序的
     // 改动静默吞掉槽 10+。占位符追加 \x01 终结符（SVG 中不可能出现的
     // 控制字节），全部占位符前缀无关、两循环升序，碰撞不变式随注释消失。
     // 5WHY (simplify 二轮 2026-09-05): 构造/匹配双循环必须产出逐字节相同
     // 占位符——slotPh 单一来源，终结符变更只改一处。
-    const auto slotPh = [&kPhFixed](int i) {
+    const auto slotPh = [kPhFixed](int i) {
         return kPhFixed + QByteArray::number(i) + '\x01';
     };
-    for (int i = 1; i <= fixed.size(); ++i) {
-        const QString slot = QStringLiteral("#B0000%1").arg(i);
-        xml.replace(slot.toLatin1(), slotPh(i));
+    const bool cachedPh = xml.contains('\x01');   // 缓存命中：阶段 1 已做
+    if (!cachedPh) {
+        // ── 阶段 1：哨兵 → 唯一占位符 ─────────────────────────────────
+        // 1) 主色：渐变起点 #FFFFFF（母版统一为小写，兼容大写以防万一）
+        xml.replace("#ffffff", kPhPrimary);
+        xml.replace("#FFFFFF", kPhPrimary);
+        // 2) 渐变深端 #aaaaaa（HSL 加深 30%）
+        xml.replace("#aaaaaa", kPhGrad);
+        xml.replace("#AAAAAA", kPhGrad);
+        // 3) 语义强调 #000000
+        xml.replace("#000000", kPhAccent);
+        // 4) 第二强调 #101010
+        xml.replace("#101010", kPhSecond);
+        // 5) 柔填充 #777777
+        xml.replace("#777777", kPhSoft);
+        // 6) 固定多色 #B0000n（列表长度即槽位数量；超出部分保持字面）
+        for (int i = 1; i <= fixed.size(); ++i) {
+            const QString slot = QStringLiteral("#B0000%1").arg(i);
+            xml.replace(slot.toLatin1(), slotPh(i));
+        }
+        QMutexLocker locker(&m_mutex);
+        m_phCache.insert(phKey, xml);
     }
 
     // ── 阶段 2：占位符 → 最终配色（缺元数据保持字面哨兵=确定回退）──

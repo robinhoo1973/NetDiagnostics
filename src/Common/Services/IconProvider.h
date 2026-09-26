@@ -59,6 +59,9 @@ private:
     QByteArray tintedXml(const QString& name, const Meta& meta,
                          const QColor& primary, bool dark);
     Meta metaFor(const QString& name) const;   // 按值返回：锁外解引用悬垂防护（5WHY 2026-09-26）
+    // 占位符中间产物缓存（name|dark → 阶段 1 输出）：仅依赖母版与固定槽数，
+    // 与颜色无关（5WHY 2026-09-26 效率）
+    QHash<QString, QByteArray> m_phCache;
     void loadMeta();
     static QColor darken30(const QColor& c);
 

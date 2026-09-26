@@ -4,6 +4,7 @@
 #include "Configuration/Controller/ConfigurationController.h"
 #include "app/AppState.h"
 #include "Common/Services/DiagnosticBase.h"   // 5WHY (2026-09-05): 可运行性单一入口
+#include "Common/Services/PlatformAdapter.h"   // AdapterRegistry（5WHY 2026-09-26: 配置持久化按平台适配器过滤）
 #include "Common/Utils/SettingsKeys.h"   // simplify: 组名单一来源（与 AppState 共用）
 #include <QSettings>
 
@@ -60,7 +61,12 @@ void ConfigurationController::loadSettings() {
             // （除 3 个硬件探测外恒 true）——平台无适配器的 id（如桌面
             // 导出的 G5Mysql 在 iOS 恢复）被静默复活为"永远自跳过"的
             // 幽灵启用项。与调度/可见性同源：registry select + capability。
-            if (ok && DiagnosticBase::runnable(static_cast<DiagId>(id)))
+            // 5WHY (2026-09-26 硬件能力越权): runnable() 内含 DeviceCapability
+            // 硬件探测——启动时 WiFi 关闭/适配器未插即把已保存启用项剪除，
+            // 下次保存固化丢失（用户插上适配器后仍被静默禁用）。配置持久
+            // 化只按"平台有无适配器"过滤（registry）；硬件能力是运行期调
+            // 度门（缺硬件显示 Skipped，插上即恢复），不参与启用集持久化。
+            if (ok && AdapterRegistry::anyRunnable(static_cast<DiagId>(id)))
                 m_config.setDiagEnabled(id, true);
         }
     }
