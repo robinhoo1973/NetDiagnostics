@@ -96,7 +96,8 @@ jobs:
   linux:
 
     # 主推 master 仅跑 version+selftest；重构建/发布只在 tag/PR/dispatch 执行
-    if: ${{ github.event_name != 'push' || startsWith(github.ref, 'refs/tags/') }}    name: Linux ${{ matrix.arch }}
+    if: ${{ github.event_name != 'push' || startsWith(github.ref, 'refs/tags/') }}
+    name: Linux ${{ matrix.arch }}
     needs: [version]
     strategy:
       fail-fast: false
@@ -119,7 +120,8 @@ jobs:
   windows-static:
 
     # 主推 master 仅跑 version+selftest；重构建/发布只在 tag/PR/dispatch 执行
-    if: ${{ github.event_name != 'push' || startsWith(github.ref, 'refs/tags/') }}    name: Windows x86_64 Static
+    if: ${{ github.event_name != 'push' || startsWith(github.ref, 'refs/tags/') }}
+    name: Windows x86_64 Static
     needs: [version]
     runs-on: windows-2022
     # 5WHY: 90 min was insufficient — Qt 6.11.1 source build on a 2-core
@@ -138,7 +140,8 @@ jobs:
   windows-dynamic:
 
     # 主推 master 仅跑 version+selftest；重构建/发布只在 tag/PR/dispatch 执行
-    if: ${{ github.event_name != 'push' || startsWith(github.ref, 'refs/tags/') }}    name: Windows x86_64 Dynamic
+    if: ${{ github.event_name != 'push' || startsWith(github.ref, 'refs/tags/') }}
+    name: Windows x86_64 Dynamic
     needs: [version]
     runs-on: windows-2022
     timeout-minutes: 30
@@ -157,7 +160,8 @@ jobs:
   macos:
 
     # 主推 master 仅跑 version+selftest；重构建/发布只在 tag/PR/dispatch 执行
-    if: ${{ github.event_name != 'push' || startsWith(github.ref, 'refs/tags/') }}    name: macOS (release download)
+    if: ${{ github.event_name != 'push' || startsWith(github.ref, 'refs/tags/') }}
+    name: macOS (release download)
     needs: [version]
     runs-on: macos-latest
     timeout-minutes: 45
@@ -178,7 +182,8 @@ jobs:
   android:
 
     # 主推 master 仅跑 version+selftest；重构建/发布只在 tag/PR/dispatch 执行
-    if: ${{ github.event_name != 'push' || startsWith(github.ref, 'refs/tags/') }}    name: Android ${{ matrix.arch }} (${{ matrix.format }})
+    if: ${{ github.event_name != 'push' || startsWith(github.ref, 'refs/tags/') }}
+    name: Android ${{ matrix.arch }} (${{ matrix.format }})
     needs: [version]
     strategy:
       fail-fast: false
@@ -212,15 +217,14 @@ jobs:
 
   # ═══ Release — collect all artifacts → GitHub Release ═══
   release:
-
-    # 主推 master 仅跑 version+selftest；重构建/发布只在 tag/PR/dispatch 执行
-    if: ${{ github.event_name != 'push' || startsWith(github.ref, 'refs/tags/') }}    name: Create Release
+    name: Create Release
     needs: [version, linux, windows-static, windows-dynamic, macos, android]
     # 5WHY: on pull_request the release job would create/overwrite real GitHub
     # Releases (e.g. v0.0.1 when no tags exist).  Gating on event_name ensures
     # releases only fire on manual workflow_dispatch / tag push, never on PR
-    # validation.
-    if: (!failure()) && (!cancelled()) && (github.event_name != 'pull_request')
+    # validation.  5WHY (2026-09-26): 曾两个 if: 键并存——YAML 重复键后者
+    # 覆盖前者，主推门控被静默吞掉。合并为单一条件。
+    if: (!failure()) && (!cancelled()) && (github.event_name != 'pull_request') && (github.event_name != 'push' || startsWith(github.ref, 'refs/tags/'))
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
