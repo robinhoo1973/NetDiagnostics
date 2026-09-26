@@ -12,10 +12,11 @@
 ProbeFeedback::ProbeFeedback(ProbeDatabase* db, ProbeScheduler* sched)
     : m_db(db), m_sched(sched) {}
 
-ProbeResult ProbeFeedback::get(const ProbeConfig& config) {
+ProbeResult ProbeFeedback::get(const ProbeConfig& config,
+                               const std::atomic<bool>* cancelled) {
     // Step 1: resolve hosts + wait for all to be Done
     QStringList hosts = m_sched->resolveHosts(config);
-    m_db->waitForCompletion(hosts);
+    m_db->waitForCompletion(hosts, cancelled);
 
     // Step 2: read raw TTFB → per-server statistics
     QVector<ServerResult> servers;

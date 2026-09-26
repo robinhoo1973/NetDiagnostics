@@ -164,8 +164,9 @@ void GeoProbe::probe(const ProbeConfig& config) {
     m_scheduler->submit(config);
 }
 
-ProbeResult GeoProbe::getFeedback(const ProbeConfig& config) {
-    return m_feedback->get(config);
+ProbeResult GeoProbe::getFeedback(const ProbeConfig& config,
+                                  const std::atomic<bool>* cancelled) {
+    return m_feedback->get(config, cancelled);
 }
 
 void GeoProbe::clear() {

@@ -949,6 +949,9 @@ static DiagnosticResult probeTraceroute(DiagId id, const QString& target, RunCon
     if (!reached && !blocked) {
         const int ports[] = {443, 80, 22, 8080};
         for (int p : ports) {
+            // 5WHY (2026-09-26 取消缺口): 回退循环（4 端口×3s=12s）曾无取消检查
+            // ——取消后仍付满 12s 套件排空。逐端口响应取消。
+            if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
             const int rtt = tcpRttMs(host, p);
             if (rtt >= 0) {
                 tcpReachable = true;

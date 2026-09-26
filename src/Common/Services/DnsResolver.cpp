@@ -48,10 +48,8 @@ bool waitResolveDone(const std::atomic<bool>& done,
 // 5WHY (2026-09-26 joinable 守卫): 线程创建失败时 t 为默认构造非 joinable，
 // 对其 detach/join 将抛 system_error——必须 joinable() 前置守卫。
 void finishResolveThread(std::thread& t, const std::atomic<bool>& done) {
-    if (t.joinable() && done.load(std::memory_order_acquire))
-        t.join();   // completed within timeout -- immediate cleanup
-    else if (t.joinable())
-        t.detach(); // still blocked in getaddrinfo; state freed by shared_ptr
+    if (t.joinable() && done.load(std::memory_order_acquire)) t.join();   // completed within timeout -- immediate cleanup
+    else if (t.joinable()) t.detach(); // still blocked in getaddrinfo; state freed by shared_ptr
 }
 
 // 5WHY (simplify 2026-08-17): resolve()/resolve6() 仅地址族不同——getaddrinfo
@@ -59,9 +57,20 @@ void finishResolveThread(std::thread& t, const std::atomic<bool>& done) {
 // 失败返回非 joinable 线程，调用方按失败处理。
 struct LookupState { std::atomic<bool> done{false}; QString ip; };
 
+// 5WHY (2026-09-26 detach 上界): 每个超时解析 detach 一个仍阻塞 getaddrinfo
+// 30-120s 的线程；负缓存只限同主机，不同主机无上界——多主机扫描累积数十
+// detach 线程（栈/fd/pthread 上限压力，Android 尤甚）。在飞查询计数上限：
+// 超限即按资源失败处理（调用方走既有 kSpawnFailTtlMs 短窗口节流路径）。
+constexpr int kMaxInFlightLookups = 8;
+std::atomic<int> s_inFlightLookups{0};
+
 std::thread spawnLookupThread(const std::shared_ptr<LookupState>& st,
                               const QByteArray& hb, int family) {
     std::thread t;
+    if (s_inFlightLookups.fetch_add(1, std::memory_order_relaxed) >= kMaxInFlightLookups) {
+        s_inFlightLookups.fetch_sub(1, std::memory_order_relaxed);
+        return t;   // 非 joinable → 调用方按创建失败走 kSpawnFailTtlMs 节流
+    }
     try {
         t = std::thread([st, hb, family]() {
             struct addrinfo hints = {}, *res = nullptr;
@@ -77,8 +86,10 @@ std::thread spawnLookupThread(const std::shared_ptr<LookupState>& st,
                 freeaddrinfo(res);
             }
             st->done.store(true, std::memory_order_release);
+            s_inFlightLookups.fetch_sub(1, std::memory_order_relaxed);
         });
     } catch (const std::system_error& e) {
+        s_inFlightLookups.fetch_sub(1, std::memory_order_relaxed);
         qWarning("DnsResolver: thread creation failed (%s)", e.what());
     }
     return t;

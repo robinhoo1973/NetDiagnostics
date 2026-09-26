@@ -73,7 +73,9 @@ public:
 
     // ── Feedback API ─────────────────────────────────────────────────
     Task read(const QString& key) const;
-    void waitForCompletion(const QStringList& keys);
+    // cancelled 可空：非空时取消置位（用户取消/watchdog 超时）立即返回，
+    // 不再等满 120s 上限——套件排空与主线程析构不再付满阻塞（5WHY 2026-09-26）。
+    void waitForCompletion(const QStringList& keys, const std::atomic<bool>* cancelled = nullptr);
 
     // ── Executor idle API ─────────────────────────────────────────────
     // 条件变量等待：表内出现 Waiting 任务 / stop 置位 / wake() 即返回。

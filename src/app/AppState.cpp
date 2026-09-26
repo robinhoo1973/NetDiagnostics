@@ -656,6 +656,11 @@ void AppState::cancel() {
         return;
     }
     if (m_suite) m_suite->cancel();
+    // 5WHY (2026-09-26 取消解堵 120s): GeoProbe 在飞 waitForCompletion（至
+    // 120s）曾不被取消触碰——套件析构在主线程 QThreadPool dtor 等工人排空
+    // → UI 冻结至上限。clear() 递增代际 + 唤醒：在途等待立即返回（空结果
+    // 优雅跳过），套件排空缩短到秒级；探针侧据此转 Cancelled 终态。
+    GeoProbe::instance().clear();
     // 5WHY (2026-09-26 取消后迟到结果): 曾不递增代际——abort-grace 窗内完成的
     // 真实结果通过 resultReady 代际门混入 m_results，与 persistResults 已写
     // 快照不一致（取消后界面冒出结果）。递增后所有迟到结果按跨 run 丢弃。

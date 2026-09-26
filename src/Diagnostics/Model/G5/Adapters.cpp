@@ -119,7 +119,14 @@ struct ProbeOutcome {
     QString error;
 };
 
-static ProbeOutcome tcpProbe(const QUrl& u, const QByteArray& sendData,
+// ctx 可为空（无 RunContext 的辅助调用场景）；非空时每个阻塞原语前置取消
+// 检查——取消后立即放弃（不再等满 connect/read 超时），套件排空不再付全
+// 块延迟（5WHY 2026-09-26 原子时限：探针必须咨询取消通道）。
+static bool cancelledBy(const RunContext* ctx) {
+    return ctx && ctx->cancelled.load(std::memory_order_relaxed);
+}
+
+static ProbeOutcome tcpProbe(RunContext* ctx, const QUrl& u, const QByteArray& sendData,
                              int connectTimeoutMs = 5000, int readTimeoutMs = 3000) {
     ProbeOutcome p;
     const int port = portForUrl(u);
@@ -134,24 +141,26 @@ static ProbeOutcome tcpProbe(const QUrl& u, const QByteArray& sendData,
     };
     const bool useTls = implicitTlsSchemes.contains(scheme);
     QElapsedTimer t; t.start();
+    if (cancelledBy(ctx)) { p.error = QStringLiteral("Cancelled"); p.latencyMs = 0; return p; }
 
     if (useTls) {
         QSslSocket sock;
         sock.setPeerVerifyMode(QSslSocket::VerifyNone);
         sock.connectToHostEncrypted(u.host(), (quint16)port);
         if (!sock.waitForEncrypted(connectTimeoutMs)) {
-            p.error = sock.errorString();
+            p.error = cancelledBy(ctx) ? QStringLiteral("Cancelled") : sock.errorString();
             p.latencyMs = t.elapsed();
             return p;
         }
         if (!sendData.isEmpty()) { sock.write(sendData); sock.waitForBytesWritten(2000); }
         const qint64 deadline = t.elapsed() + readTimeoutMs;
         QByteArray data;
-        while (t.elapsed() < deadline) {
+        while (t.elapsed() < deadline && !cancelledBy(ctx)) {
             if (!sock.waitForReadyRead(qMin<qint64>(300, deadline - t.elapsed()))) break;
             data += sock.readAll();
         }
         sock.disconnectFromHost();
+        if (cancelledBy(ctx)) { p.error = QStringLiteral("Cancelled"); p.latencyMs = t.elapsed(); return p; }
         p.connected = true;
         p.banner = data;
         p.latencyMs = t.elapsed();
@@ -161,18 +170,19 @@ static ProbeOutcome tcpProbe(const QUrl& u, const QByteArray& sendData,
     QTcpSocket sock;
     sock.connectToHost(u.host(), (quint16)port);
     if (!sock.waitForConnected(connectTimeoutMs)) {
-        p.error = sock.errorString();
+        p.error = cancelledBy(ctx) ? QStringLiteral("Cancelled") : sock.errorString();
         p.latencyMs = t.elapsed();
         return p;
     }
     if (!sendData.isEmpty()) { sock.write(sendData); sock.waitForBytesWritten(2000); }
     const qint64 deadline = t.elapsed() + readTimeoutMs;
     QByteArray data;
-    while (t.elapsed() < deadline) {
+    while (t.elapsed() < deadline && !cancelledBy(ctx)) {
         if (!sock.waitForReadyRead(qMin<qint64>(300, deadline - t.elapsed()))) break;
         data += sock.readAll();
     }
     sock.disconnectFromHost();
+    if (cancelledBy(ctx)) { p.error = QStringLiteral("Cancelled"); p.latencyMs = t.elapsed(); return p; }
     p.connected = true;
     p.banner = data;
     p.latencyMs = t.elapsed();
@@ -254,11 +264,13 @@ static QByteArray headerValue(const HttpResult& r, const char* name) {
 }
 
 // One request (no redirects). dnsMs measured with QHostInfo for host names.
-static HttpResult httpOnce(const QUrl& u, const QByteArray& method,
+// ctx 可为空；非空时各阻塞相位前置取消检查（5WHY 2026-09-26 原子时限）。
+static HttpResult httpOnce(RunContext* ctx, const QUrl& u, const QByteArray& method,
                            const QByteArray& extraHeaders, int timeoutMs) {
     HttpResult r;
     QElapsedTimer total; total.start();
     QElapsedTimer phase; phase.start();
+    if (cancelledBy(ctx)) { r.error = QStringLiteral("Cancelled"); r.totalMs = 0; return r; }
 
     // Phase: DNS (only for hostnames) — DnsResolver 3s 超时单例（H4：裸 QHostInfo
     // 在坏网络下可阻塞数十秒，远超 watchdog 预算）
@@ -288,18 +300,19 @@ static HttpResult httpOnce(const QUrl& u, const QByteArray& method,
         // M6：TCP 连接与 TLS 握手分段计时——先 connectToHost，再 startClientEncryption
         sock.connectToHost(u.host(), (quint16)port);
         if (!sock.waitForConnected(timeoutMs)) {
-            r.error = sock.errorString();
+            r.error = cancelledBy(ctx) ? QStringLiteral("Cancelled") : sock.errorString();
             r.totalMs = total.elapsed();
             return r;
         }
         r.connectMs = phase.restart();
         sock.startClientEncryption();
         if (!sock.waitForEncrypted(timeoutMs)) {
-            r.error = sock.errorString();
+            r.error = cancelledBy(ctx) ? QStringLiteral("Cancelled") : sock.errorString();
             r.totalMs = total.elapsed();
             return r;
         }
         r.tlsMs = phase.elapsed();
+        if (cancelledBy(ctx)) { r.error = QStringLiteral("Cancelled"); r.totalMs = total.elapsed(); return r; }
 
         QByteArray req;
         req += method + " " + (u.path(QUrl::FullyEncoded).isEmpty() ? QByteArray("/") : u.path(QUrl::FullyEncoded).toUtf8());
@@ -313,18 +326,19 @@ static HttpResult httpOnce(const QUrl& u, const QByteArray& method,
         sock.write(req);
         r.verboseLines.append(QStringLiteral("> %1 %2 HTTP/1.1").arg(QString::fromUtf8(method), u.path()));
         QByteArray all;
-        while (total.elapsed() < timeoutMs) {
+        while (total.elapsed() < timeoutMs && !cancelledBy(ctx)) {
             if (!sock.waitForReadyRead(qMin<qint64>(300, timeoutMs - total.elapsed()))) break;
             all += sock.readAll();
             if (all.contains("\r\n\r\n")) { r.firstByteMs = total.elapsed(); break; }
         }
         // drain remaining body
-        while (total.elapsed() < timeoutMs) {
+        while (total.elapsed() < timeoutMs && !cancelledBy(ctx)) {
             if (!sock.waitForReadyRead(qMin<qint64>(300, timeoutMs - total.elapsed()))) break;
             all += sock.readAll();
         }
         sock.disconnectFromHost();
         r.totalMs = total.elapsed();
+        if (cancelledBy(ctx)) { r.error = QStringLiteral("Cancelled"); return r; }
         const int hdrEnd = all.indexOf("\r\n\r\n");
         if (hdrEnd < 0) {
             r.error = QStringLiteral("No HTTP response");
@@ -346,11 +360,12 @@ static HttpResult httpOnce(const QUrl& u, const QByteArray& method,
     QTcpSocket sock;
     sock.connectToHost(u.host(), (quint16)port);
     if (!sock.waitForConnected(timeoutMs)) {
-        r.error = sock.errorString();
+        r.error = cancelledBy(ctx) ? QStringLiteral("Cancelled") : sock.errorString();
         r.totalMs = total.elapsed();
         return r;
     }
     r.connectMs = phase.elapsed();
+    if (cancelledBy(ctx)) { r.error = QStringLiteral("Cancelled"); r.totalMs = total.elapsed(); return r; }
     QByteArray req;
     req += method + " " + (u.path(QUrl::FullyEncoded).isEmpty() ? QByteArray("/") : u.path(QUrl::FullyEncoded).toUtf8());
     if (u.hasQuery()) { req += '?'; req += u.query(QUrl::FullyEncoded).toUtf8(); }
@@ -363,17 +378,18 @@ static HttpResult httpOnce(const QUrl& u, const QByteArray& method,
     sock.write(req);
     r.verboseLines.append(QStringLiteral("> %1 %2 HTTP/1.1").arg(QString::fromUtf8(method), u.path()));
     QByteArray all;
-    while (total.elapsed() < timeoutMs) {
+    while (total.elapsed() < timeoutMs && !cancelledBy(ctx)) {
         if (!sock.waitForReadyRead(qMin<qint64>(300, timeoutMs - total.elapsed()))) break;
         all += sock.readAll();
         if (all.contains("\r\n\r\n")) { r.firstByteMs = total.elapsed(); break; }
     }
-    while (total.elapsed() < timeoutMs) {
+    while (total.elapsed() < timeoutMs && !cancelledBy(ctx)) {
         if (!sock.waitForReadyRead(qMin<qint64>(300, timeoutMs - total.elapsed()))) break;
         all += sock.readAll();
     }
     sock.disconnectFromHost();
     r.totalMs = total.elapsed();
+    if (cancelledBy(ctx)) { r.error = QStringLiteral("Cancelled"); return r; }
     const int hdrEnd = all.indexOf("\r\n\r\n");
     if (hdrEnd < 0) {
         r.error = QStringLiteral("No HTTP response");
@@ -394,7 +410,7 @@ static HttpResult httpOnce(const QUrl& u, const QByteArray& method,
 // ═════════════════════════════════════════════════════════════════════════
 // G5UrlParsing
 // ═════════════════════════════════════════════════════════════════════════
-static DiagnosticResult probeUrlParsing(DiagId id, const QString& target, RunContext&) {
+static DiagnosticResult probeUrlParsing(DiagId id, const QString& target, RunContext& ctx) {
     if (target.isEmpty()) return skippedProbe(id, QStringLiteral("No target"));
     const QUrl u = normalizeUrl(target);
     if (u.isEmpty()) return makeResult(id, DiagStatus::Fail, QStringLiteral("Invalid URL"), {}, {});
@@ -414,7 +430,7 @@ static DiagnosticResult probeUrlParsing(DiagId id, const QString& target, RunCon
 // ═════════════════════════════════════════════════════════════════════════
 // G5TcpConnect
 // ═════════════════════════════════════════════════════════════════════════
-static DiagnosticResult probeTcpConnect(DiagId id, const QString& target, RunContext&) {
+static DiagnosticResult probeTcpConnect(DiagId id, const QString& target, RunContext& ctx) {
     if (target.isEmpty()) return skippedProbe(id, QStringLiteral("No target"));
     const QUrl u = normalizeUrl(target);
     if (u.isEmpty()) return makeResult(id, DiagStatus::Fail, QStringLiteral("Invalid target"), {}, {});
@@ -447,11 +463,12 @@ static DiagnosticResult probeTcpConnect(DiagId id, const QString& target, RunCon
 // ═════════════════════════════════════════════════════════════════════════
 // G5ServiceBanner
 // ═════════════════════════════════════════════════════════════════════════
-static DiagnosticResult probeServiceBanner(DiagId id, const QString& target, RunContext&) {
+static DiagnosticResult probeServiceBanner(DiagId id, const QString& target, RunContext& ctx) {
     if (target.isEmpty()) return skippedProbe(id, QStringLiteral("No target"));
     const QUrl u = normalizeUrl(target);
     if (u.isEmpty()) return makeResult(id, DiagStatus::Fail, QStringLiteral("Invalid target"), {}, {});
-    const ProbeOutcome p = tcpProbe(u, {}, 5000, 2000);
+    const ProbeOutcome p = tcpProbe(&ctx, u, {}, 5000, 2000);
+    if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
     DiagnosticResult r = probeResultScaffold(id, u, p);
     if (!p.connected) return r;
     const QString banner = QString::fromUtf8(p.banner).left(500);
@@ -486,11 +503,12 @@ static void attachHttpTiming(DiagnosticResult& r, const HttpResult& hr) {
     waterfall.append(QVariantMap{{QStringLiteral("phase"), QStringLiteral("Total")}, {QStringLiteral("ms"), (double)hr.totalMs}});
     r.data[QStringLiteral("waterfall")] = waterfall;
 }
-static DiagnosticResult probeCurlVerbose(DiagId id, const QString& target, RunContext&) {
+static DiagnosticResult probeCurlVerbose(DiagId id, const QString& target, RunContext& ctx) {
     if (target.isEmpty()) return skippedProbe(id, QStringLiteral("No target"));
     const QUrl u = normalizeUrl(target);
     if (u.isEmpty()) return makeResult(id, DiagStatus::Fail, QStringLiteral("Invalid target"), {}, {});
-    const HttpResult hr = httpOnce(u, QByteArrayLiteral("GET"), QByteArray(), 15000);
+    const HttpResult hr = httpOnce(&ctx, u, QByteArrayLiteral("GET"), QByteArray(), 15000);
+    if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
     if (!hr.ok) return makeResult(id, DiagStatus::Fail,
         hr.error.isEmpty() ? QStringLiteral("HTTP request failed") : hr.error, {}, {});
 
@@ -522,11 +540,12 @@ static DiagnosticResult probeCurlVerbose(DiagId id, const QString& target, RunCo
 // ═════════════════════════════════════════════════════════════════════════
 // G5HttpHeaders
 // ═════════════════════════════════════════════════════════════════════════
-static DiagnosticResult probeHttpHeaders(DiagId id, const QString& target, RunContext&) {
+static DiagnosticResult probeHttpHeaders(DiagId id, const QString& target, RunContext& ctx) {
     if (target.isEmpty()) return skippedProbe(id, QStringLiteral("No target"));
     const QUrl u = normalizeUrl(target);
     if (u.isEmpty()) return makeResult(id, DiagStatus::Fail, QStringLiteral("Invalid target"), {}, {});
-    const HttpResult hr = httpOnce(u, QByteArrayLiteral("GET"), QByteArray(), 12000);
+    const HttpResult hr = httpOnce(&ctx, u, QByteArrayLiteral("GET"), QByteArray(), 12000);
+    if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
     if (!hr.ok) return makeResult(id, DiagStatus::Fail,
         hr.error.isEmpty() ? QStringLiteral("HTTP request failed") : hr.error, {}, {});
     QStringList out;
@@ -553,11 +572,12 @@ static DiagnosticResult probeHttpHeaders(DiagId id, const QString& target, RunCo
 // ═════════════════════════════════════════════════════════════════════════
 // G5SecurityHeaders
 // ═════════════════════════════════════════════════════════════════════════
-static DiagnosticResult probeSecurityHeaders(DiagId id, const QString& target, RunContext&) {
+static DiagnosticResult probeSecurityHeaders(DiagId id, const QString& target, RunContext& ctx) {
     if (target.isEmpty()) return skippedProbe(id, QStringLiteral("No target"));
     const QUrl u = normalizeUrl(target);
     if (u.isEmpty()) return makeResult(id, DiagStatus::Fail, QStringLiteral("Invalid target"), {}, {});
-    const HttpResult hr = httpOnce(u, QByteArrayLiteral("GET"), QByteArray(), 15000);
+    const HttpResult hr = httpOnce(&ctx, u, QByteArrayLiteral("GET"), QByteArray(), 15000);
+    if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
     if (!hr.ok) return makeResult(id, DiagStatus::Fail,
         hr.error.isEmpty() ? QStringLiteral("HTTP request failed") : hr.error, {}, {});
 
@@ -615,7 +635,7 @@ static DiagnosticResult probeSecurityHeaders(DiagId id, const QString& target, R
 // ═════════════════════════════════════════════════════════════════════════
 // G5SslCertificate
 // ═════════════════════════════════════════════════════════════════════════
-static DiagnosticResult probeSslCertificate(DiagId id, const QString& target, RunContext&) {
+static DiagnosticResult probeSslCertificate(DiagId id, const QString& target, RunContext& ctx) {
     if (target.isEmpty()) return skippedProbe(id, QStringLiteral("No target"));
     const QUrl u = normalizeUrl(target);
     if (u.isEmpty()) return makeResult(id, DiagStatus::Fail, QStringLiteral("Invalid target"), {}, {});
@@ -695,11 +715,21 @@ static DiagnosticResult probeHttpRedirect(DiagId id, const QString& target, RunC
     bool finalOk = false;
     HttpResult last;
     QVariantList hops;
+    QElapsedTimer hopBudget; hopBudget.start();
+    bool budgetExhausted = false;
     for (int hop = 0; hop <= 5; ++hop) {
         if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
-        // L2：每跳 8s（6×8=48s < 60s watchdog 预算）
-        const HttpResult hr = httpOnce(u, QByteArrayLiteral("GET"), QByteArray(), 8000);
+        // 5WHY (2026-09-26 预算算术修正): 曾注释 "每跳 8s（6×8=48s < 60s）"——
+        // httpOnce 每跳最坏 ≈ DNS 3s + 连接 8s + TLS 8s = 19s，6 跳 ≈ 114s
+        // 远超 60s watchdog，注定编造 Timeout。55s 全局预算内推进跳链：慢链
+        // 提前收敛为部分结果（Warning），杜绝超档案时限（60000 与最坏一致）。
+        if (hop > 0 && hopBudget.elapsed() > 55000) {
+            budgetExhausted = true;
+            break;
+        }
+        const HttpResult hr = httpOnce(&ctx, u, QByteArrayLiteral("GET"), QByteArray(), 8000);
         last = hr;
+        if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
         if (!hr.ok) break;
         QVariantMap hm;
         hm[QStringLiteral("url")] = TargetRedaction::forDisplay(u.toString());
@@ -723,9 +753,12 @@ static DiagnosticResult probeHttpRedirect(DiagId id, const QString& target, RunC
             {}, out.join(QLatin1Char('\n')));
     }
     if (!finalOk) {
-        out.append(QStringLiteral("Final status %1 is an error").arg(last.statusCode));
+        out.append(budgetExhausted
+            ? QStringLiteral("Chain truncated — hop budget (55s) exhausted before the final status.")
+            : QStringLiteral("Final status %1 is an error").arg(last.statusCode));
         DiagnosticResult r = makeResult(id, DiagStatus::Warning,
-            QStringLiteral("%1 redirect(s), final HTTP %2").arg(redirectCount).arg(last.statusCode),
+            budgetExhausted ? QStringLiteral("%1 redirect(s), chain truncated at hop budget").arg(redirectCount)
+                            : QStringLiteral("%1 redirect(s), final HTTP %2").arg(redirectCount).arg(last.statusCode),
             {}, out.join(QLatin1Char('\n')));
         r.data[QStringLiteral("redirectCount")] = redirectCount;
         r.data[QStringLiteral("redirects")] = hops;   // diag-g5 §2.8 契约键
@@ -746,18 +779,23 @@ static DiagnosticResult probeHttpRedirect(DiagId id, const QString& target, RunC
 // ═════════════════════════════════════════════════════════════════════════
 // G5HttpCompression
 // ═════════════════════════════════════════════════════════════════════════
-static DiagnosticResult probeHttpCompression(DiagId id, const QString& target, RunContext&) {
+static DiagnosticResult probeHttpCompression(DiagId id, const QString& target, RunContext& ctx) {
     if (target.isEmpty()) return skippedProbe(id, QStringLiteral("No target"));
     const QUrl u = normalizeUrl(target);
     if (u.isEmpty()) return makeResult(id, DiagStatus::Fail, QStringLiteral("Invalid target"), {}, {});
-    const HttpResult hr = httpOnce(u, QByteArrayLiteral("GET"),
-        QByteArrayLiteral("Accept-Encoding: gzip, deflate, br\r\n"), 15000);
+    // 5WHY (2026-09-26 档案时限收敛): 曾 15000×2——每请求最坏 ≈ DNS 3s + 连
+    // 接 15s + TLS 15s = 33s，两次串行 66s > 60s watchdog，注定编造 Timeout。
+    // 收敛到 12000：2×(3+12+12)=54s < 60s 档案；且两次请求之间响应取消。
+    const HttpResult hr = httpOnce(&ctx, u, QByteArrayLiteral("GET"),
+        QByteArrayLiteral("Accept-Encoding: gzip, deflate, br\r\n"), 12000);
+    if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
     if (!hr.ok) return makeResult(id, DiagStatus::Fail,
         hr.error.isEmpty() ? QStringLiteral("HTTP request failed") : hr.error, {}, {});
     const QByteArray encoding = headerValue(hr, "content-encoding");
     // M7：按规格补 originalSize/compressedSize/ratio——identity 对照请求测实体比
-    const HttpResult hrIdentity = httpOnce(u, QByteArrayLiteral("GET"),
-        QByteArrayLiteral("Accept-Encoding: identity\r\n"), 15000);
+    const HttpResult hrIdentity = httpOnce(&ctx, u, QByteArrayLiteral("GET"),
+        QByteArrayLiteral("Accept-Encoding: identity\r\n"), 12000);
+    if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
     const int originalSize = hrIdentity.ok ? hrIdentity.body.size() : 0;
     const int compressedSize = hr.body.size();
     const double ratio = (originalSize > 0)
@@ -801,11 +839,12 @@ static DiagnosticResult probeHttpCompression(DiagId id, const QString& target, R
 // ═════════════════════════════════════════════════════════════════════════
 // G5HttpTiming
 // ═════════════════════════════════════════════════════════════════════════
-static DiagnosticResult probeHttpTiming(DiagId id, const QString& target, RunContext&) {
+static DiagnosticResult probeHttpTiming(DiagId id, const QString& target, RunContext& ctx) {
     if (target.isEmpty()) return skippedProbe(id, QStringLiteral("No target"));
     const QUrl u = normalizeUrl(target);
     if (u.isEmpty()) return makeResult(id, DiagStatus::Fail, QStringLiteral("Invalid target"), {}, {});
-    const HttpResult hr = httpOnce(u, QByteArrayLiteral("GET"), QByteArray(), 15000);
+    const HttpResult hr = httpOnce(&ctx, u, QByteArrayLiteral("GET"), QByteArray(), 15000);
+    if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
     if (!hr.ok) return makeResult(id, DiagStatus::Fail,
         hr.error.isEmpty() ? QStringLiteral("HTTP request failed") : hr.error, {}, {});
     QStringList out;
@@ -825,13 +864,14 @@ static DiagnosticResult probeHttpTiming(DiagId id, const QString& target, RunCon
 // ═════════════════════════════════════════════════════════════════════════
 // Protocol family — banner / handshake verification
 // ═════════════════════════════════════════════════════════════════════════
-static DiagnosticResult probeFtp(DiagId id, const QString& target, RunContext&) {
+static DiagnosticResult probeFtp(DiagId id, const QString& target, RunContext& ctx) {
     if (target.isEmpty()) return skippedProbe(id, QStringLiteral("No target"));
     const QUrl u = normalizeUrl(target);
     if (u.isEmpty()) return makeResult(id, DiagStatus::Fail, QStringLiteral("Invalid target"), {}, {});
     if (u.scheme().toLower() != QLatin1String("ftp") && u.scheme().toLower() != QLatin1String("ftps"))
         return skippedProbe(id, QStringLiteral("Not FTP"));
-    const ProbeOutcome p = tcpProbe(u, {});
+    const ProbeOutcome p = tcpProbe(&ctx, u, {});
+    if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
     DiagnosticResult r = probeResultScaffold(id, u, p);
     if (!p.connected) return r;
     const QString banner = QString::fromUtf8(p.banner).trimmed().left(200);
@@ -842,13 +882,14 @@ static DiagnosticResult probeFtp(DiagId id, const QString& target, RunContext&) 
     return r;
 }
 
-static DiagnosticResult probeSsh(DiagId id, const QString& target, RunContext&) {
+static DiagnosticResult probeSsh(DiagId id, const QString& target, RunContext& ctx) {
     if (target.isEmpty()) return skippedProbe(id, QStringLiteral("No target"));
     const QUrl u = normalizeUrl(target);
     if (u.isEmpty()) return makeResult(id, DiagStatus::Fail, QStringLiteral("Invalid target"), {}, {});
     if (u.scheme().toLower() != QLatin1String("ssh") && u.scheme().toLower() != QLatin1String("sftp"))
         return skippedProbe(id, QStringLiteral("Not SSH"));
-    const ProbeOutcome p = tcpProbe(u, {});
+    const ProbeOutcome p = tcpProbe(&ctx, u, {});
+    if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
     DiagnosticResult r = probeResultScaffold(id, u, p);
     if (!p.connected) return r;
     const QString banner = QString::fromUtf8(p.banner).trimmed().left(200);
@@ -862,7 +903,7 @@ static DiagnosticResult probeSsh(DiagId id, const QString& target, RunContext&) 
     return r;
 }
 
-static DiagnosticResult probeEmail(DiagId id, const QString& target, RunContext&) {
+static DiagnosticResult probeEmail(DiagId id, const QString& target, RunContext& ctx) {
     if (target.isEmpty()) return skippedProbe(id, QStringLiteral("No target"));
     const QUrl u = normalizeUrl(target);
     if (u.isEmpty()) return makeResult(id, DiagStatus::Fail, QStringLiteral("Invalid target"), {}, {});
@@ -870,7 +911,8 @@ static DiagnosticResult probeEmail(DiagId id, const QString& target, RunContext&
     if (scheme != QLatin1String("smtp") && scheme != QLatin1String("imap") && scheme != QLatin1String("pop3")
         && scheme != QLatin1String("smtps") && scheme != QLatin1String("imaps") && scheme != QLatin1String("pop3s"))
         return skippedProbe(id, QStringLiteral("Not email protocol (smtp/smtps/imap/imaps/pop3/pop3s)"));
-    const ProbeOutcome p = tcpProbe(u, {});
+    const ProbeOutcome p = tcpProbe(&ctx, u, {});
+    if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
     DiagnosticResult r = probeResultScaffold(id, u, p);
     r.data[QStringLiteral("protocol")] = scheme;
     if (!p.connected) return r;
@@ -882,13 +924,14 @@ static DiagnosticResult probeEmail(DiagId id, const QString& target, RunContext&
     return r;
 }
 
-static DiagnosticResult probeTelnet(DiagId id, const QString& target, RunContext&) {
+static DiagnosticResult probeTelnet(DiagId id, const QString& target, RunContext& ctx) {
     if (target.isEmpty()) return skippedProbe(id, QStringLiteral("No target"));
     const QUrl u = normalizeUrl(target);
     if (u.isEmpty()) return makeResult(id, DiagStatus::Fail, QStringLiteral("Invalid target"), {}, {});
     if (u.scheme().toLower() != QLatin1String("telnet"))
         return skippedProbe(id, QStringLiteral("Not Telnet"));
-    const ProbeOutcome p = tcpProbe(u, {}, 5000, 2000);
+    const ProbeOutcome p = tcpProbe(&ctx, u, {}, 5000, 2000);
+    if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
     DiagnosticResult r = probeResultScaffold(id, u, p);
     if (!p.connected) return r;
     const QString banner = QString::fromUtf8(p.banner).trimmed().left(200);
@@ -899,13 +942,14 @@ static DiagnosticResult probeTelnet(DiagId id, const QString& target, RunContext
     return r;
 }
 
-static DiagnosticResult probeMysql(DiagId id, const QString& target, RunContext&) {
+static DiagnosticResult probeMysql(DiagId id, const QString& target, RunContext& ctx) {
     if (target.isEmpty()) return skippedProbe(id, QStringLiteral("No target"));
     const QUrl u = normalizeUrl(target);
     if (u.isEmpty()) return makeResult(id, DiagStatus::Fail, QStringLiteral("Invalid target"), {}, {});
     if (u.scheme().toLower() != QLatin1String("mysql"))
         return skippedProbe(id, QStringLiteral("Not MySQL"));
-    const ProbeOutcome p = tcpProbe(u, {}, 5000, 2000);
+    const ProbeOutcome p = tcpProbe(&ctx, u, {}, 5000, 2000);
+    if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
     DiagnosticResult r = probeResultScaffold(id, u, p);
     if (!p.connected) return r;
     const QByteArray& data = p.banner;
@@ -931,7 +975,7 @@ static DiagnosticResult probeMysql(DiagId id, const QString& target, RunContext&
     return r;
 }
 
-static DiagnosticResult probePostgres(DiagId id, const QString& target, RunContext&) {
+static DiagnosticResult probePostgres(DiagId id, const QString& target, RunContext& ctx) {
     if (target.isEmpty()) return skippedProbe(id, QStringLiteral("No target"));
     const QUrl u = normalizeUrl(target);
     if (u.isEmpty()) return makeResult(id, DiagStatus::Fail, QStringLiteral("Invalid target"), {}, {});
@@ -951,7 +995,8 @@ static DiagnosticResult probePostgres(DiagId id, const QString& target, RunConte
     packet.append(char((len >> 8) & 0xFF));
     packet.append(char(len & 0xFF));
     packet.append(startup);
-    const ProbeOutcome p = tcpProbe(u, packet, 5000, 3000);
+    const ProbeOutcome p = tcpProbe(&ctx, u, packet, 5000, 3000);
+    if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
     DiagnosticResult r = probeResultScaffold(id, u, p);
     // 失败结果键齐备（归档契约：消费者绝不读到 undefined key）
     r.data[QStringLiteral("responseType")] = QString();
@@ -985,13 +1030,14 @@ static DiagnosticResult probePostgres(DiagId id, const QString& target, RunConte
     return r;
 }
 
-static DiagnosticResult probeRedis(DiagId id, const QString& target, RunContext&) {
+static DiagnosticResult probeRedis(DiagId id, const QString& target, RunContext& ctx) {
     if (target.isEmpty()) return skippedProbe(id, QStringLiteral("No target"));
     const QUrl u = normalizeUrl(target);
     if (u.isEmpty()) return makeResult(id, DiagStatus::Fail, QStringLiteral("Invalid target"), {}, {});
     if (u.scheme().toLower() != QLatin1String("redis"))
         return skippedProbe(id, QStringLiteral("Not Redis"));
-    const ProbeOutcome p = tcpProbe(u, QByteArrayLiteral("PING\r\n"), 5000, 2000);
+    const ProbeOutcome p = tcpProbe(&ctx, u, QByteArrayLiteral("PING\r\n"), 5000, 2000);
+    if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
     DiagnosticResult r = probeResultScaffold(id, u, p);
     if (!p.connected) return r;
     const QString resp = QString::fromUtf8(p.banner).trimmed();
@@ -1006,7 +1052,7 @@ static DiagnosticResult probeRedis(DiagId id, const QString& target, RunContext&
     return r;
 }
 
-static DiagnosticResult probeMongodb(DiagId id, const QString& target, RunContext&) {
+static DiagnosticResult probeMongodb(DiagId id, const QString& target, RunContext& ctx) {
     if (target.isEmpty()) return skippedProbe(id, QStringLiteral("No target"));
     const QUrl u = normalizeUrl(target);
     if (u.isEmpty()) return makeResult(id, DiagStatus::Fail, QStringLiteral("Invalid target"), {}, {});
@@ -1039,7 +1085,8 @@ static DiagnosticResult probeMongodb(DiagId id, const QString& target, RunContex
     appendLE32(0);                 // numberToSkip
     appendLE32(1);                 // numberToReturn
     msg.append(bson);
-    const ProbeOutcome p = tcpProbe(u, msg, 5000, 3000);
+    const ProbeOutcome p = tcpProbe(&ctx, u, msg, 5000, 3000);
+    if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
     DiagnosticResult r = probeResultScaffold(id, u, p);
     // 失败结果键齐备（归档契约）
     r.data[QStringLiteral("responded")] = false;
@@ -1087,7 +1134,7 @@ static DiagnosticResult probeMongodb(DiagId id, const QString& target, RunContex
     return r;
 }
 
-static DiagnosticResult probeLdap(DiagId id, const QString& target, RunContext&) {
+static DiagnosticResult probeLdap(DiagId id, const QString& target, RunContext& ctx) {
     if (target.isEmpty()) return skippedProbe(id, QStringLiteral("No target"));
     const QUrl u = normalizeUrl(target);
     if (u.isEmpty()) return makeResult(id, DiagStatus::Fail, QStringLiteral("Invalid target"), {}, {});
@@ -1102,7 +1149,8 @@ static DiagnosticResult probeLdap(DiagId id, const QString& target, RunContext&)
     ldapMsg.append('\x02'); ldapMsg.append('\x01'); ldapMsg.append('\x03');
     ldapMsg.append('\x04'); ldapMsg.append('\x00');
     ldapMsg.append('\x80'); ldapMsg.append('\x00');
-    const ProbeOutcome p = tcpProbe(u, ldapMsg, 5000, 3000);
+    const ProbeOutcome p = tcpProbe(&ctx, u, ldapMsg, 5000, 3000);
+    if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
     DiagnosticResult r = probeResultScaffold(id, u, p);
     // 失败结果键齐备（归档契约）
     r.data[QStringLiteral("hasBindResp")] = false;
@@ -1145,7 +1193,7 @@ static DiagnosticResult probeLdap(DiagId id, const QString& target, RunContext&)
     return r;
 }
 
-static DiagnosticResult probeMqtt(DiagId id, const QString& target, RunContext&) {
+static DiagnosticResult probeMqtt(DiagId id, const QString& target, RunContext& ctx) {
     if (target.isEmpty()) return skippedProbe(id, QStringLiteral("No target"));
     const QUrl u = normalizeUrl(target);
     if (u.isEmpty()) return makeResult(id, DiagStatus::Fail, QStringLiteral("Invalid target"), {}, {});
@@ -1164,7 +1212,8 @@ static DiagnosticResult probeMqtt(DiagId id, const QString& target, RunContext&)
     connect.append('\x02');
     connect.append('\x00'); connect.append('\x3c');
     connect.append('\x00'); connect.append('\x00');
-    const ProbeOutcome p = tcpProbe(u, connect, 5000, 3000);
+    const ProbeOutcome p = tcpProbe(&ctx, u, connect, 5000, 3000);
+    if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
     DiagnosticResult r = probeResultScaffold(id, u, p);
     // 失败结果键齐备（归档契约）
     r.data[QStringLiteral("isConnack")] = false;

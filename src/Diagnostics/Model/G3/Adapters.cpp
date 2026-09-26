@@ -630,22 +630,30 @@ static DiagnosticResult probeDnsIntegrity(DiagId id, const QString&, RunContext&
     DomainResult domResults[kDomCount];
     std::vector<std::thread> threads;
     threads.reserve(kDomCount);
+    // 5WHY (2026-09-26 取消缺口): Phase2 线程曾不捕取消——取消后仍串行付满
+    // DoH 4s + UDP 3s + TLS 3s ≈ 18s 才 join 返回。线程内逐相位响应取消：
+    // 取消后立即短路（其余相位跳过），join 几乎即时。
+    const std::atomic<bool>* cancelled = &ctx.cancelled;
     for (int i = 0; i < kDomCount; ++i) {
         try {
-            threads.emplace_back([i, &domResults, testServer]() {
+            threads.emplace_back([i, &domResults, testServer, cancelled]() {
                 DomainResult dr;
                 dr.domain = QString::fromUtf8(kTestDomains[i].domain);
                 const QString desc = QString::fromUtf8(kTestDomains[i].description);
+                if (cancelled->load(std::memory_order_relaxed)) { domResults[i] = dr; return; }
                 const dnsWire::Answer doh = dohQueryFull(dr.domain);
                 // ── local resolution: raw UDP probe to the resolver (real timing) ──
                 dnsWire::Answer localAns;
-                if (!testServer.isEmpty())
+                if (!testServer.isEmpty() && !cancelled->load(std::memory_order_relaxed))
                     localAns = dnsWire::udpQuery(dr.domain, 1, testServer, 3000);
                 const int localMs = localAns.elapsedMs;
                 dr.localUdpIp = localAns.aRecords.value(0);
                 const bool resolved = !dr.localUdpIp.isEmpty();
 
-                if (doh.aRecords.isEmpty()) {
+                if (cancelled->load(std::memory_order_relaxed)) {
+                    dr.lines.append(QStringLiteral("  %1 (%2) — Cancelled").arg(dr.domain, desc));
+                    dr.tag = Tag::Error;
+                } else if (doh.aRecords.isEmpty()) {
                     dr.lines.append(QStringLiteral("  %1 (%2) — DoH Query Failed, Skipped").arg(dr.domain, desc));
                     dr.tag = Tag::Error;
                 } else if (!resolved) {
@@ -1026,8 +1034,13 @@ static DiagnosticResult probeGeoIPLoc(DiagId id, const QString&, RunContext& ctx
     cfg.scope = ProbeConfig::Global;
     cfg.rounds = 1;       // 单轮快速国家探测（与历史一致）
     cfg.aggregation = ProbeConfig::Aggregation::ByCountry;
+    // 5WHY (2026-09-26 取消缺口): getFeedback 阻塞至 120s——曾无取消咨询点。
+    // AppState::cancel() 现调 GeoProbe::clear()（代际变化令 waitForCompletion
+    // 立即返回），此处把取消转换为 Cancelled 终态。
+    if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
     GeoProbe::instance().probe(cfg);
-    const ProbeResult result = GeoProbe::instance().getFeedback(cfg);
+    const ProbeResult result = GeoProbe::instance().getFeedback(cfg, &ctx.cancelled);
+    if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
 
     out.append(QString());
     out.append(QStringLiteral("[Phase 2/4] TTFB Probe Complete — %1 Reachable, %2 Countries")
@@ -1328,8 +1341,12 @@ static DiagnosticResult probeInternetConnectivity(DiagId id, const QString&, Run
     cfg.scope = ProbeConfig::Global;
     cfg.rounds = 3;
     cfg.aggregation = ProbeConfig::Aggregation::ByCountry;
+    // 5WHY (2026-09-26 取消缺口): 与 G3GeoIPLoc 同门——getFeedback 阻塞至
+    // 120s，取消经 GeoProbe::clear() 代际解堵后此处转 Cancelled 终态。
+    if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
     gp.probe(cfg);
-    const ProbeResult result = gp.getFeedback(cfg);
+    const ProbeResult result = gp.getFeedback(cfg, &ctx.cancelled);
+    if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
 
     // 服务器元数据查找表（key = host:port）
     struct Meta { QString name; QString sponsor; };

@@ -109,7 +109,8 @@ void ProbeDatabase::wake() {
     m_condition.wakeAll();
 }
 
-void ProbeDatabase::waitForCompletion(const QStringList& keys) {
+void ProbeDatabase::waitForCompletion(const QStringList& keys,
+                                      const std::atomic<bool>* cancelled) {
     QMutexLocker lock(&m_mutex);
     // 5WHY: the guard was 60s, but ProbeExecutor's worst case is ~99s
     // (3 batches × 64 threads × up to 8s/round).  A 60s deadline silently
@@ -126,6 +127,10 @@ void ProbeDatabase::waitForCompletion(const QStringList& keys) {
     const qint64 genAtEntry = m_generation;
     while (!deadline.hasExpired()) {
         if (m_generation != genAtEntry) return;
+        // 5WHY (2026-09-26 取消解堵): 用户取消/watchdog 超时置位——立即返回，
+        // 不再等满 120s（探针侧据此转 Cancelled 终态；executor 仍由 clear()
+        // 代际丢弃在途写）。
+        if (cancelled && cancelled->load(std::memory_order_relaxed)) return;
         bool allDone = true;
         for (const auto& key : keys) {
             auto it = m_table.find(key);

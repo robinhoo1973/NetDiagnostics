@@ -16,6 +16,7 @@
 #include <QVector>
 #include <QString>
 #include <QMap>
+#include <atomic>   // getFeedback 取消指针（自包含，5WHY 2026-09-26）
 
 class ProbeDatabase;
 class ProbeScheduler;
@@ -36,7 +37,8 @@ public:
     void probe(const ProbeConfig& config);
 
     // Block until results ready, then compute statistics, aggregate, return
-    ProbeResult getFeedback(const ProbeConfig& config);
+    ProbeResult getFeedback(const ProbeConfig& config,
+                            const std::atomic<bool>* cancelled = nullptr);
 
     // Clear all cached probe results (call at start of each diagnostic run)
     void clear();

@@ -100,6 +100,11 @@ const MetaTable& kDiagMeta() {
               QStringLiteral("outlineGeoIpPh2"),
               QStringLiteral("outlineGeoIpPh3") };
           return d; }(), 150000 },
+    // 5WHY (2026-09-26 档案算术修正): 曾 180000——实测叶子预算 ≈ TTFB 批
+    // (~120s 上限) + 6 档测速 (64KB/256KB/1MB × 下/上, 每档 ~25-48s)，
+    // 最坏远超 180s，watchdog 注定编造 Timeout。取消感知等待落地后
+    // (2026-09-26) watchdog 置位能真正停止工作；档案提至 300000 覆盖诚实
+    // 最坏（套件 600s deadline 为最终兑底，病理重复试场景由取消兜底）。
     { DiagId::G3InternetConnectivity, "Internet Connectivity & Speed", "nd-diag-g3-internet", PF_All,
       DiagAnimType::WifiWave, DiagTemplateType::Handshake,
       []{ DP d = metricOnly("downloadMbpsBest","Mbps",1,DP::Gauge);
@@ -108,7 +113,7 @@ const MetaTable& kDiagMeta() {
               QStringLiteral("outlineInternetPh2"),
               QStringLiteral("outlineInternetPh3"),
               QStringLiteral("outlineInternetPh4") };
-          return d; }(), 180000 },
+          return d; }(), 300000 },
 
     // ── G4  Remote Host (all platforms — NEW-1) ─────────────────────────────
     { DiagId::G4DnsResolution,     "DNS Resolution",     "nd-diag-g4-dns-resolution",  PF_All,                       DiagAnimType::BlinkText, DiagTemplateType::System, sys("queryTimeMs","ms",0), 60000 },
