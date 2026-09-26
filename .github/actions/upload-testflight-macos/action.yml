@@ -36,7 +36,7 @@ runs:
     # ── Dedup + credential gate ───────────────────────────────────
     - name: Check if already uploaded
       id: dedup
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@v6
       with:
         path: .testflight-sha
         key: testflight-macos-${{ runner.os }}-v1
@@ -72,7 +72,7 @@ runs:
     - name: Download .app artifact
       id: download
       continue-on-error: true
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         name: NetDiagnostics-macOS-app
         path: macos-artifact
@@ -342,7 +342,7 @@ runs:
         if [ "${{ steps.last-sha.outputs.last }}" != "${{ github.sha }}" ]; then
           echo "${{ github.sha }}" > .testflight-sha/macos
         else echo "${{ steps.last-sha.outputs.last }}" > .testflight-sha/macos; fi
-    - uses: actions/cache/save@v4
+    - uses: actions/cache/save@v6
       if: always() && steps.check.outputs.ok == 'true'
       with:
         path: .testflight-sha

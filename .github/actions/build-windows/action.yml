@@ -116,7 +116,7 @@ runs:
     - name: Cache curl static build
       id: cache-curl-static
       if: inputs.variant == 'static'
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       with:
         path: C:\opt\curl-static
         key: curl-static-ucrt-8.9.1-v3
@@ -164,7 +164,7 @@ runs:
     - name: Cache Qt source tarball
       id: cache-qt-src
       if: inputs.variant == 'static'
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       with:
         path: C:\opt\qt6-src
         key: qt6-src-6.11.1-v1
@@ -187,7 +187,7 @@ runs:
     - name: Cache Qt build artifacts
       id: cache-qt-build
       if: inputs.variant == 'static'
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       with:
         path: C:\opt\qt6-install
         key: qt6-build-ucrt-6.11.1-v3
@@ -305,7 +305,7 @@ runs:
 
     - name: Upload artifacts (static)
       if: inputs.variant == 'static'
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: NetDiagnostics-Windows-x86_64-Static
         path: |
@@ -358,7 +358,7 @@ runs:
 
     - name: Upload artifacts (dynamic)
       if: inputs.variant == 'dynamic'
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: NetDiagnostics-Windows-x86_64-Dynamic
         path: |

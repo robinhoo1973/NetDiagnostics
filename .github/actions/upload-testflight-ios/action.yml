@@ -58,7 +58,7 @@ runs:
     # ── Dedup + credential gate ───────────────────────────────────
     - name: Check if already uploaded
       id: dedup
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@v6
       with:
         path: .testflight-sha
         key: testflight-ios-${{ runner.os }}-v1
@@ -181,9 +181,18 @@ runs:
           echo "::notice::Provisioning profile valid until $expiry ($days_left days left)"
         }
         if [ -n "$IOS_PROFILE_B64" ]; then
-          echo -n "$IOS_PROFILE_B64" | base64 -d > "$RUNNER_TEMP/profile.mobileprovision"
-          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c "Print UUID" /dev/stdin <<< "$(security cms -D -i "$RUNNER_TEMP/profile.mobileprovision")" 2>/dev/null || echo "")
-          PROFILE_EXPIRY=$(/usr/libexec/PlistBuddy -c "Print ExpirationDate" /dev/stdin <<< "$(security cms -D -i "$RUNNER_TEMP/profile.mobileprovision")" 2>/dev/null || echo "")
+          echo "[INFO] Profile step: decoding user-provided profile (${#IOS_PROFILE_B64} b64 chars)"
+          # 5WHY (2026-09-26 静默失败): 曾 base64 -d 失败时 pipefail+set -e 直接
+          # 静默 exit 1（无任何输出）——根因不可见。fail-loud：解码失败带
+          # stderr 显式报错。
+          if ! echo -n "$IOS_PROFILE_B64" | base64 -d > "$RUNNER_TEMP/profile.mobileprovision" 2>"$RUNNER_TEMP/b64.err"; then
+            echo "[FAIL] cannot decode IOS_PROVISIONING_PROFILE_BASE64: $(cat "$RUNNER_TEMP/b64.err")"
+            exit 1
+          fi
+          echo "[INFO] Profile decoded: $(wc -c < "$RUNNER_TEMP/profile.mobileprovision" | tr -d ' ') bytes"
+          CMS_OUT=$(security cms -D -i "$RUNNER_TEMP/profile.mobileprovision" 2>&1 || true)
+          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c "Print UUID" /dev/stdin <<< "$CMS_OUT" 2>/dev/null || echo "")
+          PROFILE_EXPIRY=$(/usr/libexec/PlistBuddy -c "Print ExpirationDate" /dev/stdin <<< "$CMS_OUT" 2>/dev/null || echo "")
           if [ -n "$PROFILE_UUID" ]; then
             profile_expiry_check "$PROFILE_EXPIRY"
             mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
@@ -191,8 +200,11 @@ runs:
             echo "profile_uuid=${PROFILE_UUID}" >> "$GITHUB_OUTPUT"
             echo "[OK] User-provided profile (UUID: ${PROFILE_UUID})"; exit 0
           fi
+          echo "[WARN] Profile decoded but UUID extraction failed — falling back (cms: $(echo "$CMS_OUT" | head -c 200))"
         fi
+        echo "[INFO] Profile step: no user-provided profile — auto_signing=${{ steps.cert-id.outputs.auto_signing }}"
         if [ "${{ steps.cert-id.outputs.auto_signing }}" != "true" ]; then
+          echo "[INFO] Profile step: asc-app.sh ensure/download path"
           source scripts/ios/asc-app.sh
           JWT="${{ steps.jwt.outputs.jwt }}"; BID="${{ steps.bundle.outputs.bundle_id }}"; CID="${{ steps.cert-id.outputs.cert_id }}"
           PROFILE_ID=$(asc_profile_ensure "$JWT" "NetDiagnostics AppStore" "$BID" "$CID")
@@ -336,7 +348,7 @@ runs:
         if [ "${{ steps.last-sha.outputs.last }}" != "${{ github.sha }}" ]; then
           echo "${{ github.sha }}" > .testflight-sha/ios
         else echo "${{ steps.last-sha.outputs.last }}" > .testflight-sha/ios; fi
-    - uses: actions/cache/save@v4
+    - uses: actions/cache/save@v6
       if: always() && steps.check.outputs.ok == 'true'
       with:
         path: .testflight-sha

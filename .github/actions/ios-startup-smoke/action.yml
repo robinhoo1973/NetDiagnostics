@@ -27,7 +27,7 @@ runs:
   using: composite
   steps:
     - name: Download macOS artifact (shared QML layer)
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         name: NetDiagnostics-macOS-app
         path: smoke-artifact

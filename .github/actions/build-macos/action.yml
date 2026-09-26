@@ -117,7 +117,7 @@ runs:
 
     - name: Upload .app artifact (TestFlight)
       if: inputs.mode == 'testflight'
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: NetDiagnostics-macOS-app
         path: NetDiagnostics-macOS.app.tar.gz
@@ -158,7 +158,7 @@ runs:
 
     - name: Upload release artifacts
       if: inputs.mode != 'testflight'
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: NetDiagnostics-macOS-release
         path: |

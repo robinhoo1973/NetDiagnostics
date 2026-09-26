@@ -55,7 +55,7 @@ runs:
 
     - name: Cache Qt6 desktop (host tools)
       id: cache-qt-desktop
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       with:
         path: /opt/qt-desktop
         key: qt6-android-desktop-6.5.3-v1
@@ -68,7 +68,7 @@ runs:
 
     - name: Cache Qt6 Android ${{ inputs.arch }}
       id: cache-qt-android
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       with:
         path: /opt/qt-android-${{ inputs.arch }}
         key: qt6-android-${{ inputs.arch }}-6.5.3-v1
@@ -142,7 +142,7 @@ runs:
         ND_KEY_PASS: ${{ env.ND_KEY_PASS }}
 
     - name: Upload artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: NetDiagnostics-Android-${{ inputs.arch }}${{ inputs.format == 'aab' && '-aab' || '' }}
         path: |
