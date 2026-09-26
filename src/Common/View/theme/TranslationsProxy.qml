@@ -129,9 +129,13 @@ QtObject {
         if (tpl === "") return ""
         var out = tpl
         var a = args || []
+        // 5WHY (2026-09-27 单遍替换): 曾顺序首处 replace——参数值自身含 "%N"
+        // （ISP 名/URL/域名等外部数据）会被后续迭代二次替换污染；且与
+        // C++ NarrativeLocalizer 的单遍扫描语义双轨漂移（详情页 vs 剪贴板
+        // 渲染不一致）。单遍 split+join：参数值不参与占位符解析。
         for (var i = 0; i < a.length; ++i) {
             var v = (a[i] === undefined || a[i] === null) ? "" : String(a[i])
-            out = out.replace("%" + (i + 1), v)
+            out = out.split("%" + (i + 1)).join(v)
         }
         return out
     }

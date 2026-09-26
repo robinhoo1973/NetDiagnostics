@@ -625,7 +625,12 @@ static DiagnosticResult probeDnsIntegrity(DiagId id, const QString&, RunContext&
                 .arg(domain, ans.aRecords.first()).arg(ans.elapsedMs));
             ++hijackWarn;
             if (!hijackIPs.contains(ans.aRecords.first())) hijackIPs.append(ans.aRecords.first());
-        } else if (ans.elapsedMs >= 3000) {
+        } else if (ans.rcode < 0) {
+            // 5WHY (2026-09-27 超时分类): 曾以 elapsedMs >= 3000 判 TIMEOUT——
+            // udpQuery 超时 2000ms，超时返回 ~2000ms 恒落 clean 分支（超时
+            // 计"Not Resolved"假阴性；全 DNS 故障时 3×clean 绕过 INCONCLUSIVE
+            // 报"DNS CLEAN" Pass）。rcode<0 = 未收到任何应答（超时/连接失败，
+            // parseResponse 未运行），与 NXDOMAIN（rcode=3）语义分离。
             out.append(QStringLiteral("  %1 → TIMEOUT (%2ms)").arg(domain).arg(ans.elapsedMs));
             ++hijackTimeout;
         } else {
@@ -792,6 +797,10 @@ static DiagnosticResult probeDnsIntegrity(DiagId id, const QString&, RunContext&
         : pollutionSuspicious > 0 ? 60
         : phase2AllFailed   ? 80
         : 100;
+    // 5WHY (2026-09-27 inconclusive 呈现): phase2AllFailed 曾映射 80 分——
+    // 「没测出来」渲染成「80 分健康绿」。scoreInconclusive 键让呈现层
+    // 显示 "—" 而非伪健康分（状态已是 Info，仅呈现残留）。
+    const bool scoreInconclusive = phase2AllFailed;
     const QString p2verdict =
         (hijackDetected && pollutionDetected) ? QStringLiteral("hijack + pollution")
         : hijackDetected      ? QStringLiteral("hijack")
@@ -847,6 +856,7 @@ static DiagnosticResult probeDnsIntegrity(DiagId id, const QString&, RunContext&
     r.data[QStringLiteral("phase1Timeout")] = hijackTimeout;
     r.data[QStringLiteral("phase2Verdict")] = p2verdict;
     r.data[QStringLiteral("overallScorePercent")] = overall;
+    r.data[QStringLiteral("scoreInconclusive")] = scoreInconclusive;
     // 摘要卡推导叙述：两阶段检测方法与结论依据（用户可复现判断链）
     r.narrative = QStringLiteral("Phase 1 (ISP hijack): %1 randomly-named test domains were resolved — "
         "%2 clean, %3 hijacked, %4 timeout. ")

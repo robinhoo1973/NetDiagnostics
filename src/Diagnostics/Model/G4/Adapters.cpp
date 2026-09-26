@@ -235,7 +235,14 @@ static uint16_t icmpChecksum16(const void* data, int len) {
     return static_cast<uint16_t>(~sum);
 }
 
+// 5WHY (2026-09-27 方法降级披露): TCP-TTL 降级（无 CAP_NET_RAW/Android）
+// 曾只写代码注释——用户看到全 "*" 跳表无从区分「路径被过滤」与「方法降级」
+// （ping 已有脚注先例，trace 漏）。thread_local 标记：每探针线程独立，
+// 探针开头复位、结尾披露。
+static thread_local bool tcpTtlMethodUsed = false;
+
 static int tcpTtlHop(quint32 ip, int ttl, int port, int& rttMs, QString& hopIp) {
+    tcpTtlMethodUsed = true;
     const int sock = ::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (sock < 0 || sock >= FD_SETSIZE) {
         if (sock >= 0) ::close(sock);
@@ -646,6 +653,7 @@ static DiagnosticResult probePing(DiagId id, const QString& target, RunContext& 
     const QString displayTarget = resolvedIp ? ipStr : host;
 
     QStringList lines;
+    tcpTtlMethodUsed = false;   // 每探针复位（5WHY 2026-09-27）
     if (resolvedIp && host != ipStr)
         lines.append(QStringLiteral("Pinging %1 [%2] with 32 bytes of data:").arg(host, ipStr));
     else
@@ -907,6 +915,8 @@ static DiagnosticResult probeTraceroute(DiagId id, const QString& target, RunCon
             }
         }
     }
+    if (tcpTtlMethodUsed)
+        lines.append(QStringLiteral("NOTE: TCP-TTL method (ICMP unavailable) — intermediate '*' hops are method artifacts, not packet loss; final-hop reachability remains valid."));
     lines.append(QString());
     if (reached)            lines.append(QStringLiteral("Trace complete."));
     else if (blocked)       lines.append(QStringLiteral("Trace stopped — a router/firewall filtered the probes (path blocked)."));
@@ -918,6 +928,7 @@ static DiagnosticResult probeTraceroute(DiagId id, const QString& target, RunCon
                       : DiagStatus::Warning;
     QString summary = reached ? QStringLiteral("%1 hops to target").arg(hopCount)
                     : blocked ? QStringLiteral("Blocked at hop %1").arg(hopCount)
+                    : tcpReachable ? QStringLiteral("Incomplete — %1 hops (ICMP filtered; TCP reachable)").arg(hopCount)
                     : QStringLiteral("Incomplete — %1 hops probed").arg(hopCount);
 
     DiagnosticResult r = makeResult(id, status, summary, {}, lines.join(QLatin1Char('\n')));
@@ -1089,6 +1100,10 @@ static DiagnosticResult probeMtuDiscovery(DiagId id, const QString& target, RunC
     const int probePort = extractProbePort(target);
     const quint32 resolvedIp = resolveIPv4(host);
     const bool targetResolved = (resolvedIp != 0);
+    // 5WHY (2026-09-27): 探测成败与目标解析分离——曾以「已解析」冒充「探测
+    // 成功」（data 键 tcpProbeSuccessful 语义撒谎，回退值 Pass+「无分片预期」
+    // 误导用户放过真实 MTU 故障）。
+    bool probeSucceeded = false;
     QString ipStr;
     if (resolvedIp) ipStr = ip4ToStr(resolvedIp);
     const QString displayAddr = ipStr.isEmpty() ? host : ipStr;
@@ -1122,6 +1137,7 @@ static DiagnosticResult probeMtuDiscovery(DiagId id, const QString& target, RunC
                     int mss = 0; int mssLen = sizeof(mss);
                     if (getsockopt(sock, IPPROTO_TCP, TCP_MAXSEG, (char*)&mss, &mssLen) == 0 && mss > 0) {
                         discoveredMtu = mss + 40;   // MSS + IP(20) + TCP(20)
+                        probeSucceeded = true;
                         out.append(QStringLiteral("Reply from %1: MSS=%2 time=%3ms PMTU=%4")
                             .arg(displayAddr).arg(mss).arg((int)t.elapsed()).arg(discoveredMtu));
                     } else {
@@ -1176,8 +1192,10 @@ static DiagnosticResult probeMtuDiscovery(DiagId id, const QString& target, RunC
                 // 否则回落探测尺寸路径。
 #if defined(TCP_MAXSEG)
                 int mss = 0; socklen_t mssLen = sizeof(mss);
-                if (getsockopt(sock, IPPROTO_TCP, TCP_MAXSEG, &mss, &mssLen) == 0 && mss > 0)
+                if (getsockopt(sock, IPPROTO_TCP, TCP_MAXSEG, &mss, &mssLen) == 0 && mss > 0) {
                     discoveredMtu = mss + 40;
+                    probeSucceeded = true;
+                }
 #endif
                 ::close(sock);
                 if (discoveredMtu > 0)
@@ -1223,13 +1241,15 @@ static DiagnosticResult probeMtuDiscovery(DiagId id, const QString& target, RunC
 
     DiagStatus status = targetResolved ? DiagStatus::Pass : DiagStatus::Warning;
     QString summary = QStringLiteral("MTU %1%2").arg(discoveredMtu)
-        .arg(targetResolved ? QString() : QStringLiteral(" (local interface only — target unresolved)"));
+        .arg(!targetResolved ? QStringLiteral(" (local interface only — target unresolved)")
+             : !probeSucceeded ? QStringLiteral(" (interface value — PMTU probe failed)")
+             : QString());
     DiagnosticResult r = makeResult(id, status, summary, {}, out.join(QLatin1Char('\n')));
     r.data[QStringLiteral("mtu")] = discoveredMtu;
     r.data[QStringLiteral("mss")] = discoveredMtu > 40 ? discoveredMtu - 40 : 0;
     r.data[QStringLiteral("effectiveMss")] = discoveredMtu > 40 ? discoveredMtu - 40 : 0;
     r.data[QStringLiteral("probePort")] = probePort;
-    r.data[QStringLiteral("tcpProbeSuccessful")] = resolvedIp != 0 && targetResolved;
+    r.data[QStringLiteral("tcpProbeSuccessful")] = probeSucceeded;   // 5WHY (2026-09-27): 曾填「目标已解析」冒充探测成功——机器消费方读假阳性
     // M10：mtuQuality 分级提示（巨帧风险 / IPv6 下限）
     QString quality = QStringLiteral("standard");
     if (discoveredMtu > 1500) quality = QStringLiteral("jumbo");
@@ -1239,13 +1259,15 @@ static DiagnosticResult probeMtuDiscovery(DiagId id, const QString& target, RunC
     // 摘要卡叙述：MTU 值 → MSS → 质量分级/探测方式
     r.narrative = QStringLiteral("Path MTU to %1 is %2 bytes (effective MSS %3). ")
         .arg(host).arg(discoveredMtu).arg(discoveredMtu > 40 ? discoveredMtu - 40 : 0)
-        + (targetResolved
-            ? (quality == QLatin1String("jumbo")
-                ? QStringLiteral("Jumbo frame (>1500) — fragmentation risk across legacy links.")
-                : quality == QLatin1String("below-ipv6-min")
-                    ? QStringLiteral("Below the IPv6 minimum (1280) — IPv6 tunnels may break.")
-                    : QStringLiteral("Standard Ethernet MTU — no fragmentation expected."))
-            : QStringLiteral("Target did not resolve — the value is the local interface MTU only."));
+        + (!targetResolved
+            ? QStringLiteral("Target did not resolve — the value is the local interface MTU only.")
+            : !probeSucceeded
+                ? QStringLiteral("PMTU probe failed — showing the interface MTU; fragmentation behavior is unknown.")
+                : quality == QLatin1String("jumbo")
+                    ? QStringLiteral("Jumbo frame (>1500) — fragmentation risk across legacy links.")
+                    : quality == QLatin1String("below-ipv6-min")
+                        ? QStringLiteral("Below the IPv6 minimum (1280) — IPv6 tunnels may break.")
+                        : QStringLiteral("Standard Ethernet MTU — no fragmentation expected."));
     r.data[QStringLiteral("narrativeKey")] = !targetResolved ? QStringLiteral("nMtuLocal")
         : quality == QLatin1String("jumbo") ? QStringLiteral("nMtuJumbo")
         : quality == QLatin1String("below-ipv6-min") ? QStringLiteral("nMtuLow")

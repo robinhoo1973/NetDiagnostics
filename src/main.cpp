@@ -54,8 +54,13 @@ Q_IMPORT_PLUGIN(QSvgPlugin)
 namespace {
 
 // NEW-16: verify failure policy — fail-fast on debug/CI, hide+continue on release.
+// 5WHY (2026-09-27 双重失效): 曾仅按 ND_RELEASE 判定——CI 用 Release+ND_TESTING
+// 组合，ND_RELEASE 定义（netdiag-target.cmake 非 Debug 恒定义）把 qFatal 编译
+// 成 qWarning，注册缺口门禁在 CI 配置下成 no-op；且 runSelftest 退出码又不
+// 纳入 verifyOk——缺口两层放行。ND_TESTING 表达的是测试意图，与发布构建
+// 正交：任一维度为测试即 fail-fast。
 void enforceStartupInvariant(bool ok) {
-#if !defined(ND_RELEASE)
+#if !defined(ND_RELEASE) || defined(ND_TESTING)
     if (!ok) {
         qFatal("AdapterRegistry::verifyAllDiagIds() failed — platform adapter gap. "
                "Fix the registration before shipping.");
@@ -90,13 +95,33 @@ const char* selftestSchemeFor(DiagId id) {
     }
 }
 
+// 5WHY (2026-09-27 状态可见性): selftest 曾不打印 status——探针 Pass→Fail 回归
+// 时 CI 日志肉眼不可见。状态名单一来源（本地七态映射）。
+const char* selftestStatusName(DiagStatus st) {
+    switch (st) {
+        case DiagStatus::Pass:      return "Pass";
+        case DiagStatus::Warning:   return "Warn";
+        case DiagStatus::Fail:      return "Fail";
+        case DiagStatus::Error:     return "Error";
+        case DiagStatus::Skipped:   return "Skip";
+        case DiagStatus::Info:      return "Info";
+        case DiagStatus::Cancelled: return "Cancel";
+    }
+    return "?";
+}
+
 int runSelftest(bool verifyOk) {
     // GUI 子系统下 stdout 全缓冲：崩溃时日志会丢。selftest 改为行缓冲，
     // 保证每条结果实时落盘（也便于定位崩溃点）。
     std::setvbuf(stdout, nullptr, _IOLBF, 0);
     int total = 0;
+    int expected = 0;   // 本平台可调度探针数（预期总量，5WHY 2026-09-27）
     // R5-3（契约自检）：Pass 结果必须携带 meta.keyMetricField 声明的主指标，
     // 否则指标卡/图表拿不到数据——在自检阶段提前暴露探针与契约的漂移。
+    // 5WHY (2026-09-27 闸门硬化): 曾断言面仅此一项且 total>0 即绿——44 个
+    // 探针删剩 1 个 CI 照绿（G5 scheme 过滤事故为实证）。补齐：预期总量
+    // 断言（由批处理循环自身推导，平台无关）、非 Pass 结果的 errorOutput
+    // 契约断言、结果行打印状态名、verifyOk 纳入退出码。
     int contractViolations = 0;
     const DiagGroup groups[] = { DiagGroup::G1, DiagGroup::G2, DiagGroup::G3, DiagGroup::G4, DiagGroup::G5 };
     for (DiagGroup g : groups) {
@@ -104,13 +129,17 @@ int runSelftest(bool verifyOk) {
         QHash<QString, QVector<DiagId>> batches;
         if (g == DiagGroup::G5) {
             for (DiagId id : allDiagIds())
-                if (diagGroup(id) == g && isSchedulable(id))
+                if (diagGroup(id) == g && isSchedulable(id)) {
                     batches[QLatin1String(selftestSchemeFor(id))].append(id);
+                    ++expected;
+                }
         } else {
             QVector<DiagId> ids;
             for (DiagId id : allDiagIds())
-                if (diagGroup(id) == g && isSchedulable(id))
+                if (diagGroup(id) == g && isSchedulable(id)) {
                     ids.append(id);
+                    ++expected;
+                }
             batches.insert(QStringLiteral("https"), ids);
         }
 
@@ -124,17 +153,33 @@ int runSelftest(bool verifyOk) {
                              [&loop, &done]() { done = true; loop.quit(); });
             QObject::connect(&suite, &DiagnosticSuite::resultReady,
                              [&total, &contractViolations](const DiagnosticResult& r) {
-                std::printf("[%s] %-30s -> %s\n",
+                std::printf("[%s] %-30s [%s] -> %s\n",
                             qPrintable(diagGroupLabel(r.group)),
                             qPrintable(r.displayName),
+                            selftestStatusName(r.status),
                             qPrintable(r.summary.isEmpty() ? "ok" : r.summary));
                 ++total;
-                if (r.status != DiagStatus::Pass) return;
                 const DetailProfile& d = diagnosticMeta(r.id).detail;
-                if (d.keyMetricField && !r.data.contains(QLatin1String(d.keyMetricField))) {
+                if (r.status == DiagStatus::Pass) {
+                    if (d.keyMetricField && !r.data.contains(QLatin1String(d.keyMetricField))) {
+                        ++contractViolations;
+                        std::printf("CONTRACT: [%s] Pass without key metric '%s'\n",
+                                    qPrintable(r.displayName), d.keyMetricField);
+                    }
+                    if (d.chartType != DetailProfile::NoChart && d.chartField
+                        && !r.data.contains(QLatin1String(d.chartField))) {
+                        ++contractViolations;
+                        std::printf("CONTRACT: [%s] Pass without chart field '%s'\n",
+                                    qPrintable(r.displayName), d.chartField);
+                    }
+                } else if ((r.status == DiagStatus::Fail || r.status == DiagStatus::Warning
+                            || r.status == DiagStatus::Error) && d.showErrorOutput
+                           && r.errorOutput.isEmpty()) {
+                    // 5WHY (2026-09-27): 失败/警告结果声明错误区块却无内容——
+                    // 详情页错误区块空白（G1/G2/G3 曾真实漂移过）。
                     ++contractViolations;
-                    std::printf("CONTRACT: [%s] Pass without key metric '%s'\n",
-                                qPrintable(r.displayName), d.keyMetricField);
+                    std::printf("CONTRACT: [%s] %s without errorOutput (showErrorOutput declared)\n",
+                                qPrintable(r.displayName), selftestStatusName(r.status));
                 }
             });
 
@@ -148,10 +193,18 @@ int runSelftest(bool verifyOk) {
         }
     }
 
+    // 预期总量断言：调度批大小由注册表推导，删注册/被 scheme 过滤隐藏的
+    // 探针会直接表现为 total < expected。
+    if (total != expected) {
+        ++contractViolations;
+        std::printf("CONTRACT: selftest covered %d of %d schedulable tests (registry gap?)\n",
+                    total, expected);
+    }
     std::printf("selftest: %d results, verify=%s, contract=%s\n", total,
                 verifyOk ? "PASS" : "GAPS",
                 contractViolations == 0 ? "PASS" : "VIOLATIONS");
-    return (total > 0 && contractViolations == 0) ? 0 : 1;
+    // verifyOk（注册完整性）与契约违反均入退出码——两层都失败才红。
+    return (total == expected && verifyOk && contractViolations == 0) ? 0 : 1;
 }
 
 } // namespace

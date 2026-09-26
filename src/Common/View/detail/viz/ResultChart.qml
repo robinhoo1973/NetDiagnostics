@@ -190,6 +190,11 @@ Item {
         // InternetConnectivity(downloadMbpsBest).
         if (root._key === "handshake" && root.data.overallScorePercent !== undefined) {
             var sp = Number(root.data.overallScorePercent)
+            // 5WHY (2026-09-27 inconclusive 呈现): 探测无结论时显示 "—" 与
+            // 中性色——曾映射 80 分渲染绿色，把「没测出来」妆成「80 分健康」。
+            if (root.data.scoreInconclusive === true)
+                return { value: -1, max: 100, unitKey: "unitPercent",
+                         color: ThemeEngine.colors.textMuted, emptyLabel: "—" }
             var sc = sp >= 80 ? ThemeEngine.colors.success
                    : sp >= 50 ? ThemeEngine.colors.warning
                    : ThemeEngine.colors.fail

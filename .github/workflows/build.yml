@@ -92,6 +92,24 @@ jobs:
       - name: Run selftest (NO_CURL fallback)
         run: QT_QPA_PLATFORM=offscreen ./build-nocurl/net_diagnostics --test
 
+  # ═══ Pre-commit 31 项（与本地钩子同一脚本双挂载）═════
+  # 5WHY (2026-09-27 ResultChart 事故): pre-commit 仅本地可选钩子——跳过
+  # 安装的机器提交即漏检（JS 导入路径回归的防线 18c 曾只在本地生效）。
+  # 同一脚本双挂载：判据单一来源，CI 以 PRECOMMIT_ALL=1 全量检查。
+  precommit:
+    name: Pre-commit checks (31)
+    runs-on: ubuntu-latest
+    needs: [version]
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends             qt6-declarative-dev-tools python3
+      - name: Run pre-commit (full tree)
+        run: PRECOMMIT_ALL=1 bash scripts/pre-commit
+
   # ═══ Linux — build-linux action (arch matrix) ═══
   linux:
 

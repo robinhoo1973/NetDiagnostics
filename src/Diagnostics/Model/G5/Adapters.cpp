@@ -137,8 +137,12 @@ static bool cancelledBy(const RunContext* ctx) {
     return ctx && ctx->cancelled.load(std::memory_order_relaxed);
 }
 
+// readBanner=false：纯连接测量（G5TcpConnect）——跳过读相位，latencyMs 不含
+// waitForReadyRead 的空转窗口（5WHY 2026-09-27：曾恒进读相位，无 send 时
+// 静默烧 ~300ms，连接延迟指标系统性虚高）。
 static ProbeOutcome tcpProbe(RunContext* ctx, const QUrl& u, const QByteArray& sendData,
-                             int connectTimeoutMs = 5000, int readTimeoutMs = 3000) {
+                             int connectTimeoutMs = 5000, int readTimeoutMs = 3000,
+                             bool readBanner = true) {
     ProbeOutcome p;
     const int port = portForUrl(u);
     const QString scheme = u.scheme().toLower();
@@ -166,7 +170,7 @@ static ProbeOutcome tcpProbe(RunContext* ctx, const QUrl& u, const QByteArray& s
         if (!sendData.isEmpty()) { sock.write(sendData); sock.waitForBytesWritten(2000); }
         const qint64 deadline = t.elapsed() + readTimeoutMs;
         QByteArray data;
-        while (t.elapsed() < deadline && !cancelledBy(ctx)) {
+        while (readBanner && t.elapsed() < deadline && !cancelledBy(ctx)) {
             if (!sock.waitForReadyRead(qMin<qint64>(300, deadline - t.elapsed()))) break;
             data += sock.readAll();
         }
@@ -188,7 +192,7 @@ static ProbeOutcome tcpProbe(RunContext* ctx, const QUrl& u, const QByteArray& s
     if (!sendData.isEmpty()) { sock.write(sendData); sock.waitForBytesWritten(2000); }
     const qint64 deadline = t.elapsed() + readTimeoutMs;
     QByteArray data;
-    while (t.elapsed() < deadline && !cancelledBy(ctx)) {
+    while (readBanner && t.elapsed() < deadline && !cancelledBy(ctx)) {
         if (!sock.waitForReadyRead(qMin<qint64>(300, deadline - t.elapsed()))) break;
         data += sock.readAll();
     }
@@ -289,10 +293,18 @@ static QByteArray headerValue(const HttpResult& r, const char* name) {
 // NO_CURL（iOS/Android/无库桌面）回退 socket 实现（httpOnceSocket）。
 #if !defined(NO_CURL)
 namespace {
+// 5WHY (2026-09-27 响应体上限): 目标 URL 用户自由粘贴可指向任意大文件——
+// 曾无上限累积（100MB/s×15s ≈ 1.5GB 量级），诊断工具反被内存反噬（iOS
+// 尤敏感）。8MB 上限：探测只需头部+预览；达量即中止（curl 路径 CURLE_
+// WRITE_ERROR 视为成功），capped 标记落 verboseLines 披露。
+static constexpr int kHttpBodyCap = 8 * 1024 * 1024;
+
 struct CurlCapture {
     QByteArray headers;
     QByteArray body;
     RunContext* ctx = nullptr;
+    int bodyCap = kHttpBodyCap;
+    bool capped = false;
 };
 
 static size_t curlHeaderCb(char* ptr, size_t size, size_t nmemb, void* ud) {
@@ -301,8 +313,10 @@ static size_t curlHeaderCb(char* ptr, size_t size, size_t nmemb, void* ud) {
     return n;
 }
 static size_t curlWriteCb(char* ptr, size_t size, size_t nmemb, void* ud) {
-    const size_t n = size * nmemb;
-    static_cast<CurlCapture*>(ud)->body.append(ptr, (int)n);
+    auto* cap = static_cast<CurlCapture*>(ud);
+    if (cap->body.size() >= cap->bodyCap) { cap->capped = true; return 0; }
+    const size_t n = qMin<size_t>(size * nmemb, (size_t)(cap->bodyCap - cap->body.size()));
+    cap->body.append(ptr, (int)n);
     return n;
 }
 // 取消回调：ctx 置位即中止传输（curl 返回 CURLE_ABORTED_BY_CALLBACK）——
@@ -376,13 +390,16 @@ static HttpResult httpOnceCurl(RunContext* ctx, const QUrl& u, const QByteArray&
     r.verboseLines.append(QStringLiteral("> %1 %2 HTTP/1.1").arg(QString::fromUtf8(method), u.path()));
 
     const CURLcode code = curl_easy_perform(curl);
-    if (code != CURLE_OK) {
+    const bool capReached = (code == CURLE_WRITE_ERROR && cap.capped);
+    if (code != CURLE_OK && !capReached) {
         r.error = cancelledBy(ctx) ? QStringLiteral("Cancelled")
                                    : QString::fromLatin1(curl_easy_strerror(code));
         r.totalMs = total.elapsed();
         curl_easy_cleanup(curl);
         return r;
     }
+    if (capReached)
+        r.verboseLines.append(QStringLiteral("< (body truncated at %1 bytes)").arg(cap.body.size()));
     long statusCode = 0;
     double tConnect = 0.0, tApp = 0.0, tStart = 0.0;
     curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &statusCode);
@@ -477,14 +494,16 @@ static HttpResult httpOnceSocket(RunContext* ctx, const QUrl& u, const QByteArra
             all += sock.readAll();
             if (all.contains("\r\n\r\n")) { r.firstByteMs = total.elapsed(); break; }
         }
-        // drain remaining body
-        while (total.elapsed() < timeoutMs && !cancelledBy(ctx)) {
+        // drain remaining body（5WHY 2026-09-27: 上限同 curl 路径——大响应不无界累积）
+        while (all.size() < kHttpBodyCap && total.elapsed() < timeoutMs && !cancelledBy(ctx)) {
             if (!sock.waitForReadyRead(qMin<qint64>(300, timeoutMs - total.elapsed()))) break;
             all += sock.readAll();
         }
         sock.disconnectFromHost();
         r.totalMs = total.elapsed();
         if (cancelledBy(ctx)) { r.error = QStringLiteral("Cancelled"); return r; }
+        if (all.size() >= kHttpBodyCap)
+            r.verboseLines.append(QStringLiteral("< (body truncated at %1 bytes)").arg(all.size()));
         const int hdrEnd = all.indexOf("\r\n\r\n");
         if (hdrEnd < 0) {
             r.error = QStringLiteral("No HTTP response");
@@ -529,13 +548,15 @@ static HttpResult httpOnceSocket(RunContext* ctx, const QUrl& u, const QByteArra
         all += sock.readAll();
         if (all.contains("\r\n\r\n")) { r.firstByteMs = total.elapsed(); break; }
     }
-    while (total.elapsed() < timeoutMs && !cancelledBy(ctx)) {
+    while (all.size() < kHttpBodyCap && total.elapsed() < timeoutMs && !cancelledBy(ctx)) {
         if (!sock.waitForReadyRead(qMin<qint64>(300, timeoutMs - total.elapsed()))) break;
         all += sock.readAll();
     }
     sock.disconnectFromHost();
     r.totalMs = total.elapsed();
     if (cancelledBy(ctx)) { r.error = QStringLiteral("Cancelled"); return r; }
+    if (all.size() >= kHttpBodyCap)
+        r.verboseLines.append(QStringLiteral("< (body truncated at %1 bytes)").arg(all.size()));
     const int hdrEnd = all.indexOf("\r\n\r\n");
     if (hdrEnd < 0) {
         r.error = QStringLiteral("No HTTP response");
@@ -592,7 +613,8 @@ static DiagnosticResult probeTcpConnect(DiagId id, const QString& target, RunCon
     if (!tryNormalizeTarget(id, target, &u, &fail)) return fail;
     // 5WHY (2026-09-26 复用): 曾手写 QTcpSocket connect+waitForConnected(5000)
     // ——tcpProbe 已封装连接/时延/取消（全组唯一不响应取消的探针修复）。
-    const ProbeOutcome p = tcpProbe(&ctx, u, {}, 5000, 2000);
+    // readBanner=false：本探针语义是纯连接延迟，不读横幅（5WHY 2026-09-27）。
+    const ProbeOutcome p = tcpProbe(&ctx, u, {}, 5000, 2000, false);
     if (cancelledBy(&ctx)) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
     const bool ok = p.connected;
     const int port = portForUrl(u);

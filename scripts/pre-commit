@@ -25,7 +25,13 @@ echo "  Pre-commit: checking for known issue patterns..."
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 # ── Get list of staged files ───────────────────────────────────────────────
-STAGED=$(git diff --cached --name-only --diff-filter=ACMR)
+# 5WHY (2026-09-27 双挂载): CI 无暂存区——PRECOMMIT_ALL=1 时以全部受跟踪
+# 文件为检查面（git show :$f 语义不变，本地方便起见同步写工作区副本）。
+if [ "${PRECOMMIT_ALL:-0}" = "1" ]; then
+    STAGED=$(git ls-files -- '*.cmake' 'CMakeLists.txt' '*.cpp' '*.h' '*.hpp' '*.mm' '*.m' '*.c' '*.qml' '*.js' '*.qrc' '*.yml' '*.yaml' '*.entitlements' '*.entitlements.in' '*.svg' '*.json' '*.py' '*.md')
+else
+    STAGED=$(git diff --cached --name-only --diff-filter=ACMR)
+fi
 
 if [ -z "$STAGED" ]; then
     echo "No staged files — nothing to check."
