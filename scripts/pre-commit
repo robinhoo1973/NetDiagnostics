@@ -955,8 +955,14 @@ PYEOF
 		case "$f" in *.cpp|*.mm|*.h|*.hpp)
 			_blob=$(file_text "$f" 2>/dev/null || true)
 			# 5WHY (2026-09-27 v5.1): 多 -e 形式——无子进程、exit-2 防护保留。
-			_hits=$(printf '%s\n' "$_blob" | grep -oF 			    -e '#include "Common/Services/DiagnosticTask.h"' 			    -e '#include "Diagnostics/Model/G4/G4RemoteHost.h"' 2>/dev/null)
-			_rc=$?
+			# set -e 下无匹配时 grep 退出 1，直接赋值令脚本整体退出（2026-09-27 v5.1
+			# 曾引入此死链：任何无残留 include 的 C++ 文件都在检查 24 处中断）。
+			# 用 if ! 形态豁免 set -e，并保留退出码（>=2 视为 grep 自身失败）。
+			if ! _hits=$(printf '%s\n' "$_blob" | grep -oF 			    -e '#include "Common/Services/DiagnosticTask.h"' 			    -e '#include "Diagnostics/Model/G4/G4RemoteHost.h"' 2>/dev/null); then
+			    _rc=$?
+			else
+			    _rc=0
+			fi
 			if [ "$_rc" -ge 2 ]; then
 			    fail "check 24: grep failed (exit $_rc) reading stale-header patterns — check DELETED_HEADERS"
 			    STALE_INCLUDE_FOUND=1
