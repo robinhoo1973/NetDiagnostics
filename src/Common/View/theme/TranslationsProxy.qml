@@ -77,7 +77,6 @@ QtObject {
     property var _diagDescs: ({})   // diagDesc:    "id" -> [15 langs]
     property var _msgExact: ({})    // trMsg.exact: EN text -> [15 langs]
     property var _msgTpl: []        // trMsg.templates: [[15],[15]]
-    property var _narr: ({})        // trMsg.narratives: key -> [15] 带 %1..%9 占位
     property bool _loaded: false
 
     // ── Load translations.json ─────────────────────────────────────────
@@ -97,7 +96,6 @@ QtObject {
         var tm = j.trMsg || {}
         root._msgExact   = tm.exact      || {}
         root._msgTpl     = tm.templates  || []
-        root._narr       = tm.narratives || {}
         root._loaded = true
     }
 

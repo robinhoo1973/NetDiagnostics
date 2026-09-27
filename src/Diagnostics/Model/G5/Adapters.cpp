@@ -161,7 +161,6 @@ static ProbeOutcome tcpProbe(RunContext* ctx, const QUrl& u, const QByteArray& s
                              bool readBanner = true) {
     ProbeOutcome p;
     qint64 firstDataMs = -1;   // 首字节时延（5WHY 2026-09-27 v2 计时分离）
-    bool bannerTruncated = false;   // 5WHY 2026-09-27 v5 截断披露
     qint64 connectMs = 0;           // 连接时延（静默服务器回退，5WHY v5）
     const int port = portForUrl(u);
     const QString scheme = u.scheme().toLower();
@@ -184,8 +183,7 @@ static ProbeOutcome tcpProbe(RunContext* ctx, const QUrl& u, const QByteArray& s
         if (!sock.waitForEncrypted(connectTimeoutMs)) {
             p.error = cancelledBy(ctx) ? QStringLiteral("Cancelled") : sock.errorString();
             p.latencyMs = t.elapsed();
-            p.wallMs = p.latencyMs;
-            return p;
+                    return p;
         }
         connectMs = t.elapsed();   // 连接+握手完成时点（5WHY v5）
         if (!sendData.isEmpty()) { sock.write(sendData); sock.waitForBytesWritten(2000); }
@@ -196,10 +194,14 @@ static ProbeOutcome tcpProbe(RunContext* ctx, const QUrl& u, const QByteArray& s
             // 5WHY (2026-09-27 v5 硬上限): 有界读且检查先于 append（曾先
             // readAll 后查——软上限，火管流超量一个完整 drain）；上限覆盖
             // 全部读循环（曾仅 sendData 为空路径，带请求探针仍可无界）。
-            data += sock.read(qMin(kBannerCapBytes - data.size(), sock.bytesAvailable()));
+            data += sock.read(kBannerCapBytes - data.size());   // read(n) 自按可用截断
             // 5WHY (2026-09-27 v2 计时分离): 首字节计时（横幅指标本义）。
             if (firstDataMs < 0 && !data.isEmpty()) firstDataMs = t.elapsed();
-            if (data.size() >= kBannerCapBytes) { bannerTruncated = true; break; }
+            if (data.size() >= kBannerCapBytes) { p.bannerTruncated = true; break; }
+            // 5WHY (2026-09-27 v5.1 首读即断回归): 纯横幅（sendData 空）读到数据
+            // 即完成——v5 硬上限重写曾误删此断，静默服务端下空等 ~300ms/探针
+            // 注水 wallMs（评审抓获）。上限检查之后恢复。
+            if (sendData.isEmpty() && !data.isEmpty()) break;
         }
         sock.disconnectFromHost();
         if (cancelledBy(ctx)) { p.error = QStringLiteral("Cancelled"); p.latencyMs = t.elapsed(); return p; }
@@ -211,7 +213,6 @@ static ProbeOutcome tcpProbe(RunContext* ctx, const QUrl& u, const QByteArray& s
                     : connectMs > 0 ? connectMs
                     : t.elapsed();
         p.wallMs = t.elapsed();
-        if (bannerTruncated) p.bannerTruncated = true;
         return p;
     }
 
@@ -220,8 +221,7 @@ static ProbeOutcome tcpProbe(RunContext* ctx, const QUrl& u, const QByteArray& s
     if (!sock.waitForConnected(connectTimeoutMs)) {
         p.error = cancelledBy(ctx) ? QStringLiteral("Cancelled") : sock.errorString();
         p.latencyMs = t.elapsed();
-        p.wallMs = p.latencyMs;
-        return p;
+            return p;
     }
     connectMs = t.elapsed();   // TCP 连接完成时点（5WHY v5）
     if (!sendData.isEmpty()) { sock.write(sendData); sock.waitForBytesWritten(2000); }
@@ -229,9 +229,10 @@ static ProbeOutcome tcpProbe(RunContext* ctx, const QUrl& u, const QByteArray& s
     QByteArray data;
     while (readBanner && t.elapsed() < deadline && !cancelledBy(ctx)) {
         if (!sock.waitForReadyRead(qMin<qint64>(300, deadline - t.elapsed()))) break;
-        data += sock.read(qMin(kBannerCapBytes - data.size(), sock.bytesAvailable()));
+        data += sock.read(kBannerCapBytes - data.size());
         if (firstDataMs < 0 && !data.isEmpty()) firstDataMs = t.elapsed();   // 首字节计时（5WHY 2026-09-27 v2）
-        if (data.size() >= kBannerCapBytes) { bannerTruncated = true; break; }   // 5WHY v5 硬上限
+        if (data.size() >= kBannerCapBytes) { p.bannerTruncated = true; break; }   // 5WHY v5 硬上限
+        if (sendData.isEmpty() && !data.isEmpty()) break;   // 5WHY v5.1 首读即断回归修复
     }
     sock.disconnectFromHost();
     if (cancelledBy(ctx)) { p.error = QStringLiteral("Cancelled"); p.latencyMs = t.elapsed(); return p; }
@@ -241,7 +242,6 @@ static ProbeOutcome tcpProbe(RunContext* ctx, const QUrl& u, const QByteArray& s
                 : connectMs > 0 ? connectMs
                 : t.elapsed();
     p.wallMs = t.elapsed();
-    if (bannerTruncated) p.bannerTruncated = true;
     return p;
 }
 
@@ -271,9 +271,12 @@ static DiagnosticResult probeResultScaffold(DiagId id, const QUrl& u,
     if (p.connected && !p.banner.isEmpty()) {
         r.details = QString::fromUtf8(p.banner);
         r.rawOutput = r.details;
-        if (p.bannerTruncated)
-            r.details += QStringLiteral("\n… (banner truncated at %1 bytes)").arg(p.banner.size());
     }
+    // 5WHY (2026-09-27 v5.1 结构化披露): 曾把截断行拼进 details——rawOutput
+    // 消费面（报告/剪贴板）永远不知道截断发生过。披露是元数据：结构化字段
+    // 供各呈现通道本地渲染（与 G3 无分键同门「数据与文案分离」）。
+    if (p.bannerTruncated)
+        r.data[QStringLiteral("bannerTruncatedBytes")] = p.banner.size();
     if (!p.connected) {
         r.errorOutput = p.error.isEmpty()
             ? QStringLiteral("Connection to %1:%2 failed").arg(u.host()).arg(portForUrl(u))

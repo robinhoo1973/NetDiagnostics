@@ -155,7 +155,10 @@ QString AppState::runStatusToken() const {
         case Completed: return QStringLiteral("completed");
         case Cancelled: return QStringLiteral("cancelled");
         case Error:     return QStringLiteral("error");
-        default:        return QStringLiteral("idle");
+        // 5WHY (2026-09-27 v5.1 fail-visible): 曾 default 回退 "idle"——新状态
+        // 静默按空闲渲染（与 severityToken 的 fail-visible 哲学相反）。未知值
+        // 按 error 呈现，新值漏映射即视觉可辨。
+        default:        return QStringLiteral("error");
     }
 }
 

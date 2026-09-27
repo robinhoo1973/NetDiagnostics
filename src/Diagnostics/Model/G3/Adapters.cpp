@@ -770,59 +770,66 @@ static DiagnosticResult probeDnsIntegrity(DiagId id, const QString&, RunContext&
 
     DiagStatus status;
     QString summary;
-    // 5WHY (2026-09-27 v4 判定同源): 曾手推 inconclusive 条件链且反复漂移
-    // （漏 hijackErrors 桶、部分失败落 Pass "DNS clean"+100/100 伪健康）。
-    // 判定由状态机分支就地置位——评分/属性行/叙述只读布尔，杜绝平行推导
-    // （此前"同源"断言未落地，gap-sweep 复核抓获）。
-    bool inconclusiveVerdict = false;
+    // 5WHY (2026-09-27 v6 裁决枚举化): 四条平行分类链（分支链/overall 三元/
+    // p2verdict 三元/p1.value 三元）曾各自重推同一裁决且已漂移多轮——MIXED
+    // 概念三处谓词互不一致。收敛为 DnsVerdict 枚举：分支链只求裁决与文案，
+    // 评分/属性值/叙述键全部 switch 派生（与 MtuVerdict/statusDescriptor 同门）。
+    enum class DnsVerdict { HijackPollution, Hijack, Pollution, Mixed, AllFailed,
+                            Phase2Inconclusive, Suspicious, Clean };
+    DnsVerdict verdict = DnsVerdict::Clean;
+    QString mixedKinds;   // MIXED 措辞（单次 join）
     if (hijackDetected && pollutionDetected) {
         out.append(QStringLiteral("Verdict: DNS HIJACKING + POLLUTION detected"));
         status = DiagStatus::Warning; summary = QStringLiteral("DNS: hijack + pollution");
+        verdict = DnsVerdict::HijackPollution;
     } else if (hijackDetected) {
         out.append(QStringLiteral("Verdict: ISP DNS HIJACKING detected"));
         out.append(QStringLiteral("  Hijack IPs: %1").arg(hijackIPs.join(QStringLiteral(", "))));
         status = DiagStatus::Warning; summary = QStringLiteral("DNS hijack: %1 IP(s)").arg(hijackIPs.size());
+        verdict = DnsVerdict::Hijack;
     } else if (pollutionDetected) {
-        const int total = pollutionWarn + pollutionClean + pollutionSuspicious + pollutionErrors;
         out.append(QStringLiteral("Verdict: DNS POLLUTION — %1/%2 domains affected")
-            .arg(pollutionWarn).arg(total));
+            .arg(pollutionWarn).arg(pollutionTotal));
         status = DiagStatus::Warning;
-        summary = QStringLiteral("DNS polluted: %1/%2 domains").arg(pollutionWarn).arg(total);
+        summary = QStringLiteral("DNS polluted: %1/%2 domains").arg(pollutionWarn).arg(pollutionTotal);
+        verdict = DnsVerdict::Pollution;
     } else {
         const int totalErrors = hijackFailed + pollutionErrors;
-        // 5WHY (2026-09-27 v5 分支重排): 失败证据分支必须先行——曾 SUSPICIOUS
-        // 与 phase2AllFailed 先于 MIXED，可疑+错误仍发 60 分（伪健康类五份
-        // 报告互证）；phase2AllFailed 曾虚称 "Phase 1 clean" 即使 Phase 1 有
-        // 超时。重排后：任何失败证据存在即无分。
+        // 失败证据分支必须先行（曾 SUSPICIOUS/phase2AllFailed 先于 MIXED）。
         if (totalErrors > 0 && hijackClean + pollutionClean + pollutionSuspicious == 0) {
             out.append(QStringLiteral("Verdict: INCONCLUSIVE — all queries failed"));
             status = DiagStatus::Info; summary = QStringLiteral("DNS: all queries failed");
-            inconclusiveVerdict = true;
+            verdict = DnsVerdict::AllFailed;
         } else if (totalErrors > 0) {
-            // MIXED：部分失败——无分；措辞区分超时与错误（曾把纯超时标为 error）。
             QStringList issueKinds;
             if (hijackTimeout > 0) issueKinds << QStringLiteral("%1 timeout(s)").arg(hijackTimeout);
             if (hijackErrors + pollutionErrors > 0)
                 issueKinds << QStringLiteral("%1 error(s)").arg(hijackErrors + pollutionErrors);
+            mixedKinds = issueKinds.join(QStringLiteral(", "));
             out.append(QStringLiteral("Verdict: MIXED — %1 alongside clean results; integrity undetermined")
-                .arg(issueKinds.join(QStringLiteral(", "))));
+                .arg(mixedKinds));
             status = DiagStatus::Info;
-            summary = QStringLiteral("DNS: mixed results (%1)").arg(issueKinds.join(QStringLiteral(", ")));
-            inconclusiveVerdict = true;
+            summary = QStringLiteral("DNS: mixed results (%1)").arg(mixedKinds);
+            verdict = DnsVerdict::Mixed;
         } else if (phase2AllFailed) {
-            // 此处必满足 Phase 1 全净（失败证据已被上一分支拦截，5WHY v5）
             out.append(QStringLiteral("Verdict: Phase 1 clean, Phase 2 inconclusive (all DoH queries failed)"));
             status = DiagStatus::Info;
             summary = QStringLiteral("DNS: hijack clean, pollution inconclusive");
-            inconclusiveVerdict = true;
+            verdict = DnsVerdict::Phase2Inconclusive;
         } else if (pollutionSuspicious > 0) {
             out.append(QStringLiteral("Verdict: SUSPICIOUS — %1 domain(s) need manual check").arg(pollutionSuspicious));
             status = DiagStatus::Info; summary = QStringLiteral("DNS: %1 suspicious").arg(pollutionSuspicious);
+            verdict = DnsVerdict::Suspicious;
         } else {
             out.append(QStringLiteral("Verdict: DNS CLEAN — no hijacking or pollution detected"));
             status = DiagStatus::Pass; summary = QStringLiteral("DNS clean");
+            verdict = DnsVerdict::Clean;
         }
     }
+    // 无分裁决集（单一来源——曾布尔就地置位与平行条件链并存）
+    const bool inconclusiveVerdict =
+        verdict == DnsVerdict::Mixed || verdict == DnsVerdict::AllFailed
+        || verdict == DnsVerdict::Phase2Inconclusive;
 
     // overallScorePercent 驱动仪表盘：由最终裁决推导（含 Phase 1 劫持），
     // 不再用与裁决脱节的任意公式——仪表与结论必须一致。
@@ -831,21 +838,22 @@ static DiagnosticResult probeDnsIntegrity(DiagId id, const QString&, RunContext&
     // 仍漏指标卡/属性行两个消费面。改为「无结论即无分」：键不下发，三个
     // 消费面经键不存在统一呈现缺失，无需任何特判。
 
-    const int overall = (hijackDetected && pollutionDetected) ? 0
-        : hijackDetected    ? 20
-        : pollutionDetected ? 40
-        : pollutionSuspicious > 0 ? 60
-        : 100;
-    // 5WHY (2026-09-27 v5 链同源): p2verdict 曾缺 mixed 分支——MIXED 裁决的
-    // 详情页属性行显示 "Clean" 与其自带 "Errors: N" 子行同屏矛盾。
-    const QString p2verdict =
-        (hijackDetected && pollutionDetected) ? QStringLiteral("hijack + pollution")
-        : hijackDetected      ? QStringLiteral("hijack")
-        : pollutionDetected   ? QStringLiteral("pollution")
-        : (pollutionErrors > 0 && (pollutionClean > 0 || pollutionSuspicious > 0)) ? QStringLiteral("mixed")
-        : pollutionSuspicious ? QStringLiteral("suspicious")
-        : phase2AllFailed     ? QStringLiteral("inconclusive")
-                              : QStringLiteral("clean");
+    const int overall = verdict == DnsVerdict::HijackPollution ? 0
+        : verdict == DnsVerdict::Hijack     ? 20
+        : verdict == DnsVerdict::Pollution  ? 40
+        : verdict == DnsVerdict::Suspicious ? 60
+        : 100;   // 无分裁决不消费此值（5WHY v6）
+    // 5WHY (2026-09-27 v6 链同源): p2verdict 由裁决枚举 switch 派生——曾
+    // 平行三元链且 mixed 谓词是状态机子集（hijack 超时+phase2 全净时属性行
+    // 仍显示 "Clean" 与裁决矛盾）。
+    const QString p2verdict = verdict == DnsVerdict::HijackPollution ? QStringLiteral("hijack + pollution")
+        : verdict == DnsVerdict::Hijack    ? QStringLiteral("hijack")
+        : verdict == DnsVerdict::Pollution ? QStringLiteral("pollution")
+        : verdict == DnsVerdict::Mixed     ? QStringLiteral("mixed")
+        : verdict == DnsVerdict::Suspicious ? QStringLiteral("suspicious")
+        : verdict == DnsVerdict::Phase2Inconclusive || verdict == DnsVerdict::AllFailed
+                                           ? QStringLiteral("inconclusive")
+                                           : QStringLiteral("clean");
 
     // 5WHY (2026-08-23 详情页信息前置): 两阶段计数与裁决曾只在 terminal/
     // narrative 散文里——提炼为分组属性行，terminal 折叠后仍可直读各阶段
@@ -854,9 +862,10 @@ static DiagnosticResult probeDnsIntegrity(DiagId id, const QString&, RunContext&
     {
         ResultProperty p1;
         p1.label = QStringLiteral("Phase 1 · Hijack Probe");
-        // 5WHY (2026-09-27 v5): 混合证据时属性值不再谎称 Clean。
-        p1.value = hijackDetected ? QStringLiteral("HIJACKED")
-                 : hijackFailed > 0 && hijackClean > 0 ? QStringLiteral("Mixed")
+        // 5WHY (2026-09-27 v6): 由裁决枚举派生（曾平行三元）。
+        p1.value = verdict == DnsVerdict::Hijack || verdict == DnsVerdict::HijackPollution
+                 ? QStringLiteral("HIJACKED")
+                 : verdict == DnsVerdict::Mixed ? QStringLiteral("Mixed")
                  : QStringLiteral("Clean");
         if (hijackDetected) p1.severity = ResultPropertySeverity::Warning;
         p1.children.append({QStringLiteral("Random domains tested"),
@@ -906,7 +915,7 @@ static DiagnosticResult probeDnsIntegrity(DiagId id, const QString&, RunContext&
         .arg(hijackTotal).arg(hijackClean).arg(hijackWarn).arg(hijackFailed)
         + QStringLiteral("Phase 2 (pollution): %1 benchmark domains compared local UDP vs DoH — "
         "%2 clean, %3 polluted, %4 suspicious, %5 errors. ")
-        .arg(pollutionClean + pollutionWarn + pollutionSuspicious + pollutionErrors)
+        .arg(pollutionTotal)
         .arg(pollutionClean).arg(pollutionWarn).arg(pollutionSuspicious).arg(pollutionErrors)
         + (hijackDetected ? QStringLiteral("A hijack responder returned answers for non-existent domains (hijack IPs: %1). ")
             .arg(hijackIPs.join(QStringLiteral(", "))) : QStringLiteral("Non-existent domains did not resolve — no hijack responder found. "));
@@ -929,7 +938,7 @@ static DiagnosticResult probeDnsIntegrity(DiagId id, const QString&, RunContext&
     r.data[QStringLiteral("narrativeArgs")] = QVariantList{
         QString::number(hijackTotal), QString::number(hijackClean),
         QString::number(hijackWarn), QString::number(hijackFailed),
-        QString::number(pollutionClean + pollutionWarn + pollutionSuspicious + pollutionErrors),
+        QString::number(pollutionTotal),
         QString::number(pollutionClean), QString::number(pollutionWarn),
         QString::number(pollutionSuspicious), QString::number(pollutionErrors),
         // 无结论时分数槽传空（完整模板已不再用于无结论路径；变体键不读该槽）

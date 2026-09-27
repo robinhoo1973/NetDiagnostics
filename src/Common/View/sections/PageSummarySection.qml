@@ -32,7 +32,11 @@ PageSection {
     readonly property string _narrativeKey: _data.narrativeKey || ""
     readonly property var _narrativeArgs: _data.narrativeArgs || []
     readonly property string _narrativeText:
-        _narrativeKey !== "" ? AppState.localizedNarrative(_narrativeKey, _narrativeArgs) : ""
+        // 5WHY (2026-09-27 v5.1 依赖注册): Q_INVOKABLE 调用不注册绑定依赖——
+        // 曾语言切换后叙述冻结旧语言（被删的 let _ = root.lang 正是为此）。
+        // 表达式内读 T.lang（NOTIFY 属性）恢复依赖捕获。
+        _narrativeKey !== "" && T.lang >= 0
+            ? AppState.localizedNarrative(_narrativeKey, _narrativeArgs) : ""
     active: _narrative !== "" || _narrativeText !== "" || _outline.length > 0
 
     ColumnLayout {

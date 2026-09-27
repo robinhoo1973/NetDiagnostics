@@ -213,9 +213,13 @@ QtObject {
         // 与中性 "X/Y completed" 标签/红绿徽标脱节。补齐全 5 态呈现表：2→中性
         // 勾（颜色与标签同为 onSurfaceVariant）；labelKey 留空 = 消费方各自保
         // 持 X/Y 标签（状态头）与 diagRunComplete（Dashboard）。Idle→null。
-        if (status === "completed") return { color: colors.onSurfaceVariant, iconName: "badge-check", labelKey: "", dimmed: false }
-        if (status === "cancelled") return { color: colors.warning, iconName: "badge-close", labelKey: "cancelled", dimmed: true }
-        if (status === "error")     return { color: colors.fail,    iconName: "badge-error", labelKey: "errorStatus", dimmed: false }
+        // 5WHY (2026-09-27 v5.1 terminal 字段): 曾 isTerminalRunStatus 以「表有
+        // 条目」派生终态——呈现轴与生命周期轴耦合（给 paused 加图标即静默变
+        // 终态）。终态是独立语义：行内显式 terminal 字段，error 行 terminal:
+        // false（错误态走 errorState 分支）。
+        if (status === "completed") return { color: colors.onSurfaceVariant, iconName: "badge-check", labelKey: "", dimmed: false, terminal: true }
+        if (status === "cancelled") return { color: colors.warning, iconName: "badge-close", labelKey: "cancelled", dimmed: true, terminal: true }
+        if (status === "error")     return { color: colors.fail,    iconName: "badge-error", labelKey: "errorStatus", dimmed: false, terminal: false }
         return null
     }
     // 5WHY (复核 2026-08-18 终态判定单一来源): 消费方曾各自手写 `>= 2`/`!== 1`
@@ -223,11 +227,11 @@ QtObject {
     // （2/3/4 显式枚举）由两处消费方共用，加状态值只需改此一处。
     // 5WHY (2026-09-27 令牌化): 比稳定名（completed/cancelled/error）——数值
     // 白名单并不具备其注释声称的"枚举重排免疫"（序值随重排漂移，评审抓获）。
-    // 5WHY (2026-09-27 v5 单一表): 曾与 runStatusInfo 表并列硬编码三令牌——
-    // 新状态漏加即静默隐藏状态图标（静默漂移类）。从展示表派生：终态 =
-    // 表中有条目的非 idle/running 状态。
+    // 5WHY (2026-09-27 v5.1 terminal 字段): 终态由行内 terminal 字段显式声明
+    // （曾判 null 派生——呈现轴与生命周期轴耦合）。
     function isTerminalRunStatus(s) {
-        return runStatusInfo(s) !== null
+        var info = runStatusInfo(s)
+        return info !== null && info.terminal === true
     }
     // （runStatusColor/runStatusIcon 包装已删除——review round 4：纯字段
     // 间接层，调用方直接读缓存的 runStatusInfo 对象 + || fallback）

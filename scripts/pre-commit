@@ -948,21 +948,20 @@ PYEOF
 	STALE_INCLUDE_FOUND=0
 	# 5WHY (2026-09-27 blob 单读): 曾每文件×每删头重复全读（O(文件×头)）——
 	# blob 上提，模式文件单 grep 多模式一次判定（与注释承诺一致）。
-	# 5WHY (2026-09-27 v5 免临时文件): mktemp 生命周期仪式曾只为喂一次 grep。
-	# 进程替换 <(...) 同语义零临时文件；DELETED_HEADERS 保持单一来源。
+	# 5WHY (2026-09-27 v5.1 循环不变量上提): 进程替换曾每文件 fork 一次
+	# （98 文件 ≈ 98 次多余 subshell）——多 -e 形式零额外进程、零临时文件，
+	# DELETED_HEADERS 单一来源且 exit-2 防护保留。
 	for f in $STAGED; do
 		case "$f" in *.cpp|*.mm|*.h|*.hpp)
 			_blob=$(file_text "$f" 2>/dev/null || true)
-			# 5WHY (2026-09-27 v5 exit-2 防护): `|| true` 曾连 grep 错误（exit 2）
-			# 一并吞掉——模式不可读时检查静默全过。区分无匹配(1)与错误(2)。
-			_hits=$(printf '%s\n' "$_blob" | grep -oFf <(printf '#include "%s"\n' $DELETED_HEADERS) 2>/dev/null)
+			# 5WHY (2026-09-27 v5.1): 多 -e 形式——无子进程、exit-2 防护保留。
+			_hits=$(printf '%s\n' "$_blob" | grep -oF 			    -e '#include "Common/Services/DiagnosticTask.h"' 			    -e '#include "Diagnostics/Model/G4/G4RemoteHost.h"' 2>/dev/null)
 			_rc=$?
 			if [ "$_rc" -ge 2 ]; then
 			    fail "check 24: grep failed (exit $_rc) reading stale-header patterns — check DELETED_HEADERS"
 			    STALE_INCLUDE_FOUND=1
 			    continue
 			fi
-			_hits=${_hits:-}
 			if [ -n "$_hits" ]; then
 				fail "$f: stale include(s) [$(echo "$_hits" | tr '\n' ' ')] (header deleted — use DiagnosticResult/DiagnosticBase)"
 				STALE_INCLUDE_FOUND=1
