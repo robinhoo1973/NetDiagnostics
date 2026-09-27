@@ -141,6 +141,17 @@ AppState::AppState(QObject* parent) : QObject(parent) {
     refreshConnectivityAsync();
 }
 
+QString AppState::runStatusToken() const {
+    // 与 AppState.h RunStatus 枚举同源映射（token 单一来源）。
+    switch (m_runStatus) {
+        case Running:   return QStringLiteral("running");
+        case Completed: return QStringLiteral("completed");
+        case Cancelled: return QStringLiteral("cancelled");
+        case Error:     return QStringLiteral("error");
+        default:        return QStringLiteral("idle");
+    }
+}
+
 qint64 AppState::runDurationMs() const {
     if (m_runStatus == Running)
         return m_runElapsedMs + (m_runTimer.isValid() ? m_runTimer.elapsed() : 0);
@@ -798,11 +809,9 @@ QVariantMap AppState::resultFor(int diagIdInt) const {
         pm[QStringLiteral("value")] = p.value;
         pm[QStringLiteral("severity")] = static_cast<int>(p.severity);
         // 5WHY (2026-09-27 跨语言枚举耦合): 严重度以序值下发曾致 QML 魔法数字
-        // 判定——枚举重排静默错级。severityToken 稳定名，QML 只比名字。
-        pm[QStringLiteral("severityToken")] =
-            p.severity == ResultPropertySeverity::Error ? QStringLiteral("error")
-            : p.severity == ResultPropertySeverity::Warning ? QStringLiteral("warning")
-            : QStringLiteral("info");
+        // 判定——枚举重排静默错级。severityToken 稳定名（描述符表单一事实
+        // 源，与 statusDescriptor 同门）。
+        pm[QStringLiteral("severityToken")] = QString::fromLatin1(severityToken(p.severity));
         QVariantList children;
         for (const auto& c : p.children) {
             QVariantMap cm;

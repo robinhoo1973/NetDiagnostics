@@ -836,7 +836,10 @@ static DiagnosticResult probeTraceroute(DiagId id, const QString& target, RunCon
         const int res = traceHopMac(targetIp, ttl, rttMs, hopIp, &tcpTtlUsed);
 #else
         // Android：无 raw ICMP → TCP-TTL（内核可能不遵从 TTL——诚实局限）。
-        const int res = tcpTtlHop(targetIp, ttl, 443, rttMs, hopIp);
+        // 5WHY (2026-09-27 编译断裂): tcpTtlHop 改 6 参后此调用点漏改——
+        // Android 构建 "too few arguments"（master HEAD 编译断裂，评审抓获）。
+        // 传 tcpTtlUsed 使方法披露脚注在 Android（唯一 TCP-TTL 平台）生效。
+        const int res = tcpTtlHop(targetIp, ttl, 443, rttMs, hopIp, &tcpTtlUsed);
 #endif
 #endif
 #endif
@@ -1251,7 +1254,11 @@ static DiagnosticResult probeMtuDiscovery(DiagId id, const QString& target, RunC
                              : MtuVerdict::Ok;
     // 有效 MSS 仅在探测成功时可信（5WHY 2026-09-27：曾对回退值推导伪测量
     // ——接口 MTU-40 被机器消费方读作实测 MSS，与已修的假阳性同类）。
-    const int effectiveMss = probeSucceeded && discoveredMtu > 40 ? discoveredMtu - 40 : 0;
+    // 5WHY (2026-09-27 MSS 槽): Unresolved 时接口 MSS 是诚实的（本地化模板
+    // 自述 "local interface MTU only"）——曾传 0 致非 EN 用户见「MSS 0」；
+    // ProbeFailed 传 0 但 EN/模板均省略 MSS 从句，无影响。
+    const int effectiveMss = (probeSucceeded || verdict == MtuVerdict::Unresolved)
+        && discoveredMtu > 40 ? discoveredMtu - 40 : 0;
 
     DiagStatus status = targetResolved ? DiagStatus::Pass : DiagStatus::Warning;
     QString summary = QStringLiteral("MTU %1%2").arg(discoveredMtu)

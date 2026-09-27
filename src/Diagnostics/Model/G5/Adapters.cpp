@@ -153,6 +153,7 @@ static ProbeOutcome tcpProbe(RunContext* ctx, const QUrl& u, const QByteArray& s
                              int connectTimeoutMs = 5000, int readTimeoutMs = 3000,
                              bool readBanner = true) {
     ProbeOutcome p;
+    qint64 firstDataMs = -1;   // 首字节时延（5WHY 2026-09-27 v2 计时分离）
     const int port = portForUrl(u);
     const QString scheme = u.scheme().toLower();
     // 5WHY (review 2026-08-17): 旧启发式 "以 s 结尾即隐式 TLS" 把 sftp（SSH
@@ -182,16 +183,16 @@ static ProbeOutcome tcpProbe(RunContext* ctx, const QUrl& u, const QByteArray& s
         while (readBanner && t.elapsed() < deadline && !cancelledBy(ctx)) {
             if (!sock.waitForReadyRead(qMin<qint64>(300, deadline - t.elapsed()))) break;
             data += sock.readAll();
-            // 5WHY (2026-09-27 读后空转): 纯横幅语义（sendData 空）读到数据
-            // 即完成——曾下一轮 waitForReadyRead 对静默服务端空等 ~300ms
-            // 且计入 latencyMs（C5 类的残留另一半）。
-            if (sendData.isEmpty() && !data.isEmpty()) break;
+            // 5WHY (2026-09-27 v2 计时分离): 曾首读即断——分段到达的横幅被
+            // 截断（以内容换取正确数字）。改为首字节计时 + 排空完整捕获：
+            // latencyMs 语义 = 首字节时延（横幅指标本义），内容捕获不耦合。
+            if (firstDataMs < 0 && !data.isEmpty()) firstDataMs = t.elapsed();
         }
         sock.disconnectFromHost();
         if (cancelledBy(ctx)) { p.error = QStringLiteral("Cancelled"); p.latencyMs = t.elapsed(); return p; }
         p.connected = true;
         p.banner = data;
-        p.latencyMs = t.elapsed();
+        p.latencyMs = firstDataMs >= 0 ? firstDataMs : t.elapsed();
         return p;
     }
 
@@ -208,13 +209,13 @@ static ProbeOutcome tcpProbe(RunContext* ctx, const QUrl& u, const QByteArray& s
     while (readBanner && t.elapsed() < deadline && !cancelledBy(ctx)) {
         if (!sock.waitForReadyRead(qMin<qint64>(300, deadline - t.elapsed()))) break;
         data += sock.readAll();
-        if (sendData.isEmpty() && !data.isEmpty()) break;   // 纯横幅首读即断（5WHY 2026-09-27）
+        if (firstDataMs < 0 && !data.isEmpty()) firstDataMs = t.elapsed();   // 首字节计时（5WHY 2026-09-27 v2）
     }
     sock.disconnectFromHost();
     if (cancelledBy(ctx)) { p.error = QStringLiteral("Cancelled"); p.latencyMs = t.elapsed(); return p; }
     p.connected = true;
     p.banner = data;
-    p.latencyMs = t.elapsed();
+    p.latencyMs = firstDataMs >= 0 ? firstDataMs : t.elapsed();
     return p;
 }
 

@@ -883,7 +883,10 @@ static DiagnosticResult probeDnsIntegrity(DiagId id, const QString&, RunContext&
     if (pollutionDetected)
         r.narrative += QStringLiteral("Local answers diverged from DoH ground truth on %1 domain(s) — evidence of DNS pollution. ")
             .arg(pollutionWarn);
-    r.narrative += QStringLiteral("Overall integrity score: %1/100.").arg(overall);
+    // 5WHY (2026-09-27 v3): 无结论时叙述同样不得报分（曾无条件追加「总分
+    // 100/100」——伪健康分在叙述层复活）。
+    if (!inconclusiveVerdict)
+        r.narrative += QStringLiteral("Overall integrity score: %1/100.").arg(overall);
     // 5WHY (2026-08-23 叙述多语言): key+args 模板（T.trNarrative 按语言格式化；
     // narrative EN 保留为回退/剪贴板源）。
     r.data[QStringLiteral("narrativeKey")] = QStringLiteral("nDnsIntegrity");
@@ -893,7 +896,8 @@ static DiagnosticResult probeDnsIntegrity(DiagId id, const QString&, RunContext&
         QString::number(pollutionClean + pollutionWarn + pollutionSuspicious + pollutionErrors),
         QString::number(pollutionClean), QString::number(pollutionWarn),
         QString::number(pollutionSuspicious), QString::number(pollutionErrors),
-        QString::number(overall) };
+        // 无结论时分数槽传空——模板渲染缺口（5WHY 2026-09-27 v3）
+        inconclusiveVerdict ? QString() : QString::number(overall) };
     return r;
 }
 

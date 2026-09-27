@@ -38,8 +38,8 @@ PageSection {
     // 运行信息卡以 hasData 门控——零结果取消(3)/完成(2)时整页无任何呈现。
     // includeTerminalEmpty（Dashboard 注入 true）放宽终态 2/3 的零结果空态。
     property bool includeTerminalEmpty: false
-    active: root._completed === 0 && (AppState.runStatus === 0 || AppState.runStatus === 4
-        || (root.includeTerminalEmpty && (AppState.runStatus === 2 || AppState.runStatus === 3)))
+    active: root._completed === 0 && (AppState.runStatusToken === "idle" || AppState.runStatusToken === "error"
+        || (root.includeTerminalEmpty && (AppState.runStatusToken === "completed" || AppState.runStatusToken === "cancelled")))
 
     ColumnLayout {
         Layout.alignment: Qt.AlignHCenter
@@ -70,7 +70,7 @@ PageSection {
             text: root.errorState
                 ? (AppState.errorMessage !== "" ? T.trMsg(AppState.errorMessage) : T.tr("errorRecoveryHint"))
                 : (root.includeTerminalEmpty
-                   && (AppState.runStatus === 2 || AppState.runStatus === 3)
+                   && (AppState.runStatusToken === "completed" || AppState.runStatusToken === "cancelled")
                    ? T.tr("noData")
                    : root.hintText)
             color: ThemeEngine.colors.onSurfaceVariant

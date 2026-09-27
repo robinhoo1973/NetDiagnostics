@@ -149,7 +149,7 @@ Rectangle {
             Button {
                 id: cancelBtn
                 Layout.preferredWidth: 48; Layout.preferredHeight: 36
-                visible: AppState.runStatus === 1
+                visible: AppState.runStatusToken === "running"
                 text: "\u25A0"
                 font.pixelSize: 12
                 onClicked: root.cancelRequested()

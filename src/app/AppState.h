@@ -37,6 +37,10 @@ public:
     explicit AppState(QObject* parent = nullptr);
 
     int     runStatus() const { return m_runStatus; }
+    // 5WHY (2026-09-27 跨语言枚举耦合): runStatus 序值曾于 4 个 QML 文件 7 处
+    // 裸直比（===1/===2/...）——枚举重排静默翻转运行态 UI。稳定名令牌，
+    // QML 只比名字（与 statusToken/severityToken 同门）。
+    QString runStatusToken() const;
     int     currentRunningGroup() const { return m_currentGroup; }
     int     totalCompleted() const { return m_results.size(); }
     QString currentDiagLabel() const { return m_currentDiagLabel; }
@@ -67,6 +71,7 @@ public:
 
     Q_PROPERTY(int runStatus READ runStatus NOTIFY runStatusChanged)
     Q_PROPERTY(int currentRunningGroup READ currentRunningGroup NOTIFY currentRunningGroupChanged)
+    Q_PROPERTY(QString runStatusToken READ runStatusToken NOTIFY runStatusChanged)
     Q_PROPERTY(int totalCompleted READ totalCompleted NOTIFY progressChanged)
     Q_PROPERTY(QString currentDiagLabel READ currentDiagLabel NOTIFY progressChanged)
     Q_PROPERTY(QString errorMessage READ errorMessage NOTIFY runStatusChanged)

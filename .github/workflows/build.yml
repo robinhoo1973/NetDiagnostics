@@ -62,7 +62,8 @@ jobs:
   selftest:
     name: Selftest (44 probes)
     runs-on: ubuntu-latest
-    needs: [version]
+    # 5WHY (2026-09-27 并行): 不消费 version 输出——去依赖与 version 并行
+    # （与 precommit job 同门修复；曾无谓等 checkout+tag 检测 ~30s）。
     timeout-minutes: 20
     strategy:
       # 5WHY (2026-09-26 NO_CURL 覆盖缺口): iOS/Android 强制 NO_CURL——其编译

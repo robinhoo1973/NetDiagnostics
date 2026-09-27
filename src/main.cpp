@@ -10,6 +10,7 @@
 #include "Diagnostics/Model/DiagnosticSuite.h"
 #include "Common/Model/DiagnosticMeta.h"
 #include "Common/Model/DiagNames.h"
+#include "Common/Platform/DeviceCapability.h"   // selftest 硬件跳过判定（5WHY 2026-09-27 v2）
 #include "app/AppState.h"
 #include "Common/Utils/CrashHandler.h"
 #include "Common/Utils/StartupLog.h"
@@ -101,12 +102,12 @@ int runSelftest(bool verifyOk) {
     std::setvbuf(stdout, nullptr, _IOLBF, 0);
     int total = 0;
     int skippedCount = 0;
-    // 5WHY (2026-09-27 合法跳过白名单): Skipped==0 断言首跑即命中本机两个
-    // 硬件缺席跳（无有线/蜂窝接口的板卡）——硬件能力门控是合法 Skipped，
-    // 注册/方案过滤类 Skipped 才是覆盖回归。白名单外的 Skipped 仍记违反。
-    static const QSet<DiagId> hardwareCapabilitySkips = {
-        DiagId::G1WifiDiagnostics, DiagId::G1WiredDiagnostics, DiagId::G1CellularInfo,
-    };
+    // 5WHY (2026-09-27 v2 能力源单源): 白名单曾按 DiagId 硬编码且与原因无
+    // 关——全能力机器上同 id 的真实覆盖回归被静默豁免，且新硬件门控探针
+    // 漏加名单即误报。改按 DeviceCapability（调度层既有单一权威）判定：
+    // 设备确有硬件仍 Skipped = 覆盖回归；硬件缺席 = 合法。
+    // （main.cpp 已含 DeviceCapability.h？经 DiagnosticSuite.h 传递——显式
+    // 调用 diagSupportedOnDevice 前确认符号可用。）
     int expected = 0;   // 本平台可调度探针数（预期总量，5WHY 2026-09-27）
     // R5-3（契约自检）：Pass 结果必须携带 meta.keyMetricField 声明的主指标，
     // 否则指标卡/图表拿不到数据——在自检阶段提前暴露探针与契约的漂移。
@@ -149,7 +150,8 @@ int runSelftest(bool verifyOk) {
                             statusDescriptor(r.status).reportText,
                             qPrintable(r.summary.isEmpty() ? "ok" : r.summary));
                 ++total;
-                if (r.status == DiagStatus::Skipped && !hardwareCapabilitySkips.contains(r.id))
+                if (r.status == DiagStatus::Skipped
+                    && DeviceCapability::diagSupportedOnDevice(r.id))
                     ++skippedCount;
                 const DetailProfile& d = diagnosticMeta(r.id).detail;
                 if (r.status == DiagStatus::Pass) {

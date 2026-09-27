@@ -21,7 +21,7 @@ PageSection {
     // 5WHY (复核 2026-08-18 终态判定 + 去重): runStatus === 1 曾散落 5 处、
     // `>= 2` 数值范围与枚举布局耦合——派生属性单点求值，终态经
     // ThemeEngine.isTerminalRunStatus 白名单（枚举重排免疫）。
-    readonly property bool _isRunning: AppState.runStatus === 1
+    readonly property bool _isRunning: AppState.runStatusToken === "running"
     readonly property bool _showStatusIcon: ThemeEngine.isTerminalRunStatus(AppState.runStatus)
 
     // UI-2：聚合统计命令式刷新（progressChanged/runStatusChanged 处理器赋值），
@@ -151,7 +151,7 @@ PageSection {
             mode: "bare"
             pdfAccent: ThemeEngine.colors.tertiary
             htmlAccent: ThemeEngine.colors.primary
-            visible: AppState.runStatus === 2 && AppState.totalCompleted > 0
+            visible: AppState.runStatusToken === "completed" && AppState.totalCompleted > 0
             onShareRequested: function(fmt) { root.shareRequested(fmt) }
             // 锁定态（Premium 平台未解锁）走 premiumRequired 信号——复用
             // DiagnosticScreen 既有 "locked" 分支呈现 premiumRequiredMsg。

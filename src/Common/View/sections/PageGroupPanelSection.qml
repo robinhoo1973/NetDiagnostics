@@ -48,7 +48,7 @@ PageSection {
     // 手工减法（completed-cancelled），与模型单一推导点脱钩。
     property var _statsObj: W.normalize(null)
 
-    readonly property bool isRunning: AppState.runStatus === 1 && AppState.currentRunningGroup === groupIndex
+    readonly property bool isRunning: AppState.runStatusToken === "running" && AppState.currentRunningGroup === groupIndex
     readonly property bool expanded: _userToggled ? _userExpanded : (isRunning || _completed > 0)
     // 45 图标全彩常显：组色调（G1..G5）——组头条/图标随组着色
     // 经 ThemeEngine.groupHue 单一映射（5WHY review 2026-08-17：消除与
@@ -113,7 +113,7 @@ PageSection {
             // 会全量丢弃，瓦片冻结在取消前快照（状态头却计入）。取消态
             // （runStatus 3 且 current=-1）下全面板随迟到结果排水刷新。
             if (groupIndex === AppState.currentRunningGroup
-                || (AppState.runStatus === 3 && AppState.currentRunningGroup === -1)) {
+                || (AppState.runStatusToken === "cancelled" && AppState.currentRunningGroup === -1)) {
                 reloadModel()
                 _refreshStats()
             }
@@ -142,7 +142,7 @@ PageSection {
     Connections {
         target: AppState
         function onRunStatusChanged() {
-            if (AppState.runStatus === 1) {
+            if (AppState.runStatusToken === "running") {
                 _userToggled = false
                 _userExpanded = true
             }
