@@ -51,6 +51,15 @@ static bool resolveHostForProbe(const QUrl& u, QElapsedTimer* phase,
     return !ip.isEmpty();
 }
 
+// 5WHY (2026-09-27 响应体上限): 目标 URL 用户自由粘贴可指向任意大文件——
+// 曾无上限累积（100MB/s×15s ≈ 1.5GB 量级），诊断工具反被内存反噬（iOS
+// 尤敏感）。8MB 上限：探测只需头部+预览；达量即中止（curl 路径 CURLE_
+// WRITE_ERROR 视为成功），capped 标记落 verboseLines 披露。
+// 5WHY (2026-09-27 NO_CURL 守卫): 曾声明于 !NO_CURL 守卫内却供守卫外的
+// httpOnceSocket 消费——NO_CURL 构建编译失败（master CI 实红）。文件级
+// 常量，双路径共用。
+static constexpr int kHttpBodyCap = 8 * 1024 * 1024;
+
 #if !defined(NO_CURL)
 #include <curl/curl.h>   // 5WHY (2026-09-26 铁律): 桌面 HTTP 走成熟 curl easy API
 #endif
@@ -298,12 +307,6 @@ static QByteArray headerValue(const HttpResult& r, const char* name) {
 // NO_CURL（iOS/Android/无库桌面）回退 socket 实现（httpOnceSocket）。
 #if !defined(NO_CURL)
 namespace {
-// 5WHY (2026-09-27 响应体上限): 目标 URL 用户自由粘贴可指向任意大文件——
-// 曾无上限累积（100MB/s×15s ≈ 1.5GB 量级），诊断工具反被内存反噬（iOS
-// 尤敏感）。8MB 上限：探测只需头部+预览；达量即中止（curl 路径 CURLE_
-// WRITE_ERROR 视为成功），capped 标记落 verboseLines 披露。
-static constexpr int kHttpBodyCap = 8 * 1024 * 1024;
-
 struct CurlCapture {
     QByteArray headers;
     QByteArray body;
