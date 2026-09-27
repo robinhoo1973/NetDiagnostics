@@ -64,6 +64,7 @@ ROLES = [
     ("INFO", "info"),
     ("TERMINAL_TEXT", "terminalText"),
     ("ON_SUCCESS_CONTAINER", "onSuccessContainer"),
+    ("ON_WARNING_TEXT", "onWarningText"),
     ("ICON_INK", "iconInk"),
     ("ON_FAIL", "onFail"),
     ("ON_ACCENT_PAD", "onAccentPad"),
@@ -244,7 +245,8 @@ def build_header() -> str:
          [s for s, _ in ROLES if s in
           ("ACCENT", "TEXT_PLACEHOLDER", "SUCCESS", "WARNING", "WARNING_STRONG",
            "FAIL", "SKIP", "INFO", "TERMINAL_TEXT", "ON_SUCCESS_CONTAINER",
-           "ICON_INK", "ON_FAIL", "ON_ACCENT_PAD", "TERMINAL_INK")]),
+           "ICON_INK", "ON_FAIL", "ON_ACCENT_PAD", "TERMINAL_INK",
+           "ON_WARNING_TEXT")]),
     ]
     for title, stems in sections:
         out.append("// ═══════════════════════════════════════════════════════════════════════════════")

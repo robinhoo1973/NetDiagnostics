@@ -52,6 +52,7 @@ var Dark = {
     info:                 "#A5B4FC",   // ← 原 infoBlue
     terminalText:         "#4ADE80",   // 终端输出文本（值=success，语义独立角色）
     onSuccessContainer:   "#4ADE80",   // success 系绿在 success 淡底上的 AA 文字（复用现有 hex）
+    onWarningText:        "#EA580C",   // 暗色文字级变体（statusTextColors dark 走图形令牌，此值仅色板完整）
 
     // 45 图标全彩常显：瓦片光晕垫令牌 + 5 组组色（G1..G5）——主题无关，
     // 单一来源在 Dark 块（5WHY review 2026-08-17：双块逐字复制会静默漂移，
@@ -106,6 +107,9 @@ var Light = {
     info:                 "#2563EB",   // ← 原 infoBlue
     terminalText:         "#047857",   // 终端输出文本（深翡翠，浅底 ~4.5:1 WCAG AA）
     onSuccessContainer:   "#047857",   // 深翡翠对 success 淡底 ≈4.7:1（AA）
+    onWarningText:        "#9A3412",   // 5WHY (2026-09-27): 状态词文字级变体
+                                        // （orange-950 对浅底 ≈7:1 AA）——曾裸
+                                        // hex 绕过色板唯一事实源
 
     // 45 图标全彩常显令牌。5WHY (review 2026-08-17, 用户诉求 light 可读):
     // 亮色系图标在白色卡面上 1.7-2.8:1 几乎不可读——

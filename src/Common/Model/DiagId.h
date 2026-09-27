@@ -51,20 +51,25 @@ struct DiagStatusDescriptor {
     const char*     iconName;      // QML AppIcon 名称（与 ThemeEngine.statusIconNames 同值）
     const char*     reportText;    // 导出报告状态词
     const char*     reportCssClass;// buildRichDocument 徽标 CSS 类
+    // 5WHY (2026-09-27 跨语言枚举耦合): QML 曾以魔法序值判定状态/严重度
+    // （===1/===2）——枚举重排静默错级的已知事故类（KeyMetric.js R8 自证
+    // 「枚举重排曾灭掉全部详情图表」）。token 为跨语言稳定名：QML 只比对
+    // 名字不比序数；本表是唯一事实源。
+    const char*     token;         // "pass"/"warning"/"fail"/"error"/"skipped"/"cancelled"/"info"
     int             paletteIndex;  // ReportEngine hexColors/rgbColors 数组下标
     DiagStatusGlyph glyph;         // renderStatusIcon 画法
 };
 
 inline const DiagStatusDescriptor& statusDescriptor(DiagStatus s) {
     static const DiagStatusDescriptor table[] = {
-        { DiagStatus::Pass,      "badge-check",   "Pass",      "pass",   0, DiagStatusGlyph::Tick },
-        { DiagStatus::Warning,   "badge-warning", "Warning",   "warn",   1, DiagStatusGlyph::Warning },
-        { DiagStatus::Fail,      "badge-close",   "Fail",      "fail",   2, DiagStatusGlyph::Cross },
-        { DiagStatus::Error,     "badge-error",   "Error",     "error",  3, DiagStatusGlyph::Cross },
-        { DiagStatus::Skipped,   "badge-skip",    "Skipped",   "skip",   4, DiagStatusGlyph::Skip },
+        { DiagStatus::Pass,      "badge-check",   "Pass",      "pass",      "pass",      0, DiagStatusGlyph::Tick },
+        { DiagStatus::Warning,   "badge-warning", "Warning",   "warn",      "warning",   1, DiagStatusGlyph::Warning },
+        { DiagStatus::Fail,      "badge-close",   "Fail",      "fail",      "fail",      2, DiagStatusGlyph::Cross },
+        { DiagStatus::Error,     "badge-error",   "Error",     "error",     "error",     3, DiagStatusGlyph::Cross },
+        { DiagStatus::Skipped,   "badge-skip",    "Skipped",   "skip",      "skipped",   4, DiagStatusGlyph::Skip },
         // Cancelled: close 图标 = X 中止语义，与 Skipped 区分（NEW-17 复核 2026-08-18）
-        { DiagStatus::Cancelled, "close",         "Cancelled", "cancel", 5, DiagStatusGlyph::Cross },
-        { DiagStatus::Info,      "badge-info",    "Info",      "info",   6, DiagStatusGlyph::Info },
+        { DiagStatus::Cancelled, "close",         "Cancelled", "cancel",    "cancelled", 5, DiagStatusGlyph::Cross },
+        { DiagStatus::Info,      "badge-info",    "Info",      "info",      "info",      6, DiagStatusGlyph::Info },
     };
     for (const auto& d : table)
         if (d.status == s) return d;

@@ -182,6 +182,10 @@ static ProbeOutcome tcpProbe(RunContext* ctx, const QUrl& u, const QByteArray& s
         while (readBanner && t.elapsed() < deadline && !cancelledBy(ctx)) {
             if (!sock.waitForReadyRead(qMin<qint64>(300, deadline - t.elapsed()))) break;
             data += sock.readAll();
+            // 5WHY (2026-09-27 读后空转): 纯横幅语义（sendData 空）读到数据
+            // 即完成——曾下一轮 waitForReadyRead 对静默服务端空等 ~300ms
+            // 且计入 latencyMs（C5 类的残留另一半）。
+            if (sendData.isEmpty() && !data.isEmpty()) break;
         }
         sock.disconnectFromHost();
         if (cancelledBy(ctx)) { p.error = QStringLiteral("Cancelled"); p.latencyMs = t.elapsed(); return p; }
@@ -204,6 +208,7 @@ static ProbeOutcome tcpProbe(RunContext* ctx, const QUrl& u, const QByteArray& s
     while (readBanner && t.elapsed() < deadline && !cancelledBy(ctx)) {
         if (!sock.waitForReadyRead(qMin<qint64>(300, deadline - t.elapsed()))) break;
         data += sock.readAll();
+        if (sendData.isEmpty() && !data.isEmpty()) break;   // 纯横幅首读即断（5WHY 2026-09-27）
     }
     sock.disconnectFromHost();
     if (cancelledBy(ctx)) { p.error = QStringLiteral("Cancelled"); p.latencyMs = t.elapsed(); return p; }
@@ -259,6 +264,14 @@ struct HttpResult {
     qint64 dnsMs = 0, connectMs = 0, tlsMs = 0, firstByteMs = 0, totalMs = 0;
     QStringList verboseLines;   // "> request" / "< response" style
 };
+
+// 5WHY (2026-09-27 口径统一): 截断披露曾三处复制且字节口径不一——curl 报纯
+// body、socket 报含 headers 的 all.size()。单一助手，统一纯 body 字节。
+static void appendBodyTruncNote(HttpResult& r, int bodyBytes) {
+    r.verboseLines.append(QStringLiteral("< (body truncated at %1 bytes)").arg(bodyBytes));
+}
+
+
 
 static bool parseResponseHead(const QByteArray& head, HttpResult& r) {
     // 5WHY (2026-09-05 头部名全带换行): 曾按 '\r' 切分——CRLF 头体中除状态行
@@ -407,7 +420,7 @@ static HttpResult httpOnceCurl(RunContext* ctx, const QUrl& u, const QByteArray&
         return r;
     }
     if (capReached)
-        r.verboseLines.append(QStringLiteral("< (body truncated at %1 bytes)").arg(cap.body.size()));
+        appendBodyTruncNote(r, cap.body.size());
     long statusCode = 0;
     double tConnect = 0.0, tApp = 0.0, tStart = 0.0;
     curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &statusCode);
@@ -510,9 +523,9 @@ static HttpResult httpOnceSocket(RunContext* ctx, const QUrl& u, const QByteArra
         sock.disconnectFromHost();
         r.totalMs = total.elapsed();
         if (cancelledBy(ctx)) { r.error = QStringLiteral("Cancelled"); return r; }
-        if (all.size() >= kHttpBodyCap)
-            r.verboseLines.append(QStringLiteral("< (body truncated at %1 bytes)").arg(all.size()));
         const int hdrEnd = all.indexOf("\r\n\r\n");
+        if (all.size() >= kHttpBodyCap && hdrEnd >= 0)
+            appendBodyTruncNote(r, all.size() - (hdrEnd + 4));   // 纯 body 字节口径
         if (hdrEnd < 0) {
             r.error = QStringLiteral("No HTTP response");
             return r;
@@ -563,9 +576,9 @@ static HttpResult httpOnceSocket(RunContext* ctx, const QUrl& u, const QByteArra
     sock.disconnectFromHost();
     r.totalMs = total.elapsed();
     if (cancelledBy(ctx)) { r.error = QStringLiteral("Cancelled"); return r; }
-    if (all.size() >= kHttpBodyCap)
-        r.verboseLines.append(QStringLiteral("< (body truncated at %1 bytes)").arg(all.size()));
     const int hdrEnd = all.indexOf("\r\n\r\n");
+    if (all.size() >= kHttpBodyCap && hdrEnd >= 0)
+        appendBodyTruncNote(r, all.size() - (hdrEnd + 4));   // 纯 body 字节口径
     if (hdrEnd < 0) {
         r.error = QStringLiteral("No HTTP response");
         return r;

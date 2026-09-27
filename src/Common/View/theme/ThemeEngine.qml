@@ -65,9 +65,11 @@ QtObject {
         // Qt 6.8 编译型 QML（iOS 静态构建 qmlcachegen）下是致命编译错误
         // （"Property value set multiple times" → ThemeEngine 加载失败 →
         // 通用崩溃链 → 闪退）。同一信号只允许一个处理器，断言并入此处。
-        if (statusColors.length !== statusIconNames.length)
-            console.warn("ThemeEngine: statusColors.length(" + statusColors.length
-                         + ") !== statusIconNames.length(" + statusIconNames.length + ")")
+        if (statusColors.length !== statusIconNames.length
+                || statusTextColors.length !== statusIconNames.length)
+            console.warn("ThemeEngine: status arrays length mismatch ("
+                         + statusColors.length + "/" + statusTextColors.length
+                         + " vs icons " + statusIconNames.length + ")")
     }
 
     readonly property var statusColors: [
@@ -80,15 +82,12 @@ QtObject {
     ]
     // 5WHY (2026-09-27 使用层对比度): 状态色令牌为图形用途设计（light 下
     // Pass 2.42:1/Warning 3.40:1 不达文字 AA 4.5:1）——曾直接染状态词文字，
-    // 「越好的结果越看不清」。使用层派生文字级变体：不动 Palette.js 色板值
-    // （尊重 2026-08-17 用户色值冻结决策；先例 onSuccessContainer 同为文字
-    // 派生令牌）。Light 用深档（Pass=onSuccessContainer≈4.7:1、Warning=
-    // orange-950 #9A3412≈7:1）；dark 沿用原令牌。audit 脚本将补「令牌×
-    // 用途×表面」用法对检查。
+    // 「越好的结果越看不清」。使用层派生文字级变体：dark 复用图形级令牌；
+    // light 用 Palette.js 的文字级派生令牌（onSuccessContainer/onWarningText，
+    // 尊重 2026-08-17 色值冻结决策——色板登记而非旁路）。
     readonly property var statusTextColors: ThemeEngine.isDark
-        ? [colors.success, colors.warning, colors.fail, colors.skip,
-           colors.error, colors.info, colors.outline]
-        : [colors.onSuccessContainer, "#9A3412", colors.fail, colors.skip,
+        ? statusColors
+        : [colors.onSuccessContainer, colors.onWarningText, colors.fail, colors.skip,
            colors.error, colors.info, colors.outline]
     readonly property var statusIconNames: [
         "badge-check", "badge-warning", "badge-close",

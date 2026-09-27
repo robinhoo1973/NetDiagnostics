@@ -11,36 +11,37 @@ import theme
 
 ColumnLayout {
     id: root
+    // 5WHY (2026-09-27 守卫收敛): 曾 _data 中间层再叠一层空守卫——默认值
+    // ({}) 已保证 detailData 非空，宿主守卫各自保留一层即可。
     property var detailData: ({})
-    readonly property var _data: detailData ? detailData : ({})
     spacing: ThemeEngine.spacing.sm
 
     S.PageHeroSection {
         Layout.fillWidth: true
-        detailData: root._data
+        detailData: root.detailData
     }
     S.PageSummarySection {
         Layout.fillWidth: true
-        detailData: root._data
+        detailData: root.detailData
     }
     S.PageMetricSection {
         Layout.fillWidth: true
-        detailData: root._data
+        detailData: root.detailData
     }
     S.PageErrorSection {
         Layout.fillWidth: true
-        detailData: root._data
+        detailData: root.detailData
     }
     S.PagePropertiesSection {
         Layout.fillWidth: true
-        detailData: root._data
+        detailData: root.detailData
     }
     S.PageChartsSection {
         Layout.fillWidth: true
-        detailData: root._data
+        detailData: root.detailData
     }
     S.PageTerminalSection {
         Layout.fillWidth: true
-        detailData: root._data
+        detailData: root.detailData
     }
 }

@@ -95,26 +95,18 @@ const char* selftestSchemeFor(DiagId id) {
     }
 }
 
-// 5WHY (2026-09-27 状态可见性): selftest 曾不打印 status——探针 Pass→Fail 回归
-// 时 CI 日志肉眼不可见。状态名单一来源（本地七态映射）。
-const char* selftestStatusName(DiagStatus st) {
-    switch (st) {
-        case DiagStatus::Pass:      return "Pass";
-        case DiagStatus::Warning:   return "Warn";
-        case DiagStatus::Fail:      return "Fail";
-        case DiagStatus::Error:     return "Error";
-        case DiagStatus::Skipped:   return "Skip";
-        case DiagStatus::Info:      return "Info";
-        case DiagStatus::Cancelled: return "Cancel";
-    }
-    return "?";
-}
-
 int runSelftest(bool verifyOk) {
     // GUI 子系统下 stdout 全缓冲：崩溃时日志会丢。selftest 改为行缓冲，
     // 保证每条结果实时落盘（也便于定位崩溃点）。
     std::setvbuf(stdout, nullptr, _IOLBF, 0);
     int total = 0;
+    int skippedCount = 0;
+    // 5WHY (2026-09-27 合法跳过白名单): Skipped==0 断言首跑即命中本机两个
+    // 硬件缺席跳（无有线/蜂窝接口的板卡）——硬件能力门控是合法 Skipped，
+    // 注册/方案过滤类 Skipped 才是覆盖回归。白名单外的 Skipped 仍记违反。
+    static const QSet<DiagId> hardwareCapabilitySkips = {
+        DiagId::G1WifiDiagnostics, DiagId::G1WiredDiagnostics, DiagId::G1CellularInfo,
+    };
     int expected = 0;   // 本平台可调度探针数（预期总量，5WHY 2026-09-27）
     // R5-3（契约自检）：Pass 结果必须携带 meta.keyMetricField 声明的主指标，
     // 否则指标卡/图表拿不到数据——在自检阶段提前暴露探针与契约的漂移。
@@ -126,21 +118,19 @@ int runSelftest(bool verifyOk) {
     const DiagGroup groups[] = { DiagGroup::G1, DiagGroup::G2, DiagGroup::G3, DiagGroup::G4, DiagGroup::G5 };
     for (DiagGroup g : groups) {
         // G1-G4 无 scheme 过滤（通配）→ 单批 https；G5 按检测 scheme 分批。
+        // 5WHY (2026-09-27 简化): 谓词循环曾两分支各写一遍且 expected 双 ++。
+        // 单遍收集组内可调度 id，再按 G5 与否分 scheme 批。
+        QVector<DiagId> groupIds;
+        for (DiagId id : allDiagIds())
+            if (diagGroup(id) == g && isSchedulable(id))
+                groupIds.append(id);
+        expected += groupIds.size();
         QHash<QString, QVector<DiagId>> batches;
         if (g == DiagGroup::G5) {
-            for (DiagId id : allDiagIds())
-                if (diagGroup(id) == g && isSchedulable(id)) {
-                    batches[QLatin1String(selftestSchemeFor(id))].append(id);
-                    ++expected;
-                }
+            for (DiagId id : groupIds)
+                batches[QLatin1String(selftestSchemeFor(id))].append(id);
         } else {
-            QVector<DiagId> ids;
-            for (DiagId id : allDiagIds())
-                if (diagGroup(id) == g && isSchedulable(id)) {
-                    ids.append(id);
-                    ++expected;
-                }
-            batches.insert(QStringLiteral("https"), ids);
+            batches.insert(QStringLiteral("https"), groupIds);
         }
 
         for (auto it = batches.constBegin(); it != batches.constEnd(); ++it) {
@@ -152,13 +142,15 @@ int runSelftest(bool verifyOk) {
             QObject::connect(&suite, &DiagnosticSuite::suiteFinished,
                              [&loop, &done]() { done = true; loop.quit(); });
             QObject::connect(&suite, &DiagnosticSuite::resultReady,
-                             [&total, &contractViolations](const DiagnosticResult& r) {
+                             [&total, &skippedCount, &contractViolations](const DiagnosticResult& r) {
                 std::printf("[%s] %-30s [%s] -> %s\n",
                             qPrintable(diagGroupLabel(r.group)),
                             qPrintable(r.displayName),
-                            selftestStatusName(r.status),
+                            statusDescriptor(r.status).reportText,
                             qPrintable(r.summary.isEmpty() ? "ok" : r.summary));
                 ++total;
+                if (r.status == DiagStatus::Skipped && !hardwareCapabilitySkips.contains(r.id))
+                    ++skippedCount;
                 const DetailProfile& d = diagnosticMeta(r.id).detail;
                 if (r.status == DiagStatus::Pass) {
                     if (d.keyMetricField && !r.data.contains(QLatin1String(d.keyMetricField))) {
@@ -179,7 +171,7 @@ int runSelftest(bool verifyOk) {
                     // 详情页错误区块空白（G1/G2/G3 曾真实漂移过）。
                     ++contractViolations;
                     std::printf("CONTRACT: [%s] %s without errorOutput (showErrorOutput declared)\n",
-                                qPrintable(r.displayName), selftestStatusName(r.status));
+                                qPrintable(r.displayName), statusDescriptor(r.status).reportText);
                 }
             });
 
@@ -199,6 +191,14 @@ int runSelftest(bool verifyOk) {
         ++contractViolations;
         std::printf("CONTRACT: selftest covered %d of %d schedulable tests (registry gap?)\n",
                     total, expected);
+    }
+    // 5WHY (2026-09-27 覆盖真实性): total==expected 恒成立的自指问题——被
+    // scheme 过滤/门控成 Skipped 的探针照样计入 total（G5 scheme 事故形态）。
+    // 桌面 CI 平台全部 44 项应可调度：任何 Skipped 即覆盖回归信号。
+    if (skippedCount > 0) {
+        ++contractViolations;
+        std::printf("CONTRACT: %d test(s) reported Skipped on a fully-capable platform — coverage regression?\n",
+                    skippedCount);
     }
     std::printf("selftest: %d results, verify=%s, contract=%s\n", total,
                 verifyOk ? "PASS" : "GAPS",

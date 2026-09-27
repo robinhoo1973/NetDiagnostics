@@ -6934,6 +6934,23 @@
         "MTU do caminho até %1: %2 bytes (MSS %3). MTU Ethernet padrão — sem fragmentação esperada.",
         ""
       ],
+      "nMtuProbeFailed": [
+        "PMTU probe failed — showing the interface MTU; fragmentation behavior is unknown.",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
       "nMtuLocal": [
         "到 %1 的路径 MTU：%2 字节（MSS %3）。目标未解析——仅为本地接口 MTU。",
         "到 %1 的路徑 MTU：%2 位元組（MSS %3）。目標未解析——僅為本地介面 MTU。",

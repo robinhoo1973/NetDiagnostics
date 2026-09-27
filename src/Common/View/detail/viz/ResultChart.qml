@@ -188,13 +188,11 @@ Item {
         // 5WHY: Handshake template now supports non-TLS data shapes:
         // DnsIntegrity(overallScorePercent 0-100), SecurityHeaders(score/totalRequired),
         // InternetConnectivity(downloadMbpsBest).
+        // 5WHY (2026-09-27 v2 无值契约): 无结论时 C++ 不下发 overallScorePercent
+        // ——键不存在即无 Gauge（曾映射 80 分渲染「80 分健康绿」，且 -1 哨兵
+        // 特判漏指标卡/属性行两个面）。缺失即呈现缺失，无需任何特判。
         if (root._key === "handshake" && root.data.overallScorePercent !== undefined) {
             var sp = Number(root.data.overallScorePercent)
-            // 5WHY (2026-09-27 inconclusive 呈现): 探测无结论时显示 "—" 与
-            // 中性色——曾映射 80 分渲染绿色，把「没测出来」妆成「80 分健康」。
-            if (root.data.scoreInconclusive === true)
-                return { value: -1, max: 100, unitKey: "unitPercent",
-                         color: ThemeEngine.colors.textMuted, emptyLabel: "—" }
             var sc = sp >= 80 ? ThemeEngine.colors.success
                    : sp >= 50 ? ThemeEngine.colors.warning
                    : ThemeEngine.colors.fail

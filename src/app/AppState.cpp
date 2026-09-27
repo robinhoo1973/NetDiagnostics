@@ -644,6 +644,9 @@ QVariantMap AppState::itemFor(DiagId id, const QHash<DiagId, qint64>* startsMono
         m[QStringLiteral("summary")] = QString();
     } else {
         m[QStringLiteral("status")] = static_cast<int>(it->status);
+    // 5WHY (2026-09-27 跨语言枚举耦合): 与 severityToken 同门——状态稳定名
+    // 供 QML 比对（DiagId.h statusDescriptor 单一事实源）。
+    m[QStringLiteral("statusToken")] = QString::fromLatin1(statusDescriptor(it->status).token);
         m[QStringLiteral("isPending")] = false;
         m[QStringLiteral("isDone")] = true;
         m[QStringLiteral("isDisabled")] = false;
@@ -794,6 +797,12 @@ QVariantMap AppState::resultFor(int diagIdInt) const {
         pm[QStringLiteral("label")] = p.label;
         pm[QStringLiteral("value")] = p.value;
         pm[QStringLiteral("severity")] = static_cast<int>(p.severity);
+        // 5WHY (2026-09-27 跨语言枚举耦合): 严重度以序值下发曾致 QML 魔法数字
+        // 判定——枚举重排静默错级。severityToken 稳定名，QML 只比名字。
+        pm[QStringLiteral("severityToken")] =
+            p.severity == ResultPropertySeverity::Error ? QStringLiteral("error")
+            : p.severity == ResultPropertySeverity::Warning ? QStringLiteral("warning")
+            : QStringLiteral("info");
         QVariantList children;
         for (const auto& c : p.children) {
             QVariantMap cm;

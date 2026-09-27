@@ -38,13 +38,23 @@ if [ -z "$STAGED" ]; then
     exit 0
 fi
 
+# ── 0. 文件内容读取器 ─────────────────────────────────────────────────────
+# 5WHY (2026-09-27 fork 风暴): PRECOMMIT_ALL 曾逐文件 `file_text "$f"`（460
+# 文件 × 约 20 处检查 ≈ 2300+ 次子进程 spawn，实测 ~25s，占全脚本 1/4）。
+# ALL 模式下工作区本身就是检查面——cat 零 fork；staged 模式保留 index 语义。
+if [ "${PRECOMMIT_ALL:-0}" = "1" ]; then
+    file_text() { cat "$ROOT/$1" 2>/dev/null; }
+else
+    file_text() { git show ":$1" 2>/dev/null; }
+fi
+
 # ── 1. CMake: no // comments ──────────────────────────────────────────────
 echo ""
 echo "── 1. CMake comment syntax (// forbidden) ──"
 CMAKE_FILES=$(echo "$STAGED" | grep -E '\.cmake$|CMakeLists\.txt$' || true)
 if [ -n "$CMAKE_FILES" ]; then
     for f in $CMAKE_FILES; do
-        if git show ":$f" | grep -n '//' | grep -v 'http://\|https://' > /tmp/precommit-cmake-comment.log 2>/dev/null; then
+        if file_text "$f" | grep -n '//' | grep -v 'http://\|https://' > /tmp/precommit-cmake-comment.log 2>/dev/null; then
             fail "$f: C++-style comments (//) found — use # for CMake"
             cat /tmp/precommit-cmake-comment.log | while read line; do
                 echo "       $line"
@@ -62,7 +72,7 @@ echo ""
 echo "── 2. CMake regex {n} quantifier ──"
 if [ -n "$CMAKE_FILES" ]; then
     for f in $CMAKE_FILES; do
-        if git show ":$f" | grep -nE '\{[0-9]+\}' | grep -v 'http' > /tmp/precommit-cmake-regex.log 2>/dev/null; then
+        if file_text "$f" | grep -nE '\{[0-9]+\}' | grep -v 'http' > /tmp/precommit-cmake-regex.log 2>/dev/null; then
             fail "$f: {n} quantifier in CMake regex — CMake does not support this"
             cat /tmp/precommit-cmake-regex.log | while read line; do
                 echo "       $line"
@@ -81,7 +91,7 @@ echo "── 3. Preprocessor style (#ifdef/#ifndef forbidden) ──"
 CPP_FILES=$(echo "$STAGED" | grep -E '\.(cpp|h|hpp|mm|m|c)$' || true)
 if [ -n "$CPP_FILES" ]; then
     for f in $CPP_FILES; do
-        if git show ":$f" | grep -nE '^#ifdef |^#ifndef ' > /tmp/precommit-ifdef.log 2>/dev/null; then
+        if file_text "$f" | grep -nE '^#ifdef |^#ifndef ' > /tmp/precommit-ifdef.log 2>/dev/null; then
             fail "$f: #ifdef/#ifndef found — use #if(defined(X)) for CI compliance"
             cat /tmp/precommit-ifdef.log | while read line; do
                 echo "       $line"
@@ -99,7 +109,7 @@ echo ""
 echo "── 4. Preprocessor #elif check ──"
 if [ -n "$CPP_FILES" ]; then
     for f in $CPP_FILES; do
-        if git show ":$f" | grep -nE '^#elif ' > /tmp/precommit-elif.log 2>/dev/null; then
+        if file_text "$f" | grep -nE '^#elif ' > /tmp/precommit-elif.log 2>/dev/null; then
             fail "$f: #elif found — use #else + #if for CI preprocessor balance"
             cat /tmp/precommit-elif.log | while read line; do
                 echo "       $line"
@@ -122,7 +132,7 @@ if [ -n "$CPP_FILES" ]; then
     for f in $CPP_FILES; do
         # 5WHY (review round 4)：按"调用形态"拦会漏——任何带引号字面量实参都拦
         # （QStringLiteral/裸字面量/"v2.0" 前缀等）；blob 只取一次。
-        _cpp_blob=$(git show ":$f" 2>/dev/null || true)
+        _cpp_blob=$(file_text "$f" 2>/dev/null || true)
         if echo "$_cpp_blob" | grep -nE 'setApplicationVersion\([^)]*"[^"]*"' > /tmp/precommit-version.log 2>/dev/null; then
             fail "$f: hardcoded version literal in setApplicationVersion — use QStringLiteral(PROJECT_VERSION)"
             cat /tmp/precommit-version.log | while read line; do
@@ -172,7 +182,7 @@ if [ -n "$ENT_FILES" ]; then
     for f in $ENT_FILES; do
         # 5WHY: the naive grep matched these strings even in XML comments,
         # blocking legitimate documentation.  Only flag actual <key> elements.
-        if git show ":$f" | grep -qE '<key>com\.apple\.(application-identifier|developer\.team-identifier)</key>'; then
+        if file_text "$f" | grep -qE '<key>com\.apple\.(application-identifier|developer\.team-identifier)</key>'; then
             fail "$f: contains derived entitlement <key> (application-identifier / team-identifier)"
         else
             pass "$f"
@@ -188,8 +198,8 @@ echo "── 8. CI YAML pipefail check ──"
 CI_FILES=$(echo "$STAGED" | grep -E '\.github/workflows/.*\.yml$' || true)
 if [ -n "$CI_FILES" ]; then
     for f in $CI_FILES; do
-        if git show ":$f" | grep -qE '^\s+run: \|' && \
-           ! git show ":$f" | grep -A1 '^\s\+run: |' | grep -q 'set -euo pipefail'; then
+        if file_text "$f" | grep -qE '^\s+run: \|' && \
+           ! file_text "$f" | grep -A1 '^\s\+run: |' | grep -q 'set -euo pipefail'; then
             warn "$f: consider adding 'set -euo pipefail' to run: | blocks"
         else
             pass "$f"
@@ -204,7 +214,7 @@ echo ""
 echo "── 9. QColor(QRgb) alpha byte (6-digit hex macro check) ──"
 if [ -n "$CPP_FILES" ]; then
     for f in $CPP_FILES; do
-        if git show ":$f" | grep -nE '#define.*0x[0-9A-Fa-f]{6}[^0-9A-Fa-f]' \
+        if file_text "$f" | grep -nE '#define.*0x[0-9A-Fa-f]{6}[^0-9A-Fa-f]' \
             | grep -v '0xFF' > /tmp/precommit-rgb.log 2>/dev/null; then
             fail "$f: 6-digit hex macro without alpha — QColor(QRgb) will be transparent"
             cat /tmp/precommit-rgb.log | while read line; do
@@ -223,7 +233,7 @@ echo ""
 echo "── 10. Apple SDK reserved words in enums ──"
 if [ -n "$CPP_FILES" ]; then
     for f in $CPP_FILES; do
-        if git show ":$f" | grep -nE '\b(Clean|Check|Verify)\b' \
+        if file_text "$f" | grep -nE '\b(Clean|Check|Verify)\b' \
             | grep -v '//\|#define\|"' > /tmp/precommit-apple-words.log 2>/dev/null; then
             warn "$f: possible Apple SDK reserved words (Clean/Check/Verify) — may break iOS build"
             cat /tmp/precommit-apple-words.log | while read line; do
@@ -249,7 +259,7 @@ if [ -n "$CPP_FILES" ]; then
         # 5WHY (复核 2026-08-20 误放行): grep -v '//' 曾整行丢弃带注释的
         # 违规（"QVariantList slots; // legacy" 形式 PASS）——先剥离注释
         # 再匹配，行内注释不再豁免。
-        if git show ":$f" | sed 's|//.*||' \
+        if file_text "$f" | sed 's|//.*||' \
             | grep -nE '\b(QVariantList|QStringList|QList|QVector|QHash|QMap|std::vector|auto|const auto)\s+(slots|signals)\b' \
             > /tmp/precommit-qtkw.log 2>/dev/null; then
             fail "$f: Qt keyword used as identifier (slots/signals) — breaks Apple builds (QT_NO_KEYWORDS undefined)"
@@ -269,7 +279,7 @@ echo ""
 echo "── 11. std::thread join() safety check ──"
 if [ -n "$CPP_FILES" ]; then
     for f in $CPP_FILES; do
-        if git show ":$f" | grep -n '\.join()' | grep -v 'joinable' > /tmp/precommit-join.log 2>/dev/null; then
+        if file_text "$f" | grep -n '\.join()' | grep -v 'joinable' > /tmp/precommit-join.log 2>/dev/null; then
             warn "$f: .join() found — verify joinable() guard is present (destructor safety)"
             cat /tmp/precommit-join.log | while read line; do
                 echo "       $line"
@@ -290,7 +300,7 @@ fi
 	if [ -n "$QML_FILES" ]; then
 	    for f in $QML_FILES; do
 	        # Rectangle.shadow — does not exist on Qt Quick Rectangle
-	        if git show ":$f" | grep -nE 'shadow\.' > /tmp/precommit-qml-shadow.log 2>/dev/null; then
+	        if file_text "$f" | grep -nE 'shadow\.' > /tmp/precommit-qml-shadow.log 2>/dev/null; then
 	            fail "$f: Rectangle.shadow is not a valid Qt Quick property (see review/ios-startup-crash-5why-analysis.md#a2)"
 	            cat /tmp/precommit-qml-shadow.log | while read line; do
 	                echo "       $line"
@@ -299,7 +309,7 @@ fi
 	            pass "$f"
 	        fi
 	        # border.visible — does not exist
-	        if git show ":$f" | grep -nE 'border\.visible' > /tmp/precommit-qml-border.log 2>/dev/null; then
+	        if file_text "$f" | grep -nE 'border\.visible' > /tmp/precommit-qml-border.log 2>/dev/null; then
 	            fail "$f: border.visible is not a valid Qt Quick Border property (see review/ios-startup-crash-5why-analysis.md#a3)"
 	            cat /tmp/precommit-qml-border.log | while read line; do
 	                echo "       $line"
@@ -308,7 +318,7 @@ fi
 	            pass "$f"
 	        fi
 	        # ScaleTransform — deprecated, use Scale
-	        if git show ":$f" | grep -nE 'ScaleTransform' > /tmp/precommit-qml-scale.log 2>/dev/null; then
+	        if file_text "$f" | grep -nE 'ScaleTransform' > /tmp/precommit-qml-scale.log 2>/dev/null; then
 	            fail "$f: ScaleTransform is deprecated — use Scale (QtQuick) (see review/ios-startup-crash-5why-analysis.md#a4)"
 	            cat /tmp/precommit-qml-scale.log | while read line; do
 	                echo "       $line"
@@ -319,8 +329,8 @@ fi
 	        # compact:true — not a standard property (EXCEPT on custom
 	        # components that declare `property bool compact`, e.g. DiagBlock
 	        # used by DashboardScreen — valid compact-tile mode).
-	        if git show ":$f" | grep -nE 'compact:\s*true' > /tmp/precommit-qml-compact.log 2>/dev/null; then
-	            if git show ":$f" | grep -qE 'property\s+bool\s+compact|DiagBlock|DiagTileGrid'; then
+	        if file_text "$f" | grep -nE 'compact:\s*true' > /tmp/precommit-qml-compact.log 2>/dev/null; then
+	            if file_text "$f" | grep -qE 'property\s+bool\s+compact|DiagBlock|DiagTileGrid'; then
 	                # Custom component declares compact (or instantiates one) —
 	                # the hit is a valid custom-property assignment.
 	                pass "$f"
@@ -334,7 +344,7 @@ fi
 	            pass "$f"
 	        fi
 	        # font.family with CSS fallback list (comma-separated)
-	        if git show ":$f" | grep -nE "font\.family:.*\",\"" > /tmp/precommit-qml-font.log 2>/dev/null; then
+	        if file_text "$f" | grep -nE "font\.family:.*\",\"" > /tmp/precommit-qml-font.log 2>/dev/null; then
 	            fail "$f: font.family with comma-separated list — Qt QML takes single family name (see review/ios-startup-crash-5why-analysis.md#a6)"
 	            cat /tmp/precommit-qml-font.log | while read line; do
 	                echo "       $line"
@@ -355,7 +365,7 @@ fi
 	        # Root-level QML properties are indented 1 tab (inside QtObject/Item).
 	        # Properties inside function bodies / object literals are at 2+ tabs.
 	        # Filter out 1-tab root-level, flag 2+ tab (potentially nested).
-	        if git show ":$f" | grep -n 'readonly property' | grep '^\t\t' > /tmp/precommit-qml-ro.log 2>/dev/null; then
+	        if file_text "$f" | grep -n 'readonly property' | grep '^\t\t' > /tmp/precommit-qml-ro.log 2>/dev/null; then
 	            fail "$f: readonly property may be inside function/object literal — must be at QML root level (see review/ios-startup-crash-5why-analysis.md#b2)"
 	            cat /tmp/precommit-qml-ro.log | while read line; do
 	                echo "       $line"
@@ -379,7 +389,7 @@ fi
 	    for f in $QML_FILES; do
 	        # 5WHY (review round 3): blob 只取一次（原两次 git show 各 fork
 	        # 一个子进程重读同一对象）
-	        _qml_blob=$(git show ":$f" 2>/dev/null || true)
+	        _qml_blob=$(file_text "$f" 2>/dev/null || true)
 	        # 5WHY (review round 3 修复)：原名单硬编码 6 个 T.* 助手——新增助手
 	        # 裸用会静默绕过（正是 PremiumCard 事故的成因类别）。匹配任意
 	        # 小写起始的 T.* 成员（类型引用 T.SomeType 大写字头不受影响）。
@@ -416,7 +426,7 @@ fi
 	        # A valid QML document starts with //, /*, pragma, import, or a known root type.
 	        # Common root types: Item, Rectangle, ApplicationWindow, Window, QtObject,
 	        # AbstractButton, Button, Pane, Frame, Control, Label, Text, etc.
-	        FIRSTLINE=$(git show ":$f" 2>/dev/null  | sed -n '1p' | sed 's/^[[:space:]]*//')
+	        FIRSTLINE=$(file_text "$f" 2>/dev/null  | sed -n '1p' | sed 's/^[[:space:]]*//')
 	        if echo "$FIRSTLINE" | grep -qE '^(//|/\*|pragma |import |Item\b|Rectangle\b|ApplicationWindow\b|Window\b|QtObject\b|AbstractButton\b|Button\b|Pane\b|Frame\b|Control\b|Label\b|Text\b|Column\b|Row\b|Grid\b|Flow\b|ListView\b|GridView\b|Repeater\b|Loader\b|Flickable\b|ScrollView\b|StackView\b|SwipeView\b|TabBar\b|Drawer\b|Dialog\b|Popup\b|Menu\b|ToolBar\b|Header\b|Footer\b|Page\b|SwipeDelegate\b)'; then
 	            pass "$f"
 	        else
@@ -434,8 +444,8 @@ fi
 	    for f in $QML_FILES; do
 	        # Check for Timer/Item/Rectangle/Connections/Binding as direct child of QtObject
 	        # Heuristic: file contains QtObject { AND indented child-object opening braces
-	        if git show ":$f" | grep -q 'QtObject\s*{'; then
-	            if git show ":$f" | grep -nE '^\s+Timer\s*\{|^\s+Item\s*\{|^\s+Rectangle\s*\{|^\s+Connections\s*\{|^\s+Binding\s*\{' > /tmp/precommit-qtobject-child.log 2>/dev/null; then
+	        if file_text "$f" | grep -q 'QtObject\s*{'; then
+	            if file_text "$f" | grep -nE '^\s+Timer\s*\{|^\s+Item\s*\{|^\s+Rectangle\s*\{|^\s+Connections\s*\{|^\s+Binding\s*\{' > /tmp/precommit-qtobject-child.log 2>/dev/null; then
 	                warn "$f: child elements in QtObject file — QtObject has NO default property. Use Qt.callLater() instead of Timer. See review/ios-startup-crash-5why-analysis.md#i1"
 	                cat /tmp/precommit-qtobject-child.log | while read line; do
 	                    echo "       $line"
@@ -457,7 +467,7 @@ fi
 	HEADER_FILES=$(echo "$STAGED" | grep -E '\.h$|\.hpp$' || true)
 	if [ -n "$HEADER_FILES" ]; then
 	    for f in $HEADER_FILES; do
-                if git show ":$f" | grep -nE '^static const (QMap|QHash|QVector|QList|QStringList|std::map|std::vector|std::unordered_map)' > /tmp/precommit-siof.log 2>/dev/null; then
+                if file_text "$f" | grep -nE '^static const (QMap|QHash|QVector|QList|QStringList|std::map|std::vector|std::unordered_map)' > /tmp/precommit-siof.log 2>/dev/null; then
 	            fail "$f: static const non-trivial object in header — SIOF risk, use Meyers Singleton (see review/ios-startup-crash-5why-analysis.md#d2)"
 	            cat /tmp/precommit-siof.log | while read line; do
 	                echo "       $line"
@@ -480,7 +490,7 @@ fi
 	SVG_FILES=$(echo "$STAGED" | grep -E '(icons/(ffffff|masters-45))/.*\.svg$' || true)
 	if [ -n "$SVG_FILES" ]; then
 	    for f in $SVG_FILES; do
-	        content=$(git show ":$f" 2>/dev/null)
+	        content=$(file_text "$f" 2>/dev/null)
         if echo "$content" | sed -n '1p' | grep -q '<svg'; then
             has_none=$(echo "$content" | sed -n '1p' | grep -c 'fill="none"' || true)
             has_opacity=$(echo "$content" | sed -n '1p' | grep -c 'fill-opacity="0"' || true)
@@ -687,7 +697,7 @@ PYEOF
 	    case "$f" in
 	        *.png|*.jpg|*.jpeg|*.gif|*.ico|*.icns|*.ttf|*.otf|*.pdf) continue ;;
 	    esac
-    if git show ":$f" 2>/dev/null | grep -nE 'BEGIN (RSA |EC |OPENSSH |)PRIVATE KEY|storepass +[^ $]|keypass +[^ $]' | grep -vE 'storepass android|keypass android|storepass +"\$[A-Za-z_][A-Za-z0-9_]*"|keypass +"\$[A-Za-z_][A-Za-z0-9_]*"' > /tmp/precommit-secrets.log 2>/dev/null; then
+    if file_text "$f" 2>/dev/null | grep -nE 'BEGIN (RSA |EC |OPENSSH |)PRIVATE KEY|storepass +[^ $]|keypass +[^ $]' | grep -vE 'storepass android|keypass android|storepass +"\$[A-Za-z_][A-Za-z0-9_]*"|keypass +"\$[A-Za-z_][A-Za-z0-9_]*"' > /tmp/precommit-secrets.log 2>/dev/null; then
 	        fail "$f: embedded private key or hardcoded keystore password"
 	        cat /tmp/precommit-secrets.log | while read -r line; do echo "       $line"; done
 	    fi
@@ -715,7 +725,7 @@ PYEOF
 	        done
 	    else
 	        for f in $QML_FILES; do
-	            FIRST_LINE=$(git show ":$f" 2>/dev/null  | sed -n '1p')
+	            FIRST_LINE=$(file_text "$f" 2>/dev/null  | sed -n '1p')
 	            if echo "$FIRST_LINE" | grep -qE '^(//|/\*|pragma Singleton|import |Item \{|ApplicationWindow \{|Window \{|Rectangle \{|QtObject \{|Dialog \{|Popup \{|Pane \{|SwipeView \{|StackView \{|ColumnLayout \{|RowLayout \{|GridLayout \{|Frame \{|Control \{|ScrollView \{|SplitView \{|Page \{)'; then
 	                pass "$f (structure OK)"
 	            else
@@ -914,7 +924,7 @@ PYEOF
 	    else
 	        warn "no working python found — using grep fallback (comments not stripped)"
 	        for f in $QML_FILES; do
-	            if git show ":$f" | grep -nE ':\s*\{[^{}]*\breturn\b[^{}]*\}\s*;' > /tmp/precommit-crash23.log 2>/dev/null; then
+	            if file_text "$f" | grep -nE ':\s*\{[^{}]*\breturn\b[^{}]*\}\s*;' > /tmp/precommit-crash23.log 2>/dev/null; then
 	                fail "$f: inline binding-block close followed by ';' on same line — iOS startup-crash pattern (CRASH-2026-08-12)"
 	                cat /tmp/precommit-crash23.log | while read -r line; do echo "       $line"; done
 	            fi
@@ -935,7 +945,7 @@ PYEOF
 	for f in $STAGED; do
 		case "$f" in *.cpp|*.mm|*.h|*.hpp)
 			for h in $DELETED_HEADERS; do
-				if git show ":$f" 2>/dev/null | grep -qF "#include \"$h\""; then
+				if file_text "$f" 2>/dev/null | grep -qF "#include \"$h\""; then
 					fail "$f: stale include \"$h\" (header deleted — use DiagnosticResult/DiagnosticBase)"
 					STALE_INCLUDE_FOUND=1
 				fi

@@ -64,6 +64,14 @@ jobs:
     runs-on: ubuntu-latest
     needs: [version]
     timeout-minutes: 20
+    strategy:
+      # 5WHY (2026-09-26 NO_CURL 覆盖缺口): iOS/Android 强制 NO_CURL——其编译
+      # 路径（GHelpers.h 守卫区、GCommon socket 兜底族、G5 httpOnceSocket）
+      # 此前只有 Apple CI 能看到，守卫丢失/静态捕获等错误到 iOS 构建才炸。
+      # 桌面以 NO_CURL=ON 双构建同一代码路径。5WHY (2026-09-27 并行): 曾同
+      # job 顺序双构建（墙钟两倍）——矩阵两格并行，墙钟减半、分钟数不变。
+      matrix:
+        nocurl: [false, true]
     steps:
       - uses: actions/checkout@v7
       - name: Install dependencies
@@ -75,22 +83,12 @@ jobs:
             qt6-tools-dev qt6-tools-dev-tools qt6-svg-dev \
             libcurl4-openssl-dev
       - name: Configure (ND_TESTING=ON)
-        run: cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DND_TESTING=ON -B build-test -S .
+        run: cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DND_TESTING=ON \
+               ${{ matrix.nocurl && '-DNO_CURL=ON' || '' }} -B build-test -S .
       - name: Build
         run: ninja -C build-test net_diagnostics
       - name: Run selftest
         run: QT_QPA_PLATFORM=offscreen ./build-test/net_diagnostics --test
-      # ── 5WHY (2026-09-26 NO_CURL 覆盖缺口): iOS/Android 强制 NO_CURL——
-      # 其编译路径（GHelpers.h 守卫区、GCommon socket 兜底族、G5 httpOnceSocket）
-      # 此前只有 Apple CI 能看到，守卫丢失/静态捕获等错误到 iOS 构建才炸。
-      # 桌面以 NO_CURL=ON 双构建同一代码路径：兜底实现获得与主路径同等的
-      # 每次推送编译+运行覆盖（44 探针走 socket 实现）。
-      - name: Configure (NO_CURL fallback)
-        run: cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DND_TESTING=ON -DNO_CURL=ON -B build-nocurl -S .
-      - name: Build (NO_CURL fallback)
-        run: ninja -C build-nocurl net_diagnostics
-      - name: Run selftest (NO_CURL fallback)
-        run: QT_QPA_PLATFORM=offscreen ./build-nocurl/net_diagnostics --test
 
   # ═══ Pre-commit 31 项（与本地钩子同一脚本双挂载）═════
   # 5WHY (2026-09-27 ResultChart 事故): pre-commit 仅本地可选钩子——跳过
@@ -99,7 +97,8 @@ jobs:
   precommit:
     name: Pre-commit checks (31)
     runs-on: ubuntu-latest
-    needs: [version]
+    # 5WHY (2026-09-27 并行): 曾 needs:[version]——本作业不消费版本输出，
+    # 无谓等待 version 的 checkout+tag 检测 ~30s。去依赖与 version 并行。
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7

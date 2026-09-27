@@ -1,5 +1,5 @@
 // =============================================================================
-// PageDetailSheet.qml — Detail 内容表单（P1 概念验证：六区块按契约装配）
+// PageDetailSheet.qml — Detail 内容表单（七区块按契约装配，单一装配点 DetailSections）
 // =============================================================================
 import NetDiagnostics.App 1.0
 import QtQuick

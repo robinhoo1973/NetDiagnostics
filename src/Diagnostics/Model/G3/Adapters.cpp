@@ -607,7 +607,7 @@ static DiagnosticResult probeDnsIntegrity(DiagId id, const QString&, RunContext&
     }
 
     // ══ Phase 1: ISP DNS Hijacking (NXDOMAIN hijack) ══
-    int hijackClean = 0, hijackWarn = 0, hijackTimeout = 0;
+    int hijackClean = 0, hijackWarn = 0, hijackTimeout = 0, hijackErrors = 0;
     QStringList hijackIPs;
     out.append(QString());
     out.append(QStringLiteral("── Phase 1: ISP DNS Hijacking ──"));
@@ -633,9 +633,16 @@ static DiagnosticResult probeDnsIntegrity(DiagId id, const QString&, RunContext&
             // parseResponse 未运行），与 NXDOMAIN（rcode=3）语义分离。
             out.append(QStringLiteral("  %1 → TIMEOUT (%2ms)").arg(domain).arg(ans.elapsedMs));
             ++hijackTimeout;
-        } else {
+        } else if (ans.rcode == 3 || ans.rcode == 0) {
+            // NXDOMAIN（随机域权威否定=健康预期）与 NOERROR 空答均计入 clean。
             out.append(QStringLiteral("  %1 → Not Resolved").arg(domain));
             ++hijackClean;
+        } else {
+            // 5WHY (2026-09-27 错误桶): SERVFAIL(2)/REFUSED(5)/FORMERR(1) 等
+            // 解析器错误态曾混入 clean——解析器报错不是"无劫持证据"，可贡献
+            // 虚假的 DNS CLEAN Pass。独立错误桶并入无结论裁决。
+            out.append(QStringLiteral("  %1 → ERROR (RCODE %2)").arg(domain).arg(ans.rcode));
+            ++hijackErrors;
         }
     }
 
@@ -772,7 +779,7 @@ static DiagnosticResult probeDnsIntegrity(DiagId id, const QString&, RunContext&
         status = DiagStatus::Warning;
         summary = QStringLiteral("DNS polluted: %1/%2 domains").arg(pollutionWarn).arg(total);
     } else {
-        const int totalErrors = hijackTimeout + pollutionErrors;
+        const int totalErrors = hijackTimeout + hijackErrors + pollutionErrors;
         if (totalErrors > 0 && hijackClean + pollutionClean + pollutionSuspicious == 0) {
             out.append(QStringLiteral("Verdict: INCONCLUSIVE — all queries failed"));
             status = DiagStatus::Info; summary = QStringLiteral("DNS: all queries failed");
@@ -791,16 +798,19 @@ static DiagnosticResult probeDnsIntegrity(DiagId id, const QString&, RunContext&
 
     // overallScorePercent 驱动仪表盘：由最终裁决推导（含 Phase 1 劫持），
     // 不再用与裁决脱节的任意公式——仪表与结论必须一致。
+    // 5WHY (2026-09-27 v2 无值契约): inconclusive 曾映射 80 分——「没测出来」
+    // 妆成「80 分健康」，且 scoreInconclusive 布尔 + QML -1 哨兵逐面打补丁
+    // 仍漏指标卡/属性行两个消费面。改为「无结论即无分」：键不下发，三个
+    // 消费面经键不存在统一呈现缺失，无需任何特判。
+    const bool allCleanZero = (hijackClean + pollutionClean + pollutionSuspicious == 0);
+    const bool inconclusiveVerdict =
+        !hijackDetected && !pollutionDetected && !pollutionSuspicious
+        && ((hijackTimeout > 0 && allCleanZero) || phase2AllFailed);
     const int overall = (hijackDetected && pollutionDetected) ? 0
         : hijackDetected    ? 20
         : pollutionDetected ? 40
         : pollutionSuspicious > 0 ? 60
-        : phase2AllFailed   ? 80
         : 100;
-    // 5WHY (2026-09-27 inconclusive 呈现): phase2AllFailed 曾映射 80 分——
-    // 「没测出来」渲染成「80 分健康绿」。scoreInconclusive 键让呈现层
-    // 显示 "—" 而非伪健康分（状态已是 Info，仅呈现残留）。
-    const bool scoreInconclusive = phase2AllFailed;
     const QString p2verdict =
         (hijackDetected && pollutionDetected) ? QStringLiteral("hijack + pollution")
         : hijackDetected      ? QStringLiteral("hijack")
@@ -841,12 +851,15 @@ static DiagnosticResult probeDnsIntegrity(DiagId id, const QString&, RunContext&
         p2.children.append({QStringLiteral("Errors"), QString::number(pollutionErrors)});
         dprops.append(p2);
 
-        ResultProperty sc;
-        sc.label = QStringLiteral("Integrity Score");
-        sc.value = QStringLiteral("%1 / 100").arg(overall);
-        if (overall < 50) sc.severity = ResultPropertySeverity::Error;
-        else if (overall < 80) sc.severity = ResultPropertySeverity::Warning;
-        dprops.append(sc);
+        // 5WHY (2026-09-27 v2): 无结论时属性行同样缺失（曾显示 80/100）。
+        if (!inconclusiveVerdict) {
+            ResultProperty sc;
+            sc.label = QStringLiteral("Integrity Score");
+            sc.value = QStringLiteral("%1 / 100").arg(overall);
+            if (overall < 50) sc.severity = ResultPropertySeverity::Error;
+            else if (overall < 80) sc.severity = ResultPropertySeverity::Warning;
+            dprops.append(sc);
+        }
     }
 
     DiagnosticResult r = makeResult(id, status, summary, dprops, out.join(QLatin1Char('\n')));
@@ -855,8 +868,8 @@ static DiagnosticResult probeDnsIntegrity(DiagId id, const QString&, RunContext&
     r.data[QStringLiteral("phase1HijackWarn")] = hijackWarn;
     r.data[QStringLiteral("phase1Timeout")] = hijackTimeout;
     r.data[QStringLiteral("phase2Verdict")] = p2verdict;
-    r.data[QStringLiteral("overallScorePercent")] = overall;
-    r.data[QStringLiteral("scoreInconclusive")] = scoreInconclusive;
+    if (!inconclusiveVerdict)
+        r.data[QStringLiteral("overallScorePercent")] = overall;
     // 摘要卡推导叙述：两阶段检测方法与结论依据（用户可复现判断链）
     r.narrative = QStringLiteral("Phase 1 (ISP hijack): %1 randomly-named test domains were resolved — "
         "%2 clean, %3 hijacked, %4 timeout. ")

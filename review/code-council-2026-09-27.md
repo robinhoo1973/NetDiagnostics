@@ -28,7 +28,7 @@
 - Phase 1 探针正确性：Phase1 超时分类、tcpProbe 相位旗标、HTTP 响应体上限、trNarrative 单遍替换、traceroute/MTU 披露文案、inconclusive 呈现、Windows DNS 枚举复用
 - Phase 2 语义呈现：severity 视觉消费（错误卡分级配色+属性行严重度）、采集型 Info、scaffold Pass 默认结论
 - Phase 3 QML 结构：DetailSections 单一装配、状态词对比度派生、折叠头 44px+键盘
-- Phase 4 文档工具：契约文档刷新、--dump-contract + KeyMetric 对账脚本
+- Phase 4 文档工具：契约文档刷新、verify-keymetrics.py 跨语言对账脚本（对账以源文件解析实现，不经 --dump-contract 二进制导出——2026-09-27 更正）
 
 ## 条件/下轮候选
 
