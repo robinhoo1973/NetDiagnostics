@@ -775,8 +775,8 @@ static DiagnosticResult probeDnsIntegrity(DiagId id, const QString&, RunContext&
     // 概念三处谓词互不一致。收敛为 DnsVerdict 枚举：分支链只求裁决与文案，
     // 评分/属性值/叙述键全部 switch 派生（与 MtuVerdict/statusDescriptor 同门）。
     enum class DnsVerdict { HijackPollution, Hijack, Pollution, Mixed, AllFailed,
-                            Phase2Inconclusive, Suspicious, Clean };
-    DnsVerdict verdict = DnsVerdict::Clean;
+                            Phase2Inconclusive, Suspicious, Intact };
+    DnsVerdict verdict = DnsVerdict::Intact;
     QString mixedKinds;   // MIXED 措辞（单次 join）
     if (hijackDetected && pollutionDetected) {
         out.append(QStringLiteral("Verdict: DNS HIJACKING + POLLUTION detected"));
@@ -823,7 +823,7 @@ static DiagnosticResult probeDnsIntegrity(DiagId id, const QString&, RunContext&
         } else {
             out.append(QStringLiteral("Verdict: DNS CLEAN — no hijacking or pollution detected"));
             status = DiagStatus::Pass; summary = QStringLiteral("DNS clean");
-            verdict = DnsVerdict::Clean;
+            verdict = DnsVerdict::Intact;
         }
     }
     // 无分裁决集（单一来源——曾布尔就地置位与平行条件链并存）
