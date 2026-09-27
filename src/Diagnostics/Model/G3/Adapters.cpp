@@ -578,11 +578,12 @@ static DiagnosticResult probeDnsIntegrity(DiagId id, const QString&, RunContext&
                         // "a.b.c.d:53"/"[v6]:53"——QHostAddress 无法解析端口后缀，
                         // 曾致 testServer 为 Null，Windows 上全部 UDP 探针静默失败
                         // 并误报 INCONCLUSIVE。剥除端口与 IPv6 方括号后再使用。
-                        QString ipStr = QString::fromLatin1(ip);
-                        if (ipStr.endsWith(QLatin1String(":53"))) ipStr.chop(3);
-                        if (ipStr.startsWith(QLatin1Char('[')) && ipStr.endsWith(QLatin1Char(']')))
-                            ipStr = ipStr.mid(1, ipStr.size() - 2);
-                        testServer = ipStr;
+                        // 5WHY (v5.2 复用): 曾第 4 份手写 host:port/[v6]:port 剥离
+                        // （硬编码 :53）——splitHostPort 是该语法单一来源。
+                        QString host;
+                        int p = -1;
+                        SystemDiagnostics::splitHostPort(QString::fromLatin1(ip), &host, &p);
+                        testServer = host;
                     }
                 }
             }
@@ -621,20 +622,20 @@ static DiagnosticResult probeDnsIntegrity(DiagId id, const QString&, RunContext&
     QStringList hijackIPs;
     out.append(QString());
     out.append(QStringLiteral("── Phase 1: ISP DNS Hijacking ──"));
-    const QString datePrefix = QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd"));
     for (int i = 0; i < 3; ++i) {
         if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
         // 5WHY (2026-09-27 探测名可预测): 曾按日期+i 确定性生成且域名含
         // "dns-test" 字面标记——劫持响应器/审查中间盒可预计算当日 3 个探针名
         // 白名单放行（假 DNS CLEAN Pass），且全球同日同 3 名使探测流量易指纹
         // 化。混入每轮随机数：名不可预测、无字面标记，NXDOMAIN 预期不变。
-        const QByteArray seed = QStringLiteral("%1-%2-dns-hijack-test-%3")
-            .arg(datePrefix).arg(i)
-            .arg(QRandomGenerator::global()->generate64()).toUtf8();
-        const QString hex = QString::fromLatin1(
-            QCryptographicHash::hash(seed, QCryptographicHash::Md5).toHex().left(10));
-        static const char* tlds[] = {"com", "org", "net"};
-        const QString domain = QStringLiteral("%1-%2.%3").arg(datePrefix, hex, tlds[i]);
+        // 5WHY (2026-09-27 v5.2 探测名反指纹): 曾日期前缀+固定 TLD 序——随机
+        // 后缀只防预白名单，形状 \d{8}-[hex]{10}.(com|org|net) 仍可被正则实时
+        // 分类并选择性放行（假 DNS CLEAN Pass 根因未灭）。纯随机标签 + 随机
+        // TLD——与普通查询不可区分；generate64 即独占熵源。
+        const QString hex = QString::number(QRandomGenerator::global()->generate64(), 16);
+        static const char* tlds[] = {"com", "org", "net", "info", "xyz"};
+        const QString domain = QStringLiteral("%1.%2")
+            .arg(hex, tlds[QRandomGenerator::global()->bounded(5)]);
         const dnsWire::Answer ans = dnsWire::udpQuery(domain, 1, testServer, 2000);
         if (!ans.aRecords.isEmpty()) {
             out.append(QStringLiteral("  %1 → HIJACKED: %2 (%3ms)")
@@ -677,8 +678,7 @@ static DiagnosticResult probeDnsIntegrity(DiagId id, const QString&, RunContext&
     struct DomainResult {
         Tag tag = Tag::Error;
         IntegrityResult::Verdict verdict = IntegrityResult::Verdict::Intact;
-        int scorePercent = 0;
-        QString dohIps, localUdpIp, domain;
+        QString localUdpIp, domain;
         QStringList lines;
     };
     DomainResult domResults[kDomCount];
@@ -723,8 +723,6 @@ static DiagnosticResult probeDnsIntegrity(DiagId id, const QString&, RunContext&
                     IntegrityResult ir = scoreIntegrity(dr.domain, desc, doh, dr.localUdpIp, localMs);
                     dr.lines = ir.output;
                     dr.verdict = ir.verdict;
-                    dr.scorePercent = ir.scorePercent;
-                    dr.dohIps = ir.dohIps.join(QLatin1Char(','));
                     dr.tag = Tag::Scored;
                 }
                 dr.lines.append(QString());
@@ -759,6 +757,8 @@ static DiagnosticResult probeDnsIntegrity(DiagId id, const QString&, RunContext&
         }
     }
 
+    // 5WHY (v5.2 join 单源): 曾 4 处各自 join（裁决×2/属性行/叙述）。
+    const QString hijackIPsStr = hijackIPsStr;
     // ══ Combined verdict ══
     // 5WHY (2026-09-27 v5 计数单源): 曾六处各自求和（叙述/参数/终端/属性行）
     // 且两轮修复仍漏终端与属性行——同屏矛盾反复。单一派生，四处消费。
@@ -789,12 +789,12 @@ static DiagnosticResult probeDnsIntegrity(DiagId id, const QString&, RunContext&
     DnsVerdict verdict = DnsVerdict::Intact;
     if (hijackDetected && pollutionDetected) {
         out.append(QStringLiteral("Verdict: DNS HIJACKING + POLLUTION detected"));
-        out.append(QStringLiteral("  Hijack IPs: %1").arg(hijackIPs.join(QStringLiteral(", "))));
+        out.append(QStringLiteral("  Hijack IPs: %1").arg(hijackIPsStr));
         status = DiagStatus::Warning; summary = QStringLiteral("DNS: hijack + pollution");
         verdict = DnsVerdict::HijackPollution;
     } else if (hijackDetected) {
         out.append(QStringLiteral("Verdict: ISP DNS HIJACKING detected"));
-        out.append(QStringLiteral("  Hijack IPs: %1").arg(hijackIPs.join(QStringLiteral(", "))));
+        out.append(QStringLiteral("  Hijack IPs: %1").arg(hijackIPsStr));
         status = DiagStatus::Warning; summary = QStringLiteral("DNS hijack: %1 IP(s)").arg(hijackIPs.size());
         verdict = DnsVerdict::Hijack;
     } else if (pollutionDetected) {
@@ -825,8 +825,14 @@ static DiagnosticResult probeDnsIntegrity(DiagId id, const QString&, RunContext&
             if (hijackErrors + pollutionErrors > 0)
                 issueKinds << QStringLiteral("%1 error(s)").arg(hijackErrors + pollutionErrors);
             const QString mixedKinds = issueKinds.join(QStringLiteral(", "));
-            out.append(QStringLiteral("Verdict: MIXED — %1 alongside clean results; integrity undetermined")
-                .arg(mixedKinds));
+            // 5WHY (v5.2 措辞缝隙): 曾恒称 "alongside clean results"——纯 suspicious
+            // + 错误时 clean 实为 0。clean>0 才加该从句。
+            const int cleanEvidence = hijackClean + pollutionClean;
+            out.append(QStringLiteral("Verdict: MIXED — %1%2integrity undetermined")
+                .arg(mixedKinds,
+                     cleanEvidence > 0
+                         ? QStringLiteral(" alongside %1 clean result(s); ").arg(cleanEvidence)
+                         : QStringLiteral("; ")));
             status = DiagStatus::Info;
             summary = QStringLiteral("DNS: mixed results (%1)").arg(mixedKinds);
             verdict = DnsVerdict::Mixed;
@@ -893,7 +899,7 @@ static DiagnosticResult probeDnsIntegrity(DiagId id, const QString&, RunContext&
         p1.children.append({QStringLiteral("Timeout/Error"), QString::number(hijackFailed)});   // 5WHY v5: 超时+错误桶
         if (!hijackIPs.isEmpty())
             p1.children.append({QStringLiteral("Hijack IPs"),
-                hijackIPs.join(QStringLiteral(", "))});
+                hijackIPsStr});
         dprops.append(p1);
 
         ResultProperty p2;
@@ -935,7 +941,7 @@ static DiagnosticResult probeDnsIntegrity(DiagId id, const QString&, RunContext&
         .arg(pollutionTotal)
         .arg(pollutionClean).arg(pollutionWarn).arg(pollutionSuspicious).arg(pollutionErrors)
         + (hijackDetected ? QStringLiteral("A hijack responder returned answers for non-existent domains (hijack IPs: %1). ")
-            .arg(hijackIPs.join(QStringLiteral(", ")))
+            .arg(hijackIPsStr)
             : hijackClean == 0
                 ? QStringLiteral("All hijack probe queries timed out or errored — no conclusion about a hijack responder can be drawn. ")
                 : QStringLiteral("Non-existent domains did not resolve — no hijack responder found. "));

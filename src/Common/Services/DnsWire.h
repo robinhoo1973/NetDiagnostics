@@ -10,6 +10,7 @@
 #pragma once
 
 #include <QString>
+#include <QDebug>   // qWarning（udpQuery 无效地址告警，5WHY v5.2）
 #include <QStringList>
 #include <QVector>
 #include <QByteArray>
@@ -173,7 +174,24 @@ inline Answer udpQuery(const QString& domain, int qtype, const QString& serverIp
     // 随机事务 id（非 0x1234 常量）——应答按 id 匹配，Answer.id 才是真实值
     const quint16 txId = QRandomGenerator::global()->bounded(0x10000);
     const QByteArray query = buildQuery(domain, qtype, txId);
-    sock.connectToHost(QHostAddress(serverIp), 53);
+    // 5WHY (2026-09-27 v5.2 契约层): serverIp 含端口后缀（"a.b.c.d:53"）时
+    // QHostAddress 静默构造 Null——connectToHost 失败伪装成"超时"（曾致
+    // Windows 全部 UDP 探针假 INCONCLUSIVE，修在调用方未堵契约）。此处
+    // 规范化 + 失败显式告警，未来任何调用方不会复现静默失败链。
+    QString host = serverIp.trimmed();
+    const int colon = host.lastIndexOf(QLatin1Char(':'));
+    if (colon > 0 && host.indexOf(QLatin1Char(':'), colon + 1) < 0
+        && host.mid(colon + 1).toInt() > 0)
+        host = host.left(colon);   // host:port 形态剥端口
+    if (host.startsWith(QLatin1Char('[')) && host.endsWith(QLatin1Char(']')))
+        host = host.mid(1, host.size() - 2);   // [v6] 去括号
+    const QHostAddress addr(host);
+    if (addr.isNull()) {
+        qWarning("udpQuery: invalid DNS server address '%s' — skipping query", qPrintable(serverIp));
+        a.elapsedMs = (int)t.elapsed();
+        return a;
+    }
+    sock.connectToHost(addr, 53);
     if (!sock.waitForConnected(1500)) { a.elapsedMs = (int)t.elapsed(); return a; }
     if (sock.write(query) != query.size()) { a.elapsedMs = (int)t.elapsed(); return a; }
     const qint64 deadline = t.elapsed() + timeoutMs;

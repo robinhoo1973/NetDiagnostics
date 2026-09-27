@@ -949,20 +949,20 @@ PYEOF
 	# 5WHY (2026-09-27 blob 单读): 曾每文件×每删头重复全读（O(文件×头)）——
 	# blob 上提，模式文件单 grep 多模式一次判定（与注释承诺一致）。
 	# 5WHY (2026-09-27 v5.1 循环不变量上提): 进程替换曾每文件 fork 一次
-	# （98 文件 ≈ 98 次多余 subshell）——多 -e 形式零额外进程、零临时文件，
-	# DELETED_HEADERS 单一来源且 exit-2 防护保留。
+	# （98 文件 ≈ 98 次多余 subshell）——多 -e 形式零额外进程、零临时文件。
+	# 5WHY (v5.2 真单源): 曾 DELETED_HEADERS 变量死存（模式硬编码两处）——
+	# 由变量派生 -e 参数，加删头只改一处。
+	_STALE_ARGS=()
+	for h in $DELETED_HEADERS; do
+		_STALE_ARGS+=(-e "#include \"$h\"")   # 数组保参数边界（曾串变量词拆分）
+	done
 	for f in $STAGED; do
 		case "$f" in *.cpp|*.mm|*.h|*.hpp)
 			_blob=$(file_text "$f" 2>/dev/null || true)
-			# 5WHY (2026-09-27 v5.1): 多 -e 形式——无子进程、exit-2 防护保留。
-			# set -e 下无匹配时 grep 退出 1，直接赋值令脚本整体退出（2026-09-27 v5.1
-			# 曾引入此死链：任何无残留 include 的 C++ 文件都在检查 24 处中断）。
-			# 用 if ! 形态豁免 set -e，并保留退出码（>=2 视为 grep 自身失败）。
-			if ! _hits=$(printf '%s\n' "$_blob" | grep -oF 			    -e '#include "Common/Services/DiagnosticTask.h"' 			    -e '#include "Diagnostics/Model/G4/G4RemoteHost.h"' 2>/dev/null); then
-			    _rc=$?
-			else
-			    _rc=0
-			fi
+			# 5WHY (2026-09-27 v5.2 exit 码保全): `if ! ...; then _rc=$?` 中取反后
+			# $? 恒为 0——exit>=2 守卫成死代码（三报告互证实测）。AND-OR 列表
+			# 豁免 set -e 且正确捕获真实退出码（grep 自身失败仍 fail-closed）。
+			_hits=$(printf '%s\n' "$_blob" | grep -oF "${_STALE_ARGS[@]}" 2>/dev/null) && _rc=0 || _rc=$?
 			if [ "$_rc" -ge 2 ]; then
 			    fail "check 24: grep failed (exit $_rc) reading stale-header patterns — check DELETED_HEADERS"
 			    STALE_INCLUDE_FOUND=1
