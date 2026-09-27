@@ -6577,6 +6577,23 @@
         "Sonda de sequestro: %1 domínios — %2 limpos, %3 sequestrados, %4 tempo esgotado. Poluição: %5 domínios — %6 limpos, %7 poluídos, %8 suspeitos, %9 erros. Pontuação de integridade: %10/100.",
         ""
       ],
+      "nDnsIntegrityNoScore": [
+        "劫持探测：%1 个域名——%2 干净、%3 劫持、%4 超时。污染检测：%5 个域名——%6 干净、%7 污染、%8 可疑、%9 错误。",
+        "劫持探測：%1 個網域——%2 乾淨、%3 劫持、%4 逾時。污染檢測：%5 個網域——%6 乾淨、%7 污染、%8 可疑、%9 錯誤。",
+        "ハイジャック探査：%1 ドメイン — 正常 %2、ハイジャック %3、タイムアウト %4。汚染検出：%5 ドメイン — 正常 %6、汚染 %7、疑わしい %8、エラー %9。",
+        "하이재킹 탐지: 도메인 %1개 — 정상 %2, 하이재킹 %3, 시간 초과 %4. 오염: 도메인 %5개 — 정상 %6, 오염 %7, 의심 %8, 오류 %9.",
+        "अपहरण जाँच: %1 डोमेन — %2 साफ़, %3 अपहृत, %4 टाइमआउट। प्रदूषण: %5 डोमेन — %6 साफ़, %7 प्रदूषित, %8 संदिग्ध, %9 त्रुटियाँ।",
+        "Thăm dò chiếm quyền: %1 miền — %2 sạch, %3 bị chiếm, %4 hết giờ. Ô nhiễm: %5 miền — %6 sạch, %7 bị ô nhiễm, %8 nghi ngờ, %9 lỗi.",
+        "Ele geçirme taraması: %1 alan adı — %2 temiz, %3 ele geçirilmiş, %4 zaman aşımı. Kirlilik: %5 alan adı — %6 temiz, %7 kirlenmiş, %8 şüpheli, %9 hata.",
+        "Hijack probe: %1 domains — %2 clean, %3 hijacked, %4 timeout. Pollution: %5 domains — %6 clean, %7 polluted, %8 suspicious, %9 errors.",
+        "Sonde de détournement : %1 domaines — %2 propres, %3 détournés, %4 délai dépassé. Pollution : %5 domaines — %6 propres, %7 pollués, %8 suspects, %9 erreurs.",
+        "Hijacking-Sonde: %1 Domains — %2 sauber, %3 gekapert, %4 Timeout. Verschmutzung: %5 Domains — %6 sauber, %7 verschmutzt, %8 verdächtig, %9 Fehler.",
+        "Проверка перехвата: %1 доменов — %2 чисто, %3 перехвачено, %4 таймаут. Загрязнение: %5 доменов — %6 чисто, %7 загрязнено, %8 подозрительно, %9 ошибок.",
+        "Sonda di dirottamento: %1 domini — %2 puliti, %3 dirottati, %4 timeout. Inquinamento: %5 domini — %6 puliti, %7 inquinati, %8 sospetti, %9 errori.",
+        "Sonda de secuestro: %1 dominios — %2 limpios, %3 secuestrados, %4 tiempo agotado. Contaminación: %5 dominios — %6 limpios, %7 contaminados, %8 sospechosos, %9 errores.",
+        "Sonda de sequestro: %1 domínios — %2 limpos, %3 sequestrados, %4 tempo esgotado. Poluição: %5 domínios — %6 limpos, %7 poluídos, %8 suspeitos, %9 erros.",
+        ""
+      ],
       "nGeoIp": [
         "出口 IP %1——GeoIP %2 · ISP %3 · 物理位置 %4。%5（U=%6，p=%7，δ=%8）。",
         "出口 IP %1——GeoIP %2 · ISP %3 · 物理位置 %4。%5（U=%6，p=%7，δ=%8）。",
@@ -6942,7 +6959,7 @@
         "",
         "",
         "",
-        "PMTU probe failed — showing the interface MTU; fragmentation behavior is unknown.",
+        "Path MTU to %1: %2 bytes. PMTU probe failed — showing the interface MTU; fragmentation behavior is unknown.",
         "",
         "",
         "",

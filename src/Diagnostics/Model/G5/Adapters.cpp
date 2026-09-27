@@ -136,6 +136,7 @@ struct ProbeOutcome {
     bool connected = false;
     QByteArray banner;
     qint64 latencyMs = 0;
+    qint64 wallMs = 0;      // 墙钟耗时（5WHY 2026-09-27 v2 计时分离复核：latencyMs 改首字节语义后，durationMs 不再等于墙钟——排空捕获的尾部时间不属延迟）
     QString error;
 };
 
@@ -175,6 +176,7 @@ static ProbeOutcome tcpProbe(RunContext* ctx, const QUrl& u, const QByteArray& s
         if (!sock.waitForEncrypted(connectTimeoutMs)) {
             p.error = cancelledBy(ctx) ? QStringLiteral("Cancelled") : sock.errorString();
             p.latencyMs = t.elapsed();
+            p.wallMs = p.latencyMs;
             return p;
         }
         if (!sendData.isEmpty()) { sock.write(sendData); sock.waitForBytesWritten(2000); }
@@ -187,12 +189,17 @@ static ProbeOutcome tcpProbe(RunContext* ctx, const QUrl& u, const QByteArray& s
             // 截断（以内容换取正确数字）。改为首字节计时 + 排空完整捕获：
             // latencyMs 语义 = 首字节时延（横幅指标本义），内容捕获不耦合。
             if (firstDataMs < 0 && !data.isEmpty()) firstDataMs = t.elapsed();
+            // 5WHY (2026-09-27 尺寸上限): 纯横幅捕获曾无界——持续发射型服务
+            // 满时限流式读入（2-3s × 高速流 ≈ 数十 MB）转 QString 冻结 UI。
+            // 64KB 上限：真实横幅远小于此，病理流有界（评审抓获）。
+            if (sendData.isEmpty() && data.size() >= 64 * 1024) break;
         }
         sock.disconnectFromHost();
         if (cancelledBy(ctx)) { p.error = QStringLiteral("Cancelled"); p.latencyMs = t.elapsed(); return p; }
         p.connected = true;
         p.banner = data;
         p.latencyMs = firstDataMs >= 0 ? firstDataMs : t.elapsed();
+        p.wallMs = t.elapsed();
         return p;
     }
 
@@ -201,6 +208,7 @@ static ProbeOutcome tcpProbe(RunContext* ctx, const QUrl& u, const QByteArray& s
     if (!sock.waitForConnected(connectTimeoutMs)) {
         p.error = cancelledBy(ctx) ? QStringLiteral("Cancelled") : sock.errorString();
         p.latencyMs = t.elapsed();
+        p.wallMs = p.latencyMs;
         return p;
     }
     if (!sendData.isEmpty()) { sock.write(sendData); sock.waitForBytesWritten(2000); }
@@ -210,12 +218,15 @@ static ProbeOutcome tcpProbe(RunContext* ctx, const QUrl& u, const QByteArray& s
         if (!sock.waitForReadyRead(qMin<qint64>(300, deadline - t.elapsed()))) break;
         data += sock.readAll();
         if (firstDataMs < 0 && !data.isEmpty()) firstDataMs = t.elapsed();   // 首字节计时（5WHY 2026-09-27 v2）
+        // 尺寸上限（同上——纯横幅捕获有界）
+        if (sendData.isEmpty() && data.size() >= 64 * 1024) break;
     }
     sock.disconnectFromHost();
     if (cancelledBy(ctx)) { p.error = QStringLiteral("Cancelled"); p.latencyMs = t.elapsed(); return p; }
     p.connected = true;
     p.banner = data;
     p.latencyMs = firstDataMs >= 0 ? firstDataMs : t.elapsed();
+    p.wallMs = t.elapsed();
     return p;
 }
 
@@ -233,7 +244,10 @@ static DiagnosticResult probeResultScaffold(DiagId id, const QUrl& u,
         p.connected ? QStringLiteral("Connected to %1:%2 in %3ms")
                           .arg(u.host()).arg(portForUrl(u)).arg(p.latencyMs)
                     : QStringLiteral("Connection failed"), {}, {});
-    r.durationMs = p.latencyMs;
+    // 墙钟耗时（5WHY 2026-09-27 v2 复核）：latencyMs 已改首字节语义，探针
+    // 时长仍应是排空完成时刻的墙钟——曾 durationMs=latencyMs，首字节后
+    // 排空尾部被静默从时长中抹除。
+    r.durationMs = p.wallMs > 0 ? p.wallMs : p.latencyMs;
     r.data[QStringLiteral("host")] = u.host();
     r.data[QStringLiteral("port")] = portForUrl(u);
     r.data[QStringLiteral("connected")] = p.connected;

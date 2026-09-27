@@ -38,8 +38,13 @@ PageSection {
     // 运行信息卡以 hasData 门控——零结果取消(3)/完成(2)时整页无任何呈现。
     // includeTerminalEmpty（Dashboard 注入 true）放宽终态 2/3 的零结果空态。
     property bool includeTerminalEmpty: false
+    // 5WHY (2026-09-27 复核): 终态空态放宽条件曾 active 与提示文案各写一遍
+    // （双份漂移 → 空态 active 却渲染错误提示，2026-08-20 已实证过该类回归）
+    // ——派生属性单点求值，两消费面共用。
+    readonly property bool _terminalEmpty: root.includeTerminalEmpty
+        && (AppState.runStatusToken === "completed" || AppState.runStatusToken === "cancelled")
     active: root._completed === 0 && (AppState.runStatusToken === "idle" || AppState.runStatusToken === "error"
-        || (root.includeTerminalEmpty && (AppState.runStatusToken === "completed" || AppState.runStatusToken === "cancelled")))
+        || _terminalEmpty)
 
     ColumnLayout {
         Layout.alignment: Qt.AlignHCenter
@@ -69,10 +74,7 @@ PageSection {
             // 引导文案仅保留给 Idle 态。
             text: root.errorState
                 ? (AppState.errorMessage !== "" ? T.trMsg(AppState.errorMessage) : T.tr("errorRecoveryHint"))
-                : (root.includeTerminalEmpty
-                   && (AppState.runStatusToken === "completed" || AppState.runStatusToken === "cancelled")
-                   ? T.tr("noData")
-                   : root.hintText)
+                : (root._terminalEmpty ? T.tr("noData") : root.hintText)
             color: ThemeEngine.colors.onSurfaceVariant
             font.family: ThemeEngine.fontUi
             font.pixelSize: ThemeEngine.fontSize.caption

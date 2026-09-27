@@ -116,7 +116,7 @@ PageDisplay {
                 }
             }
         },
-        S.PageEmptyStateSection { screenVisible: page.visible; errorState: AppState.runStatus === 4 }
+        S.PageEmptyStateSection { screenVisible: page.visible; errorState: AppState.runStatusToken === "error" }
     ]
 
     floatingContent: [

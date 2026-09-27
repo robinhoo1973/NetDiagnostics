@@ -26,7 +26,10 @@ inline const char* severityToken(ResultPropertySeverity s) {
     };
     for (const auto& d : table)
         if (d.severity == s) return d.token;
-    return "info";
+    // 5WHY (2026-09-27 复核): 未知枚举值曾回退 "info"——与描述符表成立初衷
+    // （新值不得静默塌缩为 info）自相矛盾。fail-visible：未知严重度按 error
+    // 呈现，新值漏加表项即视觉可辨（评审抓获）。
+    return "error";
 }
 
 struct ResultProperty {

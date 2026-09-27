@@ -5,6 +5,7 @@
 
 #include "Common/Model/DiagnosticMeta.h"
 #include "Common/Model/DiagNames.h"
+#include "Common/Model/ResultProperty.h"   // severityToken（5WHY 2026-09-27 直依赖：曾经 DiagnosticResult.h 传递——头清理即断链）
 #include "Common/Model/OutputContract.h"
 #include "Common/Platform/DeviceCapability.h"
 #include "Common/Platform/PlatformFlags.h"

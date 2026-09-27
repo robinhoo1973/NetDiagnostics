@@ -946,20 +946,22 @@ PYEOF
 	echo "── 24. Deleted-header stale includes ──"
 	DELETED_HEADERS="Common/Services/DiagnosticTask.h Diagnostics/Model/G4/G4RemoteHost.h"
 	STALE_INCLUDE_FOUND=0
+	# 5WHY (2026-09-27 blob 单读): 曾每文件×每删头重复全读（O(文件×头)）——
+	# blob 上提，模式文件单 grep 多模式一次判定（与注释承诺一致）。
+	_STALE_PAT=$(mktemp)
+	printf '#include "%s"\n' $DELETED_HEADERS > "$_STALE_PAT"
 	for f in $STAGED; do
 		case "$f" in *.cpp|*.mm|*.h|*.hpp)
-			# 5WHY (2026-09-27 blob 单读): 曾每文件×每删头重复全读（O(文件×
-			# 头)）——blob 上提，单 grep 多模式一次判定。
 			_blob=$(file_text "$f" 2>/dev/null || true)
-			for h in $DELETED_HEADERS; do
-				if printf '%s\n' "$_blob" | grep -qF "#include \"$h\""; then
-					fail "$f: stale include \"$h\" (header deleted — use DiagnosticResult/DiagnosticBase)"
-					STALE_INCLUDE_FOUND=1
-				fi
-			done
+			_hits=$(printf '%s\n' "$_blob" | grep -oFf "$_STALE_PAT" 2>/dev/null || true)
+			if [ -n "$_hits" ]; then
+				fail "$f: stale include(s) [$(echo "$_hits" | tr '\n' ' ')] (header deleted — use DiagnosticResult/DiagnosticBase)"
+				STALE_INCLUDE_FOUND=1
+			fi
 			;;
 		esac
 	done
+	rm -f "$_STALE_PAT"
 	if [ "$STALE_INCLUDE_FOUND" -eq 0 ]; then
 		pass "no stale includes of deleted headers"
 	fi

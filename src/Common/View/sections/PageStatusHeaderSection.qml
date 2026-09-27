@@ -17,12 +17,12 @@ PageSection {
     property Component headerExtra: null
     // 状态呈现单次求值（5WHY review round 4: icon/color/label 各自调用
     // runStatusInfo——同一次变化最多 4 次对象构造；单一属性共享）
-    readonly property var _statusInfo: ThemeEngine.runStatusInfo(AppState.runStatus)
+    readonly property var _statusInfo: ThemeEngine.runStatusInfo(AppState.runStatusToken)
     // 5WHY (复核 2026-08-18 终态判定 + 去重): runStatus === 1 曾散落 5 处、
     // `>= 2` 数值范围与枚举布局耦合——派生属性单点求值，终态经
     // ThemeEngine.isTerminalRunStatus 白名单（枚举重排免疫）。
     readonly property bool _isRunning: AppState.runStatusToken === "running"
-    readonly property bool _showStatusIcon: ThemeEngine.isTerminalRunStatus(AppState.runStatus)
+    readonly property bool _showStatusIcon: ThemeEngine.isTerminalRunStatus(AppState.runStatusToken)
 
     // UI-2：聚合统计命令式刷新（progressChanged/runStatusChanged 处理器赋值），
     // 绑定中不调用 groupStats(-1)。
@@ -54,7 +54,7 @@ PageSection {
     // 头与空态同时 active → 错误呈现重复。头让出 4：终态 2/3 仍由头呈现
     // （"已取消/已完成"字样需要头部）。
     active: root._agg.completed > 0
-        || (AppState.runStatus !== 0 && AppState.runStatus !== 4)
+        || (AppState.runStatusToken !== "idle" && AppState.runStatusToken !== "error")
     signal shareRequested(string fmt)
 
     // 5WHY (复核 2026-08-18, 用户诉求): 归档是两行头——第一行运行指示+状态

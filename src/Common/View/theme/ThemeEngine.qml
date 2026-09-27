@@ -201,6 +201,9 @@ QtObject {
     // 运行状态呈现表（Dashboard 主状态区与状态头共用；5WHY simplify 2026-08-17：
     // 原先颜色已集中但图标/标签仍是两份平行三元链，新增状态值需 ≥3 处同步）。
     // 返回 null 表示常规状态（调用方回退）。
+    // 5WHY (2026-09-27 令牌化): 入参改 AppState.runStatusToken 稳定名——曾比
+    // 数值序值（===2/3/4），RunStatus 枚举重排即静默翻转图标/标签。所有
+    // 调用方均已迁移传 token（PageStatusHeaderSection/DashboardScreen）。
     function runStatusInfo(status) {
         // dimmed：标题弱化（5WHY review round 3: 取消态标题弱化规则曾散落在
         // 调用方三元里，与呈现表脱节）
@@ -210,16 +213,18 @@ QtObject {
         // 与中性 "X/Y completed" 标签/红绿徽标脱节。补齐全 5 态呈现表：2→中性
         // 勾（颜色与标签同为 onSurfaceVariant）；labelKey 留空 = 消费方各自保
         // 持 X/Y 标签（状态头）与 diagRunComplete（Dashboard）。Idle→null。
-        if (status === 2) return { color: colors.onSurfaceVariant, iconName: "badge-check", labelKey: "", dimmed: false }
-        if (status === 3) return { color: colors.warning, iconName: "badge-close", labelKey: "cancelled", dimmed: true }
-        if (status === 4) return { color: colors.fail,    iconName: "badge-error", labelKey: "errorStatus", dimmed: false }
+        if (status === "completed") return { color: colors.onSurfaceVariant, iconName: "badge-check", labelKey: "", dimmed: false }
+        if (status === "cancelled") return { color: colors.warning, iconName: "badge-close", labelKey: "cancelled", dimmed: true }
+        if (status === "error")     return { color: colors.fail,    iconName: "badge-error", labelKey: "errorStatus", dimmed: false }
         return null
     }
     // 5WHY (复核 2026-08-18 终态判定单一来源): 消费方曾各自手写 `>= 2`/`!== 1`
     // 数值范围判定——RunStatus 枚举重排时静默翻转图标可见性。白名单终态集
     // （2/3/4 显式枚举）由两处消费方共用，加状态值只需改此一处。
+    // 5WHY (2026-09-27 令牌化): 比稳定名（completed/cancelled/error）——数值
+    // 白名单并不具备其注释声称的"枚举重排免疫"（序值随重排漂移，评审抓获）。
     function isTerminalRunStatus(s) {
-        return s === 2 || s === 3 || s === 4
+        return s === "completed" || s === "cancelled" || s === "error"
     }
     // （runStatusColor/runStatusIcon 包装已删除——review round 4：纯字段
     // 间接层，调用方直接读缓存的 runStatusInfo 对象 + || fallback）

@@ -106,8 +106,6 @@ int runSelftest(bool verifyOk) {
     // 关——全能力机器上同 id 的真实覆盖回归被静默豁免，且新硬件门控探针
     // 漏加名单即误报。改按 DeviceCapability（调度层既有单一权威）判定：
     // 设备确有硬件仍 Skipped = 覆盖回归；硬件缺席 = 合法。
-    // （main.cpp 已含 DeviceCapability.h？经 DiagnosticSuite.h 传递——显式
-    // 调用 diagSupportedOnDevice 前确认符号可用。）
     int expected = 0;   // 本平台可调度探针数（预期总量，5WHY 2026-09-27）
     // R5-3（契约自检）：Pass 结果必须携带 meta.keyMetricField 声明的主指标，
     // 否则指标卡/图表拿不到数据——在自检阶段提前暴露探针与契约的漂移。

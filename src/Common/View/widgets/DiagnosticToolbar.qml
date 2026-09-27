@@ -29,7 +29,7 @@ Rectangle {
                 id: schemeCombo
                 Layout.preferredWidth: root.wide ? 104 : 88
                 Layout.preferredHeight: 36
-                enabled: AppState.runStatus !== 1
+                enabled: AppState.runStatusToken !== "running"
             }
 
             // 主机输入
@@ -49,7 +49,7 @@ Rectangle {
                     placeholderText: "example.com"
                     placeholderTextColor: ThemeEngine.colors.textPlaceholder
                     text: { var h = AppState.targetHost; var p = AppState.targetPath; return (!h && !p) ? "" : h + p }
-                    enabled: AppState.runStatus !== 1
+                    enabled: AppState.runStatusToken !== "running"
                     verticalAlignment: TextInput.AlignVCenter
                     background: Item {}
                     onTextChanged: AppState.setTarget(text, schemeCombo.currentText)
@@ -94,7 +94,7 @@ Rectangle {
             Button {
                 id: credsBtn
                 Layout.preferredWidth: 44; Layout.preferredHeight: 36
-                enabled: AppState.runStatus !== 1
+                enabled: AppState.runStatusToken !== "running"
                 padding: 0
                 contentItem: AppIcon {
                     name: "gear"; size: 18
@@ -123,7 +123,7 @@ Rectangle {
             Button {
                 id: runBtn
                 Layout.preferredWidth: 48; Layout.preferredHeight: 36
-                visible: AppState.runStatus !== 1
+                visible: AppState.runStatusToken !== "running"
                 text: "\u25B6"
                 font.pixelSize: 12
                 onClicked: root.runRequested()

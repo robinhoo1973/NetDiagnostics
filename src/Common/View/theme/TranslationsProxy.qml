@@ -127,16 +127,45 @@ QtObject {
         if (!root._loaded) root._load()
         var tpl = root._pick(root._narr[key])
         if (tpl === "") return ""
-        var out = tpl
         var a = args || []
         // 5WHY (2026-09-27 单遍替换): 曾顺序首处 replace——参数值自身含 "%N"
         // （ISP 名/URL/域名等外部数据）会被后续迭代二次替换污染；且与
         // C++ NarrativeLocalizer 的单遍扫描语义双轨漂移（详情页 vs 剪贴板
-        // 渲染不一致）。单遍 split+join：参数值不参与占位符解析。
-        for (var i = 0; i < a.length; ++i) {
-            var v = (a[i] === undefined || a[i] === null) ? "" : String(a[i])
-            out = out.split("%" + (i + 1)).join(v)
+        // 渲染不一致）。单遍扫描模板原文，参数值不参与占位符解析。
+        // 5WHY (2026-09-27 %10 前缀碰撞): split("%1") 会吞掉 "%10" 的
+        // 前缀——nDnsIntegrity 模板真实使用 %10（完整性评分），曾渲染成
+        // args[0]+"0/100" 伪健康分（C++ NarrativeLocalizer 已修，QML 双
+        // 子漏修）。按"最长合法索引"解析至多两位（与 C++ 语义一致）：
+        // %10 → 第 10 参；%12 且仅 10 参 → 第 1 参 + 字面 '2'。
+        var out = ""
+        var span = 0
+        for (var i = 0; i < tpl.length; ) {
+            if (tpl.charAt(i) === "%" && i + 1 < tpl.length) {
+                var c2 = tpl.charAt(i + 1)
+                if (c2 >= "0" && c2 <= "9") {
+                    var d1 = c2.charCodeAt(0) - 48
+                    var n = d1
+                    var len = 1
+                    if (d1 >= 1 && i + 2 < tpl.length) {
+                        var c3 = tpl.charAt(i + 2)
+                        if (c3 >= "0" && c3 <= "9") {
+                            var two = d1 * 10 + (c3.charCodeAt(0) - 48)
+                            if (two >= 1 && two <= a.length) { n = two; len = 2 }
+                        }
+                    }
+                    if (n >= 1 && n <= a.length) {
+                        out += tpl.slice(span, i)
+                        var av = (a[n - 1] === undefined || a[n - 1] === null) ? "" : String(a[n - 1])
+                        out += av
+                        i += 1 + len
+                        span = i
+                        continue
+                    }
+                }
+            }
+            ++i
         }
+        out += tpl.slice(span)
         return out
     }
 

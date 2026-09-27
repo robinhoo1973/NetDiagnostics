@@ -76,7 +76,7 @@ PageDisplay {
     Connections {
         target: AppState
         function onRunStatusChanged() {
-            if (AppState.runStatus === 2) {
+            if (AppState.runStatusToken === "completed") {
                 var now = new Date()
                 page._completedAt = ("0" + now.getHours()).slice(-2) + ":"
                     + ("0" + now.getMinutes()).slice(-2) + ":"
@@ -114,7 +114,7 @@ PageDisplay {
 
     // 运行状态呈现单次求值（5WHY review round 3 修复：标题色绑定曾一行内
     // 两次调用 runStatusInfo——同一表达式重复构造状态对象）
-    readonly property var _runInfo: ThemeEngine.runStatusInfo(AppState.runStatus)
+    readonly property var _runInfo: ThemeEngine.runStatusInfo(AppState.runStatusToken)
     // 预览关闭钮尺寸（5WHY review round 4: 曾声明在浮层内嵌对象里——
     // readonly 属性嵌套声明违反 B.2 根级规则）
     readonly property int _closeBtnSz: ThemeEngine.isMobile ? 48 : 34
@@ -163,7 +163,7 @@ PageDisplay {
                     Layout.preferredWidth: 28
                     Layout.preferredHeight: 28
                     SpinnerIcon {
-                        visible: AppState.runStatus === 1
+                        visible: AppState.runStatusToken === "running"
                         anchors.fill: parent
                         size: 28
                     }
@@ -172,7 +172,7 @@ PageDisplay {
                         // 状态头修复后此处仍 `runStatus !== 1`——Idle 或 Completed
                         // 态走回退 "check"+成功绿，与状态头同款孤立绿勾。统一为
                         // 终态(2/3/4)才显示状态图标（runStatusInfo 全 5 态表）。
-                        visible: ThemeEngine.isTerminalRunStatus(AppState.runStatus)
+                        visible: ThemeEngine.isTerminalRunStatus(AppState.runStatusToken)
                         anchors.fill: parent
                         name: (page._runInfo ? page._runInfo.iconName : "check")
                         size: 28
@@ -184,7 +184,7 @@ PageDisplay {
                     spacing: 4
                     Label {
                         text: {
-                            if (AppState.runStatus === 1) return T.tr("runningDots")
+                            if (AppState.runStatusToken === "running") return T.tr("runningDots")
                             // 5WHY (复核 2026-08-18): runStatusInfo 的 Completed(2)
                             // 表项 labelKey 为空——保持 diagRunComplete 文案。
                             return (page._runInfo && page._runInfo.labelKey)
@@ -214,7 +214,7 @@ PageDisplay {
                         AppIcon { name: "activity"; size: 12; color: ThemeEngine.colors.textMuted }
                         Label {
                             // 归档：完成时刻（运行中显示总耗时）
-                            text: AppState.runStatus === 2 && page._completedAt !== ""
+                            text: AppState.runStatusToken === "completed" && page._completedAt !== ""
                                   ? page._completedAt : T.tr("totalTimeLabel") + ": " + page._timeText
                             font.family: ThemeEngine.monoFont
                             font.pixelSize: ThemeEngine.fontSize.caption
@@ -271,7 +271,7 @@ PageDisplay {
 
         // ── 报告预览卡（归档：标题 + 提示 + 主色按钮）──
         S.PageCardSection {
-            active: page.hasData && AppState.runStatus !== 1
+            active: page.hasData && AppState.runStatusToken !== "running"
             cardTitle: T.tr("report")
             bottomMargin: ThemeEngine.spacing.lg
             ColumnLayout {
