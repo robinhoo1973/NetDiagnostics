@@ -25,14 +25,14 @@ PageSection {
     // 概览（阶段序列）渲染于结论行之上——用户展开 terminal 前即知「测了什么、
     // 按什么顺序」；空表 = 未迁移探针，完全回退纯 narrative。
     readonly property var _outline: detailData.summaryOutline || []
-    // 5WHY (2026-08-23 叙述多语言): 探针下发 narrativeKey+narrativeArgs——
-    // T.trNarrative 按当前语言格式化（语言切换即重算）；键缺失/译文空 =
-    // 回退 narrative EN（经 T.trMsg exact 表仍可静态词命中）。
+    // 5WHY (2026-09-27 v5 叙述单实现): 经 AppState 委托 C++ NarrativeLocalizer
+    // ——曾 T.trNarrative 为其逐行孪生（双轨漂移 %10 缺陷已实证）；键缺失/
+    // 译文空 = 回退 narrative EN。
     readonly property var _data: detailData.data || ({})
     readonly property string _narrativeKey: _data.narrativeKey || ""
     readonly property var _narrativeArgs: _data.narrativeArgs || []
     readonly property string _narrativeText:
-        _narrativeKey !== "" ? T.trNarrative(_narrativeKey, _narrativeArgs) : ""
+        _narrativeKey !== "" ? AppState.localizedNarrative(_narrativeKey, _narrativeArgs) : ""
     active: _narrative !== "" || _narrativeText !== "" || _outline.length > 0
 
     ColumnLayout {

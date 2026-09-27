@@ -41,8 +41,10 @@ PageSection {
     // 5WHY (2026-09-27 复核): 终态空态放宽条件曾 active 与提示文案各写一遍
     // （双份漂移 → 空态 active 却渲染错误提示，2026-08-20 已实证过该类回归）
     // ——派生属性单点求值，两消费面共用。
-    readonly property bool _terminalEmpty: root.includeTerminalEmpty
-        && (AppState.runStatusToken === "completed" || AppState.runStatusToken === "cancelled")
+    // 5WHY (2026-09-27 v5 单一表派生): 终态=completed/cancelled（isTerminalRunStatus
+    // 排除 error——错误态走 errorState 分支）——曾再并列硬编码两令牌。
+    readonly property bool _terminalEmpty: ThemeEngine.isTerminalRunStatus(AppState.runStatusToken)
+        && AppState.runStatusToken !== "error"
     active: root._completed === 0 && (AppState.runStatusToken === "idle" || AppState.runStatusToken === "error"
         || _terminalEmpty)
 

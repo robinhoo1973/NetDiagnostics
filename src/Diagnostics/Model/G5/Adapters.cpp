@@ -138,6 +138,7 @@ struct ProbeOutcome {
     qint64 latencyMs = 0;
     qint64 wallMs = 0;      // 墙钟耗时（5WHY 2026-09-27 v2 计时分离复核：latencyMs 改首字节语义后，durationMs 不再等于墙钟——排空捕获的尾部时间不属延迟）
     QString error;
+    bool bannerTruncated = false;   // 5WHY 2026-09-27 v5 截断披露
 };
 
 // ctx 可为空（无 RunContext 的辅助调用场景）；非空时每个阻塞原语前置取消
@@ -150,11 +151,18 @@ static bool cancelledBy(const RunContext* ctx) {
 // readBanner=false：纯连接测量（G5TcpConnect）——跳过读相位，latencyMs 不含
 // waitForReadyRead 的空转窗口（5WHY 2026-09-27：曾恒进读相位，无 send 时
 // 静默烧 ~300ms，连接延迟指标系统性虚高）。
+// 5WHY (2026-09-27 v5 上限全覆盖): 曾仅守护 sendData 为空路径——带请求的
+// 探针（PING/LDAP/MQTT 等 5 处）读循环仍可无界累积（病理流同类冻结）。
+// 硬上限应用到全部读循环：有界读（检查先于 append），超额披露截断标记。
+static constexpr qint64 kBannerCapBytes = 64 * 1024;
+
 static ProbeOutcome tcpProbe(RunContext* ctx, const QUrl& u, const QByteArray& sendData,
                              int connectTimeoutMs = 5000, int readTimeoutMs = 3000,
                              bool readBanner = true) {
     ProbeOutcome p;
     qint64 firstDataMs = -1;   // 首字节时延（5WHY 2026-09-27 v2 计时分离）
+    bool bannerTruncated = false;   // 5WHY 2026-09-27 v5 截断披露
+    qint64 connectMs = 0;           // 连接时延（静默服务器回退，5WHY v5）
     const int port = portForUrl(u);
     const QString scheme = u.scheme().toLower();
     // 5WHY (review 2026-08-17): 旧启发式 "以 s 结尾即隐式 TLS" 把 sftp（SSH
@@ -179,27 +187,31 @@ static ProbeOutcome tcpProbe(RunContext* ctx, const QUrl& u, const QByteArray& s
             p.wallMs = p.latencyMs;
             return p;
         }
+        connectMs = t.elapsed();   // 连接+握手完成时点（5WHY v5）
         if (!sendData.isEmpty()) { sock.write(sendData); sock.waitForBytesWritten(2000); }
         const qint64 deadline = t.elapsed() + readTimeoutMs;
         QByteArray data;
         while (readBanner && t.elapsed() < deadline && !cancelledBy(ctx)) {
             if (!sock.waitForReadyRead(qMin<qint64>(300, deadline - t.elapsed()))) break;
-            data += sock.readAll();
-            // 5WHY (2026-09-27 v2 计时分离): 曾首读即断——分段到达的横幅被
-            // 截断（以内容换取正确数字）。改为首字节计时 + 排空完整捕获：
-            // latencyMs 语义 = 首字节时延（横幅指标本义），内容捕获不耦合。
+            // 5WHY (2026-09-27 v5 硬上限): 有界读且检查先于 append（曾先
+            // readAll 后查——软上限，火管流超量一个完整 drain）；上限覆盖
+            // 全部读循环（曾仅 sendData 为空路径，带请求探针仍可无界）。
+            data += sock.read(qMin(kBannerCapBytes - data.size(), sock.bytesAvailable()));
+            // 5WHY (2026-09-27 v2 计时分离): 首字节计时（横幅指标本义）。
             if (firstDataMs < 0 && !data.isEmpty()) firstDataMs = t.elapsed();
-            // 5WHY (2026-09-27 尺寸上限): 纯横幅捕获曾无界——持续发射型服务
-            // 满时限流式读入（2-3s × 高速流 ≈ 数十 MB）转 QString 冻结 UI。
-            // 64KB 上限：真实横幅远小于此，病理流有界（评审抓获）。
-            if (sendData.isEmpty() && data.size() >= 64 * 1024) break;
+            if (data.size() >= kBannerCapBytes) { bannerTruncated = true; break; }
         }
         sock.disconnectFromHost();
         if (cancelledBy(ctx)) { p.error = QStringLiteral("Cancelled"); p.latencyMs = t.elapsed(); return p; }
         p.connected = true;
         p.banner = data;
-        p.latencyMs = firstDataMs >= 0 ? firstDataMs : t.elapsed();
+        // 5WHY (2026-09-27 v5 静默服务器): 首字节未到即无数据可测——回退连接
+        // 时延（曾退化到 connect+整段读期限 ~3s 冒充 "Connect"）。
+        p.latencyMs = firstDataMs >= 0 ? firstDataMs
+                    : connectMs > 0 ? connectMs
+                    : t.elapsed();
         p.wallMs = t.elapsed();
+        if (bannerTruncated) p.bannerTruncated = true;
         return p;
     }
 
@@ -211,22 +223,25 @@ static ProbeOutcome tcpProbe(RunContext* ctx, const QUrl& u, const QByteArray& s
         p.wallMs = p.latencyMs;
         return p;
     }
+    connectMs = t.elapsed();   // TCP 连接完成时点（5WHY v5）
     if (!sendData.isEmpty()) { sock.write(sendData); sock.waitForBytesWritten(2000); }
     const qint64 deadline = t.elapsed() + readTimeoutMs;
     QByteArray data;
     while (readBanner && t.elapsed() < deadline && !cancelledBy(ctx)) {
         if (!sock.waitForReadyRead(qMin<qint64>(300, deadline - t.elapsed()))) break;
-        data += sock.readAll();
+        data += sock.read(qMin(kBannerCapBytes - data.size(), sock.bytesAvailable()));
         if (firstDataMs < 0 && !data.isEmpty()) firstDataMs = t.elapsed();   // 首字节计时（5WHY 2026-09-27 v2）
-        // 尺寸上限（同上——纯横幅捕获有界）
-        if (sendData.isEmpty() && data.size() >= 64 * 1024) break;
+        if (data.size() >= kBannerCapBytes) { bannerTruncated = true; break; }   // 5WHY v5 硬上限
     }
     sock.disconnectFromHost();
     if (cancelledBy(ctx)) { p.error = QStringLiteral("Cancelled"); p.latencyMs = t.elapsed(); return p; }
     p.connected = true;
     p.banner = data;
-    p.latencyMs = firstDataMs >= 0 ? firstDataMs : t.elapsed();
+    p.latencyMs = firstDataMs >= 0 ? firstDataMs
+                : connectMs > 0 ? connectMs
+                : t.elapsed();
     p.wallMs = t.elapsed();
+    if (bannerTruncated) p.bannerTruncated = true;
     return p;
 }
 
@@ -256,6 +271,8 @@ static DiagnosticResult probeResultScaffold(DiagId id, const QUrl& u,
     if (p.connected && !p.banner.isEmpty()) {
         r.details = QString::fromUtf8(p.banner);
         r.rawOutput = r.details;
+        if (p.bannerTruncated)
+            r.details += QStringLiteral("\n… (banner truncated at %1 bytes)").arg(p.banner.size());
     }
     if (!p.connected) {
         r.errorOutput = p.error.isEmpty()

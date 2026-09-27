@@ -41,6 +41,10 @@ public:
     // 裸直比（===1/===2/...）——枚举重排静默翻转运行态 UI。稳定名令牌，
     // QML 只比名字（与 statusToken/severityToken 同门）。
     QString runStatusToken() const;
+    // 5WHY (2026-09-27 v5 叙述单实现): QML trNarrative 曾为 C++ NarrativeLocalizer
+    // 的逐行孪生（%10 双位缺陷曾 C++ 修后 QML 漏修 23 天）——经 AppState
+    // 委托 C++ 单一实现，QML 侧解析器删除，双轨漂移类根除。
+    Q_INVOKABLE QString localizedNarrative(const QString& key, const QVariantList& args) const;
     int     currentRunningGroup() const { return m_currentGroup; }
     int     totalCompleted() const { return m_results.size(); }
     QString currentDiagLabel() const { return m_currentDiagLabel; }

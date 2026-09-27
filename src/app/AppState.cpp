@@ -142,6 +142,12 @@ AppState::AppState(QObject* parent) : QObject(parent) {
     refreshConnectivityAsync();
 }
 
+QString AppState::localizedNarrative(const QString& key, const QVariantList& args) const {
+    // 5WHY (2026-09-27 v5): 详情页/剪贴板/报告同源——单一 C++ 本地化器
+    // （曾 QML 孪生解析器双轨漂移）。
+    return NarrativeLocalizer::localized(key, args, m_languageIndex);
+}
+
 QString AppState::runStatusToken() const {
     // 与 AppState.h RunStatus 枚举同源映射（token 单一来源）。
     switch (m_runStatus) {

@@ -6561,14 +6561,14 @@
         ""
       ],
       "nDnsIntegrity": [
-        "劫持探测：%1 个域名——%2 干净、%3 劫持、%4 超时。污染检测：%5 个域名——%6 干净、%7 污染、%8 可疑、%9 错误。完整性评分：%10/100。",
-        "劫持探測：%1 個網域——%2 乾淨、%3 劫持、%4 逾時。污染檢測：%5 個網域——%6 乾淨、%7 污染、%8 可疑、%9 錯誤。完整性評分：%10/100。",
+        "劫持探测：%1 个域名——%2 干净、%3 劫持、%4 超时/错误。污染检测：%5 个域名——%6 干净、%7 污染、%8 可疑、%9 错误。完整性评分：%10/100。",
+        "劫持探測：%1 個網域——%2 乾淨、%3 劫持、%4 逾時/錯誤。污染檢測：%5 個網域——%6 乾淨、%7 污染、%8 可疑、%9 錯誤。完整性評分：%10/100。",
         "ハイジャック探査：%1 ドメイン — 正常 %2、ハイジャック %3、タイムアウト %4。汚染検出：%5 ドメイン — 正常 %6、汚染 %7、疑わしい %8、エラー %9。整合性スコア：%10/100。",
         "하이재킹 탐지: 도메인 %1개 — 정상 %2, 하이재킹 %3, 시간 초과 %4. 오염: 도메인 %5개 — 정상 %6, 오염 %7, 의심 %8, 오류 %9. 무결성 점수: %10/100.",
         "अपहरण जाँच: %1 डोमेन — %2 साफ़, %3 अपहृत, %4 टाइमआउट। प्रदूषण: %5 डोमेन — %6 साफ़, %7 प्रदूषित, %8 संदिग्ध, %9 त्रुटियाँ। अखंडता स्कोर: %10/100।",
         "Thăm dò chiếm quyền: %1 miền — %2 sạch, %3 bị chiếm, %4 hết giờ. Ô nhiễm: %5 miền — %6 sạch, %7 bị ô nhiễm, %8 nghi ngờ, %9 lỗi. Điểm toàn vẹn: %10/100.",
         "Ele geçirme taraması: %1 alan adı — %2 temiz, %3 ele geçirilmiş, %4 zaman aşımı. Kirlilik: %5 alan adı — %6 temiz, %7 kirlenmiş, %8 şüpheli, %9 hata. Bütünlük puanı: %10/100.",
-        "Hijack probe: %1 domains — %2 clean, %3 hijacked, %4 timeout. Pollution: %5 domains — %6 clean, %7 polluted, %8 suspicious, %9 errors. Integrity score: %10/100.",
+        "Hijack probe: %1 domains — %2 clean, %3 hijacked, %4 timeout/error. Pollution: %5 domains — %6 clean, %7 polluted, %8 suspicious, %9 errors. Integrity score: %10/100.",
         "Sonde de détournement : %1 domaines — %2 propres, %3 détournés, %4 délai dépassé. Pollution : %5 domaines — %6 propres, %7 pollués, %8 suspects, %9 erreurs. Score d'intégrité : %10/100.",
         "Hijacking-Sonde: %1 Domains — %2 sauber, %3 gekapert, %4 Timeout. Verschmutzung: %5 Domains — %6 sauber, %7 verschmutzt, %8 verdächtig, %9 Fehler. Integritätswert: %10/100.",
         "Проверка перехвата: %1 доменов — %2 чисто, %3 перехвачено, %4 таймаут. Загрязнение: %5 доменов — %6 чисто, %7 загрязнено, %8 подозрительно, %9 ошибок. Оценка целостности: %10/100.",
@@ -6585,7 +6585,7 @@
         "अपहरण जाँच: %1 डोमेन — %2 साफ़, %3 अपहृत, %4 टाइमआउट। प्रदूषण: %5 डोमेन — %6 साफ़, %7 प्रदूषित, %8 संदिग्ध, %9 त्रुटियाँ।",
         "Thăm dò chiếm quyền: %1 miền — %2 sạch, %3 bị chiếm, %4 hết giờ. Ô nhiễm: %5 miền — %6 sạch, %7 bị ô nhiễm, %8 nghi ngờ, %9 lỗi.",
         "Ele geçirme taraması: %1 alan adı — %2 temiz, %3 ele geçirilmiş, %4 zaman aşımı. Kirlilik: %5 alan adı — %6 temiz, %7 kirlenmiş, %8 şüpheli, %9 hata.",
-        "Hijack probe: %1 domains — %2 clean, %3 hijacked, %4 timeout. Pollution: %5 domains — %6 clean, %7 polluted, %8 suspicious, %9 errors.",
+        "Hijack probe: %1 domains — %2 clean, %3 hijacked, %4 timeout/error. Pollution: %5 domains — %6 clean, %7 polluted, %8 suspicious, %9 errors.",
         "Sonde de détournement : %1 domaines — %2 propres, %3 détournés, %4 délai dépassé. Pollution : %5 domaines — %6 propres, %7 pollués, %8 suspects, %9 erreurs.",
         "Hijacking-Sonde: %1 Domains — %2 sauber, %3 gekapert, %4 Timeout. Verschmutzung: %5 Domains — %6 sauber, %7 verschmutzt, %8 verdächtig, %9 Fehler.",
         "Проверка перехвата: %1 доменов — %2 чисто, %3 перехвачено, %4 таймаут. Загрязнение: %5 доменов — %6 чисто, %7 загрязнено, %8 подозрительно, %9 ошибок.",
@@ -6952,8 +6952,8 @@
         ""
       ],
       "nMtuProbeFailed": [
-        "",
-        "",
+        "到 %1 的路径 MTU：%2 字节。PMTU 探测失败——仅显示接口 MTU；分片行为未知。",
+        "到 %1 的路徑 MTU：%2 位元組。PMTU 偵測失敗——僅顯示介面 MTU；分片行為未知。",
         "",
         "",
         "",

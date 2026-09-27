@@ -4,6 +4,7 @@
 #pragma once
 
 #include <QString>
+#include <iterator>   // std::size（static_assert 穷尽性，5WHY v5）
 #include <QVector>
 
 enum class ResultPropertySeverity {
@@ -24,6 +25,10 @@ inline const char* severityToken(ResultPropertySeverity s) {
         { ResultPropertySeverity::Warning, "warning" },
         { ResultPropertySeverity::Error,   "error" },
     };
+    // 5WHY (2026-09-27 v5 编译期穷尽): 枚举与表解同步曾只在运行时以错误着色
+    // 暴露——加枚举值漏表条目即编译失败（std::size 于 C++17）。
+    static_assert(std::size(table) == 3,
+                  "severityDescriptor table must cover every ResultPropertySeverity value");
     for (const auto& d : table)
         if (d.severity == s) return d.token;
     // 5WHY (2026-09-27 复核): 未知枚举值曾回退 "info"——与描述符表成立初衷
